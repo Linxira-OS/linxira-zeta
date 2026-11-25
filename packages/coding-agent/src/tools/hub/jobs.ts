@@ -11,21 +11,16 @@ import type { AsyncJobManagerApi } from "../../async/job-manager";
 
 import { renderStructuredJson, structuredStatusLabel } from "../../session/async-job-delivery";
 import { USER_INTERRUPT_LABEL } from "../../session/messages";
-import type { StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
-import { parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { StructuredSubagentOutput } from "../../task/task-details";
+import { parseConfiguredThinkingLevel } from "../../thinking";
 
 import type { ToolSession } from "..";
 
-import { formatDuration } from "@linxiraos/pi-tui/render/render-utils";
-import type {
-	AgentActivitySnapshot,
-	CancelOutcome,
-	CoordinationDetails,
-	JobSnapshot,
-} from "@linxiraos/pi-tui/tools/hub";
+import { formatDuration } from "@linxiraos/pi-tui/term/painters/elapsed";
+import type { AgentActivitySnapshot, CancelOutcome, CoordinationDetails, JobSnapshot } from "./protocol";
 
-import { isWaitingPollDetails } from "@linxiraos/pi-tui/tools/hub";
-import { formatArtifactErrorNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { isWaitingPollDetails } from "./protocol";
+import { formatArtifactErrorNotice } from "../output-meta-format";
 
 /**
  * Resolve a list of job ids to job records visible to the calling agent.

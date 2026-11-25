@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import type { SessionPinAccount } from "../../../../src/modes/view-model/overlays/session-account-selector";
 import type { ConfiguredThinkingLevel } from "../../../../src/utils/render-utils";
 import { QueueModeSelector } from "../../../../src/ui/overlays/pickers/queue-mode-selector";

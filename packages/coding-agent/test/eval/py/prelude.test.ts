@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import { runPrelude } from "./run-prelude";
 
 describe("python prelude", () => {

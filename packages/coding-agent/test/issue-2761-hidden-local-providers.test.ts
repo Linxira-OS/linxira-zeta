@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ModelHubCallbacks } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/model-hub";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ModelHubCallbacks } from "@linxiraos/zeta/modes/view-model/overlays/model-hub";
 import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { ModelHub } from "../src/ui/overlays/pickers/model-hub";
 import { resetProviderAutoRefreshGuard } from "../src/ui/overlays/pickers/model-hub-state";

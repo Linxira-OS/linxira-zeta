@@ -1,7 +1,7 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { describe, expect, test } from "bun:test";
-import { signal } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import { signal } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import type {
 	ExtensionAskDialogQuestion,
 	ExtensionAskDialogResult,

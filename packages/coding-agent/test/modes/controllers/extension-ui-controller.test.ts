@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, spyOn, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { bubbleEvent } from "@oh-my-pi/pi-tui/dispatch";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { setTerminalHeadless } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { bubbleEvent } from "@linxiraos/pi-tui/dispatch";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { setTerminalHeadless } from "@linxiraos/pi-utils";
 import type { ExtensionAskDialogQuestion, ExtensionUIContext } from "../../../src/extensibility/extensions";
 import type { ExtensionRows } from "../../../src/extensibility/extensions/render-types";
 import { isSettingsInitialized, Settings } from "../../../src/config/settings";

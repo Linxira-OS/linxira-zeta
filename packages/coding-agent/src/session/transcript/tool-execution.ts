@@ -1,5 +1,5 @@
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { isRecord } from "@linxiraos/pi-utils";
 
 /** Resolves the canonical renderer key while retaining the provider's wire name in message history. */
 export function toolRenderName(wireName: string, tool: AgentTool | undefined): string {

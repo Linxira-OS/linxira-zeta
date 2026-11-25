@@ -1,10 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-	countTokens,
-	MIN_SAVED_TOKENS,
-	newShapeState,
-	shapeResult,
-} from "@oh-my-pi/pi-coding-agent/spotlight/shape/index";
+import { countTokens, MIN_SAVED_TOKENS, newShapeState, shapeResult } from "@linxiraos/zeta/spotlight/shape/index";
 import type {
 	CallContext,
 	Scorer,
@@ -13,9 +8,9 @@ import type {
 	ShapeInput,
 	ShapeOutcome,
 	ShapeSink,
-} from "@oh-my-pi/pi-coding-agent/spotlight/types";
-import { rankPartAt, reasonShows } from "@oh-my-pi/pi-coding-agent/tools/details/spotlight";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/spotlight/types";
+import { rankPartAt, reasonShows } from "@linxiraos/zeta/tools/details/spotlight";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function context(over: Partial<CallContext> = {}): CallContext {
 	return { task: "Fix the service.", said: "", intent: "", commands: [], source: "", ...over };

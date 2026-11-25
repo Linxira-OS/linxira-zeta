@@ -1,7 +1,7 @@
 import type { ToolCommandInput, ToolCommandMounted } from "../../../src/ui/tools/tool-command";
 import { toolCommandPresenter } from "../../../src/ui/tools/tool-command";
 import type { ExtensionRows } from "../../../src/extensibility/extensions/render-types";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import { wrap } from "@linxiraos/pi-tui/text/width";
 import { type ToolCaseInputs, type ToolScreen, toolScreenSuite } from "./screens";
 
 /** A component drawing `text` wrapped at the width (an extension's plain text). */

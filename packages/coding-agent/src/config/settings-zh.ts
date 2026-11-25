@@ -14,7 +14,7 @@
  * Keep this file in lockstep with the registry: the completeness test asserts
  * that every tab, group, ui-blocked path, and ui.options entry is covered.
  */
-import type { AnyUiMetadata, SettingTab } from "@linxiraos/pi-tui/overlays/settings-defs";
+import type { AnyUiMetadata, SettingTab } from "./settings-defs";
 import type { SettingPath } from "./settings-schema";
 
 /** Tab labels for the settings tab bar (zh). */

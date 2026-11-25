@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { type } from "@linxiraos/zeta-schema";
 import { isEnoent, isRecord, logger, prompt } from "@linxiraos/pi-utils";
 import { getProjectAgentDir } from "@linxiraos/pi-utils/dirs";

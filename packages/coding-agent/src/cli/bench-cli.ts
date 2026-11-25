@@ -1,4 +1,4 @@
-import type { ResolvedThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { ResolvedThinkingLevel } from "@linxiraos/pi-agent-core";
 import type {
 	Api,
 	ApiKeyResolver,
@@ -10,12 +10,12 @@ import type {
 	ProviderSessionState,
 	ServiceTier,
 	ServiceTierByFamily,
-} from "@oh-my-pi/pi-ai";
-import { resolveModelServiceTier, streamSimple } from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
+import { resolveModelServiceTier, streamSimple } from "@linxiraos/pi-ai";
 import { replaceTabs, truncateToWidth } from "../utils/text-width";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { formatDuration, formatNumber, prompt } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { formatDuration, formatNumber, prompt } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { formatModelSelectorValue } from "../config/model-selector";
 import { formatModelStringWithRouting } from "../config/model-resolver";
 import { buildServiceTierByFamily, serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/service-tier";
@@ -80,7 +80,7 @@ export type BenchProfile = "mix" | BenchChallengeKind;
 const CHALLENGE_KINDS = ["chat", "prefill", "generation"] as const;
 
 /** Default max output tokens per challenge kind (`--max-tokens` overrides all). */
-const CHALLENGE_MAX_TOKENS: Record<BenchChallengeKind, number> = { chat: 512, prefill: 64, generation: 2048 };
+export const CHALLENGE_MAX_TOKENS: Record<BenchChallengeKind, number> = { chat: 512, prefill: 64, generation: 2048 };
 
 /**
  * One `--detailed` phase, run in order against each model:
@@ -317,6 +317,10 @@ export interface BenchDependencies {
 	random?: () => number;
 	readTextFile?: (path: string, maxBytes: number) => Promise<string>;
 	stdoutIsTTY?: boolean;
+	/** Cancels in-flight provider requests (studio evaluations abort their runs). */
+	signal?: AbortSignal;
+	/** Structured per-row measurements for host consumers; no terminal output parsing. */
+	onProgress?: (rows: readonly BenchTableRow[]) => void;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -397,7 +401,7 @@ function asNonNegativeNumber(value: unknown): number {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
 }
 /** Nearest-rank distribution summary; `values` MUST be non-empty. */
-function metricStats(values: number[]): MetricStats {
+export function metricStats(values: number[]): MetricStats {
 	const sorted = [...values].sort((a, b) => a - b);
 	const at = (q: number): number =>
 		sorted[Math.max(0, Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1))]!;
@@ -469,7 +473,7 @@ function truncateUtf8ByteLength(bytes: Uint8Array, maxBytes: number): number {
 	return sequenceLength > end - sequenceStart ? sequenceStart : end;
 }
 
-async function readBoundedUtf8File(path: string, maxBytes: number): Promise<string> {
+export async function readBoundedUtf8File(path: string, maxBytes: number): Promise<string> {
 	const file = Bun.file(path);
 	const bytes = new Uint8Array(await file.slice(0, maxBytes).arrayBuffer());
 	const end = truncateUtf8ByteLength(bytes, maxBytes);
@@ -861,7 +865,7 @@ interface BenchProgress {
 }
 
 /** One model's comparison-table row; the live footer repaints it as runs finish. */
-interface BenchTableRow {
+export interface BenchTableRow {
 	/** Aggregates over the runs finished so far. */
 	report: BenchModelReport;
 	state: "queued" | "running" | "done";
@@ -1045,6 +1049,97 @@ function assertCacheModeSupported(targets: BenchTarget[]): void {
 	}
 }
 
+/** The review and execution paths use exactly the same workload counts. */
+export function resolveBenchPlan(command: BenchCommandArgs) {
+	const cacheMode = command.flags.cache === true;
+	const cacheFlagsUsed =
+		command.flags.cachePrefixFile !== undefined ||
+		command.flags.cachePrefixBytes !== undefined ||
+		command.flags.cachePairs !== undefined ||
+		command.flags.cacheConcurrency !== undefined;
+	if (!cacheMode && cacheFlagsUsed) throw new Error("Cache flags require --cache");
+	if (cacheMode && command.flags.runs !== undefined)
+		throw new Error("Use --cache-pairs instead of --runs with --cache");
+	if (cacheMode && command.flags.prompt !== undefined) throw new Error("--cache builds its own stable-prefix prompts");
+	if (cacheMode && command.flags.profile !== undefined) throw new Error("--profile cannot be combined with --cache");
+	if (cacheMode && (command.flags.par ?? 1) > 1) {
+		throw new Error("--par cannot parallelize cold/warm pairs; use --cache-concurrency instead");
+	}
+	const detailed = command.flags.detailed === true;
+	if (detailed && cacheMode) throw new Error("--detailed cannot be combined with --cache");
+	if (detailed && command.flags.profile !== undefined) {
+		throw new Error(
+			"--profile cannot be combined with --detailed, which runs single-user, parallel, and prefill phases",
+		);
+	}
+	const profileFlag = command.flags.profile;
+	if (
+		profileFlag !== undefined &&
+		profileFlag !== "mix" &&
+		profileFlag !== "chat" &&
+		profileFlag !== "prefill" &&
+		profileFlag !== "generation"
+	) {
+		throw new Error(`Unknown --profile "${profileFlag}" (expected chat, prefill, generation, or mix)`);
+	}
+	const profile: BenchProfile = profileFlag ?? "chat";
+	if (!cacheMode && command.flags.prompt !== undefined && profile !== "chat" && profile !== "generation") {
+		throw new Error("--prompt requires --profile chat or generation");
+	}
+	if (
+		command.flags.prefillBytes !== undefined &&
+		(cacheMode || (!detailed && profile !== "mix" && profile !== "prefill"))
+	) {
+		throw new Error("--prefill-bytes requires prefill challenges (--detailed, or --profile mix or prefill)");
+	}
+
+	const cachePairs = cacheMode
+		? normalizePositiveInteger("cache-pairs", command.flags.cachePairs, DEFAULT_CACHE_PAIRS)
+		: undefined;
+	const cacheConcurrency = cacheMode
+		? normalizePositiveInteger("cache-concurrency", command.flags.cacheConcurrency, DEFAULT_CACHE_CONCURRENCY)
+		: undefined;
+	const runsPerStep = normalizePositiveInteger(
+		"runs",
+		command.flags.runs,
+		detailed ? DETAILED_DEFAULT_RUNS : PROFILE_DEFAULT_RUNS[profile],
+	);
+	const maxTokensOverride =
+		command.flags.maxTokens !== undefined
+			? normalizePositiveInteger("max-tokens", command.flags.maxTokens, 1)
+			: undefined;
+	const cacheMaxTokens = cacheMode ? (maxTokensOverride ?? DEFAULT_CACHE_MAX_TOKENS) : undefined;
+	const par =
+		command.flags.par !== undefined ? normalizePositiveInteger("par", command.flags.par, DEFAULT_PAR) : DEFAULT_PAR;
+	if (detailed && par < 2) throw new Error("--detailed needs --par of at least 2 for its parallel phase");
+	const promptOverride = command.flags.prompt?.trim() || undefined;
+	const explicitPrefillBytes =
+		command.flags.prefillBytes !== undefined
+			? normalizePositiveInteger("prefill-bytes", command.flags.prefillBytes, DEFAULT_PREFILL_BYTES)
+			: undefined;
+	const kinds: readonly BenchChallengeKind[] = profile === "mix" ? CHALLENGE_KINDS : [profile];
+	const steps: BenchStep[] = detailed
+		? detailedSteps(runsPerStep, par)
+		: [{ kinds, runs: runsPerStep, concurrency: par }];
+	const runs = cacheMode ? cachePairs! * 2 : steps.reduce((sum, step) => sum + step.runs, 0);
+	return {
+		cacheMode,
+		detailed,
+		profile,
+		cachePairs,
+		cacheConcurrency,
+		runsPerStep,
+		maxTokensOverride,
+		cacheMaxTokens,
+		par,
+		promptOverride,
+		explicitPrefillBytes,
+		kinds,
+		steps,
+		runs,
+	};
+}
+
 export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDependencies = {}): Promise<BenchSummary> {
 	const cacheMode = command.flags.cache === true;
 	const cacheFlagsUsed =
@@ -1132,7 +1227,9 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 		((code: number) => {
 			process.exitCode = code;
 		});
-	const baseStreamFn = deps.streamSimple ?? streamSimple;
+	const upstreamStreamFn = deps.streamSimple ?? streamSimple;
+	const baseStreamFn: StreamSimpleFn = (model, context, options) =>
+		upstreamStreamFn(model, context, { ...options, signal: deps.signal ?? options?.signal });
 	const now = deps.now ?? (() => performance.now());
 	const interactive = deps.stdoutIsTTY ?? process.stdout.isTTY === true;
 	if (command.models.length === 0) {
@@ -1199,6 +1296,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 			state: "queued",
 			progress: { total, completed: 0, failed: 0, inFlight: 0 },
 		}));
+		deps.onProgress?.(rows);
 		for (const [targetIndex, { selector, model, thinking }] of targets.entries()) {
 			const row = rows[targetIndex]!;
 			const { progress } = row;
@@ -1208,6 +1306,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 			}
 			row.state = "running";
 			board?.repaint();
+			deps.onProgress?.(rows);
 			const results: BenchRunResult[] = [];
 
 			// Preflight check: let's verify credentials before starting any runs.
@@ -1262,6 +1361,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 						const cacheNamespace = randomSessionId();
 						progress.inFlight++;
 						board?.repaint();
+						deps.onProgress?.(rows);
 						const promptCacheKey = `bench-cache:${cacheNamespace}`;
 						const stablePrefix = renderCacheBenchmarkPrefix(cachePrefix!, cacheNamespace);
 						const coldSuffix = prompt.render(cacheSuffixTemplate, { variant: "A" }).trim();
@@ -1319,6 +1419,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 						if (!coldResult.ok) progress.failed++;
 						if (!warmResult.ok) progress.failed++;
 						board?.repaint();
+						deps.onProgress?.(rows);
 						return {
 							cold: cacheRunReport("cold", coldResult, coldCapture),
 							warm: cacheRunReport("warm", warmResult, warmCapture),
@@ -1374,6 +1475,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 					});
 					progress.inFlight++;
 					board?.repaint();
+					deps.onProgress?.(rows);
 					const result: BenchRunResult = {
 						...(await runBenchRequest(
 							model,
@@ -1400,6 +1502,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 					if (phase) phases[phase] = buildPhaseReport(step.concurrency, finished, now() - startedAt);
 					row.report = buildModelReport(selector, model, thinking, results, phases);
 					board?.repaint();
+					deps.onProgress?.(rows);
 					if (!json) {
 						while (nextToPrint < step.runs && results[offset + nextToPrint] !== undefined) {
 							print(formatRunLine(results[offset + nextToPrint]!, nextToPrint, step.runs, { tagKind }));

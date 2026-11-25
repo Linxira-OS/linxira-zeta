@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as os from "node:os";
-import { DEFAULT_SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-coding-agent/config/spinner-interval";
+import { DEFAULT_SPINNER_INTERVAL_MS } from "@linxiraos/zeta/config/spinner-interval";
 import {
 	buildTerminalTitleWithState,
 	disposeTerminalTitleState,
@@ -13,8 +13,8 @@ import {
 	setTerminalTitleSpinnerInterval,
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleState,
-} from "@oh-my-pi/pi-coding-agent/utils/title-generator";
-import { setTerminalHeadless } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/utils/title-generator";
+import { setTerminalHeadless } from "@linxiraos/pi-utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 const LABEL = "my-project";

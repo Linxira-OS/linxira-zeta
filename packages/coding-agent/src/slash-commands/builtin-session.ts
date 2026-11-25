@@ -581,7 +581,6 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "extensions",
-		aliases: ["status"],
 		icon: "extension",
 		description: "Open Extension Control Center dashboard",
 		handleTui: (_command, runtime) => {

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `ast_grep`: a structural search. The head is `AST Grep <pattern>` with the
  * scope, counts and a `limit reached` warning; the body lists the matched
@@ -8,7 +8,7 @@
  *
  * Terminal look: `ast_grep` (`src/ui/styles/tools/ast-grep.ts`), fed by {@link AstGrepTerm}.
  */
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { OutputMeta } from "../../tools/output-meta-format";
 import { ErrorText, NoteText } from "./agent-common";
 import type { ToolPresenter, ToolResult, ToolView } from "./contract";

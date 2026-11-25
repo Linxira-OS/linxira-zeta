@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
 import type { LateDiagnosticsFile } from "../../../../src/session/transcript/late-diagnostics-message";
 import { LateDiagnostics } from "../../../../src/ui/transcript/messages/late-diagnostics";
 import { screenSuite, single } from "./harness";

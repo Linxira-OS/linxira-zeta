@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The session picker scrolls at the edge (the old selector's `nearest`
  * window): ↓ walks the selection down to the last shown session before the
@@ -6,10 +6,10 @@
  * inside the window; a new search opens the list centred again.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { SessionSelectorEntry } from "../../../../src/modes/view-model/overlays/session-selector";
 import { SessionSelector } from "../../../../src/ui/overlays/pickers/session-selector";
 import "../../../../src/ui/styles/pickers/sessions";

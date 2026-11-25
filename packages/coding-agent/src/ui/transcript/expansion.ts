@@ -1,4 +1,4 @@
-import { type Accessor, type Reactive, read, signal, structuralEffect } from "@oh-my-pi/pi-tui";
+import { type Accessor, type Reactive, read, signal, structuralEffect } from "@linxiraos/pi-tui";
 
 /** A native fold is local to its card. The next transcript-wide expand/collapse supersedes it. */
 export function cardExpansion(

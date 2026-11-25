@@ -3,8 +3,8 @@ import {
 	THINKING_SPEED_MAX,
 	ThinkingRateMeter,
 	ThinkingSpeedTracker,
-} from "@oh-my-pi/pi-coding-agent/session/transcript/thinking-speed";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/session/transcript/thinking-speed";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

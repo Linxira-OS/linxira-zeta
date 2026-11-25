@@ -6,11 +6,11 @@
  *   Enter right after Ctrl+V submits with the image attached.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { isSettingsInitialized, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionUiController } from "@oh-my-pi/pi-coding-agent/modes/controllers/extension-ui-controller";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { isSettingsInitialized, Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { initTheme } from "../src/ui/theme/service";
 import { attachTerminal, createInteractiveModeContext } from "./helpers/interactive-mode-context";
 

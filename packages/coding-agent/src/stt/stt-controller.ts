@@ -1,9 +1,9 @@
-import type { ApiKeyResolver } from "@oh-my-pi/pi-ai";
-import { transcribeAudio } from "@oh-my-pi/pi-ai/transcription";
-import type { Api, Model } from "@oh-my-pi/pi-catalog/types";
-import { AudioCapture } from "@oh-my-pi/pi-natives";
+import type { ApiKeyResolver } from "@linxiraos/pi-ai";
+import { transcribeAudio } from "@linxiraos/pi-ai/transcription";
+import type { Api, Model } from "@linxiraos/pi-catalog/types";
+import { AudioCapture } from "@linxiraos/pi-natives";
 import type { ModelBrowserRegistry } from "../modes/view-model/overlays/model-browser";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import { type RoleChainCandidate, resolveConfiguredModelPatterns, resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";
@@ -25,6 +25,8 @@ export interface SttCallbacks {
 	onStateChange(state: SttState): void;
 	/** Keep this capture as a draft, without interpreting submit commands. */
 	manualSubmit?: boolean;
+	/** Ask the host to repaint after a dictation state change (non-reactive hosts). */
+	requestRender?(): void;
 }
 
 /** The slice of a text input the controller dictates into. */

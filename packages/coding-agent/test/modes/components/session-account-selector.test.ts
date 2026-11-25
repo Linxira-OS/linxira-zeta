@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { toSessionPinAccounts } from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/session-pin";
+import { toSessionPinAccounts } from "@linxiraos/zeta/slash-commands/helpers/session-pin";
 import { SessionAccountSelector } from "../../../src/ui/overlays/pickers/session-account-selector";
 import { mountOverlay } from "../../helpers/overlay-terminal";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** The queue mode selector: whether messages sent while omp works go one per turn or together. */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import { SelectSheet } from "./select-sheet";
 
 export type QueueMode = "all" | "one-at-a-time";

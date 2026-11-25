@@ -19,12 +19,12 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage, AgentState } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { dropToolCallReasoningDetail } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { dropReasoningDetailsEnvelopes } from "@oh-my-pi/pi-ai/utils/reasoning-source";
-import { $which, logger } from "@oh-my-pi/pi-utils";
-import { DEFAULT_SHARE_URL } from "@oh-my-pi/pi-wire";
+import type { AgentMessage, AgentState } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { dropToolCallReasoningDetail } from "@linxiraos/pi-ai/providers/openai-completions";
+import { dropReasoningDetailsEnvelopes } from "@linxiraos/pi-ai/utils/reasoning-source";
+import { $which, logger } from "@linxiraos/pi-utils";
+import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import { $ } from "bun";
 import { obfuscateToolArguments } from "../secrets/message-transform";
 import type { SecretObfuscator } from "../secrets/obfuscator";

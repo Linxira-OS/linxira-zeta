@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Wait: background jobs and running agents as the wait call left them.
  *
@@ -12,10 +12,10 @@
  * Terminal look: `wait` (`src/ui/styles/tools/wait.ts`), from the snapshot
  * on `term.wait`.
  */
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { jobDisplayLabel } from "../../async/job-label";
 import type { AgentActivitySnapshot, CoordinationDetails, JobSnapshot } from "../../tools/details/wait";
 import { ErrorText } from "./agent-common";
@@ -90,7 +90,7 @@ function AgentRow(props: { readonly agent: AgentActivitySnapshot; readonly live:
 	if (agent.parentId) spans.push({ s: "dim", t: ` ← ${plainText(agent.parentId)}` });
 	const age = Math.max(0, Math.round(agent.ageMs));
 	return (
-		<row key={`agent:${agent.id}`} role="omp.wait.agent" gap="sm">
+		<row key={`agent:${agent.id}`} role="zeta.wait.agent" gap="sm">
 			<badge text={agent.live ? "agent" : "agent · no turn"} tone={agent.live ? "accent" : "warning"} />
 			<text spans={spans} truncate="end" grow={1} />
 			{agent.live && props.live ? (
@@ -164,7 +164,7 @@ function resultView(result: ToolResult<CoordinationDetails>, state: ToolViewStat
 			) : undefined,
 			rest > 0 ? (
 				<text
-					role="omp.wait.more"
+					role="zeta.wait.more"
 					spans={[{ s: "dim", t: `+${rest} more ${rest === 1 ? "job" : "jobs"} · /jobs` }]}
 				/>
 			) : undefined,

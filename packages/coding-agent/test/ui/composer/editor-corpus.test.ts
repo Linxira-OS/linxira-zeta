@@ -6,7 +6,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { createRoot } from "@oh-my-pi/pi-tui";
+import { createRoot } from "@linxiraos/pi-tui";
 import {
 	type CorpusCase,
 	CORPUS_DIR,
@@ -14,7 +14,7 @@ import {
 	listCases,
 	loadCase,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
+} from "@linxiraos/pi-tui/testing/corpus";
 import settledFile from "./fixtures/settled-file-completion.json";
 import { applyStage, compareStage, editorComposer } from "./harness";
 

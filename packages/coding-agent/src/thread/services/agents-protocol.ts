@@ -32,6 +32,12 @@ export const AGENT_SESSION_HOST_KIND = "agent-session-host";
 /** `AgentRegistryApi` (with its `awaits`) over the link. */
 export type AgentRegistryProtocol = {
 	register: RpcMethod<[input: RegisterInput], AgentRef>;
+	/** Register a workspace's main agent; the id and session id are main-assigned. */
+	registerRoot: RpcMethod<[input: Omit<RegisterInput, "id"> & { id?: string; sessionId: string }], AgentRef>;
+	/** The root ref for a workspace, when one is registered. */
+	workspaceMain: RpcMethod<[workspaceId: string | undefined], AgentRef | undefined>;
+	/** Resolve a main alias (`Main`, a workspace name) to a concrete registry id. */
+	resolveMainAlias: RpcMethod<[requested: string, callerId: string], string | undefined>;
 	registerIfAvailable: RpcMethod<[input: RegisterInput, expected: AgentRef | null], AgentRef | undefined>;
 	reopen: RpcMethod<[id: string, expected: AgentRef], AgentRef | undefined>;
 	setHistory: RpcMethod<[id: string, history: AgentHistorySummary, expectedSessionFile?: string], boolean>;
@@ -74,6 +80,8 @@ export type AgentLifecycleProtocol = {
 /** `IrcBusApi` over the link. */
 export type IrcBusProtocol = {
 	send: RpcMethod<[msg: Omit<IrcMessage, "id" | "ts">], IrcDeliveryReceipt>;
+	/** Queued messages for an agent, oldest first; `peek` leaves them queued. */
+	inbox: RpcMethod<[agentId: string, opts?: { peek?: boolean }], IrcMessage[]>;
 	sentSince: RpcMethod<[from: string, to: string, sinceTs: number], boolean>;
 	unansweredSends: RpcMethod<[from: string, sinceTs: number], UnansweredSend[]>;
 	lastMessageAt: RpcMethod<[from: string, to: string], number | undefined>;

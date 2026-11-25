@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A run of consecutive `read` calls shown as one transcript block.
  *
@@ -17,10 +17,10 @@
  * Terminal look: `read-group` (`src/ui/styles/transcript/read-group.ts`), fed by {@link ReadGroupTerm}.
  */
 import * as path from "node:path";
-import { type Accessor, computed, type JSXNode, type Signal, signal } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatDuration, formatNumber, isUrlLikePath, sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspCardStatus, TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import { type Accessor, computed, type JSXNode, type Signal, signal } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatDuration, formatNumber, isUrlLikePath, sanitizeText } from "@linxiraos/pi-utils";
+import type { TspCardStatus, TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import { splitUrlScheme } from "../../internal-urls/url-scheme";
 import type { ReadToolDetails } from "../../tools/details/read";
 import { shortenPath } from "../../utils/render-utils";
@@ -783,7 +783,7 @@ function FileRow(props: { readonly row: SummaryRow }): JSXNode {
 				? [{ s: "muted", t: `corrected from ${shortenPath(corrected)}` }]
 				: undefined;
 	return (
-		<row key={row.targetPath} role="omp.tool.file" tone={tone}>
+		<row key={row.targetPath} role="zeta.tool.file" tone={tone}>
 			<icon name={status === "error" ? "x-circle" : filePath.endsWith("/") ? "folder" : "file"} tone={tone} />
 			<text spans={spans} lines={1} truncate="middle" shrink={1} title={error ?? filePath} />
 			{conflicts ? <badge text={`${conflicts} conflict${conflicts === 1 ? "" : "s"}`} /> : undefined}
@@ -794,7 +794,7 @@ function FileRow(props: { readonly row: SummaryRow }): JSXNode {
 
 function UsageText(props: { readonly usage: ReadUsageRow; readonly nodeKey: string }): JSXNode {
 	return (
-		<text propKey={props.nodeKey} spans={[{ s: "dim", t: usageLine(props.usage) }]} wrap="word" role="omp.usage" />
+		<text propKey={props.nodeKey} spans={[{ s: "dim", t: usageLine(props.usage) }]} wrap="word" role="zeta.usage" />
 	);
 }
 
@@ -829,7 +829,7 @@ function Preview(props: { readonly entry: ReadEntry; readonly group: ReadGroup }
 			<text
 				key="more"
 				spans={[{ s: "muted", t: `${hidden} more line${hidden === 1 ? "" : "s"}` }]}
-				role="omp.tool.stats"
+				role="zeta.tool.stats"
 			/>
 		),
 	];
@@ -901,7 +901,7 @@ function GroupNode(props: GroupNodeProps): JSXNode {
 					meta: [...(head.meta ?? []), [{ s: "muted", t: `— ${gist}` }]],
 				};
 				if (gist !== full) {
-					body.push(<text spans={[{ s: "error", t: full }]} wrap="word" role="omp.tool.error" />);
+					body.push(<text spans={[{ s: "error", t: full }]} wrap="word" role="zeta.tool.error" />);
 					collapsible = true;
 				}
 			}
@@ -950,7 +950,7 @@ function GroupNode(props: GroupNodeProps): JSXNode {
 				frame="inline"
 				collapsible
 				collapsed
-				role="omp.tool.read"
+				role="zeta.tool.read"
 				target={compact.label ?? head.target}
 				targetKind={compact.label !== undefined ? "text" : head.targetKind}
 				href={compact.label !== undefined ? undefined : head.href}
@@ -983,7 +983,7 @@ function GroupNode(props: GroupNodeProps): JSXNode {
 			collapsible={collapsible}
 			collapsed={collapsible ? !entries.some(entry => entry.expanded) : undefined}
 			preview={collapsible ? TRIMMED_BODY_PREVIEW : undefined}
-			role="omp.tool.read"
+			role="zeta.tool.read"
 			target={head.target}
 			targetKind={head.targetKind}
 			href={head.href}
@@ -1108,7 +1108,7 @@ export function ReadGroupBlock(props: { readonly group: ReadGroup }): Accessor<J
 			}
 		});
 		return (
-			<col role="omp.tool.read" hidden={hidden}>
+			<col role="zeta.tool.read" hidden={hidden}>
 				{children}
 			</col>
 		);

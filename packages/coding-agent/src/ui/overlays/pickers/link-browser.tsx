@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The extension link browser: the session's replies on the alternate screen,
  * so links an extension owns (registered link schemes) that scrolled into
@@ -13,8 +13,8 @@
  *
  * The terminal look is `omp.overlay.linkBrowser` (`src/ui/styles/pickers/link-browser.ts`).
  */
-import { computed, type JSXNode, type KeyEvent, read, type Reactive, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { lexMarkdown, type Token, type Tokens } from "@oh-my-pi/pi-tui/text/markdown/lexer";
+import { computed, type JSXNode, type KeyEvent, read, type Reactive, signal, type UiNode } from "@linxiraos/pi-tui";
+import { lexMarkdown, type Token, type Tokens } from "@linxiraos/pi-tui/text/markdown/lexer";
 import "../../styles/pickers/link-browser";
 import { type LinkBrowserTerm, linkBrowserMeasure } from "../../styles/pickers/link-browser";
 import { matchesSelectCancel, selectKeyId } from "../../../config/keybindings/matchers";
@@ -154,7 +154,7 @@ export function LinkBrowser(props: LinkBrowserProps): JSXNode {
 
 	return (
 		<card
-			role="omp.overlay.linkBrowser"
+			role="zeta.overlay.linkBrowser"
 			head="Extension links"
 			term={term}
 			ref={node => {

@@ -8,7 +8,7 @@ import { embeddedAddon } from "./embedded-addon.js";
 import { bindingsHaveReleaseIdentity, bindingsReleaseVersion, containsVersionStamp } from "./version-sentinel.js";
 
 /**
- * Native addon loader for `@oh-my-pi/pi-natives`.
+ * Native addon loader for `@linxiraos/pi-natives`.
  *
  * Owns every step between "Node imports `native/index.js`" and "the right
  * `pi_natives.<platform>-<arch>*.node` is required, validated, and returned":
@@ -98,7 +98,7 @@ function findScopedLeafPackageDir(platformTag, addonFilenames) {
 function resolveLeafPackageDir(platformTag, addonFilenames) {
 	try {
 		const require_ = createRequire(import.meta.url);
-		return path.dirname(require_.resolve(`@oh-my-pi/pi-natives-${platformTag}/package.json`));
+		return path.dirname(require_.resolve(`@linxiraos/pi-natives-${platformTag}/package.json`));
 	} catch {
 		return findScopedLeafPackageDir(platformTag, addonFilenames);
 	}
@@ -147,7 +147,7 @@ export function getAddonFilenames({ tag, arch, variant }) {
  *
  * Windows-only safety net for `bun install -g` updates: when a previous `omp`
  * process is running, bun cannot overwrite the locked `.node` inside
- * `node_modules/@oh-my-pi/pi-natives/native/`, leaving an old binary next to a
+ * `node_modules/@linxiraos/pi-natives/native/`, leaving an old binary next to a
  * newer `index.js` and producing `<sym> is not a function` crashes on the next
  * launch. Staging into the version-pinned cache:
  *   1. Gives every package version its own filesystem path, so concurrent omp
@@ -734,14 +734,14 @@ export function validateLoadedBindings(ctx, bindings, candidate) {
 	if (isCompatiblePreSentinelNativeAddon(bindings, diskHasExpectedStamp)) return;
 	if (residentVersion && diskHasExpectedStamp) {
 		throw new Error(
-			`Loaded ${candidate}, which reports @oh-my-pi/pi-natives@${residentVersion}, but this loader is ` +
+			`Loaded ${candidate}, which reports @linxiraos/pi-natives@${residentVersion}, but this loader is ` +
 				`@${ctx.packageVersion}. omp was upgraded to ${ctx.packageVersion} while this session was running; ` +
 				`the ${residentVersion} addon is still resident in this process. Disk is already consistent — ` +
 				`restart omp to pick up ${ctx.packageVersion} (reinstalling changes nothing).`,
 		);
 	}
 	throw new Error(
-		`Loaded ${candidate} but it reports ${residentVersion ? `@oh-my-pi/pi-natives@${residentVersion}` : "no release version"}, ` +
+		`Loaded ${candidate} but it reports ${residentVersion ? `@linxiraos/pi-natives@${residentVersion}` : "no release version"}, ` +
 			`not the @${ctx.packageVersion} this loader expects. The .node file on disk is from a different ` +
 			"release than this loader — reinstall to re-sync.",
 	);
@@ -772,7 +772,7 @@ function describeLoadedAddon(bindings, candidate, ctx) {
 }
 
 /**
- * The addon behind this process's `@oh-my-pi/pi-natives` exports.
+ * The addon behind this process's `@linxiraos/pi-natives` exports.
  * @returns {{ path: string; version: string | null; packageVersion: string; stale: boolean } | null}
  */
 export function nativeAddonStatus() {
@@ -856,15 +856,15 @@ export function missingNativeClass(symbolName, addon = loadedAddon) {
  */
 export function missingNativeExportMessage(symbolName, addon = loadedAddon) {
 	const rebuild = "rebuild it with `bun run build:native`";
-	if (!addon) return `@oh-my-pi/pi-natives does not export \`${symbolName}\`; ${rebuild}.`;
+	if (!addon) return `@linxiraos/pi-natives does not export \`${symbolName}\`; ${rebuild}.`;
 	if (!addon.stale) {
-		return `@oh-my-pi/pi-natives export \`${symbolName}\` is missing from ${addon.path}; ${rebuild}.`;
+		return `@linxiraos/pi-natives export \`${symbolName}\` is missing from ${addon.path}; ${rebuild}.`;
 	}
 	const loaded = addon.version
-		? `the @oh-my-pi/pi-natives@${addon.version} addon`
+		? `the @linxiraos/pi-natives@${addon.version} addon`
 		: "an addon without a release stamp";
 	return (
-		`@oh-my-pi/pi-natives export \`${symbolName}\` is missing: ${addon.path} is ${loaded}, not ` +
+		`@linxiraos/pi-natives export \`${symbolName}\` is missing: ${addon.path} is ${loaded}, not ` +
 		`@${addon.packageVersion} — ${rebuild}.`
 	);
 }
@@ -931,7 +931,7 @@ function buildHelpMessage(ctx) {
 		);
 	}
 	return (
-		"If installed via npm/bun, try reinstalling: bun install @oh-my-pi/pi-natives\n" +
+		"If installed via npm/bun, try reinstalling: bun install @linxiraos/pi-natives\n" +
 		"If developing locally, build with: bun --cwd=packages/natives run build\n" +
 		"Explicit targets: bun scripts/bazel-natives.ts <target> --dest packages/natives/native"
 	);
@@ -972,7 +972,7 @@ export function initLoaderContext(overrides = {}) {
 	// segment, so the path alone cannot tell it from a checkout (issue #8901).
 	const isWorkspaceLoad =
 		!isCompiledBinary &&
-		!packageJson.optionalDependencies?.[`@oh-my-pi/pi-natives-${platformTag}`] &&
+		!packageJson.optionalDependencies?.[`@linxiraos/pi-natives-${platformTag}`] &&
 		!normalizedNativeDir.includes("\\node_modules\\") &&
 		!normalizedNativeDir.includes("/node_modules/");
 	const selectedVariant = resolveCpuVariant(getVariantOverride());

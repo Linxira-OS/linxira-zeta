@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Plugin settings: the installed plugins (npm and marketplace) and, for one
  * plugin, its on/off switch, feature toggles and manifest settings.
@@ -18,9 +18,9 @@ import {
 	signal,
 	type UiEvent,
 	type UiNode,
-} from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspPrefsControl, TspPrefsSection, TspSpan } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspPrefsControl, TspPrefsSection, TspSpan } from "@linxiraos/pi-wire";
 import type {
 	InstalledPlugin,
 	InstalledPluginSummary,
@@ -209,12 +209,12 @@ function DetailList(props: { detail: Detail; visible: readonly DetailItem[] }): 
 	const editor = detail.editor;
 	if (editor)
 		return (
-			<col role="omp.settings" gap="sm">
+			<col role="zeta.settings" gap="sm">
 				{<EditorPanel editor={editor} />}
 			</col>
 		);
 	return (
-		<col role="omp.settings" gap="sm">
+		<col role="zeta.settings" gap="sm">
 			<list
 				key="list"
 				empty={detail.items.length === 0 ? "No settings available" : "No matching settings"}
@@ -258,9 +258,9 @@ function EditorPanel(props: { editor: ConfigEditor }): JSXNode {
 		];
 		return (
 			<card head={key} role={FIELD_ROLE} term={{ blocks }}>
-				<col role="omp.form.field" gap="sm">
+				<col role="zeta.form.field" gap="sm">
 					<text spans={[{ s: "muted", t: description }]} />
-					<col role="omp.select">
+					<col role="zeta.select">
 						<list
 							key="list"
 							empty="No items"
@@ -296,7 +296,7 @@ function EditorPanel(props: { editor: ConfigEditor }): JSXNode {
 	});
 	return (
 		<card head={key} role={FIELD_ROLE} term={{ blocks }}>
-			<col role="omp.form.field" gap="sm">
+			<col role="zeta.form.field" gap="sm">
 				{schema.description ? <text spans={[{ s: "muted", t: schema.description }]} /> : null}
 				{schema.description ? <spacer size="sm" /> : null}
 				<text spans={[{ s: "dim", t: typeHint }]} wrap="word" />
@@ -366,7 +366,7 @@ function ListPanel(props: { entries: readonly PluginListEntry[]; selected: numbe
 	];
 	return (
 		<card head="Plugins" role={ROLE} term={{ blocks }}>
-			<col role="omp.select">
+			<col role="zeta.select">
 				<list key="list" empty="No items" max={{ lines: max }} selected={entryValue(entries[selected]!)}>
 					{entries.map((entry, index) => (
 						<item
@@ -389,7 +389,7 @@ function ListPanel(props: { entries: readonly PluginListEntry[]; selected: numbe
 
 function Hints(props: { hints: readonly (readonly [string, string])[] }): JSXNode {
 	return (
-		<row key="hints" role="omp.overlay.hints" gap="md" wrap>
+		<row key="hints" role="zeta.overlay.hints" gap="md" wrap>
 			{props.hints.map(([key, label]) => (
 				<row gap="xs" align="center">
 					<kbd keys={[key]} />
@@ -431,7 +431,7 @@ function DetailPanel(props: { detail: Detail; visible: readonly DetailItem[] }):
 	blocks.push({ k: "text", spans: [{ s: "dim", t: detailHint() }] });
 	return (
 		<card head={detail.title} role={ROLE} term={{ blocks }}>
-			<col role="omp.form.field" gap="sm">
+			<col role="zeta.form.field" gap="sm">
 				{detail.description ? <text spans={[{ s: "muted", t: detail.description }]} /> : null}
 				<DetailList detail={detail} visible={visible} />
 				<text text="" hidden />

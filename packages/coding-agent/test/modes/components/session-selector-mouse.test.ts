@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { mountSessionSelector, sessionEntry } from "../../helpers/session-selector";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

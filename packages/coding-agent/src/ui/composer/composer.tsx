@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The composer: the prompt field and its state.
  *
@@ -38,7 +38,7 @@ import {
 	type UiNode,
 	effect,
 	untrack,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import {
 	type EditorTerm,
 	type EditorTermRange,
@@ -46,11 +46,11 @@ import {
 	lastWrapWidth,
 	layoutText,
 	rowOf,
-} from "@oh-my-pi/pi-tui/term/painters/editor";
-import { lineStart, nextBoundary } from "@oh-my-pi/pi-tui/term/widgets/editor";
-import { flattenLine, stripControl } from "@oh-my-pi/pi-tui/text/sanitize";
-import type { TspEditorDecoration, TspEffect, TspSpan, TspText } from "@oh-my-pi/pi-wire";
-import { terminalIdentity } from "@oh-my-pi/pi-tui/driver/session";
+} from "@linxiraos/pi-tui/term/painters/editor";
+import { lineStart, nextBoundary } from "@linxiraos/pi-tui/term/widgets/editor";
+import { flattenLine, stripControl } from "@linxiraos/pi-tui/text/sanitize";
+import type { TspEditorDecoration, TspEffect, TspSpan, TspText } from "@linxiraos/pi-wire";
+import { terminalIdentity } from "@linxiraos/pi-tui/driver/session";
 import "../styles/composer";
 import {
 	extractAtFilePrefix,
@@ -75,8 +75,8 @@ import {
 	draftImageBlob,
 	expandAtoms,
 } from "./attachments";
-import { untilAborted } from "@oh-my-pi/pi-utils/abortable";
-import * as logger from "@oh-my-pi/pi-utils/logger";
+import { untilAborted } from "@linxiraos/pi-utils/abortable";
+import * as logger from "@linxiraos/pi-utils/logger";
 import {
 	type AutocompleteProvider,
 	type AutocompleteSuggestions,
@@ -1866,7 +1866,7 @@ export class Composer {
 				return (
 					<row
 						key="mode"
-						role="omp.composer.mode"
+						role="zeta.composer.mode"
 						align="center"
 						gap="xs"
 						title={`Asking the side question · back to the chat  ${key}`}
@@ -1880,7 +1880,7 @@ export class Composer {
 				return (
 					<row
 						key="mode"
-						role="omp.composer.mode"
+						role="zeta.composer.mode"
 						tone="warning"
 						align="center"
 						gap="xs"
@@ -1893,7 +1893,7 @@ export class Composer {
 			if (!s) return null;
 			const title = s.excluded ? `${SHELL_TITLES[s.kind]} · not sent to the model` : SHELL_TITLES[s.kind];
 			return (
-				<row key="mode" role="omp.composer.mode" align="center" gap="xs" title={title}>
+				<row key="mode" role="zeta.composer.mode" align="center" gap="xs" title={title}>
 					{s.excluded && <icon key="excluded" name="eye-off" title="Not sent to the model" />}
 					<text key="label" spans={[{ s: `${s.kind}Mode`, t: s.kind }]} wrap="none" />
 				</row>
@@ -1911,7 +1911,7 @@ export class Composer {
 			return (
 				<row
 					key="focus"
-					role="omp.composer.focus"
+					role="zeta.composer.focus"
 					align="center"
 					gap="xs"
 					title={`Viewing subagent ${agent}: what you send goes to it`}
@@ -1921,17 +1921,17 @@ export class Composer {
 					{viewing.slice(0, -1).map(id => (
 						<text
 							key={`crumb:${id}`}
-							role="omp.composer.crumb"
+							role="zeta.composer.crumb"
 							text={id}
 							wrap="none"
 							title={`View ${id}`}
 							actions={{ click: `${FOCUS_ACTION}${id}` }}
 						/>
 					))}
-					<text key="agent" role="omp.composer.agent" text={agent} wrap="none" />
+					<text key="agent" role="zeta.composer.agent" text={agent} wrap="none" />
 					<row
 						key="exit"
-						role="omp.composer.exit"
+						role="zeta.composer.exit"
 						align="center"
 						gap="xs"
 						title={`Back to the main session  ${back}`}
@@ -1948,7 +1948,7 @@ export class Composer {
 				<text
 					key="skip"
 					actions={{ click: "submit" }}
-					role="omp.composer.skip"
+					role="zeta.composer.skip"
 					text="Skip & send"
 					title="Send this message instead of answering the questions  ⏎"
 					tone="warning"
@@ -1957,7 +1957,7 @@ export class Composer {
 				<text
 					key="stop"
 					actions={{ click: "interrupt" }}
-					role="omp.composer.stop"
+					role="zeta.composer.stop"
 					text="Stop"
 					title="Stop  esc"
 					tone="error"
@@ -1967,7 +1967,7 @@ export class Composer {
 					key="send"
 					actions={this.#options.dictating?.() ? undefined : { click: "submit" }}
 					keys={["enter"]}
-					role="omp.composer.send"
+					role="zeta.composer.send"
 					tone={this.#options.dictating?.() ? "muted" : undefined}
 					title={this.#options.dictating?.() ? "Finish dictation before sending" : "Send  ⏎"}
 				/>
@@ -1984,8 +1984,8 @@ export class Composer {
 				? { columns: [12, 32], descriptionRows: 2 }
 				: { columns: [32, 32] };
 			return (
-				<overlay key="complete" role="omp.autocomplete" anchor={{ caret: "line/input" }} term={popupTerm}>
-					<col role="omp.select">
+				<overlay key="complete" role="zeta.autocomplete" anchor={{ caret: "line/input" }} term={popupTerm}>
+					<col role="zeta.select">
 						<list
 							key="list"
 							empty="No items"
@@ -2094,11 +2094,11 @@ export class Composer {
 				{() => this.#slots().context}
 				{viewingHeader}
 				{() => this.#slots().chips}
-				<row key="line" role="omp.composer.line" align="start" gap="sm">
+				<row key="line" role="zeta.composer.line" align="start" gap="sm">
 					{modeChip}
 					{field}
 				</row>
-				<row key="bar" role="omp.composer.bar" align="center" gap="sm">
+				<row key="bar" role="zeta.composer.bar" align="center" gap="sm">
 					{() => this.#slots().model}
 					{() => this.#slots().effort}
 					{() => this.#slots().rate}

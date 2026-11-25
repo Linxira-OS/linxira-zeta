@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "bun:test"
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { parseSel, resolveTailSelector } from "@oh-my-pi/pi-coding-agent/tools/read-selector";
-import { splitInternalUrlSel } from "@oh-my-pi/pi-coding-agent/tools/details/read";
-import { splitPathAndSel } from "@oh-my-pi/pi-coding-agent/tools/details/read";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { parseSel, resolveTailSelector } from "@linxiraos/zeta/tools/read-selector";
+import { splitInternalUrlSel } from "@linxiraos/zeta/tools/details/read";
+import { splitPathAndSel } from "@linxiraos/zeta/tools/details/read";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

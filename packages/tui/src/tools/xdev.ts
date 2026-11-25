@@ -44,11 +44,7 @@ export interface XdevMountedRenderer {
 	/** Human label of the device (`LSP`, `Gmail`); defaults to the tool name. */
 	label?: string;
 	renderCall?(args: Record<string, unknown>, options: XdevRenderOptions): JSXNode;
-	renderResult?(
-		result: XdevToolResult,
-		options: XdevRenderOptions,
-		args: Record<string, unknown>,
-	): JSXNode;
+	renderResult?(result: XdevToolResult, options: XdevRenderOptions, args: Record<string, unknown>): JSXNode;
 	/** The device draws its call and result as one block, so the wrapper does not prepend the call. */
 	mergeCallAndResult?: boolean;
 }
@@ -181,13 +177,14 @@ function defaultToolNode(
 	options: XdevRenderOptions,
 ): UiNode {
 	const target = targetOf(args);
-	const body = Object.keys(displayDeviceArgs(args)).length === 0
-		? undefined
-		: new UiNode("code", {
-				lang: "json",
-				text: JSON.stringify(displayDeviceArgs(args), null, 2),
-				...(options.expanded ? {} : { max: { h: 6 } }),
-			});
+	const body =
+		Object.keys(displayDeviceArgs(args)).length === 0
+			? undefined
+			: new UiNode("code", {
+					lang: "json",
+					text: JSON.stringify(displayDeviceArgs(args), null, 2),
+					...(options.expanded ? {} : { max: { h: 6 } }),
+				});
 	return new UiNode("tool", {
 		name,
 		title,
@@ -271,7 +268,11 @@ export function renderXdevResult(
 			parts.push(renderer.renderCall(args, { ...options, isPartial: false }));
 		}
 		parts.push(
-			renderer.renderResult({ content: result.content, details: dispatch.inner, isError: result.isError }, options, args),
+			renderer.renderResult(
+				{ content: result.content, details: dispatch.inner, isError: result.isError },
+				options,
+				args,
+			),
 		);
 		const combined = combine(parts);
 		if (combined !== undefined) return combined;

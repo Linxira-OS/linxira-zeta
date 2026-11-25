@@ -8,7 +8,7 @@
  * omp processes speak NDJSON {@link HostRequest}s to it over an attached daemon tunnel.
  */
 import { type } from "@linxiraos/zeta-schema";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { DISASM_BACKEND_IDS, type DisasmBackendId } from "./backend";
 export { DISASM_HOST_WORKER_ARG } from "../cli/worker-selectors";
 

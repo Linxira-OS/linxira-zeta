@@ -8,9 +8,9 @@
  * one per branch (the current path first) under a `⑂ n/m · label` head; the
  * column ←/→ moved into has the accent head.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate } from "@linxiraos/pi-tui/text/width";
 import { expandKeyLabel, keyLabel } from "../../keys/hints";
 import { bindingGlyph, selectNavGlyphs, termOf } from "../panels/common";
 import { caretField } from "./common";

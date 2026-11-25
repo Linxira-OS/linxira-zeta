@@ -13,7 +13,7 @@
  *      and on session restore, so execution turns do not refuse edits.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	Agent,
 	type AgentMessage,
@@ -21,20 +21,20 @@ import {
 	type StreamFn,
 	type ToolApproval,
 	type ToolLoadMode,
-} from "@oh-my-pi/pi-agent-core";
-import { createMockModel, type MockCall, type MockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CustomTool } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/types";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { type IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/irc-types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm, PLAN_MODE_CONTEXT_MESSAGE_TYPE } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolCommandState } from "@oh-my-pi/pi-coding-agent/tools/tool-commands";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { createMockModel, type MockCall, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import { type IrcMessage } from "@linxiraos/zeta/irc/irc-types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm, PLAN_MODE_CONTEXT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { ToolCommandState } from "@linxiraos/zeta/tools/tool-commands";
+import { TempDir } from "@linxiraos/pi-utils";
 import planModeReminderPrompt from "../src/prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
 
 /** A stable, literal (non-templated) line of the reminder prompt, so the test

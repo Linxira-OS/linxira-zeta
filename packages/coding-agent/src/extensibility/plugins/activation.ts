@@ -25,7 +25,12 @@
  * rest of its behaviour (tools, hooks, commands) loads unchanged.
  */
 import { $env, parseFlag } from "@linxiraos/pi-utils";
-import { detectTerminalId, isInsideZetaWorkbench } from "@linxiraos/pi-tui/terminal-capabilities";
+import { detectTerminalId } from "@linxiraos/pi-tui/driver/caps/identity";
+
+/** The pane marker the Zeta workbench injects into its terminals. */
+function isInsideZetaWorkbench(env: NodeJS.ProcessEnv = Bun.env): boolean {
+	return env.ZETA_WORKBENCH === "1";
+}
 
 /** Debug override: truthy makes declarative panels active outside a workbench. */
 export const PLUGIN_PANELS_FORCE_ENV = "PI_FORCE_PLUGIN_PANELS";
@@ -47,7 +52,7 @@ export interface PanelActivation {
  * does not depend on the outer emulator.
  */
 export function isInsideWorkbenchTerminal(env: NodeJS.ProcessEnv = $env): boolean {
-	return isInsideZetaWorkbench(env) || detectTerminalId(env) === "zetawork";
+	return isInsideZetaWorkbench(env);
 }
 
 /**

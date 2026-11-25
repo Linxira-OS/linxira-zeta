@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { ExtensionLiveStartOptions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { LiveSessionController, type LiveSessionControllerOptions } from "@oh-my-pi/pi-coding-agent/live/controller";
-import type { LiveServerEvent } from "@oh-my-pi/pi-coding-agent/live/protocol";
-import * as liveTransport from "@oh-my-pi/pi-coding-agent/live/transport";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session-events";
-import type { LiveTransportOptions } from "@oh-my-pi/pi-coding-agent/live/transport";
-import { LiveCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/live-command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { type OverlayHandle, Shell } from "@oh-my-pi/pi-coding-agent/ui/shell/index";
-import { type JSXNode, signal } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ExtensionLiveStartOptions } from "@linxiraos/zeta/extensibility/extensions/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { LiveSessionController, type LiveSessionControllerOptions } from "@linxiraos/zeta/live/controller";
+import type { LiveServerEvent } from "@linxiraos/zeta/live/protocol";
+import * as liveTransport from "@linxiraos/zeta/live/transport";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session-events";
+import type { LiveTransportOptions } from "@linxiraos/zeta/live/transport";
+import { LiveCommandController } from "@linxiraos/zeta/modes/controllers/live-command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { type OverlayHandle, Shell } from "@linxiraos/zeta/ui/shell/index";
+import { type JSXNode, signal } from "@linxiraos/pi-tui";
 import { keyEvent } from "../../helpers/input-harness";
 
 /** Fake InteractiveModeContext on a real shell, recording what replaced the composer. */

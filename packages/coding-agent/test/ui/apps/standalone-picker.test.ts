@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import type { TspPickerAction, TspPickerItem } from "@oh-my-pi/pi-wire";
+import type { TspPickerAction, TspPickerItem } from "@linxiraos/pi-wire";
 import { nativeShell } from "../../helpers/native-shell";
-import { isUiNode, type UiNode } from "@oh-my-pi/pi-tui";
+import { isUiNode, type UiNode } from "@linxiraos/pi-tui";
 import { firstOfKind } from "../../../src/modes/controllers/selector-views";
 import {
 	StandaloneSelect,

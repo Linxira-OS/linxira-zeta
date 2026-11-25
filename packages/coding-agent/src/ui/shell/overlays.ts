@@ -5,8 +5,8 @@
  * closing it gives focus back to whatever held it before, if that node is
  * still mounted, else to the shell's default focus (the composer).
  */
-import type { Accessor, JSXNode, UiNode } from "@oh-my-pi/pi-tui";
-import type { MouseTracking } from "@oh-my-pi/pi-tui/driver/io";
+import type { Accessor, JSXNode, UiNode } from "@linxiraos/pi-tui";
+import type { MouseTracking } from "@linxiraos/pi-tui/driver/io";
 import { mountNode, type ViewEntry, ViewList } from "./views";
 
 /** Options of {@link Overlays.open}. */

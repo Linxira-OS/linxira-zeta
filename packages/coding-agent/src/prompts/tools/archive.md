@@ -52,6 +52,7 @@ await archive.sessions({ since: "2026-11-16", until: "2026-11-17" });
 const hits = await archive.search("migration", { project: "~/work/api", limit: 5, silent: true });
 const records = await archive.messages(hits[0].id, { kinds: ["call", "result"], limit: 50 });
 ```
+
 </examples>
 
 <critical>

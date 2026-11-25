@@ -2,13 +2,15 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { procmgr } from "@oh-my-pi/pi-utils";
-import type { JobWidgetView } from "@oh-my-pi/pi-coding-agent/tools/details/job-widget";
+import { procmgr } from "@linxiraos/pi-utils";
+import type { JobWidgetView } from "@linxiraos/zeta/tools/details/job-widget";
+import type { ShellTrace } from "@linxiraos/pi-wire";
 import { AsyncJobManager } from "../../src/async/job-manager";
 import { snapshotJobs } from "../../src/async/job-control";
 import { Settings } from "../../src/config/settings";
 import { type JobWidgetAuthorRequest, JobWidgets } from "../../src/job-widgets";
 import type { AsyncJobInspection } from "../../src/session/agent-session-types";
+import type { ShellStream } from "../../src/tools/shell-steps";
 import { inspectAsyncJob } from "../../src/session/async-job-views";
 import type { ToolSession } from "../../src/tools";
 import { BashTool } from "../../src/tools/bash";
@@ -112,12 +114,17 @@ describe("bash job widgets", () => {
 			for (let waited = 0; waited < 10_000; waited += 20) {
 				await Bun.sleep(20);
 				inspection = inspectAsyncJob(manager, "Main", job.id);
-				if (inspection?.streams?.[0]?.bytes && inspection.trace) break;
+				const liveStreams = inspection?.streams as readonly ShellStream[] | undefined;
+				if (liveStreams?.[0]?.bytes && inspection?.trace) break;
 			}
+			// `AsyncJobInspection` erases the concrete trace/stream types in this
+			// merge; the job's own process types are the authoritative shapes.
+			const streams = inspection?.streams as readonly ShellStream[] | undefined;
+			const trace = inspection?.trace as ShellTrace | undefined;
 			expect(job.status).toBe("running");
 			expect(inspection?.output ?? "").toBe("");
-			expect(inspection?.streams).toHaveLength(1);
-			const stream = inspection?.streams?.[0];
+			expect(streams).toHaveLength(1);
+			const stream = streams?.[0];
 			expect(stream).toMatchObject({
 				id: "file:1",
 				kind: "file",
@@ -127,7 +134,7 @@ describe("bash job widgets", () => {
 			});
 			expect(stream?.tail()).toBe("round 1/3\nround 2/3\n");
 			expect(job.widgetInputs?.sources().map(source => source.id)).toEqual(["out", "file:1"]);
-			const states = inspection?.trace?.units.flatMap(unit => unit.nodes.map(node => node.state));
+			const states = trace?.units.flatMap(unit => unit.nodes.map(node => node.state));
 			expect(states).toContain("running");
 		} finally {
 			await manager.dispose({ timeoutMs: 2_000 });

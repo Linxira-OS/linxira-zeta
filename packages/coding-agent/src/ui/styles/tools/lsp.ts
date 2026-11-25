@@ -5,12 +5,12 @@
  * when expanded), hover as the highlighted signature with its docs (collapsed:
  * the first line and `… N more lines`), other answers as a tree of lines.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { highlightCode, supportsLanguage } from "@oh-my-pi/pi-tui/text/highlight";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { highlightCode, supportsLanguage } from "@linxiraos/pi-tui/text/highlight";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type { LspDiagnostic, LspLocationFile, LspTerm } from "../../tools/lsp";
 import { expandHint, spinnerGlyph } from "./frame";
 import { defineToolLook, toolProps } from "./look";

@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { generateThemeVars } from "@oh-my-pi/pi-coding-agent/export/html";
-import { sessionAccentHex } from "@oh-my-pi/pi-coding-agent/ui/status/accent";
-import { getResolvedThemeColors, getThemeByName, isLightTheme } from "@oh-my-pi/pi-coding-agent/ui/theme/service";
-import { builtinThemes } from "@oh-my-pi/pi-tui/theme/loader";
-import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { generateThemeVars } from "@linxiraos/zeta/export/html";
+import { sessionAccentHex } from "@linxiraos/zeta/ui/status/accent";
+import { getResolvedThemeColors, getThemeByName, isLightTheme } from "@linxiraos/zeta/ui/theme/service";
+import { builtinThemes } from "@linxiraos/pi-tui/theme/loader";
+import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 describe("theme lightness", () => {
 	it("classifies built-in themes by their status-line surface", async () => {

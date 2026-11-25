@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The transcript's tool block: one `tool` node per tool call.
  *
@@ -25,7 +25,7 @@ import {
 	structural,
 	type UiEvent,
 	untrack,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import {
 	INTENT_FIELD,
 	isShellTrace,
@@ -36,9 +36,9 @@ import {
 	type TspTone,
 	type TspToolProps,
 	toolIntentLabel,
-} from "@oh-my-pi/pi-wire";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import { isRecord } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-wire";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
+import { isRecord } from "@linxiraos/pi-utils";
 import { readMediaPath } from "../../session/transcript/tool-execution";
 import { type ShellInspectorSource, shellVizEventAction } from "../apps/shell-visualizer/model";
 import type { ToolTerm } from "../styles/tools/look";

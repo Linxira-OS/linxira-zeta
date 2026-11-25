@@ -3,7 +3,7 @@
  * pink → violet → cyan gradient, the half-block `omp` wordmark, and the
  * intro animation (the gradient sweeping round while a highlight crosses it).
  */
-import type { ColorDepth } from "@oh-my-pi/pi-tui/theme/color";
+import type { ColorDepth } from "@linxiraos/pi-tui/theme/color";
 
 /** The block-grid logo. */
 export const LOGO: readonly string[] = ["████████████", "   ██  ██   ", "   ██  ██   ", "   ▒▒  ██   ", "       ██   "];

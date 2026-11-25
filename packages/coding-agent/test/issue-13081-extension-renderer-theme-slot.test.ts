@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import { wrap } from "@linxiraos/pi-tui/text/width";
 import type { ExtensionRows, ExtensionTheme } from "../src/extensibility/extensions/render-types";
 import { ExtensionRuntime, loadExtensionFromFactory } from "../src/extensibility/extensions/loader";
 import { ExtensionRunner } from "../src/extensibility/extensions/runner";

@@ -7,7 +7,7 @@
  * messages next to the composer, and flows the deferred shell runs and a
  * waiting ask at the transcript's end instead (see {@link NATIVE_TAIL}).
  */
-import { type JSXNode, jsx } from "@oh-my-pi/pi-tui";
+import { type JSXNode, jsx } from "@linxiraos/pi-tui";
 import { Slot } from "./views";
 
 /** Every dock position. */

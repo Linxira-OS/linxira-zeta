@@ -1,4 +1,4 @@
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { StatusLineSession } from "./host";
 
 /**

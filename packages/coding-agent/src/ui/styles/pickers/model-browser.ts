@@ -19,13 +19,13 @@
  * whose `term.browser` is its {@link ModelBrowserState}; its widget routes
  * the pointer (wheel pans, motion hovers, a press selects then activates).
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { defineRolePainter, type Hit } from "@oh-my-pi/pi-tui/term/paint";
-import { scrollbar } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { defineRolePainter, type Hit } from "@linxiraos/pi-tui/term/paint";
+import { scrollbar } from "@linxiraos/pi-tui/term/painters/picker";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type {
 	DetailView,
 	ModelBrowserState,

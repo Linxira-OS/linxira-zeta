@@ -2,24 +2,24 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "bun:test"
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { getMemoryRoot } from "@oh-my-pi/pi-coding-agent/memories";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { getMemoryRoot } from "@linxiraos/zeta/memories";
 import {
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@oh-my-pi/pi-coding-agent/mnemopi/state";
-import { getInternalUrlSuggestions } from "@oh-my-pi/pi-coding-agent/internal-urls/completion";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { GlobTool } from "@oh-my-pi/pi-coding-agent/tools/glob";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/mnemopi/state";
+import { getInternalUrlSuggestions } from "@linxiraos/zeta/internal-urls/completion";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { GlobTool } from "@linxiraos/zeta/tools/glob";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

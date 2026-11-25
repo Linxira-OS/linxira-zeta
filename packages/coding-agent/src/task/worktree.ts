@@ -3,10 +3,10 @@ import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { VcsCommitAuthor, VcsGitRepo } from "@oh-my-pi/pi-natives";
-import * as natives from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { formatBytes, getWorktreeDir, isEnoent, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import type { VcsCommitAuthor, VcsGitRepo } from "@linxiraos/pi-natives";
+import * as natives from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { formatBytes, getWorktreeDir, isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { SettingValueOf } from "../config/registry";
 
 import { patchSectionPaths, splitPatchSections } from "../utils/git-diff-paths";
@@ -395,7 +395,7 @@ async function captureRepoDeltaPatch(repoDir: string, rb: RepoBaseline, objectRe
 	return diffTreeOrEmpty(objectRepo, baselineTree, currentTree);
 }
 
-function patchTouchedFiles(patch: string): string[] {
+export function patchTouchedFiles(patch: string): string[] {
 	const files = new Set<string>();
 	for (const section of splitPatchSections(patch)) {
 		for (const file of patchSectionPaths(section)) files.add(file);
@@ -786,7 +786,7 @@ function collectWipPatches(wip: BaselineWipContext | undefined): string[] {
 }
 
 /** Keep only the `diff --git` sections of `patch` that touch one of `files`. */
-function filterPatchFiles(patch: string, files: ReadonlySet<string>): string {
+export function filterPatchFiles(patch: string, files: ReadonlySet<string>): string {
 	return splitPatchSections(patch)
 		.filter(section => patchSectionPaths(section).some(file => files.has(file)))
 		.join("");

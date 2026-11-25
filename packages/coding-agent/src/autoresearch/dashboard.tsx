@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The autoresearch dashboard on the extension UI: the widget above the
  * composer (collapsed line, expanded card, or the running-only line) and the
@@ -6,7 +6,7 @@
  * `updateWidget` replaces the widget, and {@link DashboardController.requestRender}
  * redraws an open sheet.
  */
-import { nativeRendering, signal } from "@oh-my-pi/pi-tui";
+import { nativeRendering, signal } from "@linxiraos/pi-tui";
 import type { ExtensionUIContext } from "../extensibility/extensions";
 import { AutoresearchSheet, AutoresearchWidget, autoresearchSheet } from "../ui/apps/autoresearch/dashboard";
 import { type AutoresearchDashboardRuntime, shouldShowDashboard } from "../ui/apps/autoresearch/model";

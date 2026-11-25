@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The interactive app's screen before and after a session exists: the
  * {@link Shell}, the {@link Composer} in the `composer` slot (with the status
@@ -10,11 +10,11 @@
  * while the session loads; the interactive mode adopts it. Otherwise the mode
  * builds its own.
  */
-import { type Accessor, computed, type JSXNode, type Signal, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import type { ResizeScrollback, TerminalDriverOptions } from "@oh-my-pi/pi-tui/driver/index";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { renderBlock } from "@oh-my-pi/pi-tui/term/render";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { type Accessor, computed, type JSXNode, type Signal, signal, type UiNode } from "@linxiraos/pi-tui";
+import type { ResizeScrollback, TerminalDriverOptions } from "@linxiraos/pi-tui/driver/index";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { renderBlock } from "@linxiraos/pi-tui/term/render";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { setSymbolPreset } from "../../ui/theme/service";
 import type { Keybinding } from "../../config/keybindings/app-keybindings";
 import { getKeybindings } from "../../config/keybindings/keybindings";

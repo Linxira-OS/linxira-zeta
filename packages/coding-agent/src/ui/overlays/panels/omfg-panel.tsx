@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The `/omfg` sheet: a complaint turned into a TTSR rule. The head names the
  * complaint (a spinner while work runs), then the current status, the
@@ -8,9 +8,9 @@
  *
  * {@link OmfgPanelState} holds what the controller drives.
  */
-import { type JSXNode, signal, untrack } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import { type JSXNode, signal, untrack } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { sanitizeDisplayText } from "../../../extensibility/inventory/display-text";
 import "../../styles/panels/omfg";
 import { Hints } from "./common";
@@ -90,7 +90,7 @@ export function OmfgPanel(props: OmfgPanelProps): JSXNode {
 	};
 	return (
 		<col
-			role="omp.overlay.omfg"
+			role="zeta.overlay.omfg"
 			gap="sm"
 			tone={() => ending()?.tone}
 			term={{ title: `/omfg${complaint.trim() ? ` ${complaint.replace(/\s+/g, " ").trim()}` : ""}` }}
@@ -101,7 +101,7 @@ export function OmfgPanel(props: OmfgPanelProps): JSXNode {
 				return true;
 			}}
 		>
-			<row role="omp.sheet.head" align="center" gap="sm">
+			<row role="zeta.sheet.head" align="center" gap="sm">
 				{() => !state.end() && <spinner />}
 				<text lines={1} truncate="end" spans={[{ s: "accent", t: "/omfg" }, { t: ` ${complaint}` }]} />
 			</row>

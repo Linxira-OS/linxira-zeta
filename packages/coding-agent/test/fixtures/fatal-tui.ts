@@ -1,7 +1,7 @@
-import { createSurface, startHost } from "@oh-my-pi/pi-tui";
-import { jsx } from "@oh-my-pi/pi-tui/jsx-runtime";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { fatal, installProcessHandlers } from "@oh-my-pi/pi-utils/postmortem";
+import { createSurface, startHost } from "@linxiraos/pi-tui";
+import { jsx } from "@linxiraos/pi-tui/jsx-runtime";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { fatal, installProcessHandlers } from "@linxiraos/pi-utils/postmortem";
 
 const native = process.argv.includes("--native");
 if (native) installProcessHandlers();

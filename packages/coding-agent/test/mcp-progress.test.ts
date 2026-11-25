@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { StdioTransport } from "@linxiraos/zeta/mcp/transports/stdio";
 import type { MCPToolCallResult } from "@linxiraos/zeta/mcp/types";
-import type { MCPProgress } from "@linxiraos/pi-tui/tools/mcp";
+import type { MCPProgress } from "@linxiraos/zeta/mcp/types";
 import { withTimeout } from "@linxiraos/pi-utils";
 import { deadlinesOnlyUnderDeadline } from "./helpers/mcp-deadline";
 import { rejectionOf } from "./helpers/rejection";

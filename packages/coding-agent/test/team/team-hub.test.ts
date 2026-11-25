@@ -16,7 +16,7 @@ import {
 	nextTeamHubPmRoom,
 	selectTeamHubRoom,
 	teamHubUnread,
-} from "@linxiraos/pi-tui/overlays/team-hub";
+} from "../../src/modes/view-model/overlays/team-hub";
 import { engineerRowId, pmRowId, TeamDb, worktreeRowId } from "../../src/team/db";
 import { createTeamHubDataSource } from "../../src/team/hub-data";
 import { createRoom, postRoomEvent } from "../../src/team/rooms";

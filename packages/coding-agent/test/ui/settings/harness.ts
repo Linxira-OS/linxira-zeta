@@ -8,21 +8,21 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { bubbleEvent, bubbleKey, keypathOf, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import { decodeKey } from "@oh-my-pi/pi-tui/driver/input/keys";
-import { decodeMouse } from "@oh-my-pi/pi-tui/driver/input/mouse";
-import type { KeyEvent, UiEvent, UiNode } from "@oh-my-pi/pi-tui";
-import { batch, signal, type Signal } from "@oh-my-pi/pi-tui";
-import { type PaintEnvironment, paintNode, type StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { widgetFor, widgetState, type WidgetContext } from "@oh-my-pi/pi-tui/term/widgets";
+import { bubbleEvent, bubbleKey, keypathOf, pathTo } from "@linxiraos/pi-tui/dispatch";
+import { decodeKey } from "@linxiraos/pi-tui/driver/input/keys";
+import { decodeMouse } from "@linxiraos/pi-tui/driver/input/mouse";
+import type { KeyEvent, UiEvent, UiNode } from "@linxiraos/pi-tui";
+import { batch, signal, type Signal } from "@linxiraos/pi-tui";
+import { type PaintEnvironment, paintNode, type StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { widgetFor, widgetState, type WidgetContext } from "@linxiraos/pi-tui/term/widgets";
 import {
 	CORPUS_DIR,
 	type CorpusCase,
 	corpusEnvironment,
 	describeTree,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+} from "@linxiraos/pi-tui/testing/corpus";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 
 /** Whether the overlay corpus is present (it is local-only). */
 export function hasCorpus(screen: string): boolean {

@@ -1,4 +1,4 @@
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { type AdvisorSeverity, type AdvisorNote } from "../session/transcript/messages";
 export { type AdvisorSeverity, type AdvisorNote, type AdvisorMessageDetails } from "../session/transcript/messages";
 import type {
@@ -8,8 +8,8 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@oh-my-pi/pi-agent-core";
-import { escapeXmlAttribute, escapeXmlText, logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { escapeXmlAttribute, escapeXmlText, logger } from "@linxiraos/pi-utils";
 import adviseDescription from "../prompts/advisor/advise-tool.md" with { type: "text" };
 import { AdvisorEmissionGuard, type AdvisorSuppressionReason, normalizeAdvisorNote } from "./emission-guard";
 

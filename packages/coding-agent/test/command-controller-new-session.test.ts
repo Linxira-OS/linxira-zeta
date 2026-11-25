@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { initTheme } from "../src/ui/theme/service";
 
 beforeAll(async () => {

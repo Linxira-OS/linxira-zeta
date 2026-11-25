@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Transcript faces of the session's non-assistant messages: prompts, summaries,
  * file mentions, and the custom messages extensions and omp itself persist
@@ -7,10 +7,10 @@
  * presenters.
  */
 import type { GlowingKeyword } from "../../ui/composer/magic-keywords";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { type Accessor, type JSXNode, type Signal, signal } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { type Accessor, type JSXNode, type Signal, signal } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { COLLAB_PROMPT_MESSAGE_TYPE } from "../../collab/protocol";
 import type { MessageRenderer } from "../../extensibility/extensions/render-types";

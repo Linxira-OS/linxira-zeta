@@ -1,27 +1,27 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { type Api, type AssistantMessage, type Context, Effort, type ImageContent, type Model } from "@oh-my-pi/pi-ai";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { formatModelStringWithRouting, parseModelPattern } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { type CreateAgentSessionResult, createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { getRestorableSessionModels } from "@oh-my-pi/pi-coding-agent/session/session-context";
+import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
+import { type Api, type AssistantMessage, type Context, Effort, type ImageContent, type Model } from "@linxiraos/pi-ai";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { formatModelStringWithRouting, parseModelPattern } from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { type CreateAgentSessionResult, createAgentSession } from "@linxiraos/zeta/sdk";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-context";
 import {
 	EPHEMERAL_MODEL_CHANGE_ROLE,
 	PREWALK_MODEL_CHANGE_ROLE,
 	TEMPORARY_MODEL_CHANGE_ROLE,
-} from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { encodeRawPng } from "@oh-my-pi/pi-coding-agent/utils/png-encode";
-import { AUTO_THINKING, resolveProvisionalAutoLevel } from "@oh-my-pi/pi-coding-agent/thinking/levels";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+} from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
+import { AUTO_THINKING, resolveProvisionalAutoLevel } from "@linxiraos/zeta/thinking/levels";
+import { TempDir } from "@linxiraos/pi-utils";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("AgentSession model persistence", () => {

@@ -1,4 +1,4 @@
-import type { SpotlightRequestParams } from "@linxiraos/pi-tui/chat/spotlight";
+import type { SpotlightRequestParams } from "../tools/details/spotlight";
 import { logger } from "@linxiraos/pi-utils";
 import type { SpotlightClient, SpotlightRequest } from "./client";
 import { SpotlightError } from "./client";

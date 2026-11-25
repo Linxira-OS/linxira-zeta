@@ -5,8 +5,8 @@
  */
 import * as os from "node:os";
 import * as url from "node:url";
-import type { TerminalId } from "@oh-my-pi/pi-tui/driver/caps/identity";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { TerminalId } from "@linxiraos/pi-tui/driver/caps/identity";
+import { logger } from "@linxiraos/pi-utils";
 
 /** A remote file-link handler: links become `<scheme>://<host><path>?line=&col=`. */
 export interface FileLinkConfig {

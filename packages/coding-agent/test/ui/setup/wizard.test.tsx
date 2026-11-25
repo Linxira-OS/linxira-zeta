@@ -1,18 +1,18 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `setup/wizard` and `setup/startup-splash` corpus: the full-screen wizard
  * across its phases (splash, dissolve, scenes, outro, done) and the startup
  * splash, on a clock and screen size the steps move.
  */
 import { afterAll } from "bun:test";
-import { signal } from "@oh-my-pi/pi-tui";
-import type { StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { padTo, wrap } from "@oh-my-pi/pi-tui/text/width";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
-import { setAgentDir } from "@oh-my-pi/pi-utils/dirs";
+import { signal } from "@linxiraos/pi-tui";
+import type { StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { padTo, wrap } from "@linxiraos/pi-tui/text/width";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
+import { setAgentDir } from "@linxiraos/pi-utils/dirs";
 import {
 	ALL_SCENES,
 	type GlyphPreset,

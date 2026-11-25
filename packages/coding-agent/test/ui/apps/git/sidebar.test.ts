@@ -1,6 +1,6 @@
-import { signal } from "@oh-my-pi/pi-tui";
-import { paintNode } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
+import { signal } from "@linxiraos/pi-tui";
+import { paintNode } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
 import type { SidebarAction } from "../../../../src/cli/git-tui/model/sidebar";
 import type { ChangedFile, GitViewState, HeadCommit } from "../../../../src/cli/git-tui/model/state";
 import { GitSidebar, itemKey, lineAt, SidebarModel } from "../../../../src/ui/apps/git";

@@ -1,7 +1,7 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** Layers and blocks the selector controller mounts around its screens. */
-import type { JSXNode, KeyEvent, PageProps, UiNode } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { JSXNode, KeyEvent, PageProps, UiNode } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import "../../ui/styles/apps/screen/look";
 
 /** A page Tern styles as the session it belongs to. */

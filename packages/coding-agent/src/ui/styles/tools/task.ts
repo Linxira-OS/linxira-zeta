@@ -14,11 +14,11 @@
  * Also `omp.task.nested` (a `text` node's terminal role): settled child task
  * snapshots as tree rows.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/index";
+import { truncate, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type { TaskToolDetails } from "../../../task/task-details";
 import { expandKeyLabel } from "../../keys/hints";
 import { agentColored } from "../../tools/agent-identity";

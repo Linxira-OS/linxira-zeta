@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Benchmark: transcript compose cost vs session depth.
  *
@@ -13,10 +13,10 @@
  * frame per tail delta. `resizeMs` is one frame after a width change, which
  * re-verifies every committed block against history at the new width.
  */
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { signal } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { signal } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { Transcript } from "../src/ui/shell/transcript";
 import { AssistantMessageBlock } from "../src/ui/transcript/messages/assistant-message";
 

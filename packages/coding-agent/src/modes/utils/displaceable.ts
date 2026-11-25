@@ -3,7 +3,7 @@
  * replaces its card) and a final `todo` snapshot (the next update replaces it). The live event
  * path and the transcript replay collapse such runs to their last card the same way.
  */
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import { isWaitingPollDetails } from "../../tools/details/wait";
 import type { PendingTool } from "../types";
 

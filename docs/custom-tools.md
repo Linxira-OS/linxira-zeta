@@ -181,7 +181,7 @@ Optional rendering hooks:
 - `renderCall(args, options, theme)`
 - `renderResult(result, options, theme)`
 
-Each returns pi-tui nodes (JSX from `@oh-my-pi/pi-tui`), a rows object `{ render(width): string[] }`, or `undefined`; see [extension rendering](./extensions.md#migrating-from-pi-tui). The `theme` is pi-tui's theme plus `bold`, `italic`, `underline`, `strikethrough` and `inverse`.
+Each returns pi-tui nodes (JSX from `@linxiraos/pi-tui`), a rows object `{ render(width): string[] }`, or `undefined`; see [extension rendering](./extensions.md#migrating-from-pi-tui). The `theme` is pi-tui's theme plus `bold`, `italic`, `underline`, `strikethrough` and `inverse`.
 
 The normal SDK and filesystem-discovery paths wrap custom tools as extensions. On those paths, `renderResult` receives only the three arguments above; the bridge does not forward the original tool arguments. The public `CustomTool` type retains an optional fourth `args` parameter for direct `CustomToolAdapter` consumers.
 

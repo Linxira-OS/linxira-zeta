@@ -1,11 +1,11 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { loadHindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
-import { cfgHindsightApiToken } from "@oh-my-pi/pi-coding-agent/hindsight/settings";
-import { cfgMemoryBackend } from "@oh-my-pi/pi-coding-agent/memory-backend/settings";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import { settings } from "@linxiraos/zeta/config/settings";
+import { loadHindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import { cfgHindsightApiToken } from "@linxiraos/zeta/hindsight/settings";
+import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { settingsScreen, setupSettingsWindow } from "../../helpers/settings-window";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

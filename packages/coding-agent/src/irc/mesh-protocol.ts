@@ -9,7 +9,7 @@
  *
  * Implementations: `daemon/modules/agents.ts` (room), `irc/mesh.ts` (instance).
  */
-import type { AgentStatus } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+import type { AgentStatus } from "../registry/agent-hub-types";
 import type { IrcDeliveryReceipt } from "@linxiraos/pi-tui/tools/irc";
 
 /** Daemon module kind and `caps` key. */
@@ -30,6 +30,8 @@ export interface MeshSubagent {
 export interface MeshState {
 	/** Root transcript; its artifact directory holds the published outputs. */
 	sessionFile: string | null;
+	/** Instance display name (session title); peers show it in place of the pid. */
+	title?: string;
 	status: AgentStatus | "unknown";
 	agents: MeshSubagent[];
 }

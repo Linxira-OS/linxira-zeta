@@ -1,19 +1,19 @@
 import { afterAll, afterEach, beforeEach, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createSettingsHost } from "@oh-my-pi/pi-coding-agent/config/settings-ui";
-import { createPluginSettingsHost } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/settings-host";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import { Settings, settings } from "@linxiraos/zeta/config/settings";
+import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
+import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/settings-host";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { TempDir } from "@linxiraos/pi-utils";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { SettingsWindow } from "../../src/ui/overlays/settings/settings";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../helpers/settings-test-state";
 
-import { cfgTaskPerCallModelAllow } from "@oh-my-pi/pi-coding-agent/task/settings";
-import { cfgSearxngEndpoint } from "@oh-my-pi/pi-coding-agent/web/settings";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { cfgTaskPerCallModelAllow } from "@linxiraos/zeta/task/settings";
+import { cfgSearxngEndpoint } from "@linxiraos/zeta/web/settings";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

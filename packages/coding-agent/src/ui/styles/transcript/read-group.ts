@@ -9,11 +9,11 @@
  * compact read keeps its glyph and label at the edge over its rows.
  * Reads {@link ReadGroupTerm}.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/index";
+import { truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import { terminalPaddingX } from "../terminal-padding";
 import {
 	READ_PREVIEW_LINES,

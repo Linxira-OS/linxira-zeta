@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { toolWireSchema } from "@oh-my-pi/pi-ai";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { jsBackend, pythonBackend } from "@oh-my-pi/pi-coding-agent/eval";
-import type { ExecutorBackendResult } from "@oh-my-pi/pi-coding-agent/eval/backend";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
-import { cfgToolsMaxTimeout } from "@oh-my-pi/pi-coding-agent/tools/settings";
-import { TOOL_TIMEOUTS } from "@oh-my-pi/pi-coding-agent/tools/tool-timeouts";
+import { toolWireSchema } from "@linxiraos/pi-ai";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { jsBackend, pythonBackend } from "@linxiraos/zeta/eval";
+import type { ExecutorBackendResult } from "@linxiraos/zeta/eval/backend";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import { cfgToolsMaxTimeout } from "@linxiraos/zeta/tools/settings";
+import { TOOL_TIMEOUTS } from "@linxiraos/zeta/tools/tool-timeouts";
 
 function makeSession(settings: Settings, asyncJobManager?: AsyncJobManager): ToolSession {
 	return {

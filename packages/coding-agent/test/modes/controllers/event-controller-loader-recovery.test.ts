@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { type WorkingSpec, workingMessage } from "../../../src/ui/dock/working";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
-import { cfgTerminalShowProgress } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgTerminalShowProgress } from "@linxiraos/zeta/modes/settings";
 
 /**
  * The working-row invariant: `agent_start` shows the turn's row

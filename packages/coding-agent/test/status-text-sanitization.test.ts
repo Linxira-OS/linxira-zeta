@@ -3,7 +3,7 @@ import {
 	sanitizeHookStatusText,
 	sanitizeInlineStatusText,
 	sanitizeStatusText,
-} from "@oh-my-pi/pi-coding-agent/modes/view-model/chrome/shared";
+} from "@linxiraos/zeta/modes/view-model/chrome/shared";
 
 const ESCAPE_FIXTURE =
 	"prefix " +

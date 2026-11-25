@@ -25,10 +25,12 @@
 - Released as part of Zeta 1.5.11; no package-specific user-visible changes.
 
 ## [1.5.10] - 2026-11-19
+
 ### Fixed
 
 - Devin usage from two organizations under one email is no longer merged into one account ([#19928](https://github.com/Linxira-OS/linxira-zeta/pull/19928) by [@will-bogusz](https://github.com/will-bogusz))
 - Devin's Gemini 4 Neon images are now budgeted at the 1,089 tokens Devin bills per image, measured across sizes, instead of the unverified 1,120-token Gemini estimate ([#19883](https://github.com/Linxira-OS/linxira-zeta/pull/19883) by [@will-bogusz](https://github.com/will-bogusz))
+
 ## [19.2.0] - 2026-11-25
 
 ### Added
@@ -65,8 +67,8 @@
 ### Added
 
 - Z.AI (`zai`) now discovers the models available to your GLM Coding Plan key, so newly released GLM models appear without waiting for a catalog update.
-- Added `getUpstreamPin()` and `routedModelsAreEqual()` to `@oh-my-pi/pi-catalog/models` for distinguishing aggregator models routed to different upstream providers.
-- Added `@oh-my-pi/pi-catalog/discovery/pi-native` and `piNativeModelManagerOptions()` for reading a provider's model roster from an auth gateway's `GET /v1/pi/models`.
+- Added `getUpstreamPin()` and `routedModelsAreEqual()` to `@linxiraos/pi-catalog/models` for distinguishing aggregator models routed to different upstream providers.
+- Added `@linxiraos/pi-catalog/discovery/pi-native` and `piNativeModelManagerOptions()` for reading a provider's model roster from an auth gateway's `GET /v1/pi/models`.
 
 ### Fixed
 

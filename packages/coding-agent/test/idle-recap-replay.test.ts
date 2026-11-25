@@ -8,11 +8,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, setSystemTime }
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { closeSessionIndex, recordSessionRecap } from "@oh-my-pi/pi-coding-agent/session/session-index";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { __resetDirsFromEnvForTests, removeSyncWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { closeSessionIndex, recordSessionRecap } from "@linxiraos/zeta/session/session-index";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { __resetDirsFromEnvForTests, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

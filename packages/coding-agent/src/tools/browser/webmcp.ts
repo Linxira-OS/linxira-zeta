@@ -1,6 +1,6 @@
 import { truncateHeadBytes } from "../streaming-output";
 import { ToolError } from "../tool-errors";
-import { untilAborted } from "@oh-my-pi/pi-utils";
+import { untilAborted } from "@linxiraos/pi-utils";
 import type { Protocol } from "devtools-protocol";
 import type { CDPSession, Frame, Page } from "puppeteer-core";
 

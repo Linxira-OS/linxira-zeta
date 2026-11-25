@@ -5,11 +5,11 @@
  * search status; with nothing to list, the status stands above the list's `empty` text. A press
  * on an option row picks it.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type Hit, type PaintContext, roleOf } from "@oh-my-pi/pi-tui/term/paint";
-import { boxBottom, boxRow, boxTop } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { windowStart } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import type { TspCardProps, TspListProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type Hit, type PaintContext, roleOf } from "@linxiraos/pi-tui/term/paint";
+import { boxBottom, boxRow, boxTop } from "@linxiraos/pi-tui/term/painters/picker";
+import { windowStart } from "@linxiraos/pi-tui/term/painters/prefs";
+import type { TspCardProps, TspListProps } from "@linxiraos/pi-wire";
 import { selectRows } from "../forms/field";
 
 /** Rows of an `omp.select` column at `width`, and the option each of its leading rows shows. */

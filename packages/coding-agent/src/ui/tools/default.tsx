@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The generic card for tools without a presenter: the tool label with a
  * one-line args summary as the head target, and the result's text as raw
@@ -7,7 +7,7 @@
  * Terminal look: `default` (`src/ui/styles/tools/default.ts`), which lists the
  * args (`term.args`, set by the tool block) when expanded.
  */
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { argsSummaryChars, visibleArgKeys } from "./args";
 import type { ToolPresenter, ToolResult, ToolView, ToolViewState } from "./contract";
 

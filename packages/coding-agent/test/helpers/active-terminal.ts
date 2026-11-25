@@ -1,4 +1,4 @@
-import { type ProcessDriverTest, startProcessDriver } from "@oh-my-pi/pi-tui/testing/process-driver";
+import { type ProcessDriverTest, startProcessDriver } from "@linxiraos/pi-tui/testing/process-driver";
 
 export interface ActiveTerminalHarness {
 	/** Chunks that took the running driver's ordered output path. */

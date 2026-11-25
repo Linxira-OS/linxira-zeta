@@ -3,13 +3,7 @@
  *
  * Configure API key resolution via AuthStorage and ModelRegistry.
  */
-import {
-	AuthStorage,
-	createAgentSession,
-	discoverAuthStorage,
-	ModelRegistry,
-	SessionManager,
-} from "@oh-my-pi/pi-coding-agent";
+import { AuthStorage, createAgentSession, discoverAuthStorage, ModelRegistry, SessionManager } from "@linxiraos/zeta";
 
 // Default: discoverAuthStorage() uses ~/.omp/agent/agent.db
 // ModelRegistry loads built-in + custom models from ~/.omp/agent/models.yml

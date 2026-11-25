@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { OmfgController } from "@oh-my-pi/pi-coding-agent/modes/controllers/omfg-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { Shell } from "@oh-my-pi/pi-coding-agent/ui/shell/index";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
-import { clearCache, readDirEntries } from "@oh-my-pi/pi-coding-agent/capability/fs";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { OmfgController } from "@linxiraos/zeta/modes/controllers/omfg-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { Shell } from "@linxiraos/zeta/ui/shell/index";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { clearCache, readDirEntries } from "@linxiraos/zeta/capability/fs";
 
 const PROJECT_OPTION = "This project (.omp/rules)";
 

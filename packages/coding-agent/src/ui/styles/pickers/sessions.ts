@@ -9,8 +9,8 @@
  * last rows in the fullscreen picker. The list scrolls at its edge; a new
  * search or scope opens it centred on the selection.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
 import {
 	boxBottom,
 	boxRow,
@@ -20,11 +20,11 @@ import {
 	type PickerTerm,
 	pickerState,
 	sheetHit,
-} from "@oh-my-pi/pi-tui/term/painters/picker";
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+} from "@linxiraos/pi-tui/term/painters/picker";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { replaceTabs } from "../../../utils/text-width";
 import { paintHookPanel } from "./hook";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
 import { caretField } from "./common";
 
 /** One session row. */

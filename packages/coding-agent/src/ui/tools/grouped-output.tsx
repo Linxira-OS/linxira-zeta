@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Grouped file output, as ast-grep and ast-edit print it for display:
  *
@@ -14,8 +14,8 @@
  */
 
 import * as nodePath from "node:path";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { isUrlLikePath } from "@oh-my-pi/pi-utils";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { isUrlLikePath } from "@linxiraos/pi-utils";
 import { HASHLINE_TAG_SUFFIX_RE } from "../../tools/hashline-format";
 import { countText, pathSpans } from "./search-common";
 
@@ -256,7 +256,7 @@ function GroupedFileRow(props: {
 	readonly badge?: { readonly text: string; readonly title?: string };
 }): JSXNode {
 	return (
-		<row key="file" role="omp.tool.file">
+		<row key="file" role="zeta.tool.file">
 			<icon name="file" />
 			<text spans={pathSpans(props.path)} title={props.path} truncate="middle" lines={1} shrink={1} />
 			{props.badge ? <badge text={props.badge.text} title={props.badge.title} /> : undefined}
@@ -303,7 +303,7 @@ export function groupedOutputNodes(
 				? { text: String(count), title: countText(count, "match") }
 				: undefined;
 		files.push(
-			<col key={`f:${current.path}`} gap="xs" role="omp.tool.search.file">
+			<col key={`f:${current.path}`} gap="xs" role="zeta.tool.search.file">
 				<GroupedFileRow path={current.path} badge={badge} />
 				{current.children}
 			</col>,

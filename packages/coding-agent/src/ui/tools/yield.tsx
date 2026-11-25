@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Yield (Submit Result): the submitted data instead of the model-facing
  * acknowledgement. The head names the sections or workpool item it fills
@@ -7,7 +7,7 @@
  *
  * Terminal look: `yield` (`src/ui/styles/tools/yield.ts`).
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import type { ToolPresenter, ToolResult, ToolView } from "./contract";
 import { countText, ErrorText, NoteText } from "./agent-common";
 import { resultText } from "./default";

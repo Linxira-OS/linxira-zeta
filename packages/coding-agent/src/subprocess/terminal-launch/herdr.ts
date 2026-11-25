@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hasMultiplexerSession } from "@oh-my-pi/pi-tui/driver/mux/detect";
+import { hasMultiplexerSession } from "@linxiraos/pi-tui/driver/mux/detect";
 import { quotePosixArgument, quotePosixArgv } from "../../utils/shell-quote";
 import { launchError, nestedString, parseJson, runStep } from "./shared";
 import type {

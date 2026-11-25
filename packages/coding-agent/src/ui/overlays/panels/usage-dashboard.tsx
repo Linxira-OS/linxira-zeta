@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/usage`: a toolbar (Overview/Details tabs, report freshness, Refresh),
  * then the Overview — headline figures, one row per provider with quotas,
@@ -9,10 +9,10 @@
  * (`styles/panels/usage-dashboard.ts`): provider cards in columns, a
  * width-fitted calendar, the classic report under Details.
  */
-import { resolveUsedFraction, type UsageReport } from "@oh-my-pi/pi-ai";
-import { type JSXNode, untrack } from "@oh-my-pi/pi-tui";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspTableColumn, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import { resolveUsedFraction, type UsageReport } from "@linxiraos/pi-ai";
+import { type JSXNode, untrack } from "@linxiraos/pi-tui";
+import { formatDuration } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTableColumn, TspText, TspTone } from "@linxiraos/pi-wire";
 import { sanitizeDisplayLine } from "../../../extensibility/inventory/display-text";
 import {
 	collapseSharedUsageReports,
@@ -68,7 +68,7 @@ function dim(text: string): TspSpan[] {
 
 function StatusDot(props: { readonly status: LimitStatus }): JSXNode {
 	const dot = STATUS_DOT[props.status ?? "unknown"];
-	return <text role="omp.usage.dot" spans={[{ s: dot.token, t: "●" }]} title={dot.label} aria={dot.label} />;
+	return <text role="zeta.usage.dot" spans={[{ s: dot.token, t: "●" }]} title={dot.label} aria={dot.label} />;
 }
 
 /** `62%` mono (toned by status) and a quiet `left`. */
@@ -86,8 +86,8 @@ function meterTone(status: LimitStatus): TspTone {
 
 function SectionHead(props: { readonly title: string; readonly children?: JSXNode }): JSXNode {
 	return (
-		<row key="head" role="omp.usage.section" gap="sm" align="center">
-			<text role="omp.usage.section.title" spans={[{ t: props.title }]} />
+		<row key="head" role="zeta.usage.section" gap="sm" align="center">
+			<text role="zeta.usage.section.title" spans={[{ t: props.title }]} />
 			<spacer grow={1} />
 			{props.children}
 		</row>
@@ -103,13 +103,13 @@ function StatTile(props: {
 	readonly chart?: JSXNode;
 }): JSXNode {
 	return (
-		<col key={props.id} role="omp.usage.stat" gap="xs" title={props.title}>
-			<text role="omp.usage.stat.label" spans={[{ t: props.label }]} truncate="end" />
+		<col key={props.id} role="zeta.usage.stat" gap="xs" title={props.title}>
+			<text role="zeta.usage.stat.label" spans={[{ t: props.label }]} truncate="end" />
 			<row key="figure" gap="md" align="end">
-				<text role="omp.usage.stat.value" spans={props.value as TspSpan[]} truncate="end" />
+				<text role="zeta.usage.stat.value" spans={props.value as TspSpan[]} truncate="end" />
 				{props.chart}
 			</row>
-			<text role="omp.usage.stat.sub" spans={props.sub as TspSpan[]} truncate="end" />
+			<text role="zeta.usage.stat.sub" spans={props.sub as TspSpan[]} truncate="end" />
 		</col>
 	);
 }
@@ -123,11 +123,11 @@ function Footnote(props: {
 	return (
 		<row
 			key={props.id}
-			role="omp.usage.footnote"
+			role="zeta.usage.footnote"
 			align="baseline"
 			title={props.title === undefined ? undefined : sanitizeDisplayLine(props.title)}
 		>
-			<text role="omp.usage.footnote.k" spans={dim(props.label)} />
+			<text role="zeta.usage.footnote.k" spans={dim(props.label)} />
 			<text spans={[{ t: props.cards.map(card => card.name).join(", ") }]} wrap="word" />
 		</row>
 	);
@@ -149,7 +149,7 @@ function Head(props: { readonly model: UsageDashboardModel }): JSXNode {
 		];
 	}
 	return (
-		<row key="head" role="omp.usage.head" gap="md" align="center">
+		<row key="head" role="zeta.usage.head" gap="md" align="center">
 			<tabs
 				key="tabs"
 				items={[
@@ -208,7 +208,7 @@ function Stats(props: {
 	if (!figures || !calendar) {
 		const sub = dim(model.activityError ? "History unavailable" : "Loading…");
 		return (
-			<row key="stats" role="omp.usage.stats" wrap>
+			<row key="stats" role="zeta.usage.stats" wrap>
 				{quota}
 				<StatTile id="year" label="Past year" value={dim("—")} sub={sub} />
 				<StatTile id="month" label="Last 30 days" value={dim("—")} sub={sub} />
@@ -235,7 +235,7 @@ function Stats(props: {
 		) : undefined;
 	const busiest = figures.busiest;
 	return (
-		<row key="stats" role="omp.usage.stats" wrap>
+		<row key="stats" role="zeta.usage.stats" wrap>
 			{quota}
 			<StatTile
 				id="year"
@@ -274,11 +274,11 @@ function QuotaWindow(props: { readonly model: UsageDashboardModel; readonly row:
 	if (row.windowTag) label.push({ s: "dim", t: ` ${sanitizeDisplayLine(row.windowTag)}` });
 	const reset = row.resetMs === undefined ? undefined : resetLabel(props.model.nowMs, row.resetMs);
 	return (
-		<row key={`w${props.index}`} role="omp.usage.window" gap="md" align="center">
-			<text role="omp.usage.label" spans={label} truncate="end" title={sanitizeDisplayLine(row.label)} />
+		<row key={`w${props.index}`} role="zeta.usage.window" gap="md" align="center">
+			<text role="zeta.usage.label" spans={label} truncate="end" title={sanitizeDisplayLine(row.label)} />
 			{row.fraction === undefined ? (
 				<text
-					role="omp.usage.amount"
+					role="zeta.usage.amount"
 					spans={[{ s: pressureTone(row.status) ?? "muted", t: amountText(row.amount, row.status, true) }]}
 					truncate="end"
 				/>
@@ -290,8 +290,8 @@ function QuotaWindow(props: { readonly model: UsageDashboardModel; readonly row:
 						size="md"
 						tone={meterTone(row.status)}
 					/>,
-					<text role="omp.usage.pct" spans={leftSpans(row.fraction, row.status)} />,
-					reset && <text role="omp.usage.reset" spans={dim(reset.text)} title={reset.title} />,
+					<text role="zeta.usage.pct" spans={leftSpans(row.fraction, row.status)} />,
+					reset && <text role="zeta.usage.reset" spans={dim(reset.text)} title={reset.title} />,
 				]
 			)}
 		</row>
@@ -301,7 +301,7 @@ function QuotaWindow(props: { readonly model: UsageDashboardModel; readonly row:
 function Provider(props: { readonly model: UsageDashboardModel; readonly card: ProviderCard }): JSXNode {
 	const { model, card } = props;
 	const who: JSXNode[] = [];
-	if (card.accounts > 1) who.push(<text role="omp.usage.provider.meta" spans={dim(`${card.accounts} accounts`)} />);
+	if (card.accounts > 1) who.push(<text role="zeta.usage.provider.meta" spans={dim(`${card.accounts} accounts`)} />);
 	if (card.resetCredits) {
 		const resets = card.resetCredits;
 		const details: string[] = [];
@@ -313,7 +313,7 @@ function Provider(props: { readonly model: UsageDashboardModel; readonly card: P
 		const label = `${resets.bankedCount} reset${resets.bankedCount === 1 ? "" : "s"} banked`;
 		who.push(
 			<text
-				role="omp.usage.provider.meta"
+				role="zeta.usage.provider.meta"
 				spans={[{ s: resets.redeemableCount > 0 ? "success" : "warning", t: label }]}
 				title={details.length > 0 ? `${label} · ${details.join(" · ")}` : label}
 			/>,
@@ -323,7 +323,7 @@ function Provider(props: { readonly model: UsageDashboardModel; readonly card: P
 		const name = sanitizeDisplayLine(account);
 		who.push(
 			<text
-				role="omp.usage.provider.meta"
+				role="zeta.usage.provider.meta"
 				spans={[{ s: "success", t: `Daybreak · ${name}` }]}
 				truncate="middle"
 				title={`Daybreak access · ${name}`}
@@ -333,22 +333,22 @@ function Provider(props: { readonly model: UsageDashboardModel; readonly card: P
 	for (const account of card.unavailableAccounts) {
 		const line = `${sanitizeDisplayLine(account)}: no usage data`;
 		who.push(
-			<text role="omp.usage.provider.meta" spans={[{ s: "warning", t: line }]} truncate="middle" title={line} />,
+			<text role="zeta.usage.provider.meta" spans={[{ s: "warning", t: line }]} truncate="middle" title={line} />,
 		);
 	}
 	const hidden = card.windows.length - CARD_MAX_WINDOWS;
 	return (
-		<row key={card.provider} role="omp.usage.provider" gap="lg" align="start">
-			<col key="who" role="omp.usage.provider.head" gap="xs">
+		<row key={card.provider} role="zeta.usage.provider" gap="lg" align="start">
+			<col key="who" role="zeta.usage.provider.head" gap="xs">
 				<row key="name" gap="sm" align="center">
 					<StatusDot status={cardStatus(card)} />
-					<text role="omp.usage.provider.name" spans={[{ t: card.name }]} truncate="end" title={card.name} />
+					<text role="zeta.usage.provider.name" spans={[{ t: card.name }]} truncate="end" title={card.name} />
 				</row>
 				{who}
 			</col>
-			<col key="windows" role="omp.usage.windows" grow={1}>
+			<col key="windows" role="zeta.usage.windows" grow={1}>
 				{card.unlimited ? (
-					<text role="omp.usage.none" spans={[{ s: "muted", t: "No quotas reported" }]} />
+					<text role="zeta.usage.none" spans={[{ s: "muted", t: "No quotas reported" }]} />
 				) : (
 					[
 						card.windows
@@ -356,7 +356,7 @@ function Provider(props: { readonly model: UsageDashboardModel; readonly card: P
 							.map((row, index) => <QuotaWindow model={model} row={row} index={index} />),
 						hidden > 0 && (
 							<text
-								role="omp.usage.more"
+								role="zeta.usage.more"
 								spans={dim(`${hidden} more in Details`)}
 								title={`Details lists every quota per account  ${keyTitle(actionKeyId("tui.select.confirm", "enter"))}`}
 							/>
@@ -411,18 +411,18 @@ function Activity(props: {
 	const { model, calendar, figures } = props;
 	let meta: JSXNode = null;
 	if (model.syncing && model.activity) meta = <spinner style="dots" label={dim("Syncing")} />;
-	else if (model.syncError) meta = <text role="omp.usage.section.meta" spans={dim(model.staleNote())} />;
+	else if (model.syncError) meta = <text role="zeta.usage.section.meta" spans={dim(model.staleNote())} />;
 	else if (calendar) {
 		const { start, today } = calendar;
 		const range = `${start.getDate()} ${MONTH_NAMES[start.getMonth()]} ${start.getFullYear()} – ${today.getDate()} ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;
-		meta = <text role="omp.usage.section.meta" spans={dim(range)} />;
+		meta = <text role="zeta.usage.section.meta" spans={dim(range)} />;
 	}
 	let body: JSXNode;
 	if (model.activityError) {
 		const detail = activityErrorDetail(model.activityError);
 		body = (
 			<text
-				role="omp.usage.none"
+				role="zeta.usage.none"
 				spans={[
 					{
 						s: "muted",
@@ -443,10 +443,10 @@ function Activity(props: {
 		const streak = `${figures.activeDays} active day${figures.activeDays === 1 ? "" : "s"} · longest streak ${figures.longestStreak} day${figures.longestStreak === 1 ? "" : "s"}`;
 		body = [
 			<Heatmap calendar={calendar} points={model.activity} summary={summary} />,
-			<row key="foot" role="omp.usage.activity.foot" gap="md" align="center">
+			<row key="foot" role="zeta.usage.activity.foot" gap="md" align="center">
 				<text spans={dim(figures.activeDays > 0 ? streak : quiet)} truncate="end" />
 				<spacer grow={1} />
-				<row key="legend" role="omp.usage.legend" gap="sm" align="center">
+				<row key="legend" role="zeta.usage.legend" gap="sm" align="center">
 					<text spans={dim("Less")} />
 					<chart key="scale" kind="heatmap" cells={[[0, 0.25, 0.5, 0.75, 1]]} token="accent" size="md" />
 					<text spans={dim("More")} />
@@ -455,7 +455,7 @@ function Activity(props: {
 		];
 	}
 	return (
-		<col key="activity" role="omp.usage.activity">
+		<col key="activity" role="zeta.usage.activity">
 			<SectionHead title="Activity">{meta}</SectionHead>
 			{body}
 		</col>
@@ -503,11 +503,11 @@ function Overview(props: { readonly model: UsageDashboardModel }): JSXNode {
 	const quiet = calendar !== undefined && calendar.totalCost <= 0 && calendar.totalRequests <= 0;
 	if (framed.length === 0 && quiet && !model.activityError && !model.syncError) {
 		return (
-			<col key="empty" role="omp.usage.empty" gap="sm" align="center">
+			<col key="empty" role="zeta.usage.empty" gap="sm" align="center">
 				<icon key="icon" name="gauge" />
-				<text role="omp.usage.empty.title" spans={[{ t: "No usage yet" }]} />
+				<text role="zeta.usage.empty.title" spans={[{ t: "No usage yet" }]} />
 				<text
-					role="omp.usage.empty.body"
+					role="zeta.usage.empty.body"
 					spans={[
 						{
 							s: "muted",
@@ -529,11 +529,11 @@ function Overview(props: { readonly model: UsageDashboardModel }): JSXNode {
 	if (accounts > framed.length) meta.push(`${accounts} accounts`);
 	return [
 		<Stats model={model} framed={framed} calendar={calendar} figures={figures} />,
-		<col key="quotas" role="omp.usage.quotas">
+		<col key="quotas" role="zeta.usage.quotas">
 			<SectionHead title="Quotas">
 				{framed.length > 0 && (
 					<text
-						role="omp.usage.section.meta"
+						role="zeta.usage.section.meta"
 						spans={dim(meta.join(" · "))}
 						title="Each quota shows the mean across a provider's accounts; it resets with the fullest one"
 					/>
@@ -543,10 +543,10 @@ function Overview(props: { readonly model: UsageDashboardModel }): JSXNode {
 				<Provider model={model} card={card} />
 			))}
 			{model.cards.length === 0 ? (
-				<text role="omp.usage.none" spans={[{ s: "muted", t: "No usage data available." }]} wrap="word" />
+				<text role="zeta.usage.none" spans={[{ s: "muted", t: "No usage data available." }]} wrap="word" />
 			) : (
 				framed.length === 0 && (
-					<text role="omp.usage.none" spans={[{ s: "muted", t: "Nothing used on any quota yet." }]} wrap="word" />
+					<text role="zeta.usage.none" spans={[{ s: "muted", t: "Nothing used on any quota yet." }]} wrap="word" />
 				)
 			)}
 			{notes}
@@ -657,19 +657,19 @@ function DetailReport(props: { readonly model: UsageDashboardModel; readonly car
 		}
 	}
 	return (
-		<col key={card.provider} role="omp.usage.report" gap="sm">
-			<row key="head" role="omp.usage.report.head" gap="sm" align="baseline">
+		<col key={card.provider} role="zeta.usage.report" gap="sm">
+			<row key="head" role="zeta.usage.report.head" gap="sm" align="baseline">
 				<StatusDot status={cardStatus(card)} />
-				<text role="omp.usage.provider.name" spans={[{ t: card.name }]} truncate="end" />
-				{card.accounts > 1 && <text role="omp.usage.provider.meta" spans={dim(`${card.accounts} accounts`)} />}
+				<text role="zeta.usage.provider.name" spans={[{ t: card.name }]} truncate="end" />
+				{card.accounts > 1 && <text role="zeta.usage.provider.meta" spans={dim(`${card.accounts} accounts`)} />}
 			</row>
 			{unavailable.map(account => (
 				<text spans={[{ s: "muted", t: `${sanitizeDisplayLine(account.label)}: no usage data` }]} wrap="word" />
 			))}
-			{facts.length > 0 && <kv key="facts" items={facts} layout="grid" role="omp.usage.facts" />}
+			{facts.length > 0 && <kv key="facts" items={facts} layout="grid" role="zeta.usage.facts" />}
 			{buckets.size > 0
 				? [
-						<table key="limits" cols={LIMIT_COLUMNS} rows={rows} role="omp.usage.limits" />,
+						<table key="limits" cols={LIMIT_COLUMNS} rows={rows} role="zeta.usage.limits" />,
 						[...limitNotes].map(note => <text spans={[{ s: "muted", t: note }]} wrap="word" />),
 					]
 				: unavailable.length === 0 && <text spans={[{ s: "muted", t: "No quotas reported" }]} truncate="end" />}
@@ -680,7 +680,7 @@ function DetailReport(props: { readonly model: UsageDashboardModel; readonly car
 function Details(props: { readonly model: UsageDashboardModel }): JSXNode {
 	const { model } = props;
 	if (model.cards.length === 0)
-		return <text role="omp.usage.none" spans={[{ s: "muted", t: "No usage data available." }]} />;
+		return <text role="zeta.usage.none" spans={[{ s: "muted", t: "No usage data available." }]} />;
 	return model.cards.map(card => <DetailReport model={model} card={card} />);
 }
 
@@ -710,10 +710,10 @@ export function UsageDashboard(props: { readonly model: UsageDashboardModel }): 
 					}}
 				>
 					<Head model={model} />
-					<col key={view} role="omp.usage.body" gap="lg">
+					<col key={view} role="zeta.usage.body" gap="lg">
 						{view === "detail" ? <Details model={model} /> : <Overview model={model} />}
 					</col>
-					<row key="actions" role="omp.actions" align="center" gap="sm">
+					<row key="actions" role="zeta.actions" align="center" gap="sm">
 						<spacer grow={1} />
 						{view === "overview" ? (
 							<ActionButton

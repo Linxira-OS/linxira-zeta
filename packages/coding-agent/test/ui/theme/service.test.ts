@@ -17,8 +17,8 @@ import {
 	setThemeSlot,
 	stopThemeWatcher,
 	type ThemeChange,
-} from "@oh-my-pi/pi-coding-agent/ui/theme/service";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/ui/theme/service";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const DARK_TRUECOLOR = { truecolor: true, colors: 16_777_216, dark: true } as const;
 

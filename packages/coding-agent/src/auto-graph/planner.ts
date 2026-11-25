@@ -24,7 +24,7 @@ import {
 	type Question,
 	type Questions,
 	renderQuestion,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	buildChart,
 	type ChartKind,
@@ -59,7 +59,7 @@ import {
 } from "./chart-plan";
 import { isMonotonic, isNumber, type TableAnalysis, type TableColumn, withMeasures } from "./table-data";
 import type { TableChartRequest } from "../session/transcript/table-chart";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 import type { ChainJudge } from "../judgment";
 import questionFile from "../prompts/judge/auto-graph.json" with { type: "json" };
 

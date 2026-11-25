@@ -10,11 +10,11 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createRoot, type JSXNode, resolveChildren, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, type StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
-import { CORPUS_DIR, CORPUS_NOW, corpusEnvironment } from "@oh-my-pi/pi-tui/testing/corpus";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
+import { createRoot, type JSXNode, resolveChildren, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode, type StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
+import { CORPUS_DIR, CORPUS_NOW, corpusEnvironment } from "@linxiraos/pi-tui/testing/corpus";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
 import type { ObservableSession } from "../../../src/task/session-observer-registry";
 import type { AgentProgress } from "../../../src/task/task-details";
 import type { TodoPhase } from "../../../src/tools/details/todo";

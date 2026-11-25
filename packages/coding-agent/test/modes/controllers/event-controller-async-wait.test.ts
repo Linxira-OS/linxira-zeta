@@ -14,25 +14,25 @@
  *     ended lands in context and does not start a model turn.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { WakeSources } from "@oh-my-pi/pi-coding-agent/session/agent-session-events";
-import type { AsyncJobSnapshot } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as runStatus from "@oh-my-pi/pi-coding-agent/utils/run-status";
-import * as titleGenerator from "@oh-my-pi/pi-coding-agent/utils/title-generator";
-import * as terminalSession from "@oh-my-pi/pi-tui/driver/session";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { WakeSources } from "@linxiraos/zeta/session/agent-session-events";
+import type { AsyncJobSnapshot } from "@linxiraos/zeta/session/agent-session-types";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as runStatus from "@linxiraos/zeta/utils/run-status";
+import * as titleGenerator from "@linxiraos/zeta/utils/title-generator";
+import * as terminalSession from "@linxiraos/pi-tui/driver/session";
 import { initTheme } from "../../../src/ui/theme/service";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 type AgentPause = Extract<AgentSessionEvent, { type: "agent_pause" }>;

@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { UserMessage } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/transcript/messages";
-import { jsx } from "@oh-my-pi/pi-tui/jsx-runtime";
-import { corpusEnvironment, describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
+import type { UserMessage } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { CustomMessage } from "@linxiraos/zeta/session/transcript/messages";
+import { jsx } from "@linxiraos/pi-tui/jsx-runtime";
+import { corpusEnvironment, describeTree } from "@linxiraos/pi-tui/testing/corpus";
 import { contextDisplay, createInteractiveModeContext, renderTranscript } from "../../helpers/interactive-mode-context";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

@@ -8,8 +8,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { splitInternalUrlSel } from "@linxiraos/pi-tui/tools/read";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { splitInternalUrlSel } from "../details/read";
+import { ToolError } from "../tool-errors";
 import { zetaDocRel, zetaDocsScopeEntries } from "../../internal-urls/zeta-scope";
 import { parseInternalUrl } from "../../internal-urls/parse";
 import { InternalUrlRouter } from "../../internal-urls/router";

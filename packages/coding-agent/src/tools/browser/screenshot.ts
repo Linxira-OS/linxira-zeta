@@ -8,8 +8,8 @@ function inflateSync(buf: Zlib.InputType): Buffer {
 	return zlibCache.inflateSync(buf);
 }
 
-import { deliveredImageSize, fitLongEdge, type ImageSize } from "@oh-my-pi/pi-catalog/compat/image-tokenization";
-import { logger, Snowflake, untilAborted } from "@oh-my-pi/pi-utils";
+import { deliveredImageSize, fitLongEdge, type ImageSize } from "@linxiraos/pi-catalog/compat/image-tokenization";
+import { logger, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 import { shortenPath } from "../../utils/render-utils";
 import { ToolError } from "../tool-errors";
 import type { CDPSession, ElementHandle, ElementScreenshotOptions, Page } from "puppeteer-core";

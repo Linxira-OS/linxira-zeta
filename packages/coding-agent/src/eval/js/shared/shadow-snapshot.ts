@@ -21,12 +21,12 @@ export type ShadowInitialGlobals = Readonly<{
 	"Object.prototype.toString"?: boolean;
 	/**
 	 * Whether the prelude tool bridge dispatcher still has its installed
-	 * identity. The proxy resolves `__omp_call_tool__` per call, so the flag
+	 * identity. The proxy resolves `__zeta_call_tool__` per call, so the flag
 	 * must track this binding; it also joins the snapshot digest, invalidating
 	 * plans if the installation ever changes under them. Absent only for
 	 * hand-built snapshots, where the bridge is assumed intact.
 	 */
-	__omp_call_tool__?: boolean;
+	__zeta_call_tool__?: boolean;
 }>;
 
 export type ShadowSnapshot = Readonly<{

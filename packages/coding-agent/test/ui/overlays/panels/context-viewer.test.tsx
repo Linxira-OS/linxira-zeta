@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test } from "bun:test";
-import { signal } from "@oh-my-pi/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
 import { fullscreenMenuView } from "../../../../src/modes/controllers/selector-views";
 import { nativeShell } from "../../../helpers/native-shell";
 import type { ContextViewData } from "../../../../src/session/context-view-model";

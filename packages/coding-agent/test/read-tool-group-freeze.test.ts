@@ -5,9 +5,9 @@
  * late read result lands.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { isSettled, jsx } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { isSettled, jsx } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 
 function successResult() {

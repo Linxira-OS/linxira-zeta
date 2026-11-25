@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { rolePainterRegistrations } from "@oh-my-pi/pi-tui/term/paint";
+import { rolePainterRegistrations } from "@linxiraos/pi-tui/term/paint";
 
 const STYLES = path.join(import.meta.dir, "../../src/ui/styles");
-const PAINTERS = path.join(path.dirname(Bun.resolveSync("@oh-my-pi/pi-tui/term/paint", import.meta.dir)), "painters");
+const PAINTERS = path.join(path.dirname(Bun.resolveSync("@linxiraos/pi-tui/term/paint", import.meta.dir)), "painters");
 
 /** Every module under `dir` that may register looks. */
 async function modules(dir: string): Promise<string[]> {

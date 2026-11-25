@@ -1,4 +1,4 @@
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 
 /**
  * Prompt→yield wall time for a turn, from pure local timestamps: the user

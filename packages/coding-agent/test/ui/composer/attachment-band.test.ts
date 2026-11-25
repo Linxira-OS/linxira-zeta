@@ -5,14 +5,14 @@
  * sits between the card's borders where images draw as cells of text, else the chip glyph does.
  */
 import { describe, expect, test } from "bun:test";
-import { createRoot, isUiNode, type JSXNode, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import type { TerminalCapabilities } from "@oh-my-pi/pi-tui/driver/contract";
-import { TerminalImages } from "@oh-my-pi/pi-tui/driver/images/store";
-import { getBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import { driverImages } from "@oh-my-pi/pi-tui/term/backend";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot, isUiNode, type JSXNode, signal, type UiNode } from "@linxiraos/pi-tui";
+import type { TerminalCapabilities } from "@linxiraos/pi-tui/driver/contract";
+import { TerminalImages } from "@linxiraos/pi-tui/driver/images/store";
+import { getBlob } from "@linxiraos/pi-tui/native/blobs";
+import { driverImages } from "@linxiraos/pi-tui/term/backend";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { Composer, ComposerChips } from "../../../src/ui/composer";
 
 const PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";

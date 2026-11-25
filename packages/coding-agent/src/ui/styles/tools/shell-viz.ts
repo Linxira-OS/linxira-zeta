@@ -5,10 +5,10 @@
  * semantic tokens (dimmed while another leaf runs), with a hanging indent
  * when the text wraps. Split presentations draw both panes.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import { replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { ShellVizPresentation, ShellVizRow, ShellVizSegment } from "@oh-my-pi/pi-wire";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { ShellVizPresentation, ShellVizRow, ShellVizSegment } from "@linxiraos/pi-wire";
 
 /** Untrusted shell text made safe for one row. */
 export function shellVizText(text: string): string {

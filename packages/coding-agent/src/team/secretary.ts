@@ -223,7 +223,6 @@ export async function sendSecretary(
 		id: record.id,
 		agent: definition,
 		message,
-		structured: false,
 		description: SECRETARY_LABEL,
 		eventBus: session.eventBus,
 		subagentEventBus: session.subagentEventBus,

@@ -1,20 +1,20 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ImageContent, Usage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage, ImageContent, Usage } from "@linxiraos/pi-ai";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { BtwHistoryStore } from "@oh-my-pi/pi-coding-agent/session/btw-history";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { BTW_INJECT_LABEL, BTW_INJECTED_LABEL } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/btw-inject";
-import { BtwController } from "@oh-my-pi/pi-coding-agent/modes/controllers/btw-controller";
-import { cfgBtwInject } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import * as clipboard from "@oh-my-pi/pi-coding-agent/utils/clipboard";
-import { replaceTabs } from "@oh-my-pi/pi-coding-agent/utils/text-width";
-import { Shell, type TranscriptBlock } from "@oh-my-pi/pi-coding-agent/ui/shell/index";
-import { jsx, type UiNode } from "@oh-my-pi/pi-tui";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { BtwHistoryStore } from "@linxiraos/zeta/session/btw-history";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { BTW_INJECT_LABEL, BTW_INJECTED_LABEL } from "@linxiraos/zeta/modes/view-model/overlays/btw-inject";
+import { BtwController } from "@linxiraos/zeta/modes/controllers/btw-controller";
+import { cfgBtwInject } from "@linxiraos/zeta/modes/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
+import { replaceTabs } from "@linxiraos/zeta/utils/text-width";
+import { Shell, type TranscriptBlock } from "@linxiraos/zeta/ui/shell/index";
+import { jsx, type UiNode } from "@linxiraos/pi-tui";
 import {
 	btwShellMembers,
 	historySheet,

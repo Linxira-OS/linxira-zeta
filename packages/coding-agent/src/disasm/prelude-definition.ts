@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import { type } from "@linxiraos/zeta-schema";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { logger, untilAborted } from "@linxiraos/pi-utils";
 import type { HostEvalPreludeDefinition } from "../eval/preludes";
 import dsmDocumentation from "../prompts/tools/dsm.md" with { type: "text" };

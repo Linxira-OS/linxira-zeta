@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A titled report (changelog, stats, diagnostics) over the transcript: a
  * scrolling body and a Close button. Scroll keys (page, line, home/end) move
@@ -6,7 +6,7 @@
  * around the panel is the frame and carries the title (the `omp.report` role
  * is the terminal box, so it is not sent).
  */
-import { type Accessor, type JSXNode, nativeRendering, type ScrollRequest, signal, untrack } from "@oh-my-pi/pi-tui";
+import { type Accessor, type JSXNode, nativeRendering, type ScrollRequest, signal, untrack } from "@linxiraos/pi-tui";
 import "../../styles/panels/report-panel";
 import { matchesSelectCancel, selectKeyId } from "../../../config/keybindings/matchers";
 import { actionKeyId, cancelKbd } from "../../keys/hints";
@@ -80,10 +80,10 @@ export function ReportPanel(props: ReportPanelProps): JSXNode {
 				if (act === "close") props.onClose();
 			}}
 		>
-			<col key="body" role="omp.report.body" scroll={request}>
+			<col key="body" role="zeta.report.body" scroll={request}>
 				{props.body}
 			</col>
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<ActionButton
 					id="close"

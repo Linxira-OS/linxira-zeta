@@ -8,7 +8,7 @@ import {
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -16,12 +16,12 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 	ToolTier,
-} from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { PipeStreams, repairHeredocContinuations, type ShellCommands, shellBuiltins } from "@oh-my-pi/pi-natives";
-import { $which, isEnoent, logger, prompt, spillUrl } from "@oh-my-pi/pi-utils";
-import { $env } from "@oh-my-pi/pi-utils/env";
-import { isPosixShell } from "@oh-my-pi/pi-utils/procmgr";
+} from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { PipeStreams, repairHeredocContinuations, type ShellCommands, shellBuiltins } from "@linxiraos/pi-natives";
+import { $which, isEnoent, logger, prompt, spillUrl } from "@linxiraos/pi-utils";
+import { $env } from "@linxiraos/pi-utils/env";
+import { isPosixShell } from "@linxiraos/pi-utils/procmgr";
 import {
 	compileNotifyPattern,
 	formatAsyncJobLabel,
@@ -57,7 +57,7 @@ import { appendImageLinks } from "../utils/image-temp";
 import type { ToolSession } from ".";
 import { truncateForPrompt } from "./approval";
 import { type BashInteractiveResult, runInteractiveBashPty } from "./bash-interactive";
-import type { ShellTrace } from "@oh-my-pi/pi-wire";
+import type { ShellTrace } from "@linxiraos/pi-wire";
 import { applyPatchShellInput } from "./bash-apply-patch";
 import { hostCommandUrls, urlBacking } from "./bash-host-urls";
 import { checkBashInterception } from "./bash-interceptor";

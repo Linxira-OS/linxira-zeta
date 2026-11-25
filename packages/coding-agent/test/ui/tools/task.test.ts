@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { createRoot, isUiNode, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode } from "@oh-my-pi/pi-tui/term/paint";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
-import { corpusEnvironment, describeTree, firstDiff, stageNative } from "@oh-my-pi/pi-tui/testing/corpus";
+import { createRoot, isUiNode, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode } from "@linxiraos/pi-tui/term/paint";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
+import { corpusEnvironment, describeTree, firstDiff, stageNative } from "@linxiraos/pi-tui/testing/corpus";
 import { stageTest } from "../deviations";
 import "../../../src/ui/styles/tools/task";
 import type { TaskToolDetails } from "../../../src/task/task-details";

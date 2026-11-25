@@ -6,7 +6,7 @@
  * marker of a sequential list body (`1.`, `b)`) takes the accent, so the
  * separate follow-ups it queues stay visible while composing.
  */
-import { nativeRendering } from "@oh-my-pi/pi-tui";
+import { nativeRendering } from "@linxiraos/pi-tui";
 import { isBareQueuePrefix, queueShorthandMarks } from "../../modes/view-model/prompt/queue-input";
 import type { Composer, ComposerDecoration } from "./composer";
 

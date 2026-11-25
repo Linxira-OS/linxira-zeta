@@ -136,6 +136,7 @@ import {
 import type { SessionWorktree } from "../worktree/backend";
 import type { ShakeMode } from "../session/shake-types";
 import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
+import { resolveCommandDescription } from "../slash-commands/helpers/description";
 import { buildStaticInlineHint } from "../slash-commands/builtin-completions";
 import { formatCoarseDuration } from "./view-model/chrome/format";
 import { type DictationTarget, MicCursor, type SttCallbacks, STTController, type SttState } from "../stt";
@@ -716,6 +717,9 @@ export class InteractiveMode implements InteractiveModeContext {
 	goalModeEnabled = false;
 	goalModePaused = false;
 	vibeModeEnabled = false;
+	/** `/lead` (alias `/pm`): PM workspace coordination mode. */
+	leadModeEnabled = false;
+	#leadModeEntry: Promise<void> | undefined;
 	planModePlanFilePath: string | undefined = undefined;
 	loopModeEnabled = false;
 	loopModePaused = false;
@@ -1551,7 +1555,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				input: () =>
 					collectTrayInput({
 						observers: this.#observerRegistry,
-						refs: getRunningSubagentBadgeRegistry(this.collabGuest, AgentRegistry.global()).list(),
+						refs: getRunningSubagentBadgeRegistry(AgentRegistry.global()).list(),
 						manager: this.session.asyncJobManager,
 						snapshot: () => this.session.getAsyncJobSnapshot({ recentLimit: Number.POSITIVE_INFINITY }),
 						irc: IrcBus.existing(),
@@ -2408,6 +2412,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			ctx: this,
 		}).map(cmd => ({
 			...cmd,
+			description: cmd.description === undefined ? undefined : resolveCommandDescription(cmd.description),
 			icon: slashCommandIcon(cmd.icon ?? "action"),
 			iconName: cmd.icon ?? "action",
 		}));
@@ -2416,7 +2421,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.session.extensionRunner?.getRegisteredCommands(BUILTIN_SLASH_COMMAND_RESERVED_NAMES) ?? []
 		).map(cmd => ({
 			name: cmd.name,
-			description: cmd.description ?? "(hook command)",
+			description: cmd.description === undefined ? "(hook command)" : resolveCommandDescription(cmd.description),
 			icon: slashCommandIcon("extension"),
 			iconName: "extension",
 			getArgumentCompletions: cmd.getArgumentCompletions,
@@ -2427,7 +2432,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			const complete = loaded.command.getArgumentCompletions?.bind(loaded.command);
 			return {
 				name: loaded.command.name,
-				description: `${loaded.command.description} (${loaded.source})`,
+				description: `${resolveCommandDescription(loaded.command.description)} (${loaded.source})`,
 				icon: slashCommandIcon(loaded.path.startsWith("mcp:") ? "mcp" : "prompt"),
 				iconName: loaded.path.startsWith("mcp:") ? "mcp" : "prompt",
 				getArgumentCompletions: complete && (prefix => complete(prefix, this.sessionManager.getCwd())),
@@ -3888,7 +3893,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	#subagentTreeCost = 0;
 
 	syncRunningSubagentBadge(): boolean {
-		const registry = getRunningSubagentBadgeRegistry(this.collabGuest, AgentRegistry.global());
+		const registry = getRunningSubagentBadgeRegistry(AgentRegistry.global());
 		if (this.#agentRegistrySubscriptionTarget !== registry) {
 			this.#agentRegistryUnsubscribe?.();
 			this.#agentRegistrySubscriptionTarget = registry;
@@ -5698,6 +5703,71 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#updatePlanModeStatus();
 		this.sessionManager.appendModeChange("none");
 		this.showStatus("Plan mode disabled.");
+	}
+
+	/**
+	 * `/lead` (alias `/pm`) toggle. Entering requires the session cwd to resolve
+	 * to a registered PM workspace, installs the room tools, and narrows the
+	 * active set to coordination tools only. Exiting restores the prior set.
+	 */
+	async handleLeadModeCommand(): Promise<boolean> {
+		if (this.leadModeEnabled) {
+			await this.#exitLeadMode();
+			return false;
+		}
+		if (this.planModeEnabled || this.planModePaused) {
+			this.#warnPlanModeBlocks();
+			return false;
+		}
+		if (this.goalModeEnabled || this.goalModePaused) {
+			this.showWarning("Exit goal mode first.");
+			return false;
+		}
+		if (this.vibeModeEnabled) {
+			this.showWarning("Exit vibe mode first.");
+			return false;
+		}
+		try {
+			await this.#enterLeadMode();
+		} catch (error) {
+			this.showError(`Could not enter lead mode: ${error instanceof Error ? error.message : String(error)}`);
+		}
+		return false;
+	}
+
+	async #enterLeadMode(options?: { persistModeChange?: boolean; previousTools?: string[] }): Promise<void> {
+		if (this.leadModeEnabled) return;
+		const inFlight = this.#leadModeEntry;
+		if (inFlight) {
+			await inFlight;
+			return;
+		}
+		const previousTools = options?.previousTools ?? this.session.getEnabledToolNames();
+		const entry = (async () => {
+			await this.session.enterLeadMode({
+				previousTools,
+				persistModeChange: options?.persistModeChange,
+			});
+			this.leadModeEnabled = true;
+			this.lastAssistantUsage = undefined;
+			this.showStatus(
+				"Lead mode enabled. Coordinate engineer agents through rooms; toolset is read + optional Todo + rooms.",
+			);
+		})();
+		this.#leadModeEntry = entry;
+		try {
+			await entry;
+		} finally {
+			if (this.#leadModeEntry === entry) this.#leadModeEntry = undefined;
+		}
+	}
+
+	async #exitLeadMode(): Promise<void> {
+		if (!this.leadModeEnabled) return;
+		await this.session.exitLeadMode();
+		this.leadModeEnabled = false;
+		this.lastAssistantUsage = undefined;
+		this.showStatus("Lead mode disabled.");
 	}
 
 	async handlePlanModeCommand(

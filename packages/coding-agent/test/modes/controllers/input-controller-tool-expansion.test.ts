@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import { cfgDisplayHideToolActivity } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { cfgDisplayHideToolActivity } from "@linxiraos/zeta/modes/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 describe("InputController tool output expansion", () => {
 	it("flips the reactive expansion flag", () => {

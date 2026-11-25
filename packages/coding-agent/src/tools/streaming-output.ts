@@ -3,7 +3,6 @@ import type { AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { formatBytes, materializeString, sanitizeText } from "@linxiraos/pi-utils";
 import { sanitizeWithOptionalSixelPassthrough } from "../utils/sixel-passthrough";
 import { formatRawOutputNotice } from "./output-meta-format";
-import { formatRawOutputNotice } from "./output-meta-format";
 
 // =============================================================================
 // Constants

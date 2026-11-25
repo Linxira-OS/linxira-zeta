@@ -43,32 +43,27 @@
  * that also import the module-level `settings` need the global initialized.
  */
 import { vi } from "bun:test";
-import { isSettingsInitialized, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import type { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPDroppedServer } from "@oh-my-pi/pi-coding-agent/mcp/transforms";
-import type { MCPServerConnection } from "@oh-my-pi/pi-coding-agent/mcp/types";
+import { isSettingsInitialized, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
+import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPDroppedServer } from "@linxiraos/zeta/mcp/transforms";
+import type { MCPServerConnection } from "@linxiraos/zeta/mcp/types";
 import { AppFrame } from "../../src/modes/interactive/frame";
 import { TranscriptPresenter } from "../../src/modes/interactive/transcript";
-import { OAuthManualInputManager } from "@oh-my-pi/pi-coding-agent/modes/oauth-manual-input";
-import { cfgTerminalShowImages } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import type {
-	InteractiveModeContext,
-	PresentOptions,
-	StatusLineModel,
-	WorkingKind,
-} from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { ServedModelTracker } from "@oh-my-pi/pi-coding-agent/session/transcript/served-model-marker";
+import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-input";
+import { cfgTerminalShowImages } from "@linxiraos/zeta/modes/settings";
+import type { InteractiveModeContext, PresentOptions, StatusLineModel, WorkingKind } from "@linxiraos/zeta/modes/types";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { ServedModelTracker } from "@linxiraos/zeta/session/transcript/served-model-marker";
 import { getAssistantMessageLinkTargets } from "../../src/session/transcript/link-targets";
 import type { BlockOptions, InputInterceptor, OverlayOptions } from "../../src/ui/shell";
 import { ViewList } from "../../src/ui/shell/views";
-import type { StatusFacts, StatusLineSettings } from "@oh-my-pi/pi-coding-agent/ui/status/facts";
-import { TokenRateMeter } from "@oh-my-pi/pi-coding-agent/utils/token-rate";
-import { type JSXNode, type KeyEvent, type Signal, signal } from "@oh-my-pi/pi-tui";
-import type { InputEvent } from "@oh-my-pi/pi-tui/driver/index";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { StatusFacts, StatusLineSettings } from "@linxiraos/zeta/ui/status/facts";
+import { TokenRateMeter } from "@linxiraos/zeta/utils/token-rate";
+import { type JSXNode, type KeyEvent, type Signal, signal } from "@linxiraos/pi-tui";
+import type { InputEvent } from "@linxiraos/pi-tui/driver/index";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 
 type AnyFn = (...args: never[]) => unknown;
 

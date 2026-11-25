@@ -3,8 +3,8 @@
  * session rows, its picker focused as the overlay focuses it, keys routed as
  * the terminal backend routes them. Picks and cancels are recorded.
  */
-import type { SessionSelectorEntry } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/session-selector";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { SessionSelectorEntry } from "@linxiraos/zeta/modes/view-model/overlays/session-selector";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { SessionSelector, type SessionSelectorProps } from "../../src/ui/overlays/pickers/session-selector";
 import { mountOverlay } from "./overlay-terminal";
 

@@ -3,12 +3,12 @@
  * wait, task…): plain text of spans, the inline status mark, the tinted
  * status box and the rows of a body's `text` nodes.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { padTo, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { padTo, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import { type FeedModel, feedModelBadge } from "../../tools/agent-common";
 import { tintRow } from "./default";
 import { isActive, spinnerGlyph } from "./frame";

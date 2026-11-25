@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { startProcessDriver } from "@oh-my-pi/pi-tui/testing/process-driver";
-import { postmortem } from "@oh-my-pi/pi-utils";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { startProcessDriver } from "@linxiraos/pi-tui/testing/process-driver";
+import { postmortem } from "@linxiraos/pi-utils";
 
 // A Ctrl+C while shutdown() is still closing the session hard-exits through
 // postmortem.exitProcess(), which skips the postmortem cleanups — including the

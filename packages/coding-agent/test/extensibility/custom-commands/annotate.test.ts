@@ -2,50 +2,44 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { VcsRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import type { ExtensionRender, ExtensionUiHost } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/render-types";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { VcsRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
+import type { ExtensionRender, ExtensionUiHost } from "@linxiraos/zeta/extensibility/extensions/render-types";
 import type {
 	ExtensionCustomFactory,
 	ExtensionCustomOptions,
 	ExtensionUIContext,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+} from "@linxiraos/zeta/extensibility/extensions/types";
 import { extensionOutput, extensionTheme, singleNode } from "../../../src/ui/extensions/render-output";
-import type { SessionPick } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/text-source";
-import {
-	AnnotateCommand,
-	runAnnotateCommand,
-} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate";
+import type { SessionPick } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/text-source";
+import { AnnotateCommand, runAnnotateCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate";
 import {
 	type AnnotationOverlayContext,
 	showCodeReviewOverlay,
 	showTextReviewOverlay,
-} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/fullscreen";
-import { loadAnnotationDrafts } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/draft-store";
-import * as externalEditor from "@oh-my-pi/pi-coding-agent/utils/external-editor";
-import type {
-	CustomCommandAPI,
-	CustomCommandContext,
-} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/types";
-import type { ReviewPrRef } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/review";
+} from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/fullscreen";
+import { loadAnnotationDrafts } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/draft-store";
+import * as externalEditor from "@linxiraos/zeta/utils/external-editor";
+import type { CustomCommandAPI, CustomCommandContext } from "@linxiraos/zeta/extensibility/custom-commands/types";
+import type { ReviewPrRef } from "@linxiraos/zeta/extensibility/custom-commands/bundled/review";
 import {
 	createResolvedReviewTarget,
 	type ResolvedReviewTarget,
 	type ReviewTargetUI,
-} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/review/target";
-import { buildTextReviewPrompt } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/text-review";
-import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+} from "@linxiraos/zeta/extensibility/custom-commands/bundled/review/target";
+import { buildTextReviewPrompt } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/text-review";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
 import type {
 	CodeReviewAnnotation,
 	TextReviewAnnotation,
 	TextReviewSource,
-} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/annotation-types";
-import * as gh from "@oh-my-pi/pi-coding-agent/tools/gh";
-import { github } from "@oh-my-pi/pi-coding-agent/utils/github";
+} from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/annotation-types";
+import * as gh from "@linxiraos/zeta/tools/gh";
+import { github } from "@linxiraos/zeta/utils/github";
 
 const ENTER = "\r";
 const UP = "\x1b[A";

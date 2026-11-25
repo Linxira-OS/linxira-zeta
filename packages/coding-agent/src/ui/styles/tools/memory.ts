@@ -5,9 +5,9 @@
  * muted, clamped while collapsed under `… N more` and an expand hint.
  * Failures are one `✘ Error: message` line.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import type { MemoryTerm } from "../../tools/memory";
 import { expandHint, standaloneErrorRows } from "./frame";
 import { defineToolLook, toolProps } from "./look";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { ptree, TempDir } from "@oh-my-pi/pi-utils";
+import { ptree, TempDir } from "@linxiraos/pi-utils";
 
 describe("bundled extension modules", () => {
 	it("serves the host's own module objects and native default/named exports", async () => {
@@ -8,8 +8,8 @@ describe("bundled extension modules", () => {
 		await Bun.write(
 			entry,
 			[
-				'import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";',
-				'import format, { double } from "@oh-my-pi/pi-utils/virtual-fixture";',
+				'import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";',
+				'import format, { double } from "@linxiraos/pi-utils/virtual-fixture";',
 				"export { currentTheme };",
 				"export function describe(value) { return format(double(value)); }",
 			].join("\n"),
@@ -26,12 +26,12 @@ import { installLegacyPiSpecifierShim, loadLegacyPiModule } from ${JSON.stringif
 Bun.plugin({
 	name: "bundled-extension-fixture",
 	setup(build) {
-		build.module("omp-legacy-pi-modules", () => ({
+		build.module("zeta-legacy-pi-modules", () => ({
 			loader: "object",
 			exports: {
 				BUNDLED_PI_MODULE_LOADERS: {
-					"@oh-my-pi/pi-tui/theme/runtime": async () => host,
-					"@oh-my-pi/pi-utils/virtual-fixture": async () => ({
+					"@linxiraos/pi-tui/theme/runtime": async () => host,
+					"@linxiraos/pi-utils/virtual-fixture": async () => ({
 						default: value => "value=" + value,
 						double: value => value * 2,
 					}),

@@ -1,4 +1,4 @@
-import { hasMultiplexerSession } from "@oh-my-pi/pi-tui/driver/mux/detect";
+import { hasMultiplexerSession } from "@linxiraos/pi-tui/driver/mux/detect";
 import { quotePosixArgvAsciiSafe } from "../../utils/shell-quote";
 import { launchError, nestedString, parseJson, runStep } from "./shared";
 import type {

@@ -14,15 +14,15 @@
  * The key hints sit under a rule. Row hits name the agent or event under the
  * pointer; the hovered entry is highlighted.
  */
-import { formatNumber } from "@oh-my-pi/pi-utils";
-import type { Hit, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { definePickerLook, PICKER_HOVER, pickerState, sheetHit } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { pickerStep } from "@oh-my-pi/pi-tui/term/widgets/picker";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { PickerTerm } from "@oh-my-pi/pi-tui/term/painters/picker";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { padTo, spaces, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import { formatNumber } from "@linxiraos/pi-utils";
+import type { Hit, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { definePickerLook, PICKER_HOVER, pickerState, sheetHit } from "@linxiraos/pi-tui/term/painters/picker";
+import { pickerStep } from "@linxiraos/pi-tui/term/widgets/picker";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { PickerTerm } from "@linxiraos/pi-tui/term/painters/picker";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { padTo, spaces, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import { sanitizeDisplaySingleLine } from "../../../extensibility/inventory/display-text";
 import type { AggregateMetrics, AgentMetrics } from "../../../modes/view-model/overlays/agent-hub-projection";
 import type { AgentStatus } from "../../../registry/agent-hub-types";

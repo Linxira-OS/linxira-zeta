@@ -22,14 +22,14 @@ import {
 	type UiEvent,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { bubbleEvent, bubbleKey, bubblePaste, keypathOf, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import type { MouseEvent } from "@oh-my-pi/pi-tui/driver/contract";
-import { decodeKey } from "@oh-my-pi/pi-tui/driver/input/keys";
-import { decodeMouse } from "@oh-my-pi/pi-tui/driver/input/mouse";
-import { paintNode, type StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { type WidgetContext, widgetFor, widgetState } from "@oh-my-pi/pi-tui/term/widgets";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+} from "@linxiraos/pi-tui";
+import { bubbleEvent, bubbleKey, bubblePaste, keypathOf, pathTo } from "@linxiraos/pi-tui/dispatch";
+import type { MouseEvent } from "@linxiraos/pi-tui/driver/contract";
+import { decodeKey } from "@linxiraos/pi-tui/driver/input/keys";
+import { decodeMouse } from "@linxiraos/pi-tui/driver/input/mouse";
+import { paintNode, type StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { type WidgetContext, widgetFor, widgetState } from "@linxiraos/pi-tui/term/widgets";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 import {
 	CORPUS_DIR,
 	type CorpusCase,
@@ -37,7 +37,7 @@ import {
 	describeTree,
 	firstDiff,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
+} from "@linxiraos/pi-tui/testing/corpus";
 import { captureStage, skipsAt } from "../deviations";
 
 process.env.TZ = "UTC";

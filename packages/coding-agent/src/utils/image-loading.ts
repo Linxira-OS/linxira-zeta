@@ -8,6 +8,7 @@ import {
 	imageDecodeFailureReason,
 } from "./image-input";
 import * as path from "node:path";
+export { ImageInputTooLargeError } from "./image-input";
 import type { Context, ImageContent, Message, Model, ProviderPayload, TextContent } from "@linxiraos/pi-ai";
 import { rasterizeSvg } from "@linxiraos/pi-natives";
 import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
@@ -424,11 +425,11 @@ export async function loadCanvasImageInput(options: LoadImageInputOptions): Prom
 	try {
 		const active: Theme = currentTheme();
 		const svg = prepareSvg(canvasToSvg(source, resolvedPath), {
-			fg: active?.getColorHex("text") ?? "#999999",
-			muted: active?.getColorHex("muted") ?? "#777777",
-			border: active?.getColorHex("borderMuted") ?? "#666666",
-			accent: active?.getColorHex("accent") ?? "#4c8dff",
-			surface: active?.getBgHex("selectedBg") ?? "#00000000",
+			fg: active.hex("text") ?? "#999999",
+			muted: active.hex("muted") ?? "#777777",
+			border: active.hex("borderMuted") ?? "#666666",
+			accent: active.hex("accent") ?? "#4c8dff",
+			surface: active.hex("selectedBg") ?? "#00000000",
 		});
 		png = await rasterizeSvg(Buffer.from(svg, "utf-8"), SVG_IMAGE_MAX_EDGE_PX, SVG_IMAGE_MAX_EDGE_PX);
 	} catch (error) {

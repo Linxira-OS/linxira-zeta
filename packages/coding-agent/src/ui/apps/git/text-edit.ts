@@ -3,7 +3,7 @@
  * summary, the AI staging prompt) and the multi-line commit description,
  * each a `{ text, cursor }` value (UTF-16 caret) the sidebar owns.
  */
-import type { KeyEvent, TextEdit } from "@oh-my-pi/pi-tui";
+import type { KeyEvent, TextEdit } from "@linxiraos/pi-tui";
 import { editLine, type LineState } from "../../overlays/settings/line-edit";
 
 /** An empty field. */

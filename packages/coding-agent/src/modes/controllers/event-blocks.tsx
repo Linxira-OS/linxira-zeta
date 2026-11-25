@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** Transcript blocks the event controller mounts for session events (recap, usage row, TTSR, todo reminder). */
-import type { JSXNode, Reactive } from "@oh-my-pi/pi-tui";
+import type { JSXNode, Reactive } from "@linxiraos/pi-tui";
 import type { NotificationRule } from "../../session/transcript/ttsr-notification";
 import { UsageRow, type UsageRowProps } from "../../ui/overlays/panels/usage-row";
 import { Recap, type ReminderTodo, TodoReminder, TtsrNotice } from "../../ui/transcript/messages/notices";

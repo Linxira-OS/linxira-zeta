@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { disposeAllKernelSessions, executePythonWithKernel } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import { DEFAULT_MAX_BYTES } from "@oh-my-pi/pi-coding-agent/tools/streaming-output";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { disposeAllKernelSessions, executePythonWithKernel } from "@linxiraos/zeta/eval/py/executor";
+import { DEFAULT_MAX_BYTES } from "@linxiraos/zeta/tools/streaming-output";
+import { TempDir } from "@linxiraos/pi-utils";
 import { spillTo } from "../helpers/spill";
 import { FakeKernel } from "./helpers";
 

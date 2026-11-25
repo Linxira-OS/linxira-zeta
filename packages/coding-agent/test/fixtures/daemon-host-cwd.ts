@@ -6,7 +6,7 @@
  * (spawning the daemon) and prints the daemon pid as JSON.
  */
 import * as path from "node:path";
-import { declareWorkerHostEntry } from "@oh-my-pi/pi-utils";
+import { declareWorkerHostEntry } from "@linxiraos/pi-utils";
 import { closeDaemonClient, daemonClient } from "../../src/daemon/client";
 import { daemonDir } from "../../src/daemon/paths";
 import { DAEMON_WORKER_ARG } from "../../src/daemon/protocol";

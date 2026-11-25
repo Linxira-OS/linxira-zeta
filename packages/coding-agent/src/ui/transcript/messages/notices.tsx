@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Transcript notices: one-line status rows, status blocks, toasts and the
  * boxed notices (rules injected, todo reminders).
@@ -14,10 +14,10 @@
  *
  * Terminal looks: `src/ui/styles/messages/notice.ts`.
  */
-import { type JSXNode, nativeRendering, type Reactive, read } from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspChecklistItem, TspPreview, TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import { type JSXNode, nativeRendering, type Reactive, read } from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspChecklistItem, TspPreview, TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import type { BackgroundTanDispatchDetails } from "../../../session/transcript/messages";
 import type { NotificationRule } from "../../../session/transcript/ttsr-notification";
 import { expandKeyLabel } from "../../keys/hints";
@@ -132,7 +132,7 @@ export function StatusBlock(props: { rows: readonly StatusRow[] }): JSXNode {
 		else groups.push({ head: row, body: [] });
 	}
 	return (
-		<col role="omp.status-block" term={{ rows: props.rows }}>
+		<col role="zeta.status-block" term={{ rows: props.rows }}>
 			{groups.map(group => (
 				<Notice
 					tone={group.head.native.tone}
@@ -167,10 +167,10 @@ export function StatusNotice(props: {
 	const term = { message: props.message, color: props.color };
 	const text = stripEscapes(props.message);
 	// Kept out of native toasts, the line still shows in the terminal transcript.
-	if (props.toast === false) return <col role="omp.toast.status" hidden={nativeRendering} term={term} />;
+	if (props.toast === false) return <col role="zeta.toast.status" hidden={nativeRendering} term={term} />;
 	return props.action ? (
 		<toast
-			role="omp.toast.status"
+			role="zeta.toast.status"
 			text={text}
 			action={props.action.act}
 			label={props.action.label}
@@ -178,14 +178,14 @@ export function StatusNotice(props: {
 			onAction={act => props.onAction?.(act)}
 		/>
 	) : (
-		<toast role="omp.toast.status" text={text} ttl={STATUS_TOAST_TTL} term={term} />
+		<toast role="zeta.toast.status" text={text} ttl={STATUS_TOAST_TTL} term={term} />
 	);
 }
 
 /** The idle recap: where the session stands, written while the user was away. */
 export function Recap(props: { recap: string }): JSXNode {
 	return (
-		<row gap="sm" align="start" role="omp.recap" title="Recap while you were away" term={{ recap: props.recap }}>
+		<row gap="sm" align="start" role="zeta.recap" title="Recap while you were away" term={{ recap: props.recap }}>
 			<icon key="icon" name="history" />
 			<text text={props.recap} wrap="word" />
 		</row>
@@ -197,7 +197,7 @@ export function StrippedToolCalls(props: { count: number; visible: Reactive<bool
 	const label = `${props.count} tool call${props.count === 1 ? "" : "s"} elided — no result on this branch`;
 	return (
 		<text
-			role="omp.tool.elided"
+			role="zeta.tool.elided"
 			spans={[{ t: label, s: "dim em" }]}
 			wrap="word"
 			hidden={() => (read(props.visible) ? undefined : true)}
@@ -418,7 +418,7 @@ export function TtsrNotice(props: {
 	return (
 		<col>
 			<MessageNotice
-				role="omp.notice.ttsr"
+				role="zeta.notice.ttsr"
 				expanded={props.expanded}
 				visible={props.visible}
 				onToggle={props.onToggle}
@@ -495,7 +495,7 @@ export function TodoReminder(props: {
 				},
 			]}
 			note={note}
-			role="omp.notice.todo"
+			role="zeta.notice.todo"
 			hidden={() => (props.visible === undefined || read(props.visible) ? undefined : true)}
 			term={{
 				box: {

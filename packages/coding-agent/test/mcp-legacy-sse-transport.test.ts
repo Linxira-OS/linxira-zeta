@@ -4,7 +4,7 @@ import { isRetriableConnectionError } from "@linxiraos/zeta/mcp/tool-bridge";
 import type { JsonRpcMessage, JsonRpcRequest } from "@linxiraos/zeta/mcp/types";
 import { withTimeout } from "@linxiraos/pi-utils";
 import { LegacySseTransport } from "@linxiraos/zeta/mcp/transports/sse";
-import type { MCPProgress } from "@linxiraos/pi-tui/tools/mcp";
+import type { MCPProgress } from "@linxiraos/zeta/mcp/types";
 import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
 
 const encoder = new TextEncoder();

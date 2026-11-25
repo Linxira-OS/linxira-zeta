@@ -11,7 +11,7 @@ import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-b
 import { continuesConversation } from "../modes/utils/conversation-position";
 import type { FreshSessionResult } from "../session/agent-session";
 import { COMPACT_MODES, findCompactMode, type ParsedCompactArgs, parseCompactArgs } from "../session/compact-modes";
-import { isInterruptReason } from "@linxiraos/pi-tui/chat/messages";
+import { isInterruptReason } from "../session/transcript/messages";
 import { resolveResumableSession, resolveResumeTarget } from "../session/session-listing";
 import { toggleSessionPin, unpinSession } from "../session/session-pins";
 import {
@@ -733,13 +733,17 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 				clearSubmittedText(runtime);
 				return;
 			}
-			runtime.ctx.editor.addToHistory(command.text);
+			runtime.ctx.composer.addToHistory(command.text);
 			clearSubmittedText(runtime);
 			const target = command.args.trim();
 			// `/cd <path>` moves directly; a bare `/cd` opens the folder picker.
 			// `/cd` never creates a directory: TUI, headless and ACP agree.
-			if (target) await runtime.ctx.handleMoveCommand(target, { allowCreate: false });
-			else await runtime.ctx.showDirectoryPicker();
+			if (!target && !runtime.ctx.showDirectoryPicker) {
+				runtime.ctx.showError("This host has no directory picker; use /cd <path>.");
+				return;
+			}
+			if (target) await runtime.ctx.handleMoveCommand(target);
+			else await runtime.ctx.showDirectoryPicker?.();
 		},
 	},
 	{

@@ -9,10 +9,10 @@
  * Reads {@link ToolCommandTerm} (on the `tool` node, or on the nested
  * `omp.tool.bash.command-tool` column).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { truncate } from "@linxiraos/pi-tui/text/width";
 import type { ToolCommandTerm } from "../../tools/tool-command";
 import { defaultCardRows, tint } from "./default";
 import { legacyPartRows } from "./legacy";

@@ -34,13 +34,7 @@ import { getAgentDir, getProjectAgentDir } from "@linxiraos/pi-utils/dirs";
 import { resolveYamlConfigReadPath } from "@linxiraos/pi-utils/yaml-config";
 import { replaceFileAtomically } from "../../utils/atomic-file";
 import { reloadLiveSettingsInstances, Settings, type SettingProvenance } from "../../config/settings";
-import {
-	SETTING_TABS,
-	TAB_GROUPS,
-	TAB_METADATA,
-	type SettingTab,
-	type SubmenuOption,
-} from "@linxiraos/pi-tui/overlays/settings-defs";
+import { SETTING_TABS, TAB_GROUPS, type SettingTab, type SubmenuOption } from "../../config/settings-defs";
 import {
 	getDefault,
 	getEnumValues,
@@ -432,7 +426,7 @@ export async function handleSettingsGet(req: Request): Promise<Response> {
 
 		const tabs: SettingsTabDto[] = SETTING_TABS.map(tab => ({
 			id: tab,
-			label: zh ? (ZH_TAB_LABELS[tab] ?? TAB_METADATA[tab].label) : TAB_METADATA[tab].label,
+			label: zh ? (ZH_TAB_LABELS[tab] ?? tab) : tab,
 		}));
 
 		const groups = Object.fromEntries(

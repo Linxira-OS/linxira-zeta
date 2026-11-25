@@ -3,10 +3,10 @@ import {
 	type AgentToolResult,
 	type AgentToolUpdateCallback,
 	validateAgentToolArguments,
-} from "@oh-my-pi/pi-agent-core";
-import { type ImageContent, toolWireSchema } from "@oh-my-pi/pi-ai";
-import { isRecord } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-agent-core";
+import { type ImageContent, toolWireSchema } from "@linxiraos/pi-ai";
+import { isRecord } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type { ToolSession } from "../../tools";
 import { committedTodoPhases } from "../../tools/todo";
 import { isReplyWrite, toolResultReplies } from "../../session/transcript/reply-write";
@@ -54,6 +54,8 @@ const NO_REPLY_SINK =
 export type { JsStatusEvent } from "./shared/types";
 
 export interface ToolBridgeOptions {
+	/** Tool call id of the outer agent tool invocation that owns this cell (nested eval bridge). */
+	outerToolCallId?: string;
 	session: ToolSession;
 	parentToolCallId?: string;
 	signal?: AbortSignal;

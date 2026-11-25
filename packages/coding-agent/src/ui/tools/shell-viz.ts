@@ -7,9 +7,9 @@
  * a command (untraced, or with the run's trace: what runs now, loop
  * iterations, the values it bound) and threads the run's output in.
  */
-import { RunTrace } from "@oh-my-pi/pi-natives";
-import { logger } from "@oh-my-pi/pi-utils";
-import type { ShellTrace, ShellVizPreferences, ShellVizPresentation } from "@oh-my-pi/pi-wire";
+import { RunTrace } from "@linxiraos/pi-natives";
+import { logger } from "@linxiraos/pi-utils";
+import type { ShellTrace, ShellVizPreferences, ShellVizPresentation } from "@linxiraos/pi-wire";
 import {
 	defaultShellVizPreferences,
 	readShellPresentation,

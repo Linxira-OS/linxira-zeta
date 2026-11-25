@@ -6,11 +6,11 @@
  * ` · 2 failed` (warning, ` +2!` when tight); a background compaction's its
  * run time.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatDuration } from "@linxiraos/pi-utils";
 import { statusText } from "../../dock/progress";
 import { termOf } from "../messages/fill";
 

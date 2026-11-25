@@ -10,11 +10,11 @@
  *
  * Bare `text` and `md` blocks sit one cell in, like the transcript's prose.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { stack } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { stack } from "@linxiraos/pi-tui/term/painters/layout";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
 import { propsOf, termOf } from "./fill";
 
 /** A block's rows; bare `text` and `md` blocks one cell in from both edges. */

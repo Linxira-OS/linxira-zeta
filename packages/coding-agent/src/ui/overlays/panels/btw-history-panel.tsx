@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/btw` history: the session's side questions (newest first) beside the
  * selected one's thread — each turn's question, when it was asked, its answer
@@ -10,8 +10,8 @@
  * The terminal draws its own boxed sheet from the same model
  * (`styles/panels/btw-history-panel.ts`).
  */
-import { type JSXNode, untrack } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type JSXNode, untrack } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { sanitizeDisplayLine, sanitizeDisplayText } from "../../../extensibility/inventory/display-text";
 import { sanitizeErrorLine } from "../../../modes/view-model/chrome/error-block";
 import type { BtwHistoryRecord, BtwHistoryTurn } from "../../../session/btw-history-model";
@@ -86,7 +86,7 @@ function HistoryList(props: { readonly model: BtwHistoryModel }): JSXNode {
 	const { model } = props;
 	const now = model.now();
 	return (
-		<col key="history" role="omp.btw.history" shrink={0}>
+		<col key="history" role="zeta.btw.history" shrink={0}>
 			<list
 				key="records"
 				role={model.focus === "list" ? "omp.btw.list" : "omp.btw.list.idle"}
@@ -146,23 +146,23 @@ function Turn(props: {
 		) : turn.answer.trim() ? (
 			<md text={sanitizeDisplayText(turn.answer)} stream={stream} />
 		) : (
-			<text role="omp.btw.pending" spans={[{ s: "dim", t: stream ? "Thinking…" : "No answer text." }]} />
+			<text role="zeta.btw.pending" spans={[{ s: "dim", t: stream ? "Thinking…" : "No answer text." }]} />
 		);
 	}
 	return (
-		<col key={`turn-${index}`} role="omp.btw.turn">
+		<col key={`turn-${index}`} role="zeta.btw.turn">
 			<md text={sanitizeDisplayText(turn.question)} role={index === 0 ? "omp.btw.question" : "omp.btw.followup"} />
-			<text role="omp.btw.meta" spans={meta} truncate="end" lines={1} />
+			<text role="zeta.btw.meta" spans={meta} truncate="end" lines={1} />
 			{answer && (
-				<col key="answer" role="omp.btw.answer">
+				<col key="answer" role="zeta.btw.answer">
 					{answer}
 				</col>
 			)}
 			{turn.error && (
-				<text role="omp.btw.error" spans={[{ s: "error", t: sanitizeErrorLine(turn.error) }]} wrap="word" />
+				<text role="zeta.btw.error" spans={[{ s: "error", t: sanitizeErrorLine(turn.error) }]} wrap="word" />
 			)}
 			{turn.status === "interrupted" && (
-				<text role="omp.btw.note" spans={[{ s: "muted", t: "Not resumed in this view." }]} />
+				<text role="zeta.btw.note" spans={[{ s: "muted", t: "Not resumed in this view." }]} />
 			)}
 		</col>
 	);
@@ -171,7 +171,7 @@ function Turn(props: {
 function Composer(props: { readonly model: BtwHistoryModel; readonly composer: FollowUpComposer }): JSXNode {
 	const { model, composer } = props;
 	return (
-		<col key="composer" role="omp.btw.composer" gap="sm">
+		<col key="composer" role="zeta.btw.composer" gap="sm">
 			<input
 				text={composer.draft.text}
 				cursor={composer.draft.cursor}
@@ -185,7 +185,7 @@ function Composer(props: { readonly model: BtwHistoryModel; readonly composer: F
 			/>
 			{composer.notice && (
 				<text
-					role="omp.btw.notice"
+					role="zeta.btw.notice"
 					spans={[{ s: model.followUpPending ? "dim" : "warning", t: composer.notice }]}
 					wrap="word"
 				/>
@@ -197,7 +197,7 @@ function Composer(props: { readonly model: BtwHistoryModel; readonly composer: F
 function Thread(props: { readonly model: BtwHistoryModel; readonly record: BtwHistoryRecord }): JSXNode {
 	const { model, record } = props;
 	return (
-		<col key="thread" role="omp.btw.thread">
+		<col key="thread" role="zeta.btw.thread">
 			{displayTurns(record).map((turn, index) => (
 				<Turn
 					turn={turn}
@@ -216,7 +216,7 @@ function Actions(props: { readonly model: BtwHistoryModel; readonly record: BtwH
 	const cancelKey = actionKeyId("tui.select.cancel", "escape");
 	if (model.composer) {
 		return (
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<Button label="Cancel" act="discard" shortcut={cancelKey} />
 				<Button
@@ -232,13 +232,13 @@ function Actions(props: { readonly model: BtwHistoryModel; readonly record: BtwH
 	const hides = model.options.escapeHides === true;
 	const copied = record !== undefined && model.isCopied(record);
 	return (
-		<row key="actions" role="omp.actions" align="center" gap="sm">
+		<row key="actions" role="zeta.actions" align="center" gap="sm">
 			{running && <Button label="Stop answer" act="stop" shortcut={hides ? "x" : cancelKey} />}
 			{model.canInject(record) && <Button label="Inject into main" act="inject" shortcut={model.injectKey} />}
 			{model.canBranch(record) && <Button label="Branch to chat" act="branch" shortcut="b" />}
 			{model.canCopy(record) && [
 				<Button label={copied ? "Copy again" : "Copy answer"} act="copy-answer" shortcut="c" />,
-				copied && <text role="omp.btw.copied" spans={[{ s: "success", t: "✓ Copied" }]} />,
+				copied && <text role="zeta.btw.copied" spans={[{ s: "success", t: "✓ Copied" }]} />,
 			]}
 			<spacer grow={1} />
 			{/* Clicking Close always dismisses; its tooltip names Esc only where Esc does too. */}
@@ -271,11 +271,11 @@ export function BtwHistoryPanel(props: { readonly model: BtwHistoryModel }): JSX
 					onActivate={item => model.pick(item, true)}
 				>
 					{record ? (
-						<row key="body" role="omp.btw.body">
+						<row key="body" role="zeta.btw.body">
 							{model.records.length > 1 && <HistoryList model={model} />}
 							<col
 								key="details"
-								role="omp.btw.reader"
+								role="zeta.btw.reader"
 								grow={1}
 								basis={0}
 								min={{ w: 0 }}
@@ -285,10 +285,10 @@ export function BtwHistoryPanel(props: { readonly model: BtwHistoryModel }): JSX
 							</col>
 						</row>
 					) : (
-						<col key="empty" role="omp.btw.empty" align="center" gap="sm">
-							<text role="omp.btw.empty.title" text="No side questions yet" />
+						<col key="empty" role="zeta.btw.empty" align="center" gap="sm">
+							<text role="zeta.btw.empty.title" text="No side questions yet" />
 							<text
-								role="omp.btw.empty.hint"
+								role="zeta.btw.empty.hint"
 								spans={[
 									{ t: "Ask one with " },
 									{ s: "code", t: "/btw <question>" },

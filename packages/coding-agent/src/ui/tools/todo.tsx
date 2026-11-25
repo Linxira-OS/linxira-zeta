@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Todo: the call names its operations (`done 2 tasks`, `append Ship 2
  * items`); the result is the phased list as one `checklist` (`closed/total`
@@ -12,8 +12,8 @@
  * While collapsed, a pending task a running subagent's description matches reads as active
  * ({@link setActiveTodoDescriptions}), as the dock's todo HUD lights it.
  */
-import { signal } from "@oh-my-pi/pi-tui";
-import type { TspChecklistItem, TspChecklistPhase } from "@oh-my-pi/pi-wire";
+import { signal } from "@linxiraos/pi-tui";
+import type { TspChecklistItem, TspChecklistPhase } from "@linxiraos/pi-wire";
 import { todoMatchesAnyDescription } from "../../tools/details/todo";
 import type { ToolPresenter, ToolView } from "./contract";
 import { cleanText, countText, ErrorText, NoteText } from "./agent-common";

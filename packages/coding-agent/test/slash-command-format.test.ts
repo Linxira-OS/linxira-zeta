@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderAsciiBar } from "@oh-my-pi/pi-coding-agent/modes/view-model/chrome/format";
+import { renderAsciiBar } from "@linxiraos/zeta/modes/view-model/chrome/format";
 
 describe("renderAsciiBar", () => {
 	it("preserves the visible progress-bar contract", () => {

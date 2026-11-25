@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Corpus checks for grouped reads (`transcript/read-group`): a {@link ReadGroup}
  * driven through the recorded steps (args, results, usage, toggles, renames,
@@ -9,9 +9,9 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createRoot, isUiNode, type JSXNode, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode } from "@oh-my-pi/pi-tui/term/paint";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+import { createRoot, isUiNode, type JSXNode, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode } from "@linxiraos/pi-tui/term/paint";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 import {
 	CORPUS_DIR,
 	type CorpusCase,
@@ -19,9 +19,9 @@ import {
 	describeTree,
 	firstDiff,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/pi-tui/testing/corpus";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import "../../../src/ui/styles/tools";
 import "../../../src/ui/styles/transcript/read-group";
 import { ReadGroup, ReadGroupBlock, type ReadPresenter, type ReadResult } from "../../../src/ui/transcript/read-group";

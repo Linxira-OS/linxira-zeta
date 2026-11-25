@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
 import { UserMessage, type UserMessageModel } from "../../../../src/ui/transcript/messages/user-message";
 import { screenSuite, single } from "./harness";
 

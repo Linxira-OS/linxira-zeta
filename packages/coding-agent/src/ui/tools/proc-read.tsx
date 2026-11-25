@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Reads of `proc://` (background jobs and services): `proc://` lists every
  * job, service and agent; `proc://<id>` shows one job (its row and log) or
@@ -8,10 +8,10 @@
  * Terminal look: `proc-read` (`src/ui/styles/tools/proc-read.ts`), fed by {@link ProcReadTerm}.
  */
 
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import { type TspSpan, type TspTone, toolIntentLabel } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import { formatDuration } from "@linxiraos/pi-utils";
+import { type TspSpan, type TspTone, toolIntentLabel } from "@linxiraos/pi-wire";
 import { splitUrlScheme } from "../../internal-urls/url-scheme";
 import { ErrorText } from "./agent-common";
 import type { ToolPresenter, ToolResult, ToolView } from "./contract";
@@ -220,7 +220,7 @@ function resultView(result: ToolResult<{ proc?: ProcReadDetails }>, now: number,
 				<list>
 					<JobItem job={details.job} />
 				</list>,
-				log.trim().length > 0 && <ansi text={log} role="omp.tool.proc.log" />,
+				log.trim().length > 0 && <ansi text={log} role="zeta.tool.proc.log" />,
 			],
 			term,
 		};
@@ -236,7 +236,7 @@ function resultView(result: ToolResult<{ proc?: ProcReadDetails }>, now: number,
 		};
 		return {
 			label: head(id, daemonText),
-			body: <ansi text={output} follow={daemon.exitedAt === undefined} role="omp.tool.proc.log" />,
+			body: <ansi text={output} follow={daemon.exitedAt === undefined} role="zeta.tool.proc.log" />,
 			term,
 		};
 	}
@@ -251,7 +251,7 @@ function resultView(result: ToolResult<{ proc?: ProcReadDetails }>, now: number,
 				text,
 			} satisfies ProcReadTerm,
 			body: text.trim() ? (
-				<text spans={[{ s: "toolOutput", t: text }]} wrap="word" role="omp.tool.proc.preview" />
+				<text spans={[{ s: "toolOutput", t: text }]} wrap="word" role="zeta.tool.proc.preview" />
 			) : undefined,
 		};
 	}
@@ -277,7 +277,7 @@ function resultView(result: ToolResult<{ proc?: ProcReadDetails }>, now: number,
 	return {
 		label: head(id, counts.join(" · ")),
 		body: (
-			<list empty="No background jobs or services." role="omp.tool.proc.table">
+			<list empty="No background jobs or services." role="zeta.tool.proc.table">
 				{jobs.map(job => (
 					<JobItem job={job} />
 				))}

@@ -8,6 +8,8 @@ import type { EvalDisplayOutput } from "./types";
 
 /** Per-cell execute() options. */
 export interface ExecutorBackendExecOptions {
+	/** Tool call id of the outer agent tool invocation that owns this cell (nested eval bridge). */
+	outerToolCallId?: string;
 	cwd: string;
 	sessionId: string;
 	/** ID of the eval invocation, not the session or its reusable kernel. */

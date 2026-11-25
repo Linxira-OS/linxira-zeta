@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The theme selector: every installed theme with a swatch mark seeded by its
  * name; moving the selection previews the theme.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import type { TspPickerItem } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import type { TspPickerItem } from "@linxiraos/pi-wire";
 import { SelectSheet } from "./select-sheet";
 
 export interface ThemeSelectorProps {

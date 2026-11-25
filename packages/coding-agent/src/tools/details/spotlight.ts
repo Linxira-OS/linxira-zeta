@@ -1,4 +1,4 @@
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 
 /** Original lines a result's heat and the sheet cover; later lines are shown in neither. */
 export const SPOTLIGHT_VIEW_LINES = 5_000;

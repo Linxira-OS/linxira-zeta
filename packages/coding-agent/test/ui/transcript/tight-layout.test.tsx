@@ -1,11 +1,11 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { afterEach, expect, test } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { createRoot } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { createRoot } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { bindEffects } from "../../../src/config/registry";
 import { Settings } from "../../../src/config/settings";
 import { cfgTuiTight } from "../../../src/modes/settings";

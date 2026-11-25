@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { editDiffString } from "@oh-my-pi/pi-natives";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { editDiffString } from "@linxiraos/pi-natives";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { editToolPresenter } from "../../src/ui/tools/edit";
 import { printRows } from "../../src/ui/print-rows";
 import { ToolBlock, ToolCall, type ToolCallResult } from "../../src/ui/transcript/tool-block";
 import { toolCall } from "../helpers/tool-text";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

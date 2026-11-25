@@ -481,17 +481,17 @@ Only `discovery` enrolls a provider in `generate-models.ts`; providers without i
 
 ### Seed rows
 
-A `seed` *defines* bundled rows for providers whose catalog cannot be discovered at generation time — credential-scoped rosters, unauthenticated regens, or models ahead of upstream catalogs. Every other stratum patches rows; this one authors them. Runtime model managers hand the rows to `staticModels` through `seedModels(provider)`; the generator bundles them per the seed's `bundle` policy. Values are literal — a seed never derives from another provider's row, and pricing is never borrowed.
+A `seed` _defines_ bundled rows for providers whose catalog cannot be discovered at generation time — credential-scoped rosters, unauthenticated regens, or models ahead of upstream catalogs. Every other stratum patches rows; this one authors them. Runtime model managers hand the rows to `staticModels` through `seedModels(provider)`; the generator bundles them per the seed's `bundle` policy. Values are literal — a seed never derives from another provider's row, and pricing is never borrowed.
 
 `seed` properties: `api` and `base-url` are per-row defaults (a `model` may override either with the same property names); `bundle` defaults to `always`; `precedence="seed"` is optional. `model` takes the wire id positionally, requires `name=`, and its body MUST declare `reasoning`, `input` (`"text"` and/or `"image"`), `cost` (all four per-million rates), and `limits` (`context=` / `max-tokens=`, an omitted limit is `null`); `supports-tools #true` is optional. Any other directive is an axis from the cascade vocabulary: thinking axes become the row's explicit `thinking` (then `thinking-mode` and `thinking-efforts` are both required), wire axes become its explicit `compat` and must apply to the row's API, and catalog axes are rejected because they stay rule-owned in the cascade block. Explicit `thinking`/`compat` on a seed row win over the cascade exactly as they do for any authored spec.
 
 `bundle` decides when the generator includes the rows:
 
-| Policy | Rows enter the bundle |
-| --- | --- |
-| `always` | Every regeneration. Same-id upstream/discovery rows win dedup. |
+| Policy     | Rows enter the bundle                                                     |
+| ---------- | ------------------------------------------------------------------------- |
+| `always`   | Every regeneration. Same-id upstream/discovery rows win dedup.            |
 | `fallback` | Only when the provider's authoritative catalog discovery did not succeed. |
-| `empty` | Only when no other source produced a row for the provider. |
+| `empty`    | Only when no other source produced a row for the provider.                |
 
 `precedence="seed"` prepends the rows after the previous-snapshot merge and cross-provider reference fills, so the authored row wins dedup and same-id rows on other hosts never overwrite its name or capabilities (QwenCloud Token Plan, Meta). The default `upstream` precedence appends before the snapshot merge, so the current seed — not a stale snapshot copy — is the fallback row.
 

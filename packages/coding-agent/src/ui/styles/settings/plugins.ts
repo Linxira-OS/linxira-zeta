@@ -5,13 +5,13 @@
  * the list, detail and editor panels, whose native children describe the
  * same content semantically).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { descriptionRows, inputLine, scrolled, selectList, settingRow } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { padTo, spaces, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { descriptionRows, inputLine, scrolled, selectList, settingRow } from "@linxiraos/pi-tui/term/painters/prefs";
+import { padTo, spaces, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { keyLabel } from "../../keys/hints";
 import { bindingGlyph } from "../panels/common";
 

@@ -6,9 +6,9 @@ Shared utilities for [omp](https://github.com/Linxira-OS/linxira-zeta) packages.
 
 | Module                                                                                                             | Purpose                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `logger`                                                                                                           | Centralized logger writing to `~/.zeta/logs/` (`bun test`: temp dir), rotating, never stdout  |
+| `logger`                                                                                                           | Centralized logger writing to `~/.zeta/logs/` (`bun test`: temp dir), rotating, never stdout |
 | `prompt`                                                                                                           | Handlebars-based prompt templating and formatting helpers                                    |
-| `dirs`                                                                                                             | Path helpers for zetacode config directories (`~/.zeta`, XDG-aware on Linux)                       |
+| `dirs`                                                                                                             | Path helpers for zetacode config directories (`~/.zeta`, XDG-aware on Linux)                 |
 | `stream`                                                                                                           | `readStream` / `readLines` helpers over `ReadableStream`                                     |
 | `ptree` / `procmgr`                                                                                                | Process trees, `ChildProcess` wrapper, process lifecycle management                          |
 | `postmortem`                                                                                                       | Cleanup callbacks on exit, signals, and fatal exceptions                                     |

@@ -9,7 +9,7 @@ import {
 import {
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@linxiraos/pi-tui/overlays/session-observer-registry";
+} from "@linxiraos/zeta/task/session-observer-registry";
 import { EventBus } from "../../src/utils/event-bus";
 
 function row(overrides: Partial<BackendSubagentRow> = {}): BackendSubagentRow {

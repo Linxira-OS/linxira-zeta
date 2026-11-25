@@ -9,11 +9,11 @@
  * - `omp.footer.panel` (`col`): the bar, then the extension statuses.
  * - `omp.footer.extensions` (`text`): one row, cut to the width.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { stack } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { spaces, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSegProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { stack } from "@linxiraos/pi-tui/term/painters/layout";
+import { spaces, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { TspSegProps } from "@linxiraos/pi-wire";
 
 /** Columns kept between the stats and the model. */
 const MODEL_GAP = 2;

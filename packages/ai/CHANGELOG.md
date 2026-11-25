@@ -1,12 +1,14 @@
 ## [Unreleased]
 
 ## [1.5.14] - 2026-11-22
+
 ### Fixed
 
 - With several Devin logins, omp now prefers a login with daily or weekly quota left; a login past its quota that its on-demand balance still funds comes next, and one with no balance is skipped until its quota resets ([#19929](https://github.com/Linxira-OS/linxira-zeta/pull/19929) by [@will-bogusz](https://github.com/will-bogusz))
 - Devin logins now store the account's email, user id and organization, so two organizations under one email show as two accounts in `omp usage` and `auth.accountPolicies` can name each; sign in again to identify an existing login ([#19928](https://github.com/Linxira-OS/linxira-zeta/pull/19928) by [@will-bogusz](https://github.com/will-bogusz))
 - Anthropic requests with no messages now fail locally with the model, provider, and how many messages arrived, instead of a bare `400 "messages is required"` ([#19881](https://github.com/Linxira-OS/linxira-zeta/pull/19881) by [@FnSGit](https://github.com/FnSGit))
 - Usage reports of a provider an extension registers now survive across omp processes. Registering a provider's first usage adapter no longer discards the reports another process cached for it, so each new session stops re-probing the provider's usage endpoint; replacing an existing adapter still invalidates them ([#20030](https://github.com/Linxira-OS/linxira-zeta/pull/20030) by [@ahsanatha](https://github.com/ahsanatha))
+
 ## [19.2.0] - 2026-11-25
 
 ### Breaking Changes
@@ -430,6 +432,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://gi
 Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://github.com/Linxira-OS/linxira-zeta/blob/a20cc0d04b64f4a68fcc559cbd258743d984c50e/packages/ai/CHANGELOG.md).
 
 Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://github.com/Linxira-OS/linxira-zeta/blob/b81a844b520af43d1d190a99fcdc8928e242b315/packages/ai/CHANGELOG.md).
+
 ### Fixed
 
 - Fixed DeepSeek and OpenAI Responses requests failing or entering retry loops when replayed tool calls contained repaired arguments, orphaned tool results, or missing reasoning context.

@@ -9,10 +9,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, setSystemTime } from "bun:test";
 import { capturing, type StageResult, stageTest } from "../deviations";
-import { createRoot, isUiNode, type Signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, type StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+import { createRoot, isUiNode, type Signal, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode, type StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 import {
 	CORPUS_DIR,
 	CORPUS_NOW,
@@ -21,7 +21,7 @@ import {
 	describeTree,
 	firstDiff,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
+} from "@linxiraos/pi-tui/testing/corpus";
 import "../../../src/ui/styles/tools";
 import "../../../src/ui/tools";
 import type { ToolPresenter } from "../../../src/ui/tools/contract";

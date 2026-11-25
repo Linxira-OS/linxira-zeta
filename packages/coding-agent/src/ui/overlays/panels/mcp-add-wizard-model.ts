@@ -8,12 +8,12 @@
  * wizard shows them; stepping back makes a test that settles later stale.
  */
 import * as path from "node:path";
-import type { Accessor, TextEdit } from "@oh-my-pi/pi-tui";
-import { signal } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { getMCPConfigPath, getProjectDir } from "@oh-my-pi/pi-utils";
-import type { TspText } from "@oh-my-pi/pi-wire";
+import type { Accessor, TextEdit } from "@linxiraos/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { getMCPConfigPath, getProjectDir } from "@linxiraos/pi-utils";
+import type { TspText } from "@linxiraos/pi-wire";
 import { shortenPath } from "../../../utils/render-utils";
 import { listKeyId } from "../../../config/keybindings/matchers";
 import { getKeybindings } from "../../../config/keybindings/keybindings";

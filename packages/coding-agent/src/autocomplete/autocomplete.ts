@@ -154,7 +154,8 @@ export type ModelMentionCompletion =
 export interface SlashCommand {
 	name: string;
 	aliases?: string[];
-	description?: string;
+	/** Resolved lazily when a function so localized copy follows `/language`. */
+	description?: string | (() => string);
 	/** Optional type-indicator glyph shown before the command name in autocomplete */
 	icon?: string;
 	/** Named icon for TSP terminals, drawn instead of the {@link icon} glyph. */

@@ -1,4 +1,4 @@
-import { untilAborted } from "@oh-my-pi/pi-utils";
+import { untilAborted } from "@linxiraos/pi-utils";
 import { ToolError } from "../tool-errors";
 import type { ElementHandle, Page } from "puppeteer-core";
 import { isNavigatedContextError } from "./navigation";

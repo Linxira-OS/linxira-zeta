@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as client from "@oh-my-pi/pi-coding-agent/disasm/client";
-import { readBinaryMetadata } from "@oh-my-pi/pi-coding-agent/disasm/metadata";
-import { selectSlice } from "@oh-my-pi/pi-coding-agent/disasm/store";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { readBinary } from "@oh-my-pi/pi-coding-agent/tools/read-binary";
-import { parseSel } from "@oh-my-pi/pi-coding-agent/tools/read-selector";
-import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/read";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as client from "@linxiraos/zeta/disasm/client";
+import { readBinaryMetadata } from "@linxiraos/zeta/disasm/metadata";
+import { selectSlice } from "@linxiraos/zeta/disasm/store";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { readBinary } from "@linxiraos/zeta/tools/read-binary";
+import { parseSel } from "@linxiraos/zeta/tools/read-selector";
+import type { ReadToolDetails } from "@linxiraos/zeta/tools/details/read";
 
 /** One __TEXT segment, one section and LC_MAIN; arm64 and x86_64 share the same layout. */
 function macho(cpu = 0x0100000c): Buffer {

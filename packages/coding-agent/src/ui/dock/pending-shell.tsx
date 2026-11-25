@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `!`/`$` runs started while the agent streams (`pendingShell` slot): their
  * live blocks wait here, above the queued messages in a text terminal and at
@@ -7,7 +7,7 @@
  * controller into a {@link ViewList} (`runs.push(mountNode(() => <BashRun …/>,
  * "shell run"))`, `runs.clear()` at settle); this is their ordered stack.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import type { ViewList } from "../shell/views";
 
 /** See the module docs. */

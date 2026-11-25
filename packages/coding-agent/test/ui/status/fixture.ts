@@ -3,7 +3,7 @@
  * status line read (their `inputs.session`).
  */
 import * as os from "node:os";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import type { StatusFacts } from "../../../src/ui/status/facts";
 
 // The corpus was captured in UTC (the `time` segment).

@@ -21,10 +21,10 @@ import {
 	transcriptGrep,
 	transcriptMessages,
 	transcriptStats,
-} from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-natives";
 import { ToolError } from "../tools/tool-errors";
 import { previewLine, shortenPath } from "../utils/render-utils";
-import { formatCount, isEnoent, isRecord, logger } from "@oh-my-pi/pi-utils";
+import { formatCount, isEnoent, isRecord, logger } from "@linxiraos/pi-utils";
 import { listStatedSessionFiles, parseSessionFileName } from "../session/session-listing";
 import { sessionDirForCwd } from "../session/session-paths";
 import { listSubSessionFiles } from "../session/sub-sessions";

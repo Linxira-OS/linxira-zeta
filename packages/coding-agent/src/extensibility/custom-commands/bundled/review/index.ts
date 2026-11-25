@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import { replaceTabs, truncateToWidth } from "../../../../utils/text-width";
 import { shortenPath, TRUNCATE_LENGTHS } from "../../../../utils/render-utils";
-import { isRecord, prompt } from "@oh-my-pi/pi-utils";
+import { isRecord, prompt } from "@linxiraos/pi-utils";
 import { findScopedSettings } from "../../../../config/settings";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";

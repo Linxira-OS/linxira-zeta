@@ -1578,17 +1578,3 @@ export const cfgToolsXdevInlineDevices = register({
 		description: "Device names whose docs and schemas are always inlined in the system prompt.",
 	},
 });
-
-/** Terminal notification policy while a PTY command waits. */
-export const cfgPtyNotify = register({
-	id: "pty.notify",
-	type: "enum",
-	values: ["on", "off"] as const,
-	default: "on",
-	ui: {
-		tab: "tools",
-		group: "Execution",
-		label: "PTY Notifications",
-		description: "Send a terminal notification when a long-running PTY command is waiting.",
-	},
-});

@@ -1,6 +1,7 @@
-import { parseFrontmatter, prompt } from "@oh-my-pi/pi-utils";
+import { parseFrontmatter, prompt } from "@linxiraos/pi-utils";
 import { slashCommandCapability } from "../capability/slash-command";
 import { slashCommandFrontmatterDisplay } from "./inventory/inspector-model";
+import type { CommandExecutionMetadata } from "../capability/slash-command";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { appendInlineArgsFallback, templateUsesInlineArgPlaceholders } from "../config/prompt-templates";
 import type { SlashCommand } from "../discovery";
@@ -25,7 +26,7 @@ export type { BuiltinSlashCommand, SubcommandDef } from "../slash-commands/types
 /**
  * Represents a custom slash command loaded from a file
  */
-export interface FileSlashCommand {
+export interface FileSlashCommand extends CommandExecutionMetadata {
 	name: string;
 	description: string;
 	/** Argument hint from `argument-hint`/`argumentHint` frontmatter, shown as inline ghost text. */

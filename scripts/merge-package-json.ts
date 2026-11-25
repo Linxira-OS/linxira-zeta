@@ -129,17 +129,17 @@ export function isZetaOwnedPath(path: string): boolean {
 
 const ZETA_SCOPE = "@linxiraos/";
 
-// Upstream workspace packages are named @oh-my-pi/*. Zeta renames that scope
+// Upstream workspace packages are named @linxiraos/*. Zeta renames that scope
 // to @linxiraos/* (with RENAME_BY_TAIL for renamed packages) and keeps its own
 // independent versions (1.x product line), so the driver must map upstream
 // keys back to Zeta names before merging. This constant MUST keep the literal
 // upstream scope: sweeping it silently disables the mapping (recurring damage
 // class; guarded by a brand-check MUST_CONTAIN entry).
-const OMP_SCOPE = "@oh-my-pi/";
+const OMP_SCOPE = "@linxiraos/";
 
-// Upstream's original author scope predating the @oh-my-pi rename. Legacy
+// Upstream's original author scope predating the @linxiraos rename. Legacy
 // manifests and vendored plugin manifests still declare it; map it exactly
-// like @oh-my-pi so dependency keys land on Zeta packages instead of passing
+// like @linxiraos so dependency keys land on Zeta packages instead of passing
 // through unmapped (install-smoke failure class). This literal MUST survive
 // the sweep: dropping it silently breaks historical-scope mapping (guarded by
 // a brand-check MUST_CONTAIN entry).

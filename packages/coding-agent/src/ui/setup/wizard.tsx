@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The setup wizard: the splash, then each scene under the brand, step strip,
  * title and key hints, then a short outro before handing off to the app.
@@ -21,9 +21,9 @@ import {
 	signal,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { bubbleKey, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { bubbleKey, pathTo } from "@linxiraos/pi-tui/dispatch";
+import type { TspTone } from "@linxiraos/pi-wire";
 import "../styles/setup";
 import type { OutroTerm, SceneFrameTerm, WizardTerm } from "../styles/setup/wizard";
 import { keyLabel } from "./scenes/choice";
@@ -194,7 +194,7 @@ export function SetupWizard(props: SetupWizardProps & { readonly ref?: (model: S
 	const term = (): WizardTerm => ({ rows: props.rows() });
 	const root = (
 		<col
-			role="omp.setup"
+			role="zeta.setup"
 			grow={1}
 			term={term}
 			onKey={onKey}
@@ -263,14 +263,14 @@ function SceneFrame(props: {
 		};
 	};
 	return (
-		<col key="scene" role="omp.setup.scene" grow={1} term={term}>
-			<row key="head" role="omp.setup.head" align="center">
-				<row key="brand" role="omp.setup.brand" align="center">
-					<image key="logo" role="omp.setup.mark" builtin="omp" alt="omp" w={22} />
-					<text key="name" role="omp.setup.brand.name" wrap="none" spans={[{ s: "strong", t: "omp" }]} />
-					<text key="label" role="omp.setup.brand.label" wrap="none" spans={[{ s: "muted", t: "Setup" }]} />
+		<col key="scene" role="zeta.setup.scene" grow={1} term={term}>
+			<row key="head" role="zeta.setup.head" align="center">
+				<row key="brand" role="zeta.setup.brand" align="center">
+					<image key="logo" role="zeta.setup.mark" builtin="zeta" alt="Zeta" w={22} />
+					<text key="name" role="zeta.setup.brand.name" wrap="none" spans={[{ s: "strong", t: "omp" }]} />
+					<text key="label" role="zeta.setup.brand.label" wrap="none" spans={[{ s: "muted", t: "Setup" }]} />
 				</row>
-				<row key="steps" role="omp.setup.steps" align="center">
+				<row key="steps" role="zeta.setup.steps" align="center">
 					<For each={() => model.scenes.map((_, index) => index)}>
 						{index => <StepMark index={index} model={model} />}
 					</For>
@@ -296,19 +296,19 @@ function StepMark(props: { readonly index: number; readonly model: SetupWizardMo
 		index > 0 ? (
 			<rule
 				key={`line:${index}`}
-				role="omp.setup.step.line"
+				role="zeta.setup.step.line"
 				tone={() => (index <= model.index() ? "success" : "muted")}
 			/>
 		) : null,
-		<row key={`step:${index}`} role="omp.setup.step" align="center" gap="xs" tone={tone}>
+		<row key={`step:${index}`} role="zeta.setup.step" align="center" gap="xs" tone={tone}>
 			{() =>
 				index < model.index() ? (
-					<icon role="omp.setup.step.disc" name="check" />
+					<icon role="zeta.setup.step.disc" name="check" />
 				) : (
-					<text role="omp.setup.step.disc" wrap="none" text={String(index + 1)} />
+					<text role="zeta.setup.step.disc" wrap="none" text={String(index + 1)} />
 				)
 			}
-			<text role="omp.setup.step.label" wrap="none" text={label} />
+			<text role="zeta.setup.step.label" wrap="none" text={label} />
 		</row>,
 	] as unknown as JSXNode;
 }
@@ -337,7 +337,7 @@ function mountScene(
 	onCleanup(() => view.dispose?.());
 	queueMicrotask(() => view.onMount?.());
 	const node = (
-		<col key={`body:${scene.id}`} role="omp.setup.body" grow={1}>
+		<col key={`body:${scene.id}`} role="zeta.setup.body" grow={1}>
 			{view.body}
 		</col>
 	) as unknown as BodyNode;
@@ -370,14 +370,14 @@ function Outro(props: { readonly model: SetupWizardModel; readonly host: SetupHo
 	const current = props.host.getModels().current;
 	const term = (): OutroTerm => ({ at: props.model.outroAt() ?? 0, ms: OUTRO_MS });
 	return (
-		<col key="outro" role="omp.setup.outro" grow={1} align="center" actions={{ click: "continue" }} term={term}>
+		<col key="outro" role="zeta.setup.outro" grow={1} align="center" actions={{ click: "continue" }} term={term}>
 			<spacer key="top" grow={1} />
-			<image key="logo" role="omp.setup.outro.mark" builtin="omp" alt="omp" w={72} />
-			<text key="title" role="omp.setup.outro.title" wrap="none" spans={[{ s: "strong", t: "You're all set" }]} />
+			<image key="logo" role="zeta.setup.outro.mark" builtin="zeta" alt="Zeta" w={72} />
+			<text key="title" role="zeta.setup.outro.title" wrap="none" spans={[{ s: "strong", t: "You're all set" }]} />
 			{current ? (
 				<text
 					key="model"
-					role="omp.setup.outro.model"
+					role="zeta.setup.outro.model"
 					wrap="none"
 					truncate="end"
 					spans={[
@@ -387,8 +387,8 @@ function Outro(props: { readonly model: SetupWizardModel; readonly host: SetupHo
 					]}
 				/>
 			) : null}
-			<text key="status" role="omp.setup.outro.status" wrap="none" spans={[{ s: "muted", t: "Starting omp…" }]} />
-			<progress key="progress" role="omp.setup.outro.progress" value={null} />
+			<text key="status" role="zeta.setup.outro.status" wrap="none" spans={[{ s: "muted", t: "Starting omp…" }]} />
+			<progress key="progress" role="zeta.setup.outro.progress" value={null} />
 			<spacer key="bottom" grow={1} />
 		</col>
 	);

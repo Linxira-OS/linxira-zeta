@@ -5,9 +5,9 @@
  * on it go to the viewer (wheel scrolls, a click on the counters toggles
  * following the tail, a click on the stream pins that row to the top).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
 import type { RawSseViewerModel } from "../../../apps/raw-sse/model";
 import { paintViewerFrame } from "../viewer/frame";
 

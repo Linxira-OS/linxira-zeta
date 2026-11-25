@@ -10,13 +10,13 @@
  * footer chips (`chip:<index>`); the hub's widget turns pointer input into
  * the events the hub handles natively.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { definePickerLook, PICKER_HOVER, type PickerTerm, pickerState } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { defineRoleWidget, type Widget } from "@oh-my-pi/pi-tui/term/widgets";
-import { replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { definePickerLook, PICKER_HOVER, type PickerTerm, pickerState } from "@linxiraos/pi-tui/term/painters/picker";
+import { defineRoleWidget, type Widget } from "@linxiraos/pi-tui/term/widgets";
+import { replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { GeneratedAgentSpec } from "../../overlays/pickers/agents-hub";
 import type { ModelBrowserState } from "../../overlays/pickers/model-browser-state";
 import { keyGlyph } from "../panels/common";

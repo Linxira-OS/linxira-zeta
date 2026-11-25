@@ -8,11 +8,11 @@
  * sidebar has the keyboard) and the sidebar. Pointer input reaches the app
  * through its role widget.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { defineRolePainter, type PaintContext, type PaintImages } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import { padTo, spaces, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { defineRolePainter, type PaintContext, type PaintImages } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import { padTo, spaces, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { type ChromeHit, type GitAppModel, type GitFocus, gitLayout } from "../../../apps/git/app-model";
 import type { ViewMode } from "../../../apps/git/diff-pane-model";
 import { keyLabel } from "../../../keys/hints";

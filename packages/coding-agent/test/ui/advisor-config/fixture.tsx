@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The host the advisor-config corpus was captured with, rebuilt for the pi-tui
  * overlay, and each case's steps by label.
  */
-import type { UsageReport } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { createRoot, type Signal, signal, type UiEvent, type UiNode } from "@oh-my-pi/pi-tui";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { createRoot, type Signal, signal, type UiEvent, type UiNode } from "@linxiraos/pi-tui";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import type { WatchdogConfigDoc } from "../../../src/advisor/advisor-config-types";
 import {
 	AdvisorConfigOverlay,

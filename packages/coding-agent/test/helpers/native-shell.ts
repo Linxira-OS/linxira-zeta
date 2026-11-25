@@ -1,7 +1,7 @@
-import { encodeTsp, encodeTspJson } from "@oh-my-pi/pi-tui/native/apc";
-import { memoryTerminal } from "@oh-my-pi/pi-tui/testing/memory-terminal";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspEvent, TspNode } from "@oh-my-pi/pi-wire";
+import { encodeTsp, encodeTspJson } from "@linxiraos/pi-tui/native/apc";
+import { memoryTerminal } from "@linxiraos/pi-tui/testing/memory-terminal";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspEvent, TspNode } from "@linxiraos/pi-wire";
 import { FakeTern } from "../../../tui/test/native/fake-tern";
 import { Shell } from "../../src/ui/shell/shell";
 

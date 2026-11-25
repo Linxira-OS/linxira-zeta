@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import type { UiEvent } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import type { UiEvent } from "@linxiraos/pi-tui";
 import type { LogoutAccount } from "../../../../src/modes/view-model/overlays/logout-account-selector";
 import type { ResetUsageAccount } from "../../../../src/modes/view-model/overlays/reset-usage-selector";
 import { LogoutAccountSelector } from "../../../../src/ui/overlays/pickers/logout-account-selector";

@@ -5,11 +5,11 @@
  */
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { batch, type UiNode } from "@oh-my-pi/pi-tui";
-import { bubbleEvent, bubblePaste, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import { paintNode } from "@oh-my-pi/pi-tui/term/paint";
-import { type CorpusCase, corpusEnvironment } from "@oh-my-pi/pi-tui/testing/corpus";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { batch, type UiNode } from "@linxiraos/pi-tui";
+import { bubbleEvent, bubblePaste, pathTo } from "@linxiraos/pi-tui/dispatch";
+import { paintNode } from "@linxiraos/pi-tui/term/paint";
+import { type CorpusCase, corpusEnvironment } from "@linxiraos/pi-tui/testing/corpus";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { fullscreenMenuView } from "../../../src/modes/controllers/selector-views";
 import { nativeShell } from "../../helpers/native-shell";
 import { nodeAtKeypath } from "../overlays/panels/harness";

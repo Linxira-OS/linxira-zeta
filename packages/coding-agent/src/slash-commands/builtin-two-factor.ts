@@ -1,4 +1,3 @@
-import { Text } from "@linxiraos/pi-tui";
 import { currentLanguage, M } from "../i18n";
 import { formatTerminalTwoFactorStatus, readTerminalTwoFactorStatus } from "../server/auth/two-factor-status";
 import type { SlashCommandSpec } from "./types";
@@ -16,7 +15,7 @@ export const BUILTIN_TWO_FACTOR_SLASH_COMMAND: SlashCommandSpec = {
 	],
 	handleTui: async (command, runtime) => {
 		if (command.args.trim() === "") {
-			runtime.ctx.showSettingsSelector("identity");
+			runtime.ctx.showSettingsSelector();
 			return;
 		}
 		if (command.args.trim() !== "status") {
@@ -24,6 +23,6 @@ export const BUILTIN_TWO_FACTOR_SLASH_COMMAND: SlashCommandSpec = {
 			return;
 		}
 		const status = await readTerminalTwoFactorStatus();
-		runtime.ctx.presentCommandOutput(new Text(formatTerminalTwoFactorStatus(status, currentLanguage()), 1, 0));
+		runtime.ctx.presentCommandOutput(() => formatTerminalTwoFactorStatus(status, currentLanguage()));
 	},
 };

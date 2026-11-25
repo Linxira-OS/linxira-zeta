@@ -12,12 +12,12 @@
  *
  * While the intro runs the logo follows the terminal clock.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, spaces, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { ColorDepth } from "@oh-my-pi/pi-tui/theme/color";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspText } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, spaces, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { ColorDepth } from "@linxiraos/pi-tui/theme/color";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspText } from "@linxiraos/pi-wire";
 import { INTRO_MS, introLogo, LOGO_WIDTH, WORDMARK, WORDMARK_WIDTH } from "../../welcome/logo";
 import { updatePercent, updateTone, type VersionUpdate, type WelcomeLook } from "../../welcome/welcome";
 

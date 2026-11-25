@@ -6,10 +6,10 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getActiveProfile, getProfileRootDir } from "@oh-my-pi/pi-utils/dirs";
-import { isEnoent } from "@oh-my-pi/pi-utils/fs-error";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import { stringifyYamlConfig } from "@oh-my-pi/pi-utils/yaml-config";
+import { getActiveProfile, getProfileRootDir } from "@linxiraos/pi-utils/dirs";
+import { isEnoent } from "@linxiraos/pi-utils/fs-error";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { stringifyYamlConfig } from "@linxiraos/pi-utils/yaml-config";
 import { JSONC, YAML } from "bun";
 import { KEYBINDINGS, type Keybinding } from "./app-keybindings";
 import type { KeyId } from "./key-id";

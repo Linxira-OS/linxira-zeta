@@ -14,14 +14,14 @@
  * Every view reads it reactively through {@link ModelHubState.version}; the
  * terminal look is `styles/pickers/model-hub`, the native tree `model-hub.tsx`.
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { providerEntry } from "@oh-my-pi/pi-catalog/compat/providers";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { MODEL_KINDS, type ModelKind, modelKind } from "@oh-my-pi/pi-catalog/types";
-import { batch, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { MODEL_KINDS, type ModelKind, modelKind } from "@linxiraos/pi-catalog/types";
+import { batch, type KeyEvent, signal } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { formatModelSelectorValue, parseModelString, splitUpstreamRouting } from "../../../config/model-selector";
 import {
 	buildSessionModelScope,

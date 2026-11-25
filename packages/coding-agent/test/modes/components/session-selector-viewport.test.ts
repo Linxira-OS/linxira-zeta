@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { SessionSelectorEntry } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/session-selector";
+import type { SessionSelectorEntry } from "@linxiraos/zeta/modes/view-model/overlays/session-selector";
 import { type MountedSessionSelector, mountSessionSelector, sessionEntry } from "../../helpers/session-selector";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

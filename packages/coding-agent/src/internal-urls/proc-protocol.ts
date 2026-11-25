@@ -24,7 +24,7 @@ import {
 	serviceUnitLogPath,
 	stopService,
 } from "../launch/services";
-import { AGENT_KILL_LABEL } from "../session/messages";
+import { AGENT_KILL_LABEL } from "../session/transcript/messages";
 import type { ProcReadDetails } from "../tools/details/proc-render";
 import procPromptDoc from "../prompts/internal-urls/proc.md" with { type: "text" };
 import procReferenceDoc from "../prompts/internal-urls/proc-reference.md" with { type: "text" };

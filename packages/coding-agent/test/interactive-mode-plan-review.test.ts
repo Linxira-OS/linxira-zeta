@@ -1,40 +1,40 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent, AgentBusyError, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { KeybindingsManager, setKeybindings } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { HookSelectorSlider } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/hook-selector";
-import { type PlanReviewAnnotationState } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/plan-review-overlay";
+import { Agent, AgentBusyError, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import type { HookSelectorSlider } from "@linxiraos/zeta/modes/view-model/overlays/hook-selector";
+import { type PlanReviewAnnotationState } from "@linxiraos/zeta/modes/view-model/overlays/plan-review-overlay";
 import { PlanReviewModel } from "../src/ui/overlays/panels/plan-review-model";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import type {
 	Extension,
 	ExtensionContext,
 	ExtensionEvent,
 	PlanReviewRequestedEvent,
 	PlanReviewResolvedEvent,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { planSaveFileName } from "@oh-my-pi/pi-coding-agent/plan-mode/plan-autosave";
-import type { SubmittedUserInput } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking/levels";
-import * as clipboard from "@oh-my-pi/pi-coding-agent/utils/clipboard";
-import { formatNumber, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions";
+import { planSaveFileName } from "@linxiraos/zeta/plan-mode/plan-autosave";
+import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking/levels";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
+import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 import { initTheme } from "../src/ui/theme/service";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 import { createModeTerminal, type ModeTerminal, pressKey, renderRows } from "./helpers/mode-terminal";
 
-import { cfgPlanAutosave, cfgPlanAutosaveDir } from "@oh-my-pi/pi-coding-agent/plan-mode/settings";
+import { cfgPlanAutosave, cfgPlanAutosaveDir } from "@linxiraos/zeta/plan-mode/settings";
 
 /**
  * Matches the plan-approved synthetic-prompt dispatch. `#approvePlan` calls

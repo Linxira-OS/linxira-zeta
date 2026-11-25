@@ -1,11 +1,11 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Propose and Report Tool Issue: one head line (`Propose Ship the plan`)
  * and the result's text under it (muted, or the error).
  *
  * Terminal look: `propose` (`src/ui/styles/tools/propose.ts`).
  */
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
 import { registerToolPresenter } from "./registry";

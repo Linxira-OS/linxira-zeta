@@ -11,7 +11,7 @@ import { AsyncJobManager } from "@linxiraos/zeta/async";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { type CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
+import { type CoordinationDetails } from "@linxiraos/zeta/tools/hub/protocol";
 import { HubTool } from "../src/tools/hub";
 
 const managers: AsyncJobManager[] = [];

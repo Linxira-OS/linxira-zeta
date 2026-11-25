@@ -7,9 +7,9 @@
  * when no cell of it is left, the label stands alone, truncated to the width
  * (or, with `truncateWhenNarrow: false`, as long as the width allows).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { termOf } from "./fill";
 
 /** Terminal facts of a divider. */

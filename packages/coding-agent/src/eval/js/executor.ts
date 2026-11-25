@@ -22,6 +22,8 @@ import type { JsStatusEvent } from "./shared/types";
 import { cfgEvalAutoProvision } from "../settings";
 
 export interface JsExecutorOptions {
+	/** Tool call id of the outer agent tool invocation that owns this cell (nested eval bridge). */
+	outerToolCallId?: string;
 	cwd?: string;
 	timeoutMs?: number;
 	deadlineMs?: number;

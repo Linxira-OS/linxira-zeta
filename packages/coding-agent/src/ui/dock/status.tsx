@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The `status` slot: the activity line.
  *
@@ -17,7 +17,7 @@
  * - In a text terminal (`src/ui/styles/dock/status.ts`): the status row's
  *   rows; on a short terminal the todo HUD folds into it, docked right.
  */
-import { type Accessor, computed, type JSXNode, signal } from "@oh-my-pi/pi-tui";
+import { type Accessor, computed, type JSXNode, signal } from "@linxiraos/pi-tui";
 import "../styles/dock";
 import { TodoChecklist, type TodoHudModel } from "./todo";
 import { RetryHint, WorkingRow, type WorkingSpec } from "./working";
@@ -92,7 +92,7 @@ export class StatusHudModel {
 export function StatusHud(props: { readonly model: StatusHudModel }): JSXNode {
 	const model = props.model;
 	const status = (
-		<col key="status" role="omp.hud.status">
+		<col key="status" role="zeta.hud.status">
 			{() => {
 				const row = model.current();
 				if (!row) return undefined;
@@ -107,7 +107,7 @@ export function StatusHud(props: { readonly model: StatusHudModel }): JSXNode {
 	const caption = (): JSXNode => {
 		const text = model.current() ? undefined : model.trayCaption();
 		return (
-			text !== undefined && <text key="caption" role="omp.tray.caption" text={text} wrap="none" truncate="end" />
+			text !== undefined && <text key="caption" role="zeta.tray.caption" text={text} wrap="none" truncate="end" />
 		);
 	};
 	const todo = model.todo ? <TodoChecklist model={model.todo} /> : undefined;

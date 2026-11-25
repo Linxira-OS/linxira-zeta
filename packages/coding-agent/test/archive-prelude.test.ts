@@ -3,12 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type {
-	ArchiveCall,
-	ArchiveGrepHit,
-	ArchiveMessage,
-	ArchiveStat,
-} from "@oh-my-pi/pi-coding-agent/archive/activity";
+import type { ArchiveCall, ArchiveGrepHit, ArchiveMessage, ArchiveStat } from "@linxiraos/zeta/archive/activity";
 import type {
 	ArchiveProject,
 	ArchivePrompt,

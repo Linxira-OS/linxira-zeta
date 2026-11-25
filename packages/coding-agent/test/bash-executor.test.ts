@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	applyDirenvPreflight,
 	type BashResult,
@@ -11,20 +11,20 @@ import {
 	executeBash,
 	isPersistentShellCdCommand,
 	releaseShellSessions,
-} from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import * as direnvModule from "@oh-my-pi/pi-coding-agent/exec/direnv";
-import type { ShellMinimizerSettings } from "@oh-my-pi/pi-coding-agent/exec/settings";
-import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@oh-my-pi/pi-coding-agent/exec/settings";
-import { evaluateLoopCondition } from "@oh-my-pi/pi-coding-agent/modes/loop-condition";
-import { defaultShellVizPreferences, readShellPresentation } from "@oh-my-pi/pi-coding-agent/tools/shell-viz";
-import { DEFAULT_MAX_BYTES } from "@oh-my-pi/pi-coding-agent/tools/streaming-output";
-import { saveImagesToTemp } from "@oh-my-pi/pi-coding-agent/utils/image-temp";
-import * as shellSnapshot from "@oh-my-pi/pi-coding-agent/utils/shell-snapshot";
-import { encodeTerminalImage } from "@oh-my-pi/pi-coding-agent/utils/terminal-graphics";
-import type { Shell, ShellRunResult } from "@oh-my-pi/pi-natives";
-import * as piNatives from "@oh-my-pi/pi-natives";
-import { $which, removeSyncWithRetries } from "@oh-my-pi/pi-utils";
-import { isShellTrace } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/zeta/exec/bash-executor";
+import * as direnvModule from "@linxiraos/zeta/exec/direnv";
+import type { ShellMinimizerSettings } from "@linxiraos/zeta/exec/settings";
+import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
+import { evaluateLoopCondition } from "@linxiraos/zeta/modes/loop-condition";
+import { defaultShellVizPreferences, readShellPresentation } from "@linxiraos/zeta/tools/shell-viz";
+import { DEFAULT_MAX_BYTES } from "@linxiraos/zeta/tools/streaming-output";
+import { saveImagesToTemp } from "@linxiraos/zeta/utils/image-temp";
+import * as shellSnapshot from "@linxiraos/zeta/utils/shell-snapshot";
+import { encodeTerminalImage } from "@linxiraos/zeta/utils/terminal-graphics";
+import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
+import * as piNatives from "@linxiraos/pi-natives";
+import { $which, removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { isShellTrace } from "@linxiraos/pi-wire";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.

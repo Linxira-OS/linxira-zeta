@@ -4,7 +4,7 @@
  * resolveActiveProjectRegistryPath: walk-up, .git fallback, null return, canonical path.
  * listClaudePluginRoots: project entries shadow user entries for same plugin ID.
  *
- * Note: helpers.ts imports @oh-my-pi/pi-natives (Rust addon via glob).
+ * Note: helpers.ts imports @linxiraos/pi-natives (Rust addon via glob).
  * This file imports from helpers.ts directly — the native addon IS present in the
  * test environment (verified: `bun run import-helpers.ts` succeeds).
  */
@@ -17,18 +17,18 @@ import {
 	listClaudePluginRoots,
 	resolveActiveProjectRegistryPath,
 	resolveOrDefaultProjectRegistryPath,
-} from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { MarketplaceManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace/manager";
-import { getEnabledPlugins } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/loader";
-import type { InstalledPluginEntry } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
+} from "@linxiraos/zeta/discovery/helpers";
+import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace/manager";
+import { getEnabledPlugins } from "@linxiraos/zeta/extensibility/plugins/loader";
+import type { InstalledPluginEntry } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
 	buildPluginId,
 	readInstalledPluginsRegistry,
 	writeInstalledPluginsRegistry,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
-import * as piUtils from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import * as piUtils from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────

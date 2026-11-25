@@ -1,12 +1,12 @@
 /**
  * CustomToolAdapter wraps CustomTool instances into AgentTool for use with the agent.
  */
-import type { AgentTool, AgentToolUpdateCallback, ToolLoadMode } from "@oh-my-pi/pi-agent-core";
-import type { Static, TSchema } from "@oh-my-pi/pi-ai";
+import type { AgentTool, AgentToolUpdateCallback, ToolLoadMode } from "@linxiraos/pi-agent-core";
+import type { Static, TSchema } from "@linxiraos/pi-ai";
 import { defaultLoadModeForToolName } from "../../tools/essential-tools";
 import { applyToolProxy } from "../tool-proxy";
 import type { CustomTool, CustomToolContext } from "./types";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 export class CustomToolAdapter<
 	TParams extends TSchema = TSchema,

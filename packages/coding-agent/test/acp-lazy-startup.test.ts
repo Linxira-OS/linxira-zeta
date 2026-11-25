@@ -28,10 +28,7 @@ import {
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 import { cfgAsyncEnabled, cfgAsyncMaxJobs } from "@linxiraos/zeta/tools/settings";
-import {
-	cfgBashAutoBackgroundEnabled,
-	cfgBashAutoBackgroundThresholdMs,
-} from "@linxiraos/zeta/exec/settings";
+import { cfgBashAutoBackgroundEnabled, cfgBashAutoBackgroundThresholdMs } from "@linxiraos/zeta/exec/settings";
 
 const TEST_MODEL: Model = buildModel({
 	id: "claude-sonnet-4-20250514",

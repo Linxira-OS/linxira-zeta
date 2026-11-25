@@ -6,11 +6,11 @@
  * rendered their call so rewinding a turn keeps its tool output.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { KeybindingsManager, setKeybindings } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { BranchVariantPath } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/rewind-selector";
-import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { BranchVariantPath } from "@linxiraos/zeta/modes/view-model/overlays/rewind-selector";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
 import { RewindSelector } from "../src/ui/overlays/pickers/rewind-selector";
 import { type LayerTerminal, mountLayer } from "./helpers/layer-terminal";
 

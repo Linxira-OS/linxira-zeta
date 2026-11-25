@@ -9,13 +9,13 @@
  * inverse, and the blank run after `truecolor:` as a
  * 24-bit hue sweep.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { hyperlink } from "@oh-my-pi/pi-tui/text/osc";
-import { padTo, replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { hsvToRgb } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspTextProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { hyperlink } from "@linxiraos/pi-tui/text/osc";
+import { padTo, replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { hsvToRgb } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTextProps } from "@linxiraos/pi-wire";
 
 const SWEEP_CELLS = 32;
 /** The styling sample shows the bare SGR attributes behind these span tokens. */

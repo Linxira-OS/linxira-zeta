@@ -5,9 +5,9 @@
  * the wheel scrolls, motion lights an option, a click runs an option, jumps
  * to a Contents entry or focuses the plan.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
 import type { PlanReviewModel } from "../../overlays/panels/plan-review-model";
 import { termOf } from "./common";
 

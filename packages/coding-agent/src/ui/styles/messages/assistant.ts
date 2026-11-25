@@ -20,14 +20,14 @@
  * - While a block streams, the rows before it and its finished head are
  *   reported stable.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { paintImage } from "@oh-my-pi/pi-tui/term/painters/image";
-import { routedLinkSchemes } from "@oh-my-pi/pi-tui/term/painters/md";
-import { renderMarkdownFrame, takeExtensionLinks } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatNumber } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { paintImage } from "@linxiraos/pi-tui/term/painters/image";
+import { routedLinkSchemes } from "@linxiraos/pi-tui/term/painters/md";
+import { renderMarkdownFrame, takeExtensionLinks } from "@linxiraos/pi-tui/text/markdown/index";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatNumber } from "@linxiraos/pi-utils";
 import { terminalPaddingX } from "../terminal-padding";
 import { expandKeyLabel } from "../../keys/hints";
 import { hexFg, paddedText, propsOf, termOf } from "./fill";

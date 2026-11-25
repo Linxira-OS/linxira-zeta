@@ -1,4 +1,4 @@
-import type { ShellTrace, ShellVizPresentation } from "@oh-my-pi/pi-wire";
+import type { ShellTrace, ShellVizPresentation } from "@linxiraos/pi-wire";
 import type { ShellStepView } from "../shell-steps";
 
 /** Display state handed to `renderCall`/`renderResult`. */

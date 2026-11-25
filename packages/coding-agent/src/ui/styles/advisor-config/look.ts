@@ -12,13 +12,13 @@
  * events (`click:<row>`, `wheel:<±1>`, `pick:<model>`) on the node; the
  * preview's scroll offset is terminal state.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { inputLine, selectList } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { nodeState } from "@oh-my-pi/pi-tui/term/painters/state";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import { padTo, sliceColumns, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { inputLine, selectList } from "@linxiraos/pi-tui/term/painters/prefs";
+import { nodeState } from "@linxiraos/pi-tui/term/painters/state";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import { padTo, sliceColumns, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { bindingGlyph, keyGlyph } from "../panels/common";
 import { appExternalEditorKeys, appFollowUpKeys } from "../../../config/keybindings/matchers";
 import { canonicalKeyId } from "../../../config/keybindings/key-id";

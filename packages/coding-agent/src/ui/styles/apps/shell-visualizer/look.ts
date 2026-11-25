@@ -7,11 +7,11 @@
  * scrolling pane at most a third of the screen tall. Every row is cut at the
  * width. Without a presentation: the notice.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import type { ShellVizPresentation } from "@oh-my-pi/pi-wire";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { truncate, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatDuration } from "@linxiraos/pi-utils";
+import type { ShellVizPresentation } from "@linxiraos/pi-wire";
 import { SHELL_VIZ_LAYERS, type ShellVisualizerModel } from "../../../apps/shell-visualizer/model";
 import { shellVizRows, shellVizText } from "../../tools/shell-viz";
 

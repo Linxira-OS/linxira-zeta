@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Usage } from "@oh-my-pi/pi-ai";
-import { isSyntheticToolResultMessage } from "@oh-my-pi/pi-agent-core";
+import type { Usage } from "@linxiraos/pi-ai";
+import { isSyntheticToolResultMessage } from "@linxiraos/pi-agent-core";
 import {
 	collectPendingToolCalls,
 	createInterruptedToolResults,
@@ -10,19 +10,19 @@ import {
 	describePendingToolCalls,
 	SESSION_EXIT_CUSTOM_TYPE,
 	TOOL_EXECUTION_START_CUSTOM_TYPE,
-} from "@oh-my-pi/pi-coding-agent/session/exit-diagnostics";
+} from "@linxiraos/zeta/session/exit-diagnostics";
 import {
 	CURRENT_SESSION_VERSION,
 	type SessionEntry,
 	type SessionHeader,
 	type SessionMessageEntry,
-} from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { FileSessionStorage, MemorySessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { getTerminalId } from "@oh-my-pi/pi-coding-agent/utils/ttyid";
-import { isTaskToolDetails, type TaskToolDetails } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import { getAgentDir, getTerminalSessionsDir, removeWithRetries, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/session/session-entries";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage, MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { getTerminalId } from "@linxiraos/zeta/utils/ttyid";
+import { isTaskToolDetails, type TaskToolDetails } from "@linxiraos/zeta/task/task-details";
+import { getAgentDir, getTerminalSessionsDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 interface JsonlMessageEntry {
 	type: "message";

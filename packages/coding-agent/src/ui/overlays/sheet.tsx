@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Sheets: a screen Tern draws inside a glass sheet of its own (a titled,
  * sized, anchored `overlay` in the surface's `layer`), and terminal rows draw
  * as the screen itself, with the look its painter gives it.
  */
-import { type Accessor, type JSX, type JSXNode, nativeRendering, type UiNode } from "@oh-my-pi/pi-tui";
+import { type Accessor, type JSX, type JSXNode, nativeRendering, type UiNode } from "@linxiraos/pi-tui";
 import type { OverlayHandle, OverlayOptions } from "../shell/overlays";
 import type { Shell } from "../shell/shell";
 

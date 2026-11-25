@@ -3,8 +3,8 @@
  * spawn list of its args, the display order of agents, each result's
  * outcome, the run tally, a reviewer's verdict. Plain data, no styling.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import { repairDoubleEncodedJsonString } from "../../../task/repair-args";
 import {
 	type AgentProgress,

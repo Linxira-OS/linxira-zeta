@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { truncateToWidth } from "@oh-my-pi/pi-coding-agent/utils/text-width";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { truncateToWidth } from "@linxiraos/zeta/utils/text-width";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
 
 /**
  * Tests for truncateToWidth behavior with Unicode characters.

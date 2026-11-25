@@ -2,8 +2,8 @@
 import { expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { $which, isEnoent, TempDir } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/zeta-schema";
+import { $which, isEnoent, TempDir } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 import { quotePosixArgv } from "../src/utils/shell-quote";
 

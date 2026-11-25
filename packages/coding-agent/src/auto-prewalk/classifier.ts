@@ -13,8 +13,8 @@
  * low-signal request ("ok", "thanks"). Throws on every other failure (no key,
  * malformed answer, abort, timeout); the caller treats both as "do not arm".
  */
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { type ChoiceAnswer, judgeQuestions } from "@oh-my-pi/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { type ChoiceAnswer, judgeQuestions } from "@linxiraos/pi-ai";
 import { titleTextFromSkillPrompt } from "../session/transcript/skill-title-input";
 import { textContent } from "../session/transcript/transcript-entry";
 import { assistantText } from "../modes/view-model/overlays/copy-targets";

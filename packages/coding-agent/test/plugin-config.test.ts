@@ -2,10 +2,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, mock, spyOn, test }
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { runPluginCommand } from "@oh-my-pi/pi-coding-agent/cli/plugin-cli";
-import { PluginManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/manager";
-import * as piUtils from "@oh-my-pi/pi-utils";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
+import * as piUtils from "@linxiraos/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { initTheme } from "../src/ui/theme/service";
 
 beforeAll(async () => {

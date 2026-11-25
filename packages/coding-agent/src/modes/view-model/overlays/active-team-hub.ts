@@ -1,13 +1,11 @@
+/**
+ * Active Team hub view model: the live Team's rooms, the main and worker
+ * roster, the selected room timeline and the composer's draft state.
+ *
+ * Host projections only. This module knows neither sessions nor coding-agent
+ * services; rendering and key decoding live in the host UI.
+ */
 import { sanitizeText } from "@linxiraos/pi-utils";
-import * as path from "node:path";
-import { pathToFileURL } from "node:url";
-import { Input } from "../components/input";
-import { matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
-import { matchesKey } from "../keys";
-import { theme } from "../theme/theme";
-import type { Component, TUI } from "../tui";
-import { padding, replaceTabs, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
-import { HubFrame, type SidebarEntry } from "./hub-frame";
 
 /** Host projections only. This module knows neither sessions nor coding-agent services. */
 export interface ActiveTeamAgentRow {
@@ -65,21 +63,30 @@ export interface ActiveTeamHubSource {
 	subscribe?(listener: () => void): () => void;
 }
 
+/** Host hooks of the hub; every one is optional so a headless caller can ignore it. */
 export interface ActiveTeamHubDeps {
 	readonly source: ActiveTeamHubSource;
-	readonly onDone: () => void;
-	readonly requestRender: () => void;
-	readonly ui?: TUI;
+	/** Called when the view should close (Escape on the root). */
+	readonly onDone?: () => void;
+	/** Called after state changes; a reactive host re-renders from its own effect instead. */
+	readonly requestRender?: () => void;
 	/** Resolves when the observer returns. Host keeps this same Hub mounted and hidden. */
 	readonly observeAgent?: (agent: ActiveTeamAgentRow) => Promise<void>;
 	readonly refreshMs?: number;
 }
 
-export interface ActiveTeamHubEntry extends SidebarEntry<"label" | "room" | "main" | "worker"> {
+export type ActiveTeamEntryKind = "label" | "room" | "main" | "worker";
+
+export interface ActiveTeamHubEntry {
+	readonly id: string;
+	readonly kind: ActiveTeamEntryKind;
+	readonly label: string;
+	readonly annotation?: string;
 	readonly agentId?: string;
 	readonly room?: "team" | "mains";
 }
 
+/** The sidebar rows of `snapshot`: rooms first, then the agents matching `query`. */
 export function activeTeamEntries(snapshot: ActiveTeamHubSnapshot, query = ""): ActiveTeamHubEntry[] {
 	const filter = query.trim().toLowerCase();
 	const matches = (text: string) => !filter || text.toLowerCase().includes(filter);
@@ -115,6 +122,7 @@ export function activeTeamEntries(snapshot: ActiveTeamHubSnapshot, query = ""): 
 	return rows;
 }
 
+/** The selectable row `delta` away from `selected`, wrapping around the section labels. */
 export function moveActiveTeamSelection(
 	entries: readonly ActiveTeamHubEntry[],
 	selected: string | undefined,
@@ -126,65 +134,37 @@ export function moveActiveTeamSelection(
 	return choices[((index < 0 ? (delta > 0 ? -1 : 0) : index) + delta + choices.length) % choices.length]?.id;
 }
 
-/** Render `attachment://path` as a terminal hyperlink; Ctrl+click opens the local file. */
-function attachmentLinks(body: string): string {
-	return body.replace(/attachment:\/\/(\S+)/g, (match, raw: string) => {
-		const target = path.isAbsolute(raw) ? raw : path.resolve(raw);
-		let href: string;
-		try {
-			href = pathToFileURL(target).href;
-		} catch {
-			return match;
-		}
-		return `\x1b]8;;${href}\x1b\\📎 ${sanitizeText(raw)}\x1b]8;;\x1b\\`;
-	});
-}
+/** What activating the selected row does. */
+export type ActiveTeamActivation =
+	| { readonly kind: "none" }
+	| { readonly kind: "room"; readonly room: "team" | "mains" }
+	| { readonly kind: "observe"; readonly agent: ActiveTeamAgentRow }
+	| { readonly kind: "unobservable"; readonly agent: ActiveTeamAgentRow };
 
-/** Persistent split Hub, reusing the shared HubFrame and legacy room timeline layout. */
-export class ActiveTeamHubOverlayComponent implements Component {
+/** Selection, filtering, room timeline, composer and refresh state of the Active Team hub. */
+export class ActiveTeamHubModel {
 	readonly #deps: ActiveTeamHubDeps;
-	readonly #frame: HubFrame;
-	readonly #filter = new Input();
-	#snapshot?: ActiveTeamHubSnapshot;
+	#snapshot: ActiveTeamHubSnapshot | undefined;
 	#entries: ActiveTeamHubEntry[] = [];
 	#selected = "room:team";
 	#room: "team" | "mains" = "team";
-	#filterEditing = false;
+	#query = "";
 	#bodyFocused = false;
 	#scroll = 0;
-	#composer?: Input;
 	#drafts = new Map<string, string>();
-	#error?: string;
+	#composerOpen = false;
+	#error: string | undefined;
 	#loading = false;
 	#reloadAgain = false;
 	#disposed = false;
 	#observing = false;
 	#posting = false;
-	#timer?: NodeJS.Timeout;
-	#unsubscribe?: () => void;
+	#timer: NodeJS.Timeout | undefined;
+	#unsubscribe: (() => void) | undefined;
 	#ready: Promise<void> = Promise.resolve();
 
 	constructor(deps: ActiveTeamHubDeps) {
 		this.#deps = deps;
-		this.#filter.prompt = "";
-		this.#frame = new HubFrame(
-			"Team Hub",
-			{ min: 30, max: 48 },
-			(width, rows) =>
-				this.#frame.renderSidebar(
-					this.#entries,
-					width,
-					rows,
-					{ id: this.#selected, focused: !this.#bodyFocused, follow: true, clamp: false },
-					entry => ({
-						icon: entry.kind === "worker" ? "·" : entry.kind === "main" ? "◆" : "",
-						annotation: entry.annotation ?? "",
-						muted: entry.kind === "label",
-					}),
-				),
-			(width, height) => this.#body(width, height ?? this.#height() - 4),
-			{ bodyMinWidth: 30 },
-		);
 		this.#unsubscribe = deps.source.subscribe?.(() => {
 			void this.refresh();
 		});
@@ -195,14 +175,60 @@ export class ActiveTeamHubOverlayComponent implements Component {
 		void this.refresh();
 	}
 
+	/** Resolves after the latest database read settles. */
 	get ready(): Promise<void> {
 		return this.#ready;
+	}
+	get snapshot(): ActiveTeamHubSnapshot | undefined {
+		return this.#snapshot;
+	}
+	get entries(): readonly ActiveTeamHubEntry[] {
+		return this.#entries;
 	}
 	get selectedId(): string {
 		return this.#selected;
 	}
-	get searchQuery(): string {
-		return this.#filter.getValue();
+	get room(): "team" | "mains" {
+		return this.#room;
+	}
+	get query(): string {
+		return this.#query;
+	}
+	get bodyFocused(): boolean {
+		return this.#bodyFocused;
+	}
+	get scroll(): number {
+		return this.#scroll;
+	}
+	get loading(): boolean {
+		return this.#loading;
+	}
+	get error(): string | undefined {
+		return this.#error;
+	}
+	get observing(): boolean {
+		return this.#observing;
+	}
+	get posting(): boolean {
+		return this.#posting;
+	}
+	/** Whether the composer is open for the current room. */
+	get composerOpen(): boolean {
+		return this.#composerOpen;
+	}
+	/** The selected room's timeline. */
+	get timeline(): ActiveTeamRoomRow | undefined {
+		const entry = this.#entries.find(row => row.id === this.#selected);
+		return this.#snapshot?.rooms.find(row => row.room === (entry?.room ?? this.#room));
+	}
+	/** The agent the selection names, with its projection. */
+	get selectedAgent(): ActiveTeamAgentRow | undefined {
+		const entry = this.#entries.find(row => row.id === this.#selected);
+		return entry?.agentId ? this.#snapshot?.agents.find(row => row.id === entry.agentId) : undefined;
+	}
+	/** The draft of the open composer for `room`. */
+	draft(room: "team" | "mains" = this.#room): string {
+		return this.#drafts.get(room) ?? "";
 	}
 
 	dispose(): void {
@@ -210,25 +236,8 @@ export class ActiveTeamHubOverlayComponent implements Component {
 		clearInterval(this.#timer);
 		this.#unsubscribe?.();
 	}
-	invalidate(): void {
-		this.#frame.invalidate();
-	}
-	#render(): void {
-		if (!this.#disposed) this.#deps.requestRender();
-	}
-	#height(): number {
-		return this.#deps.ui?.terminal?.rows || process.stdout.rows || 40;
-	}
-	#rebuild(): void {
-		this.#entries = this.#snapshot ? activeTeamEntries(this.#snapshot, this.#filter.getValue()) : [];
-		if (!this.#entries.some(row => row.id === this.#selected)) {
-			this.#selected =
-				this.#entries.find(row => row.kind === "room")?.id ??
-				this.#entries.find(row => row.kind !== "label")?.id ??
-				"";
-		}
-	}
 
+	/** Reload the Team projection (coalesced while a read is in flight). */
 	refresh(): Promise<void> {
 		if (this.#disposed) return Promise.resolve();
 		if (this.#loading) {
@@ -244,7 +253,6 @@ export class ActiveTeamHubOverlayComponent implements Component {
 					if (this.#disposed) return;
 					this.#snapshot = snapshot;
 					this.#error = undefined;
-					this.#frame.setTitle(`Team Hub · ${sanitizeText(snapshot.label).replace(/\s+/g, " ")}`);
 					this.#rebuild();
 				} catch (error) {
 					this.#error = error instanceof Error ? error.message : String(error);
@@ -252,76 +260,144 @@ export class ActiveTeamHubOverlayComponent implements Component {
 			} while (this.#reloadAgain && !this.#disposed);
 		})().finally(() => {
 			this.#loading = false;
-			this.#render();
+			this.#requestRender();
 		});
 		return this.#ready;
 	}
 
-	handleInput(data: string): void {
-		if (this.#disposed || this.#observing || this.#posting) return;
-		if (this.#composer) {
-			if (matchesKey(data, "escape")) {
-				this.#drafts.set(this.#room, this.#composer.getValue());
-				this.#composer = undefined;
-			} else {
-				this.#composer.handleInput(data);
-				if (this.#composer) this.#drafts.set(this.#room, this.#composer.getValue());
-			}
-			this.#render();
-			return;
-		}
-		if (this.#filterEditing) {
-			if (matchesKey(data, "enter")) this.#filterEditing = false;
-			else if (matchesKey(data, "escape")) {
-				this.#filterEditing = false;
-				this.#filter.setValue("");
-			} else this.#filter.handleInput(data);
-			this.#rebuild();
-			this.#render();
-			return;
-		}
-		if (matchesKey(data, "escape")) {
-			if (this.#bodyFocused) this.#bodyFocused = false;
-			else if (this.#filter.getValue()) {
-				this.#filter.setValue("");
-				this.#rebuild();
-			} else this.#deps.onDone();
-		} else if (data === "/") this.#filterEditing = true;
-		else if (matchesKey(data, "tab")) this.#bodyFocused = !this.#bodyFocused;
-		else if (data === "r") void this.refresh();
-		else if (data === "g" || data === "m") {
-			this.#room = data === "g" ? "team" : "mains";
-			this.#selected = `room:${this.#room}`;
-			this.#scroll = 0;
-		} else if (data === "s") this.#compose();
-		else if (data === "j" || matchesSelectDown(data) || data === "k" || matchesSelectUp(data)) {
-			const delta = data === "j" || matchesSelectDown(data) ? 1 : -1;
-			if (this.#bodyFocused) this.#scroll = Math.max(0, this.#scroll - delta);
-			else {
-				this.#selected = moveActiveTeamSelection(this.#entries, this.#selected, delta) ?? "";
-			}
-		} else if (matchesKey(data, "enter")) {
-			const entry = this.#entries.find(row => row.id === this.#selected);
-			if (entry?.agentId) {
-				const agent = this.#snapshot?.agents.find(row => row.id === entry.agentId);
-				if (agent?.canObserve && this.#deps.observeAgent) void this.#observe(agent);
-				else this.#error = "This agent has no observable session.";
-			} else {
-				if (entry?.room) {
-					this.#room = entry.room;
-					this.#scroll = 0;
-				}
-				this.#bodyFocused = true;
-			}
-		} else if (matchesKey(data, "pageUp")) this.#scroll += 5;
-		else if (matchesKey(data, "pageDown")) this.#scroll = Math.max(0, this.#scroll - 5);
-		this.#render();
+	/** Set the agent filter; rooms always stay listed. */
+	setQuery(query: string): void {
+		this.#query = query;
+		this.#rebuild();
+		this.#requestRender();
 	}
 
-	async #observe(agent: ActiveTeamAgentRow): Promise<void> {
+	/** Move the selection, or scroll the timeline while the body pane is focused. */
+	moveSelection(delta: number): void {
+		if (this.#bodyFocused) {
+			this.#scroll = Math.max(0, this.#scroll - delta);
+		} else {
+			this.#selected = moveActiveTeamSelection(this.#entries, this.#selected, delta) ?? "";
+		}
+		this.#requestRender();
+	}
+
+	scrollBy(delta: number): void {
+		this.#scroll = Math.max(0, this.#scroll + delta);
+		this.#requestRender();
+	}
+
+	togglePane(): void {
+		this.#bodyFocused = !this.#bodyFocused;
+		this.#requestRender();
+	}
+
+	/** Show `room`'s timeline at the top. */
+	showRoom(room: "team" | "mains"): void {
+		this.#room = room;
+		this.#selected = `room:${room}`;
+		this.#scroll = 0;
+		this.#requestRender();
+	}
+
+	/**
+	 * What Enter on the selection means: an observable agent is observed by the
+	 * host, a room row focuses its timeline, others do nothing.
+	 */
+	activation(): ActiveTeamActivation {
+		const entry = this.#entries.find(row => row.id === this.#selected);
+		if (entry?.agentId) {
+			const agent = this.#snapshot?.agents.find(row => row.id === entry.agentId);
+			if (!agent) return { kind: "none" };
+			return agent.canObserve && this.#deps.observeAgent
+				? { kind: "observe", agent }
+				: { kind: "unobservable", agent };
+		}
+		if (entry?.room) return { kind: "room", room: entry.room };
+		return { kind: "none" };
+	}
+
+	/** Act on the selection: observe an agent, or focus a room's timeline. */
+	async activate(): Promise<void> {
+		const activation = this.activation();
+		switch (activation.kind) {
+			case "observe":
+				await this.observe(activation.agent);
+				return;
+			case "unobservable":
+				this.#error = "This agent has no observable session.";
+				this.#requestRender();
+				return;
+			case "room":
+				this.#room = activation.room;
+				this.#scroll = 0;
+				this.#bodyFocused = true;
+				this.#requestRender();
+				return;
+			default:
+				return;
+		}
+	}
+
+	/** Open the composer with the draft remembered for the current room. */
+	beginCompose(): boolean {
+		if (!this.#snapshot?.rooms.some(row => row.room === this.#room)) return false;
+		this.#composerOpen = true;
+		this.#requestRender();
+		return true;
+	}
+
+	/** Remember `value` as the current room's draft. */
+	setDraft(value: string): void {
+		this.#drafts.set(this.#room, value);
+	}
+
+	/** Close the composer, keeping its draft. */
+	cancelCompose(): void {
+		this.#composerOpen = false;
+		this.#requestRender();
+	}
+
+	/** Post `value` to the current room as the captured owner; clears the draft on success. */
+	async post(value: string): Promise<boolean> {
+		const body = value.trim();
+		if (!body || this.#posting) return false;
+		this.#posting = true;
+		try {
+			await this.#deps.source.post(body, this.#room);
+			this.#drafts.delete(this.#room);
+			this.#composerOpen = false;
+			this.#selected = `room:${this.#room}`;
+			this.#scroll = 0;
+			await this.refresh();
+			return true;
+		} catch (error) {
+			this.#error = error instanceof Error ? error.message : String(error);
+			return false;
+		} finally {
+			this.#posting = false;
+			this.#requestRender();
+		}
+	}
+
+	/** Escape: leave the body pane, clear the filter, else close the view. */
+	cancel(): void {
+		if (this.#bodyFocused) this.#bodyFocused = false;
+		else if (this.#query) {
+			this.#query = "";
+			this.#rebuild();
+		} else {
+			this.#deps.onDone?.();
+			return;
+		}
+		this.#requestRender();
+	}
+
+	async observe(agent: ActiveTeamAgentRow): Promise<void> {
+		if (!this.#deps.observeAgent) return;
 		this.#observing = true;
 		try {
-			await this.#deps.observeAgent!(agent);
+			await this.#deps.observeAgent(agent);
 		} catch (error) {
 			this.#error = error instanceof Error ? error.message : String(error);
 		} finally {
@@ -329,101 +405,18 @@ export class ActiveTeamHubOverlayComponent implements Component {
 			await this.refresh();
 		}
 	}
-	#compose(): void {
-		if (!this.#snapshot?.rooms.some(row => row.room === this.#room)) return;
-		const input = new Input();
-		input.prompt = "> ";
-		input.setValue(this.#drafts.get(this.#room) ?? "");
-		input.onSubmit = body => {
-			void this.#post(body);
-		};
-		this.#composer = input;
-	}
-	async #post(value: string): Promise<void> {
-		const body = value.trim();
-		if (!body || this.#posting) return;
-		this.#posting = true;
-		try {
-			await this.#deps.source.post(body, this.#room);
-			this.#drafts.delete(this.#room);
-			this.#composer = undefined;
-			this.#selected = `room:${this.#room}`;
-			this.#scroll = 0;
-			await this.refresh();
-		} catch (error) {
-			this.#error = error instanceof Error ? error.message : String(error);
-		} finally {
-			this.#posting = false;
-			this.#render();
+
+	#rebuild(): void {
+		this.#entries = this.#snapshot ? activeTeamEntries(this.#snapshot, this.#query) : [];
+		if (!this.#entries.some(row => row.id === this.#selected)) {
+			this.#selected =
+				this.#entries.find(row => row.kind === "room")?.id ??
+				this.#entries.find(row => row.kind !== "label")?.id ??
+				"";
 		}
 	}
-	#body(width: number, height: number): string[] {
-		const lines: string[] = [];
-		if (this.#error || this.#snapshot?.warning)
-			lines.push(theme.fg("warning", sanitizeText(this.#error ?? this.#snapshot!.warning!)));
-		if (this.#filterEditing || this.#filter.getValue())
-			lines.push(`filter: ${this.#filter.render(Math.max(1, width - 8))[0] ?? ""}`);
-		const entry = this.#entries.find(row => row.id === this.#selected);
-		const agent = entry?.agentId ? this.#snapshot?.agents.find(row => row.id === entry.agentId) : undefined;
-		if (agent) {
-			lines.push(
-				theme.bold(sanitizeText(agent.label)),
-				`${agent.kind} · ${agent.status} · ${sanitizeText(agent.role ?? "main")}${agent.generation === undefined ? "" : ` · generation ${agent.generation}`}`,
-			);
-			lines.push(
-				`activity ${sanitizeText(agent.activity ?? "—")}`,
-				`created ${agent.createdAt === undefined ? "unknown" : new Date(agent.createdAt).toISOString()}`,
-			);
-			if (agent.assignment) lines.push(`assignment ${sanitizeText(agent.assignment)}`);
-			if (agent.lifecycle)
-				lines.push(`${agent.lifecycle} · ${agent.cli ?? ""} · ${sanitizeText(agent.model ?? "model unknown")}`);
-			if (agent.queued) lines.push(`${agent.queued} queued`);
-			lines.push(
-				agent.canObserve
-					? "Enter: observe session; return restores this Hub."
-					: "No live or retained session to observe.",
-			);
-			lines.push("");
-		}
-		// Worker details never replace the room timeline: it remains visible beneath them.
-		const room = this.#snapshot?.rooms.find(row => row.room === (entry?.room ?? this.#room));
-		if (room) {
-			// Keep the latest room event visible even when a short terminal clips worker detail rows.
-			lines.length = Math.min(lines.length, Math.max(0, height - (this.#composer ? 5 : 3)));
-			lines.push(theme.bold(`#${sanitizeText(room.name)} · ${room.members.length} members · #${room.lastSeq}`));
-			lines.push(theme.fg("dim", room.members.map(row => sanitizeText(row.label)).join(", ")));
-			const events = [...room.events]
-				.sort((a, b) => a.seq - b.seq)
-				.flatMap(event => {
-					const prefix = `${event.sentAt.slice(11, 16)} ${sanitizeText(event.senderName).replace(/\s+/g, " ")}  `;
-					return wrapTextWithAnsi(
-						replaceTabs(sanitizeText(event.body)),
-						Math.max(8, width - visibleWidth(prefix)),
-					).map((line, index) => `${index ? padding(visibleWidth(prefix)) : prefix}${line}`);
-				});
-			const available = Math.max(1, height - lines.length - (this.#composer ? 2 : 0));
-			const end = Math.max(0, events.length - this.#scroll);
-			lines.push(...events.slice(Math.max(0, end - available), end));
-			if (!events.length) lines.push(theme.fg("dim", "No messages yet."));
-		} else lines.push(this.#loading ? "Loading Team…" : "No active Team room. Enter /team first.");
-		if (this.#composer)
-			lines.push(
-				`Posting as ${this.#snapshot?.ownerId ?? "main"} to #${this.#room}`,
-				this.#composer.render(width)[0] ?? "",
-			);
-		return lines.map(line => truncateToWidth(replaceTabs(line), width)).slice(0, Math.max(1, height));
-	}
-	render(width: number): readonly string[] {
-		return this.#frame
-			.render(
-				width,
-				this.#height(),
-				this.#entries,
-				theme.fg(
-					"dim",
-					"j/k:select  Enter:observe  Tab:pane  g:team  m:mains  s:send  /:filter  r:refresh  Esc:back",
-				),
-			)
-			.slice(0, this.#height());
+
+	#requestRender(): void {
+		if (!this.#disposed) this.#deps.requestRender?.();
 	}
 }

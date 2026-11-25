@@ -3,12 +3,12 @@
  * non-blank lines behind a dim quote rail — three (cut to the row) and an
  * expand hint while collapsed, every line wrapped once expanded.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { elapsedAt } from "@oh-my-pi/pi-tui/term/painters/elapsed";
-import { replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import { formatAge } from "@oh-my-pi/pi-utils";
-import type { TspElapsedProps, TspSpan } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { elapsedAt } from "@linxiraos/pi-tui/term/painters/elapsed";
+import { replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import { formatAge } from "@linxiraos/pi-utils";
+import type { TspElapsedProps, TspSpan } from "@linxiraos/pi-wire";
 import { type IrcMessage, ircTitle } from "../../tools/irc";
 import { expandHint } from "./frame";
 

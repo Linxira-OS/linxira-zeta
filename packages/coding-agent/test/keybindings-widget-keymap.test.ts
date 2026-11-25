@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { KeybindingsManager, setKeybindings } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { listKeyId, selectKeyId } from "@oh-my-pi/pi-coding-agent/config/keybindings/matchers";
-import { widgetKeys } from "@oh-my-pi/pi-tui/term/keymap";
+import { KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { listKeyId, selectKeyId } from "@linxiraos/zeta/config/keybindings/matchers";
+import { widgetKeys } from "@linxiraos/pi-tui/term/keymap";
 
 afterEach(() => {
 	setKeybindings(KeybindingsManager.inMemory());

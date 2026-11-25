@@ -5,7 +5,7 @@ import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
 import { analyzeAuthError } from "@linxiraos/zeta/mcp/oauth-discovery";
 import { HttpTransport } from "@linxiraos/zeta/mcp/transports/http";
 import type { JsonRpcRequest } from "@linxiraos/zeta/mcp/types";
-import type { MCPProgress } from "@linxiraos/pi-tui/tools/mcp";
+import type { MCPProgress } from "@linxiraos/zeta/mcp/types";
 
 const encoder = new TextEncoder();
 const REQUEST_TIMEOUT_MS = 50;

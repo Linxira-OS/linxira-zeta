@@ -10,15 +10,15 @@ import {
 	type FetchImpl,
 	getCustomApi,
 	type Model,
-} from "@oh-my-pi/pi-ai";
-import { getOAuthProviders, unregisterOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthCredentials } from "@oh-my-pi/pi-ai/oauth/types";
-import { ModelRegistry, type ProviderConfigInput } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resolveCliModel } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { cfgExtendedContext } from "@oh-my-pi/pi-coding-agent/session/context-settings";
-import { logger, removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { getOAuthProviders, unregisterOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
+import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
+import { resolveCliModel } from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { cfgExtendedContext } from "@linxiraos/zeta/session/context-settings";
+import { logger, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("ModelRegistry runtime provider registration", () => {
 	let tempDir: string;

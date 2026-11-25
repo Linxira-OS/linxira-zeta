@@ -6,11 +6,11 @@
  * description, commit button). The selected row carries an accent bar or,
  * while the sidebar has the keyboard, the selection band.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { padTo, spaces, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { hslToHex } from "@oh-my-pi/pi-utils/color";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { padTo, spaces, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { hslToHex } from "@linxiraos/pi-utils/color";
 import type { ChangedFile } from "../../../../cli/git-tui/model/state";
 import { type SidebarLayout, type SidebarModel, type SidebarRow, SUMMARY_LIMIT } from "../../../apps/git/sidebar-model";
 import type { LineState } from "../../../overlays/settings/line-edit";

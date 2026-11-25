@@ -1871,6 +1871,19 @@ export interface RecentSessionsQuery {
 	window?: TimeWindow;
 }
 
+/** `files` with their stats, newest mtime first; a file gone before its stat is dropped. */
+async function statNewestFirst(files: readonly string[]): Promise<StatedSessionFile[]> {
+	const stated = await Promise.all(
+		files.map(file =>
+			fs.promises.stat(file).then(
+				stat => ({ file, stat }),
+				() => undefined,
+			),
+		),
+	);
+	return stated.filter(entry => entry !== undefined).sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
+}
+
 /**
  * Newest non-empty sessions by mtime, with lifecycle status. Stats every
  * candidate file but content-scans only until `limit` sessions are found, so
@@ -1910,20 +1923,6 @@ function sessionInWindow(info: SessionInfo, window: TimeWindow | undefined): boo
 	const modified = info.modified.getTime();
 	const created = info.created.getTime();
 	return overlapsWindow(Number.isNaN(created) ? modified : created, modified, window);
-}
-
-/**
- * Every top-level session file under `sessionsRoot` (subagent transcripts
- * nested below a session are not), newest mtime first. Stat-only; unlike the
- * session listings it skips the realpath dedupe, so a transcript linked into
- * the root under two names is listed under each.
- */
-export async function listSessionFiles(sessionsRoot: string = getSessionsDir()): Promise<StatedSessionFile[]> {
-	try {
-		return await statNewestFirst(await scanBucketFiles(sessionsRoot, "*.jsonl"));
-	} catch {
-		return [];
-	}
 }
 
 /** One project directory summarized from its session files. */

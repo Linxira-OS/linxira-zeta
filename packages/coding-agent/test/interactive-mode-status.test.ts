@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { buildSessionContext } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import { jsx } from "@oh-my-pi/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { buildSessionContext } from "@linxiraos/zeta/session/session-context";
+import { jsx } from "@linxiraos/pi-tui";
 import type { TranscriptBlock } from "../src/ui/shell";
 import { initTheme } from "../src/ui/theme/service";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";

@@ -52,7 +52,7 @@ export const FEATURE_SETTING_KEYS = [
 	"computer.display",
 	"computer.maxWidth",
 	"computer.maxHeight",
-	"computer.backgroundFallback",
+	"computer.takeover",
 	"tools.restrictedFolders",
 	"extensionHandlers.modeControl",
 	"recap.enabled",

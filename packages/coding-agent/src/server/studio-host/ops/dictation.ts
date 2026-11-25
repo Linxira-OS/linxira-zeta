@@ -318,7 +318,6 @@ export class DictationHost {
 				if (!capture.cancelled) capture.error = message;
 			},
 			showStatus: () => {},
-			requestRender: () => {},
 			onStateChange: state => this.#onControllerState(capture, generation, state),
 		};
 		capture.target = target;

@@ -2,13 +2,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { classifyMultiplexer, type MultiplexerId } from "@oh-my-pi/pi-tui/driver/mux/detect";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
+import { classifyMultiplexer, type MultiplexerId } from "@linxiraos/pi-tui/driver/mux/detect";
+import type { ConfiguredThinkingLevel } from "@linxiraos/zeta/utils/render-utils";
 import { initTheme } from "../../../src/ui/theme/service";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { extractProfileFlags } from "@oh-my-pi/pi-coding-agent/cli/profile-bootstrap";
-import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { extractProfileFlags } from "@linxiraos/zeta/cli/profile-bootstrap";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { Settings } from "../../../src/config/settings";
 import {
 	createTerminalLauncher,

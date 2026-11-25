@@ -1,11 +1,11 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The Spotlight notice opens its sheet: a notice with an original carries the `spotlight` action and
  * activates its opener; the transcript mounts it after a shaped result's card, and the terminal draws
  * none of it.
  */
 import { describe, expect, it } from "bun:test";
-import type { UiNode } from "@oh-my-pi/pi-tui";
+import type { UiNode } from "@linxiraos/pi-tui";
 import type { SpotlightDetails } from "../../../src/tools/details/spotlight";
 import { SpotlightNotice } from "../../../src/ui/transcript/figures/spotlight";
 import { createInteractiveModeContext, renderTranscript } from "../../helpers/interactive-mode-context";

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The attachment band: one card per chip in the draft (`row` with role
  * `omp.composer.chips`, hidden while there is none). A card is titled with
@@ -7,7 +7,7 @@
  * preview frame) and the pixel size its marker states. The terminal draws
  * each card as a small rounded box in the chip's color, above the composer.
  */
-import { For, type JSXNode } from "@oh-my-pi/pi-tui";
+import { For, type JSXNode } from "@linxiraos/pi-tui";
 import type { ChipCardTerm } from "../styles/composer/chips";
 import type { Atom } from "./attachments";
 import { chipColor, draftImageBlob, markerPixelSize } from "./attachments";
@@ -29,7 +29,7 @@ function card(atom: Atom & { kind: "paste" | "image" | "video" }, link?: () => s
 	return (
 		<card
 			key={`${atom.kind}:${atom.n}`}
-			role="omp.composer.chip"
+			role="zeta.composer.chip"
 			tone="accent"
 			head={() => {
 				// An image's title links to its file (the terminal draws it as an OSC 8 link).
@@ -69,7 +69,7 @@ export function ComposerChips(props: { composer: Composer }): JSXNode {
 			.chips()
 			.filter((atom): atom is Atom & { kind: "paste" | "image" | "video" } => atom.kind !== "token");
 	return (
-		<row role="omp.composer.chips" gap="sm" wrap={true} hidden={() => chips().length === 0}>
+		<row role="zeta.composer.chips" gap="sm" wrap={true} hidden={() => chips().length === 0}>
 			<For each={chips}>
 				{atom => (atom.kind === "paste" ? card(atom) : card(atom, () => props.composer.imageLink(atom)))}
 			</For>

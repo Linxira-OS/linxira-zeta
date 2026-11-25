@@ -2,13 +2,13 @@
  * Pieces the picker screen looks share: a query field with its caret, key
  * hint rows, search-hit highlighting.
  */
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { renderInline } from "@oh-my-pi/pi-tui/text/markdown/inline";
-import { lexInline } from "@oh-my-pi/pi-tui/text/markdown/lexer";
-import { markdownStyles } from "@oh-my-pi/pi-tui/text/markdown/styles";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { PLAIN_THEME } from "@oh-my-pi/pi-tui/theme/plain";
-import { sliceCells, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { renderInline } from "@linxiraos/pi-tui/text/markdown/inline";
+import { lexInline } from "@linxiraos/pi-tui/text/markdown/lexer";
+import { markdownStyles } from "@linxiraos/pi-tui/text/markdown/styles";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { PLAIN_THEME } from "@linxiraos/pi-tui/theme/plain";
+import { sliceCells, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 

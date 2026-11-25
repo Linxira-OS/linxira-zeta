@@ -11,9 +11,9 @@
  * themes clamp lightness into a visible band, light themes darken until the
  * color has 3:1 contrast against the status surface.
  */
-import { hexToOklch, hueDistance, oklchCusp, oklchToHex, relativeLuminance } from "@oh-my-pi/pi-utils";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { fgSgr } from "@oh-my-pi/pi-tui/theme/color";
+import { hexToOklch, hueDistance, oklchCusp, oklchToHex, relativeLuminance } from "@linxiraos/pi-utils";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { fgSgr } from "@linxiraos/pi-tui/theme/color";
 
 /** Theme colors a session accent must not hue-collide with. */
 const MAJOR_COLORS = [

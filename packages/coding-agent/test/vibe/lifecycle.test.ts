@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import type { SingleResult } from "@linxiraos/zeta/task";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { resolveLocalRoot } from "@linxiraos/zeta/internal-urls";

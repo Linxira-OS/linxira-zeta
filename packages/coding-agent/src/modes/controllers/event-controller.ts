@@ -69,6 +69,7 @@ import { displaceableBy } from "../utils/displaceable";
 import { TurnUsageTally, turnElapsedMs } from "../view-model/overlays/usage-row";
 import { isWarpCliAgentProtocolActive } from "../warp-events";
 import { ComposerPredictionController } from "./composer-prediction-controller";
+import { formatCompactionPhase } from "./compaction-progress";
 import { recapBlock, todoReminderBlock, ttsrBlock, usageRowBlock } from "./event-blocks";
 import { StreamingRevealController } from "./streaming-reveal";
 import { streamingStringKeysForTool, ToolArgsRevealController } from "./tool-args-reveal";
@@ -374,6 +375,8 @@ export class EventController {
 	 * reads progress as busy state) never sees the agent stop mid-run.
 	 */
 	#compactionOwnsProgress = false;
+	/** When the running compaction's working row started, so phase updates keep its clock. */
+	#compactionStartedAt: number | undefined;
 	/**
 	 * The working row names what a paused run awaits instead of the last intent,
 	 * until the next loop starts or the run ends.
@@ -454,7 +457,18 @@ export class EventController {
 		this.#toolArgsReveal = new ToolArgsRevealController({
 			getSmoothStreaming: () => cfgDisplaySmoothStreaming.get(this.ctx.settings),
 		});
-		this.composerPrediction = new ComposerPredictionController(ctx);
+		this.composerPrediction = new ComposerPredictionController({
+			get settings() {
+				return ctx.settings;
+			},
+			get viewSession() {
+				return ctx.viewSession;
+			},
+			get focusedAgentId() {
+				return ctx.focusedAgentId;
+			},
+			editor: { getText: () => ctx.composer.text() },
+		});
 		this.#handlers = {
 			agent_start: e => this.#handleAgentStart(e),
 			agent_pause: e => this.#handleAgentPause(e),
@@ -478,6 +492,23 @@ export class EventController {
 			tool_execution_end: e => this.#handleToolExecutionEnd(e),
 			auto_compaction_start: e => this.#handleAutoCompactionStart(e),
 			auto_compaction_end: e => this.#handleAutoCompactionEnd(e),
+			// Granular phase label inside the running compaction row; terminal phases
+			// belong to the end handler.
+			compaction_phase: async e => {
+				const label = formatCompactionPhase(e);
+				if (label === undefined || this.ctx.working !== "compaction") return;
+				this.ctx.showWorking("compaction", {
+					label: `Compacting context · ${label}…`,
+					startedAt: this.#compactionStartedAt ?? Date.now(),
+					variant: { kind: "compaction" },
+					interruptKey: this.ctx.maintenanceInterruptKey(),
+				});
+			},
+			// Session facts changed outside the turn lifecycle (mode switches, settings
+			// re-reads); the status line recomputes from the session on demand.
+			state_version_changed: async () => {
+				this.ctx.statusLine.refresh();
+			},
 			// `/compact` drives its own loader (command-controller); these exist for RPC hosts.
 			manual_compaction_start: async () => {},
 			manual_compaction_end: async () => {},
@@ -2506,6 +2537,17 @@ export class EventController {
 	}
 
 	/**
+	 * The view was replayed around an idle session (focus switch, resume): there
+	 * is no live run to end, so clear the turn's chrome without synthesizing a
+	 * session event and report the program status idle.
+	 */
+	markViewIdle(): void {
+		this.#stoppedWaiting = false;
+		this.ctx.clearWorking("turn");
+		setRunStatus({ state: "idle" });
+	}
+
+	/**
 	 * When the main session's run is paused waiting only on outside sources, the
 	 * working row says so and names the jobs and child agents, instead of
 	 * repeating the last tool call's intent. The label is live, so a job
@@ -2658,6 +2700,7 @@ export class EventController {
 			variant: { kind: "compaction" },
 			interruptKey: this.ctx.maintenanceInterruptKey(),
 		});
+		this.#compactionStartedAt = Date.now();
 	}
 
 	async #handleAutoCompactionEnd(event: Extract<AgentSessionEvent, { type: "auto_compaction_end" }>): Promise<void> {
@@ -2666,6 +2709,7 @@ export class EventController {
 			this.#setTerminalProgress(false);
 		}
 		this.ctx.clearWorking("compaction");
+		this.#compactionStartedAt = undefined;
 		const isHandoffAction = event.action === "handoff";
 		const isRemoteAction = event.action === "remote";
 		const isShakeAction = event.action === "shake";

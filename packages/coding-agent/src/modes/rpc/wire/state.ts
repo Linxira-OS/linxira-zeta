@@ -153,6 +153,7 @@ export const stateDefs = {
 		dumpTools: absentAs("ToolDescriptor[]", []),
 		"contextUsage?": "ContextUsage",
 		goal: absentAs(doc("GoalModeState | null", "Current goal mode; null when the session has no goal."), null),
+		guidedGoalInterview: absentAs(doc("boolean", "True while the guided-goal interview is open."), false),
 	},
 
 	BashResult: {

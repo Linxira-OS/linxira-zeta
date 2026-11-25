@@ -11,7 +11,6 @@
  * the transient settings editor, never printed into the transcript.
  */
 
-import { Text } from "@linxiraos/pi-tui";
 import {
 	formatChannelsAdmin,
 	parseAdminBindings,
@@ -86,10 +85,10 @@ function adminLanguageIsChinese(): boolean {
 	return (process.env.ZETA_LANG ?? process.env.LANG ?? "").toLowerCase().startsWith("zh");
 }
 
-async function showAdmin(ctx: { presentCommandOutput: (content: Text) => void }): Promise<void> {
+async function showAdmin(ctx: { presentCommandOutput: (factory: () => string) => void }): Promise<void> {
 	const webConfig = await WebConfig.load();
 	const snapshot = await collectAdminSnapshot(webConfig);
-	ctx.presentCommandOutput(new Text(formatChannelsAdmin(snapshot, adminLanguageIsChinese()), 1, 0));
+	ctx.presentCommandOutput(() => formatChannelsAdmin(snapshot, adminLanguageIsChinese()));
 }
 
 async function setInstanceEnabledById(
@@ -127,7 +126,7 @@ export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 	handleTui: async (command: ParsedSlashCommand, runtime) => {
 		const ctx = runtime.ctx;
 		if (!command.args.trim()) {
-			ctx.showSettingsSelector("im");
+			ctx.showSettingsSelector();
 			return commandConsumed();
 		}
 		const [action = "status", ...rest] = command.args.trim().split(/\s+/).filter(Boolean);
@@ -151,7 +150,7 @@ export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 			}
 
 			case "help":
-				ctx.presentCommandOutput(new Text(USAGE, 1, 0));
+				ctx.presentCommandOutput(() => USAGE);
 				return commandConsumed();
 			default:
 				ctx.showError(USAGE);

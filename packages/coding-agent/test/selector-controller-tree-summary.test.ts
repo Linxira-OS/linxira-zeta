@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { createRoot, type JSXNode, type KeyEvent, type UiNode } from "@oh-my-pi/pi-tui";
-import { bubbleKey, pathTo } from "@oh-my-pi/pi-tui/dispatch";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { createRoot, type JSXNode, type KeyEvent, type UiNode } from "@linxiraos/pi-tui";
+import { bubbleKey, pathTo } from "@linxiraos/pi-tui/dispatch";
 import { initTheme } from "../src/ui/theme/service";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionTreeNode } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
-import { cfgBranchSummaryEnabled } from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import { cfgBranchSummaryEnabled } from "@linxiraos/zeta/session/context-settings";
 
 const ENTER: KeyEvent = { id: "enter", kind: "press", raw: "\r" };
 const SHIFT_ENTER: KeyEvent = { id: "shift+enter", kind: "press", raw: "\x1b[13;2u" };

@@ -7,9 +7,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { createRoot, type JSXNode, resolveChildren, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, type StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+import { createRoot, type JSXNode, resolveChildren, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode, type StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 import {
 	CORPUS_DIR,
 	type CorpusCase,
@@ -17,7 +17,7 @@ import {
 	describeTree,
 	firstDiff,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
+} from "@linxiraos/pi-tui/testing/corpus";
 
 /** A screen under test: its tree for a case, and the step each stage label replays. */
 export interface StagedScreen {

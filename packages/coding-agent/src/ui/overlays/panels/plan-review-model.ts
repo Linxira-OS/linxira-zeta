@@ -10,10 +10,10 @@
  * scroll is kept as a share of its range, so every width shows the same
  * place in the plan.
  */
-import type { Accessor, TextEdit } from "@oh-my-pi/pi-tui";
-import { signal, untrack } from "@oh-my-pi/pi-tui";
-import type { MouseEvent } from "@oh-my-pi/pi-tui/driver/contract";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { Accessor, TextEdit } from "@linxiraos/pi-tui";
+import { signal, untrack } from "@linxiraos/pi-tui";
+import type { MouseEvent } from "@linxiraos/pi-tui/driver/contract";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type {
 	PlanReviewAnnotationState,
 	PlanReviewOverlayChoice,

@@ -8,10 +8,11 @@
 
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@oh-my-pi/pi-agent-core";
-import { AgentBusyError, extractIntent, recordHandoff, resolveTelemetry } from "@oh-my-pi/pi-agent-core";
-import type { Api, AssistantMessageEvent, Model, ServiceTierByFamily, ToolCall, Usage } from "@oh-my-pi/pi-ai";
-import { isCursorExecResolved } from "@oh-my-pi/pi-ai/utils/block-symbols";
+import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@linxiraos/pi-agent-core";
+import type { ZetaLanguage } from "../i18n";
+import { AgentBusyError, extractIntent, recordHandoff, resolveTelemetry } from "@linxiraos/pi-agent-core";
+import type { Api, AssistantMessageEvent, Model, ServiceTierByFamily, ToolCall, Usage } from "@linxiraos/pi-ai";
+import { isCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 import {
 	isRecord,
 	logger,
@@ -21,7 +22,7 @@ import {
 	pushLoopPhase,
 	sanitizeText,
 	untilAborted,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import {
 	ASYNC_JOB_MANAGER_SHUTDOWN_REASON,
 	AsyncJobError,
@@ -449,6 +450,17 @@ export function collectIrcPeerRoster(
 /** Options for subagent execution */
 export interface ExecutorOptions {
 	cwd: string;
+	/**
+	 * Whether the child gets a `yield` tool: `true` with no schema still exposes it
+	 * (open-ended structured completion); `false` forces the final assistant message
+	 * to be the result. Undefined derives it from `outputSchema`.
+	 */
+	structured?: boolean;
+	/**
+	 * Language the tiny-model task label is written in; undefined reads the
+	 * effective `language` setting. Never inherited from another prompt/view.
+	 */
+	generatedNameLanguage?: ZetaLanguage;
 	/** Cost gate of the parent session tree; the subagent's requests count toward it. */
 	costGate?: CostGateApi;
 	/** Additional workspace directories to seed on the subagent session (multi-root). */
@@ -733,6 +745,8 @@ interface FinalizeSubprocessOutputArgs {
 	doneAborted: boolean;
 	signalAborted: boolean;
 	yieldItems?: YieldItem[];
+	/** The run's last assistant text, for terminal string-typed yields that carry no data. */
+	lastAssistantText?: string;
 	outputSchema: unknown;
 	outputSchemaMode?: StructuredSubagentSchemaMode;
 	outputSchemaSource?: StructuredSubagentSchemaSource;
@@ -789,7 +803,7 @@ function buildSchemaViolationOutcome(
 
 export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): FinalizeSubprocessOutputResult {
 	let { rawOutput, exitCode, stderr } = args;
-	const { yieldItems, doneAborted, signalAborted, outputSchema } = args;
+	const { yieldItems, doneAborted, signalAborted, outputSchema, lastAssistantText } = args;
 	const mode = args.outputSchemaMode ?? "permissive";
 	const source = args.outputSchemaSource ?? (outputSchema === undefined ? "none" : "session");
 	const includeStructuredOutput = source !== "none";
@@ -811,7 +825,21 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 			}
 		} else {
 			const assembled = assembleYieldResult(yieldItems, yieldSectionShapes(outputSchema));
-			if (!assembled || assembled.missingData) {
+			const terminalYield = [...yieldItems]
+				.reverse()
+				.find(item => !Array.isArray(item.type) || item.type.length === 0);
+			const lastTurnOnly =
+				terminalYield?.useLastTurn === true ||
+				(typeof terminalYield?.type === "string" && terminalYield.type.trim() === "final");
+			const recoveredLastTurn =
+				lastTurnOnly &&
+				terminalYield?.data === undefined &&
+				lastAssistantText !== undefined &&
+				(!assembled || (assembled.missingData && assembled.data === undefined));
+			if (recoveredLastTurn) {
+				rawOutput = lastAssistantText!;
+				structuredOutput = undefined;
+			} else if (!assembled || assembled.missingData) {
 				rawOutput = rawOutput ? `${SUBAGENT_WARNING_NULL_YIELD}\n\n${rawOutput}` : SUBAGENT_WARNING_NULL_YIELD;
 				if (includeStructuredOutput) {
 					structuredOutput = { source, mode, status: "invalid", error: SUBAGENT_WARNING_NULL_YIELD };
@@ -1353,6 +1381,8 @@ interface RunMonitorArgs {
 	modelRegistry?: ModelRegistry;
 	/** Parent settings for tiny-model label generation. */
 	settings?: Settings;
+	/** Language the tiny-model label is written in; undefined reads the setting. */
+	generatedNameLanguage?: ZetaLanguage;
 	parentActiveModelPattern?: string;
 	parentActiveProvider?: string;
 	/** See {@link ExecutorOptions.journalTaskLabel}. */
@@ -1826,7 +1856,7 @@ function createSubagentRunMonitor(args: RunMonitorArgs): SubagentRunMonitor {
 		onProgress?.({ ...progress });
 		const activityGist =
 			progress.lastIntent ?? (progress.currentTool ? `running ${progress.currentTool}` : undefined);
-		if (activityGist && activeSession) AgentRegistry.global().setActivity(id, activityGist, activeSession);
+		if (activityGist) AgentRegistry.global().setActivity(id, activityGist);
 		const progressPayload = {
 			index,
 			agent: agent.name,
@@ -1881,6 +1911,7 @@ function createSubagentRunMonitor(args: RunMonitorArgs): SubagentRunMonitor {
 			args.settings,
 			id,
 			abortSignal,
+			args.generatedNameLanguage,
 			args.parentActiveModelPattern,
 			args.parentActiveProvider,
 			args.journalTaskLabel,
@@ -3155,6 +3186,8 @@ interface FinalizeRunArgs {
 	modelOverride?: string | string[];
 	/** Explicit pre-expansion model role alias selected for this run. */
 	modelRole?: string;
+	/** Explicit yield contract; undefined derives it from {@link outputSchema}. */
+	structured?: boolean;
 	/** Absent = no `yield` tool: the run's last report turn is the result verbatim (see {@link usesYield}). */
 	outputSchema?: unknown;
 	outputSchemaMode?: StructuredSubagentSchemaMode;
@@ -3193,7 +3226,7 @@ async function finalizeRunResult(args: FinalizeRunArgs): Promise<SingleResult> {
 	// A structured run finalizes from its yield (falling back to the run's
 	// output); a message-result run is exactly its final report turn, never
 	// the narration of earlier turns.
-	const structured = usesYield(args.outputSchema);
+	const structured = args.structured ?? usesYield(args.outputSchema);
 	let rawOutput = structured ? monitor.rawOutput() : (monitor.lastReportTurnText() ?? "");
 	const yieldItems = recordedYields(progress);
 	// Breadcrumb the synchronous yield-payload shaping (O(rawOutput)) so a block
@@ -3396,6 +3429,8 @@ async function finalizeRunResult(args: FinalizeRunArgs): Promise<SingleResult> {
 
 /** Inputs for {@link attachIrcWakeTurnMonitor}. */
 export interface IrcWakeTurnMonitorOptions {
+	/** Explicit yield contract of the monitored turn; undefined derives it from `outputSchema`. */
+	structured?: boolean;
 	/** Registry id of the kept-alive subagent whose undriven turns are monitored. */
 	id: string;
 	index?: number;
@@ -3805,6 +3840,7 @@ export function attachIrcWakeTurnMonitor(session: AgentSession, options: IrcWake
 					task: ircTask,
 					modelOverride: options.modelOverride,
 					modelRole: options.modelRole,
+					structured: options.structured,
 					outputSchema: options.outputSchema,
 					outputSchemaMode: options.outputSchemaMode,
 					outputSchemaSource: options.outputSchemaSource,
@@ -4056,6 +4092,14 @@ export interface FollowUpTurnOptions {
 	description?: string;
 	/** Explicit pre-expansion model role alias retained from the original run. */
 	modelRole?: string;
+	/**
+	 * Model selector to switch the revived subagent to before the turn: a child that
+	 * has completed a model response can be switched; otherwise it continues on the
+	 * session's current model. Only a completed model response arms the switch.
+	 */
+	model?: string;
+	/** Explicit yield contract retained from the original run; undefined derives it from {@link outputSchema}. */
+	structured?: boolean;
 	/** Output schema retained from the original invocation; absent = no `yield` tool (see {@link usesYield}). */
 	outputSchema?: unknown;
 	outputSchemaMode?: StructuredSubagentSchemaMode;
@@ -4123,7 +4167,10 @@ function ownAttachedSession(id: string): AgentSession | undefined {
  */
 export async function runSubagentFollowUpTurn(options: FollowUpTurnOptions): Promise<SingleResult> {
 	const startTime = Date.now();
-	const session = await AgentLifecycleManager.global().ensureLive(options.id);
+	const session = await AgentLifecycleManager.global().ensureLive(
+		options.id,
+		options.model !== undefined ? { model: options.model } : undefined,
+	);
 	if (!isLocalAgentSession(session)) return runFollowUpTurnOnHome(session, options);
 	// A turn of a main-homed session loads the main thread like a placed run.
 	const endMainRun = isMainThread() ? existingSubagentWorkerPool()?.beginMainRun() : undefined;
@@ -4248,7 +4295,7 @@ async function driveFollowUpTurn(
 	// ordinary contract so the wake cannot consume pooled items, wait it out,
 	// then reinstall and reattach for the retry.
 	let attemptUnsubscribe = monitor.attach(session);
-	const structured = usesYield(options.outputSchema);
+	const structured = options.structured ?? usesYield(options.outputSchema);
 	// As in a first run: this turn's monitor would take a wake turn's answer
 	// (or its `yield`) as this turn's result, so non-parent wakes wait for it.
 	const releaseIrcWakes = session.holdIrcWakes();
@@ -4299,6 +4346,7 @@ async function driveFollowUpTurn(
 			agent,
 			task: message,
 			modelRole: options.modelRole,
+			structured: options.structured,
 			outputSchema: options.outputSchema,
 			outputSchemaMode: options.outputSchemaMode,
 			outputSchemaSource: options.outputSchemaSource,
@@ -4726,7 +4774,7 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 		onProgress,
 	} = options;
 	const cleanupGraceMs = options.cleanupGraceMs ?? TASK_ABORT_CLEANUP_GRACE_MS;
-	const structured = usesYield(outputSchema);
+	const structured = options.structured ?? usesYield(outputSchema);
 	const startTime = Date.now();
 	// Set by the session's onFirstChatDispatch hook the first time the agent
 	// loop dispatches a chat request to the provider — the launch-complete boundary.
@@ -5786,6 +5834,7 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 			assignment,
 			modelOverride,
 			modelRole,
+			structured,
 			outputSchema,
 			outputSchemaMode: options.outputSchemaMode,
 			outputSchemaSource: options.outputSchemaSource,

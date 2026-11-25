@@ -4,8 +4,8 @@
  * status glyphs and tones, the model a row's work came from, activity glyphs,
  * clocks and the usage formats.
  */
-import { formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
-import { type TspSpan, type TspTone, toolIntentLabel } from "@oh-my-pi/pi-wire";
+import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
+import { type TspSpan, type TspTone, toolIntentLabel } from "@linxiraos/pi-wire";
 import { sanitizeDisplaySingleLine } from "../../../extensibility/inventory/display-text";
 import type { AgentActivityKind, AgentActivityRow } from "../../../modes/view-model/overlays/agent-activity";
 import type { AgentMetrics } from "../../../modes/view-model/overlays/agent-hub-projection";

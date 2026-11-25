@@ -10,14 +10,14 @@
  *
  * Everything comes from the presenter's `term.edit` (see `EditTerm`).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { renderDiff, wrapDiffRow } from "@oh-my-pi/pi-tui/text/diff";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
-import { shortenHome } from "@oh-my-pi/pi-tui/text/sanitize";
-import { padTo, replaceTabs, truncate, truncateMiddle, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { renderDiff, wrapDiffRow } from "@linxiraos/pi-tui/text/diff";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
+import { shortenHome } from "@linxiraos/pi-tui/text/sanitize";
+import { padTo, replaceTabs, truncate, truncateMiddle, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { EditBodyPart, EditCard, EditTerm } from "../../tools/edit";
 import { displayPath } from "../../tools/file-common";
 import { diagnosticsRows, fileLink } from "./file-common";

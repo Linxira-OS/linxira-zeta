@@ -19,9 +19,9 @@
  * notifier.poll();
  * ```
  */
-import { LineMatcher } from "@oh-my-pi/pi-natives";
+import { LineMatcher } from "@linxiraos/pi-natives";
 import { ToolError } from "../tools/tool-errors";
-import { truncate } from "@oh-my-pi/pi-utils";
+import { truncate } from "@linxiraos/pi-utils";
 import { SourceLineReader } from "../job-widgets/runtime";
 import type { JobTextSource } from "../job-widgets/types";
 

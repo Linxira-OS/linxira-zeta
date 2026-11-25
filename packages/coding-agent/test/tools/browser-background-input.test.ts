@@ -2,24 +2,19 @@ import { afterAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { findFreeCdpPort } from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import { ensureChromiumExecutable } from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { findFreeCdpPort } from "@linxiraos/zeta/tools/browser/attach";
+import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
 import {
 	acquireBrowser,
 	type BrowserHandle,
 	type BrowserKind,
 	releaseBrowser,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { waitForRelayExtension } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/probe";
-import { startRelayServer } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/server";
-import {
-	acquireTab,
-	getTabsMapForTest,
-	releaseTab,
-	runInTab,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+} from "@linxiraos/zeta/tools/browser/registry";
+import { waitForRelayExtension } from "@linxiraos/zeta/tools/browser/relay/probe";
+import { startRelayServer } from "@linxiraos/zeta/tools/browser/relay/server";
+import { acquireTab, getTabsMapForTest, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import puppeteer, { type Browser, type Page, type WebWorker } from "puppeteer-core";
 import { type FixtureRelayExtension, prepareRelayExtension } from "./browser-relay-fixture";
 import { chromiumAvailable } from "./chromium-probe";

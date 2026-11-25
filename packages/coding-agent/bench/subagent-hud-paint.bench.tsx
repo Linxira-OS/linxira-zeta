@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Benchmark: subagent HUD paint cost.
  *
@@ -7,9 +7,9 @@
  * events do) and paints the HUD at the given width; `cached` repaints with
  * nothing changed (the paint cache's hit path).
  */
-import { createRoot, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createRoot, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { type SubagentEntry, SubagentHud, SubagentHudModel } from "../src/ui/dock";
 
 const WARMUP_PAINTS = 1_000;

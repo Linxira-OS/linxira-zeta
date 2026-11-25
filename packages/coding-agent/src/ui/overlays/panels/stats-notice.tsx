@@ -1,9 +1,9 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The stats-dashboard notice: where the dashboard runs, and a button that
  * opens it. The terminal shows the dimmed message under a blank row.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import "../../styles/panels/stats-notice";
 import { ActionButton } from "./common";
 
@@ -18,7 +18,7 @@ export interface StatsNoticeProps {
 export function StatsNotice(props: StatsNoticeProps): JSXNode {
 	return (
 		<row
-			role="omp.statsNotice"
+			role="zeta.statsNotice"
 			align="center"
 			gap="md"
 			wrap
@@ -26,7 +26,7 @@ export function StatsNotice(props: StatsNoticeProps): JSXNode {
 				if (act === "open") props.onOpen?.();
 			}}
 		>
-			<text role="omp.stats" grow={1} wrap="word" spans={[{ t: props.message }]} />
+			<text role="zeta.stats" grow={1} wrap="word" spans={[{ t: props.message }]} />
 			<ActionButton id="open" label="Open dashboard ↗" title={props.url} href={props.url || undefined} />
 		</row>
 	);

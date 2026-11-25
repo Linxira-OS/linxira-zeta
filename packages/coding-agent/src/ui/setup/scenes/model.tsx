@@ -1,13 +1,13 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Default model: a searchable list of the configured models (a setup sheet
  * natively); Enter saves the highlighted one as the default for new
  * sessions. Mounting starts model discovery; when it fails with nothing to
  * list, Enter retries.
  */
-import { batch, computed, type KeyEvent, signal, untrack } from "@oh-my-pi/pi-tui";
-import { modelKind } from "@oh-my-pi/pi-catalog/types";
-import type { TspPickerAction, TspText } from "@oh-my-pi/pi-wire";
+import { batch, computed, type KeyEvent, signal, untrack } from "@linxiraos/pi-tui";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import type { TspPickerAction, TspText } from "@linxiraos/pi-wire";
 import {
 	buildBrowserItems,
 	type ModelBrowserItem,
@@ -190,7 +190,7 @@ export const modelScene: SetupScene = {
 				<col term={term}>
 					<picker
 						key="picker"
-						role="omp.setup.sheet"
+						role="zeta.setup.sheet"
 						title="Choose your default model"
 						subtitle={subtitle}
 						icon="cpu"

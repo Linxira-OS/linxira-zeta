@@ -1,23 +1,23 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { type Api, type Context, Effort, type Model, type SimpleStreamOptions } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { type } from "@linxiraos/zeta-schema";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { type Api, type Context, Effort, type Model, type SimpleStreamOptions } from "@linxiraos/pi-ai";
+import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import {
 	AUTO_PREWALK_ESCALATE_TIMEOUT_MS,
 	AUTO_PREWALK_TIMEOUT_MS,
 	type PrewalkRoute,
-} from "@oh-my-pi/pi-coding-agent/auto-prewalk/classifier";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { formatModelStringWithRouting, parseModelPattern } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+} from "@linxiraos/zeta/auto-prewalk/classifier";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { formatModelStringWithRouting, parseModelPattern } from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
 	cfgPrewalkAuto,
 	cfgPrewalkAutoTarget,
@@ -25,11 +25,11 @@ import {
 	cfgRetryBaseDelayMs,
 	cfgRetryFallbackChains,
 	cfgRetryFallbackRevertPolicy,
-} from "@oh-my-pi/pi-coding-agent/session/settings";
-import { EAGER_TODO_PRELUDE_MESSAGE_TYPE } from "@oh-my-pi/pi-coding-agent/session/todo-tracker";
-import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/session/settings";
+import { EAGER_TODO_PRELUDE_MESSAGE_TYPE } from "@linxiraos/zeta/session/todo-tracker";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import type { ConfiguredThinkingLevel } from "@linxiraos/zeta/utils/render-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { asGlobalFetch } from "./helpers/fetch-mock";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";

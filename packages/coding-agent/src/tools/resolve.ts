@@ -14,19 +14,21 @@ import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult, CustomMessage } from "@linxiraos/pi-agent-core";
 import {
 	PROPOSE_COMMAND_NAME,
-	PROPOSE_DEVICE_NAME,
 	REJECT_COMMAND_NAME,
 	RESOLVE_COMMAND_NAME,
-	RESOLVE_DEVICE_NAME,
-	REJECT_DEVICE_NAME,
-	PROPOSE_DEVICE_PATH,
-	REJECT_DEVICE_PATH,
-	RESOLVE_DEVICE_PATH,
-	type ResolutionDeviceName,
 	type ResolveAction,
 	type ResolveDetails,
 	type ResolveInvocation,
 } from "./details/resolve";
+import {
+	PROPOSE_DEVICE_NAME,
+	PROPOSE_DEVICE_PATH,
+	REJECT_DEVICE_NAME,
+	REJECT_DEVICE_PATH,
+	RESOLVE_DEVICE_NAME,
+	RESOLVE_DEVICE_PATH,
+	type ResolutionDeviceName,
+} from "./xd-url";
 import { ToolError } from "./tool-errors";
 import { prompt } from "@linxiraos/pi-utils";
 import resolveReminderPrompt from "../prompts/system/resolve-reminder.md" with { type: "text" };
@@ -437,6 +439,11 @@ export function specialToolCommands(session: ToolSession): Tool[] {
 }
 
 /** One-line usage string returned by `read xd://<device>`. */
+/** Whether `name` is one of the staged-action virtual devices (`resolve`, `reject`, `propose`). */
+export function isResolutionDeviceName(name: string): name is ResolutionDeviceName {
+	return name === RESOLVE_DEVICE_NAME || name === "reject" || name === "propose";
+}
+
 export function resolutionDeviceUsage(device: ResolutionDeviceName): string {
 	switch (device) {
 		case RESOLVE_DEVICE_NAME:

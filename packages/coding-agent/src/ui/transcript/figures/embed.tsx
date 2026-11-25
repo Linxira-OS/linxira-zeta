@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Embeds of a reply's HTML: `<img src alt width height>` and `<iframe src>`.
  *
@@ -14,8 +14,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { effect, type JSXNode, type Reactive, read, type Signal, signal, untrack } from "@oh-my-pi/pi-tui";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
+import { effect, type JSXNode, type Reactive, read, type Signal, signal, untrack } from "@linxiraos/pi-tui";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
 import { readImageHeaderDimensions } from "../../../utils/image-resize";
 import { closePartialSvg, type FigureRaster, PX_PER_ROW, trackFigureWork } from "./svg";
 import { type FigureOptions, SvgRaster } from "./svg-figure";
@@ -213,11 +213,19 @@ export function EmbedFigure(
 					...(raster ? { still: raster } : {}),
 					...(link ? { link } : {}),
 				};
-				return <web role="omp.embed" url={embed.src} title={embed.label.trim() || undefined} term={term} />;
+				return <web role="zeta.embed" url={embed.src} title={embed.label.trim() || undefined} term={term} />;
 			}
 			const term: EmbedTerm = { label, ...(error ? { error } : {}), ...(link ? { link } : {}) };
 			return (
-				<image role="omp.embed" blob={raster?.blob} w={raster?.w} h={raster?.h} alt={label} max={max} term={term} />
+				<image
+					role="zeta.embed"
+					blob={raster?.blob}
+					w={raster?.w}
+					h={raster?.h}
+					alt={label}
+					max={max}
+					term={term}
+				/>
 			);
 		});
 	};

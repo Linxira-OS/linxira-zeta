@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The autoresearch dashboard: a widget above the composer (one line of run
  * counts, the running baseline, or the expanded summary with the latest runs)
@@ -9,9 +9,9 @@
  * `omp.widget.autoresearch` and `omp.app.autoresearch` looks); the sheet
  * scrolls with ↑/↓ j/k PgUp PgDn g G and closes with Esc or q.
  */
-import { type JSXNode, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { TspScrollBy, TspSpan, TspTableColumn, TspText } from "@oh-my-pi/pi-wire";
+import { type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { TspScrollBy, TspSpan, TspTableColumn, TspText } from "@linxiraos/pi-wire";
 import {
 	currentResults,
 	findBaselineMetric,
@@ -307,13 +307,13 @@ function widgetDashboard(runtime: AutoresearchDashboardRuntime, maxRows: number)
 					token="accent"
 					summary={summary}
 					size="md"
-					role="omp.autoresearch.trend"
+					role="zeta.autoresearch.trend"
 				/>
 			)}
 			{visible.length < indexed.length && (
 				<text key="hidden" spans={[span(`… ${indexed.length - visible.length} earlier runs hidden`, "dim")]} />
 			)}
-			<table key="runs" cols={cols} rows={rows} role="omp.autoresearch.runs" />
+			<table key="runs" cols={cols} rows={rows} role="zeta.autoresearch.runs" />
 		</col>
 	);
 }
@@ -387,7 +387,7 @@ export function AutoresearchSheet(props: AutoresearchSheetProps): JSXNode {
 	return (
 		<col
 			gap="md"
-			role="omp.app.autoresearch"
+			role="zeta.app.autoresearch"
 			scroll={scroll}
 			term={term}
 			onKey={onKey}
@@ -396,7 +396,7 @@ export function AutoresearchSheet(props: AutoresearchSheetProps): JSXNode {
 			}}
 		>
 			{() => (revision(), sheetBody(runtime, now))}
-			<row key="actions" role="omp.actions" gap="sm" align="center">
+			<row key="actions" role="zeta.actions" gap="sm" align="center">
 				<spacer grow={1} />
 				<ActionButton id="close" label="Close" title="Close  esc" keys={["escape"]} />
 			</row>
@@ -458,13 +458,13 @@ function sheetBody(runtime: AutoresearchDashboardRuntime, now: () => number): JS
 				token="accent"
 				summary={[span(`${state.metricName} per run, ${state.bestDirection} is better`)]}
 				size="md"
-				role="omp.autoresearch.trend"
+				role="zeta.autoresearch.trend"
 			/>,
 		);
 	}
 	children.push(sheetRuns(runtime, indexed));
 	if (archived > 0) {
-		children.push(<text key="archived" spans={[span(archivedNote(archived))]} role="omp.autoresearch.note" />);
+		children.push(<text key="archived" spans={[span(archivedNote(archived))]} role="zeta.autoresearch.note" />);
 	}
 	return children;
 }
@@ -484,9 +484,9 @@ function sheetIntro(runtime: AutoresearchDashboardRuntime, segmented: boolean): 
 	if (state.maxExperiments !== null) meta.push(span("  ·  "), span(`${state.maxExperiments} runs per segment`));
 	if (state.branch) meta.push(span("  ·  "), span(replaceTabs(state.branch), "mono"));
 	return (
-		<col key="intro" gap="xs" role="omp.autoresearch.intro">
-			{goal && <text key="goal" text={replaceTabs(goal)} wrap="word" role="omp.autoresearch.goal" />}
-			<text key="meta" spans={meta} truncate="end" role="omp.autoresearch.meta" />
+		<col key="intro" gap="xs" role="zeta.autoresearch.intro">
+			{goal && <text key="goal" text={replaceTabs(goal)} wrap="word" role="zeta.autoresearch.goal" />}
+			<text key="meta" spans={meta} truncate="end" role="zeta.autoresearch.meta" />
 		</col>
 	);
 }
@@ -497,10 +497,14 @@ function sheetNow(runtime: AutoresearchDashboardRuntime, now: () => number): JSX
 	const running = runtime.runningExperiment;
 	if (running) {
 		return (
-			<row key="now" gap="sm" align="center" role="omp.autoresearch.running" tone="pending">
+			<row key="now" gap="sm" align="center" role="zeta.autoresearch.running" tone="pending">
 				<spinner label={[span("Running")]} tone="pending" />
 				<elapsed age={now() - running.startedAt} format="short" />
-				<text spans={[span(replaceTabs(running.command), "mono")]} truncate="end" role="omp.autoresearch.command" />
+				<text
+					spans={[span(replaceTabs(running.command), "mono")]}
+					truncate="end"
+					role="zeta.autoresearch.command"
+				/>
 			</row>
 		);
 	}
@@ -514,12 +518,12 @@ function sheetNow(runtime: AutoresearchDashboardRuntime, now: () => number): JSX
 		);
 	}
 	return (
-		<row key="now" gap="md" align="center" role="omp.autoresearch.pending" tone="warning">
+		<row key="now" gap="md" align="center" role="zeta.autoresearch.pending" tone="warning">
 			<text spans={result} truncate="end" />
 			<text
 				spans={[span("Log it with "), span("log_experiment", "mono"), span(" before the next run")]}
 				truncate="end"
-				role="omp.autoresearch.next"
+				role="zeta.autoresearch.next"
 			/>
 		</row>
 	);
@@ -537,10 +541,10 @@ function sheetEmpty(runtime: AutoresearchDashboardRuntime, archived: number): JS
 					]
 				: ["No experiments logged yet", "Turn autoresearch mode on to start measuring."];
 	return (
-		<col key="empty" gap="xs" align="center" role="omp.autoresearch.empty">
-			<text spans={[span(title)]} role="omp.autoresearch.empty.title" />
-			<text spans={[span(detail)]} wrap="word" role="omp.autoresearch.empty.detail" />
-			{archived > 0 && <text spans={[span(archivedNote(archived))]} role="omp.autoresearch.note" />}
+		<col key="empty" gap="xs" align="center" role="zeta.autoresearch.empty">
+			<text spans={[span(title)]} role="zeta.autoresearch.empty.title" />
+			<text spans={[span(detail)]} wrap="word" role="zeta.autoresearch.empty.detail" />
+			{archived > 0 && <text spans={[span(archivedNote(archived))]} role="zeta.autoresearch.note" />}
 		</col>
 	);
 }
@@ -553,16 +557,16 @@ function Stat(props: {
 	readonly children: JSXNode;
 }) {
 	return (
-		<col key={props.id} role="omp.autoresearch.stat">
-			<text text={props.label} role="omp.autoresearch.stat.k" />
-			<text spans={props.value} wrap="none" truncate="end" role="omp.autoresearch.stat.v" />
+		<col key={props.id} role="zeta.autoresearch.stat">
+			<text text={props.label} role="zeta.autoresearch.stat.k" />
+			<text spans={props.value} wrap="none" truncate="end" role="zeta.autoresearch.stat.v" />
 			{props.children}
 		</col>
 	);
 }
 
 const statDetail = (spans: TspSpan[]): JSXNode => (
-	<text spans={spans} truncate="end" role="omp.autoresearch.stat.sub" />
+	<text spans={spans} truncate="end" role="zeta.autoresearch.stat.sub" />
 );
 
 /** Best, baseline, confidence and the run tally, then the secondary metrics at the best run. */
@@ -636,8 +640,8 @@ function sheetStats(runtime: AutoresearchDashboardRuntime, current: readonly Exp
 	}
 
 	return (
-		<col key="summary" role="omp.autoresearch.summary">
-			<row role="omp.autoresearch.stats">
+		<col key="summary" role="zeta.autoresearch.summary">
+			<row role="zeta.autoresearch.stats">
 				{bestTile}
 				<Stat
 					id="baseline"
@@ -678,13 +682,13 @@ function sheetStats(runtime: AutoresearchDashboardRuntime, current: readonly Exp
 							},
 						]}
 						size="sm"
-						role="omp.autoresearch.tally"
+						role="zeta.autoresearch.tally"
 					/>
 					{statDetail(tally)}
 				</Stat>
 			</row>
 			{secondary.length > 0 && (
-				<text key="secondary" spans={secondary} truncate="end" role="omp.autoresearch.secondary" />
+				<text key="secondary" spans={secondary} truncate="end" role="zeta.autoresearch.secondary" />
 			)}
 		</col>
 	);
@@ -753,5 +757,5 @@ function sheetRuns(runtime: AutoresearchDashboardRuntime, indexed: readonly Inde
 			});
 			return { id: String(index), cells };
 		});
-	return <table key="runs" cols={cols} rows={rows} role="omp.autoresearch.runs" />;
+	return <table key="runs" cols={cols} rows={rows} role="zeta.autoresearch.runs" />;
 }

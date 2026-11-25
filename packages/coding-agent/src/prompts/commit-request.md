@@ -11,14 +11,16 @@ Every changed line of the repository, attributed from your edit journal:
 ```
 {{summary}}
 ```
+
 {{#if recent.length}}
 
 ### Recent subjects
 
 {{#each recent}}
+
 - {{this}}
-{{/each}}
-{{/if}}
+  {{/each}}
+  {{/if}}
 
 <instruction>
 - Use the eval `commit` namespace; `d = await commit.draft()` rebuilds this draft (pass `agents=` when the user named a scope). When Review is empty and Selected matches your work, commit in that same cell.

@@ -11,7 +11,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as path from "node:path";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/zeta-schema";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "@linxiraos/zeta/ui/theme/service";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";

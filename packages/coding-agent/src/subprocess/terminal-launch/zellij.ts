@@ -1,4 +1,4 @@
-import { hasMultiplexerSession } from "@oh-my-pi/pi-tui/driver/mux/detect";
+import { hasMultiplexerSession } from "@linxiraos/pi-tui/driver/mux/detect";
 import { launchError, oneLineId, runStep } from "./shared";
 import type {
 	SupportedMultiplexerCapabilities,

@@ -6,8 +6,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { createMockModel, type MockHandler, type MockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
+import { createMockModel, type MockHandler, type MockModel } from "@linxiraos/pi-ai/providers/mock";
 import {
 	AsyncJobManager,
 	compileNotifyPattern,
@@ -15,22 +15,22 @@ import {
 	NOTIFY_MAX_LINES,
 	type NotifyBatch,
 	OutputNotifier,
-} from "@oh-my-pi/pi-coding-agent/async";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TextTap } from "@oh-my-pi/pi-coding-agent/job-widgets/text-tap";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { type AsyncNotifyEntry, buildAsyncNotifyBatchMessage } from "@oh-my-pi/pi-coding-agent/session/async-notify";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { type CustomMessage, convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { AsyncNotifyDetails } from "@oh-my-pi/pi-coding-agent/session/transcript/messages";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { WaitTool } from "@oh-my-pi/pi-coding-agent/tools/wait";
+} from "@linxiraos/zeta/async";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { TextTap } from "@linxiraos/zeta/job-widgets/text-tap";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { type AsyncNotifyEntry, buildAsyncNotifyBatchMessage } from "@linxiraos/zeta/session/async-notify";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { type CustomMessage, convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { AsyncNotifyDetails } from "@linxiraos/zeta/session/transcript/messages";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { WaitTool } from "@linxiraos/zeta/tools/wait";
 import "../src/ui/styles/messages";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import { printRows } from "../src/ui/print-rows";
 import { AsyncNotify } from "../src/ui/transcript/messages/async-cards";
 import { until } from "./helpers/fake-clock";

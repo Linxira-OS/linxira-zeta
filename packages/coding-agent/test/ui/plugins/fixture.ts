@@ -2,8 +2,8 @@
  * The plugin settings capture builders (`settings-overlays/plugin-settings.ts`):
  * the same plugins, host and per-case steps, driving pi-tui plugin settings.
  */
-import { batch, type UiEvent, type UiNode } from "@oh-my-pi/pi-tui";
-import { decodeKey } from "@oh-my-pi/pi-tui/driver/input/keys";
+import { batch, type UiEvent, type UiNode } from "@linxiraos/pi-tui";
+import { decodeKey } from "@linxiraos/pi-tui/driver/input/keys";
 import type {
 	InstalledPlugin,
 	InstalledPluginSummary,

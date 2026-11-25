@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The Codex quota celebration: a weekly usage reset arrived early, or saved
  * resets were banked. Natively a centered card (sparkles, a shimmering title,
  * what happened, Close); the terminal draws fireworks over a banner.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import type { CodexResetFireworksEvent } from "../../../modes/view-model/overlays/codex-reset-fireworks";
 import "../../styles/panels/codex-reset-fireworks";
 import { ActionButton } from "./common";
@@ -53,7 +53,7 @@ export function CodexResetFireworks(props: CodexResetFireworksProps): JSXNode {
 			/>
 			<shimmer text={title} palette={{ low: "thinkingXhigh", mid: "warning", high: "text" }} />
 			<text spans={[{ s: "mdLink", t: line }]} />
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<ActionButton id="close" label="Close" title="Close  esc" keys={["escape"]} />
 			</row>

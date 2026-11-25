@@ -12,11 +12,11 @@
  * highlighted row in view and moving as little as it can. Collapsed (alt+h)
  * the card is one line.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { paintPicture } from "@oh-my-pi/pi-tui/term/painters/image";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { padTo, sliceCells, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { paintPicture } from "@linxiraos/pi-tui/term/painters/image";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { padTo, sliceCells, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import type { ChoiceField, FormBlock, FormField, FormSpan } from "../../../tools/html-form/parse";
 import { spansText } from "../../../tools/html-form/parse";
 import { type FormPart, isFoldCaption } from "../../forms/html-form/layout";

@@ -6,8 +6,8 @@
 
 import { formatKeyHint } from "../ui/keys/hints";
 import { truncateToWidth } from "../utils/text-width";
-import { postmortem } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { postmortem } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { openStandaloneJudge } from "../judgment/standalone";
 import { openTernPage } from "../tools/browser/tern/user-page";
 import { openPath } from "../utils/open";
@@ -81,7 +81,7 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 		setStatsCloseHandler,
 		startServer,
 		syncAllSessions,
-	} = await import("@oh-my-pi/omp-stats");
+	} = await import("@linxiraos/pi-stats");
 
 	// One-shot reports need fully ingested, fully rolled-up data before printing.
 	if (cmd.json || cmd.summary) {

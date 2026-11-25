@@ -1,14 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import {
-	getKeybindings,
-	KeybindingsManager,
-	setKeybindings,
-} from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { getKeybindings, KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { Settings } from "../../../src/config/settings";
 import { SessionInfo } from "../../../src/ui/overlays/panels/session-info";
 import { mountOverlay } from "../../helpers/overlay-terminal";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

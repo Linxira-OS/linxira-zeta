@@ -1,9 +1,9 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** Views the command controllers mount: report sheets, report bodies, transcript outcome lines, dialogs. */
-import { type JSXNode, type KeyEvent, nativeRendering, type Reactive } from "@oh-my-pi/pi-tui";
-import { styledSpans, unstyledText } from "@oh-my-pi/pi-tui/text/styled-spans";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspText } from "@oh-my-pi/pi-wire";
+import { type JSXNode, type KeyEvent, nativeRendering, type Reactive } from "@linxiraos/pi-tui";
+import { styledSpans, unstyledText } from "@linxiraos/pi-tui/text/styled-spans";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspText } from "@linxiraos/pi-wire";
 import { BorderedLoader } from "../../ui/overlays/panels/bordered-loader";
 import { ContextViewer, type ContextViewerModel } from "../../ui/overlays/panels/context-viewer";
 import { HotkeysSheet, type HotkeysSheetProps } from "../../ui/overlays/panels/hotkeys-sheet";

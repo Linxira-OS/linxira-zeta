@@ -1,5 +1,5 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/wait";
+import type { CoordinationDetails } from "../tools/details/wait";
 import type { Settings } from "../config/settings";
 import { isWorkspaceAddress } from "../mesh/envelope";
 import { IrcBus } from "./bus";

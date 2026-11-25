@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test } from "bun:test";
-import { signal } from "@oh-my-pi/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
 import type { HookEditorOptions } from "../../../../src/modes/view-model/overlays/hook-editor";
 import {
 	HookEditor,

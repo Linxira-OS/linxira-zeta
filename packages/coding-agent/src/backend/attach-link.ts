@@ -18,7 +18,7 @@ import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { getConfigRootDir, getSessionsDir, isRecord, logger, pathIsWithin } from "@linxiraos/pi-utils";
-import { toReasoningEffort } from "@linxiraos/pi-tui/thinking";
+import { toReasoningEffort } from "../thinking";
 import type { ExtensionAskDialogQuestion } from "../extensibility/extensions/types";
 import type { InteractiveModeContext } from "../modes/types";
 import { mintSessionId } from "../session/session-manager";
@@ -569,7 +569,7 @@ export class BackendAttachLink {
 		this.#pausedGoalId = undefined;
 		this.#loopState = null;
 		this.#loopStateSeq += 1;
-		this.#ctx.setBackendLoopStatus(undefined);
+		this.#ctx.setBackendLoopStatus?.(undefined);
 		this.#target = { ...this.#target, sessionId, newSession: false, explicit: true };
 		await this.join();
 	}
@@ -597,7 +597,7 @@ export class BackendAttachLink {
 		await this.#applyChain.catch(() => undefined);
 		this.#replicaLease?.();
 		this.#replicaLease = undefined;
-		this.#ctx.setGuidedGoalInterviewActive(false);
+		this.#ctx.setGuidedGoalInterviewActive?.(false);
 		this.#ctx.backendAttach = undefined;
 		this.#queue = undefined;
 		this.#ctx.backendQueue = undefined;
@@ -606,7 +606,7 @@ export class BackendAttachLink {
 		// returns to the replica/in-process session.
 		this.#ctx.resetObserverRegistry();
 		this.#loopState = null;
-		this.#ctx.setBackendLoopStatus(undefined);
+		this.#ctx.setBackendLoopStatus?.(undefined);
 		this.#ctx.syncRunningSubagentBadge();
 		// The replica file is a valid standalone session outside the sessions
 		// dir; leave it on disk (same contract as a collab replica).
@@ -1012,7 +1012,6 @@ export class BackendAttachLink {
 		}
 		if (mode === "vibe") this.#ctx.vibeModeEnabled = enabled;
 		this.#ctx.updateEditorBorderColor();
-		this.#ctx.ui.requestRender();
 	}
 
 	/** Answer a backend extension dialog through the same TUI primitives. */
@@ -1052,8 +1051,7 @@ export class BackendAttachLink {
 			return;
 		}
 		if (method === "set_editor_text") {
-			this.#ctx.editor.setText(String(event.text ?? ""));
-			this.#ctx.ui.requestRender();
+			this.#ctx.composer.setText(String(event.text ?? ""));
 			return;
 		}
 		if (method === "open_url") {
@@ -1093,7 +1091,7 @@ export class BackendAttachLink {
 				await this.#respond(id, value === undefined ? { cancelled: true } : { value });
 			} else if (method === "ask") {
 				const questions = Array.isArray(event.questions) ? (event.questions as ExtensionAskDialogQuestion[]) : [];
-				const result = await this.#ctx.showAskDialog(questions, { signal });
+				const result = await this.#ctx.showAskDialog?.(questions, { signal });
 				if (!result || result.kind !== "submit") {
 					await this.#respond(id, { cancelled: true });
 				} else {
@@ -1149,7 +1147,7 @@ export class BackendAttachLink {
 			id: label,
 			label,
 		}));
-		const choice = await this.#ctx.showPlanReview(planContent, title, options, {
+		const choice = await this.#ctx.showPlanReview?.(planContent, title, options, {
 			helpText: "Esc cancel · edit the plan inline before approving",
 		});
 		if (choice === undefined || choice === "Refine plan") return;
@@ -1208,7 +1206,7 @@ export class BackendAttachLink {
 					session.setTodoPhases(state.todoPhases as never);
 				}
 				this.#applyQueue(state.queuedMessages);
-				this.#ctx.setGuidedGoalInterviewActive(state.guidedGoalInterview === true);
+				this.#ctx.setGuidedGoalInterviewActive?.(state.guidedGoalInterview === true);
 				if (isRecord(state.modes)) {
 					for (const mode of ["plan", "goal", "vibe"] as const) {
 						const modeState = state.modes[mode];
@@ -1314,10 +1312,10 @@ export class BackendAttachLink {
 		const state = isRecord(value) && value.enabled === true ? (value as unknown as BackendLoopState) : null;
 		this.#loopState = state;
 		if (!state) {
-			this.#ctx.setBackendLoopStatus(undefined);
+			this.#ctx.setBackendLoopStatus?.(undefined);
 			return;
 		}
-		this.#ctx.setBackendLoopStatus({
+		this.#ctx.setBackendLoopStatus?.({
 			state: state.paused ? "paused" : state.prompt ? "running" : "waiting",
 			...(state.limit ? { limit: state.limit } : {}),
 			...(state.condition ? { condition: state.condition } : {}),
@@ -1410,7 +1408,7 @@ export class BackendAttachLink {
 			id: label,
 			label,
 		}));
-		const choice = await this.#ctx.showPlanReview(content, "Plan mode - next step", options, {
+		const choice = await this.#ctx.showPlanReview?.(content, "Plan mode - next step", options, {
 			helpText: "Esc cancel",
 		});
 		if (choice === undefined || choice === "Refine plan") return;

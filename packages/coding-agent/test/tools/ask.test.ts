@@ -1,24 +1,24 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { agentLoop, type AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import type { AgentLoopConfig } from "@oh-my-pi/pi-agent-core/types";
-import * as ai from "@oh-my-pi/pi-ai";
-import type { Api, AssistantMessage, Message, Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { agentLoop, type AgentToolContext } from "@linxiraos/pi-agent-core";
+import type { AgentLoopConfig } from "@linxiraos/pi-agent-core/types";
+import * as ai from "@linxiraos/pi-ai";
+import type { Api, AssistantMessage, Message, Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { TempDir } from "@linxiraos/pi-utils";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type {
 	ExtensionFormDialogResult,
 	ExtensionUIDialogOptions,
 	ExtensionUISelectItem,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { AskTool, recoverAskHtml } from "@oh-my-pi/pi-coding-agent/tools/ask";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import * as terminalSession from "@oh-my-pi/pi-tui/driver/session";
-import { tagImageAttachmentSource } from "@oh-my-pi/pi-coding-agent/utils/image-source";
-import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/extensibility/extensions";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { AskTool, recoverAskHtml } from "@linxiraos/zeta/tools/ask";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import * as terminalSession from "@linxiraos/pi-tui/driver/session";
+import { tagImageAttachmentSource } from "@linxiraos/zeta/utils/image-source";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

@@ -1,7 +1,7 @@
 import { vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { getActiveProfile, setProfile } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { getActiveProfile, setProfile } from "@linxiraos/pi-utils";
 import { extractProfileFlags } from "../../src/cli/profile-bootstrap";
 import { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";

@@ -20,22 +20,22 @@
  * transient (preview, terminal appearance) or should also redraw history.
  */
 import * as path from "node:path";
-import { getCustomThemesDir } from "@oh-my-pi/pi-utils/dirs";
-import { capabilitiesFromEnv, isWsl } from "@oh-my-pi/pi-tui/driver/caps/env";
-import { detectTerminalId } from "@oh-my-pi/pi-tui/driver/caps/identity";
-import type { TerminalCapabilities, TerminalDriver } from "@oh-my-pi/pi-tui/driver/contract";
-import { colorHex, isLightColor, paletteHex } from "@oh-my-pi/pi-tui/theme/color";
-import { builtinThemes, listThemes, loadTheme, loadThemeJson, loadThemeJsonSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { untrack } from "@oh-my-pi/pi-tui";
+import { getCustomThemesDir } from "@linxiraos/pi-utils/dirs";
+import { capabilitiesFromEnv, isWsl } from "@linxiraos/pi-tui/driver/caps/env";
+import { detectTerminalId } from "@linxiraos/pi-tui/driver/caps/identity";
+import type { TerminalCapabilities, TerminalDriver } from "@linxiraos/pi-tui/driver/contract";
+import { colorHex, isLightColor, paletteHex } from "@linxiraos/pi-tui/theme/color";
+import { builtinThemes, listThemes, loadTheme, loadThemeJson, loadThemeJsonSync } from "@linxiraos/pi-tui/theme/loader";
+import { untrack } from "@linxiraos/pi-tui";
 import {
 	currentTheme,
 	setCurrentTheme,
 	type ThemeChangeCause,
 	ThemeController,
 	type ThemeResult,
-} from "@oh-my-pi/pi-tui/theme/runtime";
-import type { ColorValue, SymbolPreset, ThemeJson } from "@oh-my-pi/pi-tui/theme/schema";
-import { type ResolvedTheme, resolveColorValue } from "@oh-my-pi/pi-tui/theme/theme";
+} from "@linxiraos/pi-tui/theme/runtime";
+import type { ColorValue, SymbolPreset, ThemeJson } from "@linxiraos/pi-tui/theme/schema";
+import { type ResolvedTheme, resolveColorValue } from "@linxiraos/pi-tui/theme/theme";
 
 /** Capabilities the theme follows: color support and the background's appearance. */
 export type ThemeCapabilities = Pick<TerminalCapabilities, "truecolor" | "colors" | "dark">;

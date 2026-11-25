@@ -4,7 +4,7 @@
  * per viewed session (a session file swapped in place starts over).
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { StatusLineSettings } from "../src/modes/view-model/status-line/types";
 import type { JobWidgetView } from "../src/tools/details/job-widget";
 import { disposeStatusLines, statusFacts, statusLine, statusSession, statusText } from "./helpers/session-status-line";

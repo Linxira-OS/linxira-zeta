@@ -5,7 +5,7 @@
  * `<system-*>` envelope, bookkeeping entries spelled out with sanitized
  * metadata. Styling belongs to the screen that draws the rows.
  */
-import { isRecord, sanitizeText } from "@oh-my-pi/pi-utils";
+import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
 import { shortenPath, toPathList } from "../../../utils/render-utils";
 
 /** Per-message cap on text folded into a row or the search index. */

@@ -5,6 +5,7 @@ export const STATUS_LINE_SEGMENT_IDS = [
 	"model",
 	"mode",
 	"team",
+	"collab",
 	"path",
 	"git",
 	"pr",

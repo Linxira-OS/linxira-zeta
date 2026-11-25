@@ -1,4 +1,5 @@
 # Task
+
 Label the delegated work in the next user message: one short imperative sentence, ≤9 words, naming the concrete change or investigation.
 {{#if zh}}
 Write the label in Simplified Chinese (简体中文), even when the assignment is in English. Keep code identifiers, file paths, API and product names, CLI flags and other proper nouns exactly as written; never translate them. Only the human-readable words are Chinese; a label is at most about 20 Chinese characters.

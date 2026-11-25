@@ -6,8 +6,8 @@ import {
 	truncateToWidth as nativeTruncateToWidth,
 	wrapTextWithAnsi as nativeWrapTextWithAnsi,
 	type SliceResult,
-} from "@oh-my-pi/pi-natives";
-import { DEFAULT_TAB_WIDTH } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-natives";
+import { DEFAULT_TAB_WIDTH } from "@linxiraos/pi-utils";
 
 export function sliceWithWidth(line: string, startCol: number, length: number, strict?: boolean | null): SliceResult {
 	return nativeSliceWithWidth(line, startCol, length, strict ?? null, DEFAULT_TAB_WIDTH);

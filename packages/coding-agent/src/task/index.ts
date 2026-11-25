@@ -21,9 +21,9 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolSpeculationPolicy,
-} from "@oh-my-pi/pi-agent-core";
-import type { Usage } from "@oh-my-pi/pi-ai";
-import { $env, isRecord, logger, prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import type { Usage } from "@linxiraos/pi-ai";
+import { $env, isRecord, logger, prompt } from "@linxiraos/pi-utils";
 import type { ToolSession } from "..";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { Settings } from "../config/settings";
@@ -82,7 +82,7 @@ import {
 	cfgTaskStructured,
 	perCallModelEnabled,
 } from "./settings";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { TASK_EFFORTS, type TaskEffort } from "../thinking/levels";
 
 function createUsageTotals(): Usage {

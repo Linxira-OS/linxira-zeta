@@ -1,9 +1,9 @@
 import type { ToolApprovalDecision } from "@linxiraos/pi-agent-core";
 import { isRecord } from "@linxiraos/pi-utils";
-import { REPORT_ISSUE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/report-tool-issue";
-import { isResolutionDeviceName } from "@linxiraos/pi-tui/tools/resolve";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { parseXdTopicUrl, parseXdUrl } from "@linxiraos/pi-tui/tools/xd-url";
+import { REPORT_ISSUE_DEVICE_NAME } from "../tools/xd-url";
+import { isResolutionDeviceName } from "../tools/resolve";
+import { ToolError } from "../tools/tool-errors";
+import { parseXdTopicUrl, parseXdUrl } from "../tools/xd-url";
 import type { ToolSession } from "../tools";
 import { resolveToolTier } from "../tools/approval";
 import { dispatchReportIssueDevice, reportIssueDeviceUsage } from "../tools/report-tool-issue";

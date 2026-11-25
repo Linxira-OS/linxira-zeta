@@ -1,5 +1,5 @@
-import { $env } from "@oh-my-pi/pi-utils";
-import { OTARI_EU_BASE_URL, OTARI_US_BASE_URL, serializeOtariCredential } from "@oh-my-pi/pi-catalog/wire/otari";
+import { $env } from "@linxiraos/pi-utils";
+import { OTARI_EU_BASE_URL, OTARI_US_BASE_URL, serializeOtariCredential } from "@linxiraos/pi-catalog/wire/otari";
 import * as AIError from "../../error";
 import { validateApiKeyAgainstModelsEndpoint } from "../api-key-validation";
 import type { OAuthController } from "./types";

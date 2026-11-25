@@ -3,7 +3,7 @@
  * transports (which run inside the omp daemon) parse progress without loading
  * the TUI rendering stack.
  */
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 
 /** Server-reported progress of an in-flight MCP request. */
 export interface MCPProgress {

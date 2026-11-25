@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Framed extension and hook messages: a card headed by the message's type
  * with its text as Markdown, or whatever the extension's renderer returns.
@@ -11,8 +11,8 @@
  *
  * Terminal look: `omp.custom*` / `omp.hook` (`src/ui/styles/messages/frame.ts`).
  */
-import { computed, type JSXNode, type Reactive, read, untrack } from "@oh-my-pi/pi-tui";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import { computed, type JSXNode, type Reactive, read, untrack } from "@linxiraos/pi-tui";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { LIVE_DELEGATION_MESSAGE_TYPE } from "../../../session/transcript/messages";
 import { cardExpansion } from "../expansion";
 
@@ -152,7 +152,7 @@ export function HookMessageBlock(props: {
 	return (
 		<MessageFrame
 			message={props.message}
-			role="omp.hook"
+			role="zeta.hook"
 			collapseAfterLines={HOOK_COLLAPSED_LINES}
 			renderer={props.renderer}
 			expanded={props.expanded}

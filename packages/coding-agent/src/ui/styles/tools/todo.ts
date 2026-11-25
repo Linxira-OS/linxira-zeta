@@ -11,13 +11,13 @@
  * spinner clock from its frame when the list first shows (the still look
  * strikes them at once). Errors use the error frame and tint.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { branchRows, checklistItemText, isClosedItem, phaseTitleRow } from "@oh-my-pi/pi-tui/term/painters/checklist";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspChecklistItem, TspChecklistProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { branchRows, checklistItemText, isClosedItem, phaseTitleRow } from "@linxiraos/pi-tui/term/painters/checklist";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspChecklistItem, TspChecklistProps } from "@linxiraos/pi-wire";
 import { nodePlain, stillMark } from "./agent-common";
 import { frameRows } from "./frame";
 import { defineToolLook, toolProps } from "./look";

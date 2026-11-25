@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Late LSP diagnostics (arrived after an edit or write returned): a
  * severity-toned card with one line per diagnostic, clamped while collapsed;
@@ -7,10 +7,10 @@
  *
  * Terminal look: `omp.diagnostics.late` (`src/ui/styles/messages/diagnostics.ts`).
  */
-import { type JSXNode, type Reactive, read } from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { LateDiagnosticsFile } from "../../../session/transcript/late-diagnostics-message";
 import type { FileDiagnostics } from "../../tools/file-common";
 import { cardExpansion } from "../expansion";
@@ -49,7 +49,7 @@ export function LateDiagnostics(props: {
 	if (report?.summary) head.push({ t: ` (${stripEscapes(report.summary)})`, s: "dim" });
 	return (
 		<card
-			role="omp.diagnostics.late"
+			role="zeta.diagnostics.late"
 			tone={errored ? "error" : "warning"}
 			head={head}
 			collapsible

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The transcript: the main region's blocks, in order.
  *
@@ -35,9 +35,9 @@ import {
 	type UiNode,
 	untrack,
 	useContext,
-} from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
+} from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
 import { mountNode, type ViewEntry, ViewList } from "./views";
 
 /** A block in the transcript. */
@@ -386,7 +386,7 @@ export class Transcript {
 		// A self-spaced block keeps its blank rows; any other has them trimmed (the separator spaces it).
 		const entry = options?.spacedBelow
 			? mountNode(build, "A transcript block")
-			: mountNode(() => <col role="omp.block">{build()}</col>, "A transcript block");
+			: mountNode(() => <col role="zeta.block">{build()}</col>, "A transcript block");
 		this.#holds.set(entry.node, holds!);
 		const native: Accessor<readonly UiNode[]> = options?.spacedBelow
 			? options.inline
@@ -483,7 +483,7 @@ function compactRun(initial: readonly UiNode[]): CompactRun {
 	// region's reactive scope (a recompute must not dispose it).
 	const entry = mountNode(
 		() => (
-			<col role="omp.compact" gap="none">
+			<col role="zeta.compact" gap="none">
 				{members}
 			</col>
 		),

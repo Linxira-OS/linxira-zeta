@@ -4,11 +4,11 @@
  * as a reverse-video banner in its tone: blank, `✓ Accept: summary ⟦tool⟧`,
  * blank, the reason in italics, blank.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { bannerRow, nodePlain, spansOf, stillMark } from "./agent-common";
 import { bracketed, isActive } from "./frame";
 import { defineToolLook, type ToolProps, toolProps } from "./look";

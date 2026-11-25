@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ImageContent, UserMessage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
+import type { AssistantMessage, ImageContent, UserMessage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { recapBlock } from "../../../src/modes/controllers/event-blocks";
 import { initTheme } from "../../../src/ui/theme/service";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { isSettled } from "@oh-my-pi/pi-tui";
-import type { PendingTool } from "@oh-my-pi/pi-coding-agent/modes/types";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import { isSettled } from "@linxiraos/pi-tui";
+import type { PendingTool } from "@linxiraos/zeta/modes/types";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 import { blockText } from "../../helpers/transcript-text";
 

@@ -13,7 +13,7 @@
  */
 
 import type { AgentTool, AgentToolResult, ToolApprovalDecision } from "@linxiraos/pi-agent-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { type } from "@linxiraos/zeta-schema";
 import { cfgDisabledExtensions, cfgSkills } from "../extensibility/settings";
 import { loadSkills, type Skill } from "../extensibility/skills";

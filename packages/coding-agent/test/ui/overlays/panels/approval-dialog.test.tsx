@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
 import { ApprovalDialog, type ApprovalDialogOptions } from "../../../../src/ui/overlays/panels/approval-dialog";
 import { type Driver, panelSuite } from "./harness";
 

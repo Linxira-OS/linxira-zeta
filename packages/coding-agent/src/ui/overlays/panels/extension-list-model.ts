@@ -4,8 +4,8 @@
  * or a flat list of search hits; the selection, its window, the search
  * field, and the row under the pointer.
  */
-import { signal } from "@oh-my-pi/pi-tui";
-import type { TspPickerGroup, TspPickerItem, TspTone } from "@oh-my-pi/pi-wire";
+import { signal } from "@linxiraos/pi-tui";
+import type { TspPickerGroup, TspPickerItem, TspTone } from "@linxiraos/pi-wire";
 import { sanitizeDisplayLine } from "../../../extensibility/inventory/display-text";
 import type {
 	MCPConnectionHealth,

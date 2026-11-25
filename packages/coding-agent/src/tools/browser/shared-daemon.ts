@@ -21,7 +21,7 @@ import {
 	logger,
 	sanitizeText,
 	withTimeout,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { daemonClient } from "../../daemon/client";
 import { canonicalProjectDir } from "../../daemon/paths";
 import { type DaemonClient, type OpenRequest, projectScope } from "../../daemon/protocol";

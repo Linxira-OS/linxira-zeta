@@ -15,7 +15,7 @@ import type { Message } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { type } from "@linxiraos/zeta-schema";
-import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
+import { PROPOSE_DEVICE_NAME } from "../../src/tools/resolve";
 import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";

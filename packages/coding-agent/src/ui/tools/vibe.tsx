@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Vibe (worker CLI sessions the director drives): spawn and send show a mini
  * composer (the message being typed, then the delivery outcome); wait and
@@ -9,9 +9,9 @@
  * frame (`term.frame`: `composer`, `line`, `wall`) and the line look's text
  * (`term.line`, `term.meta`); wall card texts name their part (`term.part`).
  */
-import type { TspCardStatus, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import { toolIntentLabel } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { TspCardStatus, TspSpan, TspTone } from "@linxiraos/pi-wire";
+import { toolIntentLabel } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import type { ToolPresenter, ToolResult, ToolView } from "./contract";
 import { cleanText, ErrorText, NoteText, oneLine } from "./agent-common";
 import { resultText } from "./default";
@@ -123,7 +123,7 @@ function Composer(props: { readonly message: string }): JSXNode {
 	if (!trimmed) return undefined;
 	return (
 		<text
-			role="omp.vibe.composer"
+			role="zeta.vibe.composer"
 			spans={[
 				{ s: "accent", t: "> " },
 				{ s: "toolOutput", t: trimmed },
@@ -232,7 +232,7 @@ function ScreenCard(props: {
 	return (
 		<card
 			key={screen.id}
-			role="omp.vibe.screen"
+			role="zeta.vibe.screen"
 			status={status}
 			tone={tone}
 			head={head}

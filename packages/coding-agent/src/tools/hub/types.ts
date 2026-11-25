@@ -1,4 +1,4 @@
-import { type CoordinationDetails } from "@linxiraos/pi-tui/tools/hub";
+import { type CoordinationDetails } from "./protocol";
 /**
  * Shared types for the hub tool — the merged agent-coordination surface
  * covering peer messaging (IRC bus), background-job control, and supervised

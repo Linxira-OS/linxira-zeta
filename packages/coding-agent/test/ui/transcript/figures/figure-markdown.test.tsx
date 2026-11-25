@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
 import { DEFAULT_FIGURE_CELL, FigureMarkdown, figureWorkSettled } from "../../../../src/ui/transcript/figures";
 import { single } from "../messages/harness";
 import { figureSuite } from "./harness";

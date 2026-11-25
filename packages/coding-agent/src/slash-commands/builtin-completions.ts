@@ -49,7 +49,7 @@ export function buildArgumentCompletions(
 			.map(s => ({
 				value: `${s.name} `,
 				label: s.name,
-				description: s.description,
+				description: typeof s.description === "function" ? s.description() : s.description,
 				hint: subcommandRemainderHint(s, lower),
 			}));
 		return matches.length > 0 ? matches : null;

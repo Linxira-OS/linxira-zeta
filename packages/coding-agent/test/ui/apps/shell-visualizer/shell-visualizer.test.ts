@@ -1,4 +1,4 @@
-import type { ShellVizPresentation, ShellVizRow } from "@oh-my-pi/pi-wire";
+import type { ShellVizPresentation, ShellVizRow } from "@linxiraos/pi-wire";
 import { defaultShellVizPreferences } from "../../../../src/tools/shell-viz";
 import { applyShellVizAction, ShellVisualizer, ShellVisualizerModel } from "../../../../src/ui/apps/shell-visualizer";
 import { type AppDriver, appSuite } from "../harness";

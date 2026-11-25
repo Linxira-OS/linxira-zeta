@@ -8,9 +8,9 @@ import * as util from "node:util";
 import * as vm from "node:vm";
 
 // Subpath imports only: the computer worker's readiness graph includes this runtime and must not
-// load pi_natives (verified under `--no-addons`); the `@oh-my-pi/pi-utils` barrel loads it eagerly.
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import { isRecord } from "@oh-my-pi/pi-utils/type-guards";
+// load pi_natives (verified under `--no-addons`); the `@linxiraos/pi-utils` barrel loads it eagerly.
+import * as logger from "@linxiraos/pi-utils/logger";
+import { isRecord } from "@linxiraos/pi-utils/type-guards";
 
 import type { EvalTableColumn } from "../../../tools/details/eval";
 import { type EvalDisplayOutput, evalImageMetadata } from "../../types";
@@ -333,7 +333,7 @@ export class JsRuntime {
 				currentJSON.stringify === this.#initialIntrinsics.stringify,
 			"Array.prototype.join": Array.prototype.join === this.#initialIntrinsics.arrayJoin,
 			"Object.prototype.toString": Object.prototype.toString === this.#initialIntrinsics.objectToString,
-			__omp_call_tool__: (globalThis as Record<string, unknown>).__omp_call_tool__ === this.#installedCallTool,
+			__zeta_call_tool__: (globalThis as Record<string, unknown>).__zeta_call_tool__ === this.#installedCallTool,
 		};
 		return Object.freeze({
 			revision: this.#namespaceRevision,
@@ -619,7 +619,7 @@ export class JsRuntime {
 				context.callOccurrences.set(siteId, occurrence + 1);
 				return this.#callSiteAls.run({ siteId, occurrence }, action);
 			},
-			__omp_call_tool__: async (name: string, args: unknown) => {
+			__zeta_call_tool__: async (name: string, args: unknown) => {
 				const hooks = this.#activeHooks("tool");
 				if (!hooks) return undefined;
 				return surfaceBridgedToolImages(await hooks.callTool(name, args, this.#callSiteAls.getStore()), hooks);
@@ -709,13 +709,13 @@ export class JsRuntime {
 		indirectEval(JAVASCRIPT_PRELUDE_SOURCE);
 		for (const key of allGlobalKeys) recordGlobalValue(key, this.#globalOwner);
 		// Capture the installed bridge dispatcher for the snapshot identity
-		// flag below. The prelude tool proxy resolves `__omp_call_tool__` per
+		// flag below. The prelude tool proxy resolves `__zeta_call_tool__` per
 		// call, so the flag must track this binding. (Steady-state retained
 		// replacements self-heal: owned-global activation restores the recorded
 		// value before any observation. The `tool` binding itself needs no
 		// flag: the prelude declares it as a lexical const, which shadows any
 		// `globalThis.tool` replacement for bare references.)
-		this.#installedCallTool = (globalThis as Record<string, unknown>).__omp_call_tool__;
+		this.#installedCallTool = (globalThis as Record<string, unknown>).__zeta_call_tool__;
 		RUN_HOOK_RESOLVERS.add(this.#runHookResolver);
 		patchStdioOnce();
 	}

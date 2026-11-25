@@ -1,16 +1,16 @@
 import type { AstEditToolDetails } from "./details/ast-edit";
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
-import { type AstReplaceChange, type AstReplaceFileChange, astEdit, type ShellFilesystem } from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
+import { type AstReplaceChange, type AstReplaceFileChange, astEdit, type ShellFilesystem } from "@linxiraos/pi-natives";
 
-import { $envpos, isRecord, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+import { $envpos, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
 import { getEditStore } from "../edit/store";
 import { normalizeToLF } from "../edit/normalize";
 import { InternalUrlRouter, sessionResolveContext } from "../internal-urls";
@@ -30,7 +30,7 @@ import { formatGroupedFiles } from "./grouped-file-output";
 
 import { relativeSearchResultPath, resolveTargetResultPath, resolveToolSearchScope } from "./path-utils";
 import { capParseErrors, formatCodeFrameLine, formatParseErrors } from "../utils/render-utils";
-import { formatCount } from "@oh-my-pi/pi-utils";
+import { formatCount } from "@linxiraos/pi-utils";
 import { PREVIEW_PENDING_NOTICE, queueResolveHandler } from "./resolve";
 import { ToolError } from "./tool-errors";
 import { toolResult } from "./tool-result";

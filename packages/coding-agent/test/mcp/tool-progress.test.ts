@@ -1,21 +1,21 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { CustomToolContext } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/types";
-import { MCPTool, PROGRESS_UPDATE_INTERVAL_MS } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { CustomToolContext } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import { MCPTool, PROGRESS_UPDATE_INTERVAL_MS } from "@linxiraos/zeta/mcp/tool-bridge";
 import type {
 	MCPRequestOptions,
 	MCPServerConnection,
 	MCPToolCallResult,
 	MCPTransport,
-} from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { MCPToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/mcp";
-import type { MCPProgress } from "@oh-my-pi/pi-coding-agent/tools/mcp-progress";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/mcp/types";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { MCPToolDetails } from "@linxiraos/zeta/tools/details/mcp";
+import type { MCPProgress } from "@linxiraos/zeta/mcp/types";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

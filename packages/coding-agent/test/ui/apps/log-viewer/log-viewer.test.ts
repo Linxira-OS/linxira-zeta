@@ -1,8 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { ResolvedTheme } from "@oh-my-pi/pi-tui/theme/theme";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { ResolvedTheme } from "@linxiraos/pi-tui/theme/theme";
 import { LogViewer, LogViewerModel } from "../../../../src/ui/apps/log-viewer";
 import { type AppDriver, type AppScreen, appSuite, paintAppRows } from "../harness";
 import { click, mouse } from "../raw-sse/mouse";

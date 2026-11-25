@@ -3,9 +3,9 @@
  * line, the list markers' accent, and Tern's inline prefix.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
-import { createRoot, setNativeRenderingForTest } from "@oh-my-pi/pi-tui";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot, setNativeRenderingForTest } from "@linxiraos/pi-tui";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { Composer } from "../../../src/ui/composer";
 import { attachQueueShorthand } from "../../../src/ui/composer/queue-shorthand";
 import { initTheme } from "../../../src/ui/theme/service";

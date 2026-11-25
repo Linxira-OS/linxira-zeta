@@ -2,30 +2,30 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentState } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import type { ScopedModel } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as pluginHelpers from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
-import { buildModelScopeNotification, runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { beginStartupComposer, stopPendingStartupComposer } from "@oh-my-pi/pi-coding-agent/modes/startup-composer";
+import type { AgentState } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import type { ScopedModel } from "@linxiraos/zeta/config/model-resolver";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { buildModelScopeNotification, runRootCommand } from "@linxiraos/zeta/main";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { beginStartupComposer, stopPendingStartupComposer } from "@linxiraos/zeta/modes/startup-composer";
 import {
 	cfgMarketplaceAutoUpdate,
 	cfgStartupChangelogMode,
 	cfgStartupCheckUpdate,
 	cfgStartupSetupWizard,
 	cfgStartupShowSplash,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
-import { closeSessionIndex } from "@oh-my-pi/pi-coding-agent/session/session-index";
+} from "@linxiraos/zeta/modes/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import {
 	__resetDirsFromEnvForTests,
 	getProjectDir,
@@ -33,8 +33,8 @@ import {
 	setAgentDir,
 	setInteractiveHost,
 	setProjectDir,
-} from "@oh-my-pi/pi-utils";
-import { memoryTerminal } from "@oh-my-pi/pi-tui/testing/memory-terminal";
+} from "@linxiraos/pi-utils";
+import { memoryTerminal } from "@linxiraos/pi-tui/testing/memory-terminal";
 import { createTestSession, type TestSessionContext } from "./utilities";
 import { initTheme } from "../src/ui/theme/service";
 

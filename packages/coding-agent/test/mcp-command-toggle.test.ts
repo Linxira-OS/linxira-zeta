@@ -2,11 +2,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SourceMeta } from "@oh-my-pi/pi-coding-agent/capability/types";
-import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { readMCPConfigFile } from "@oh-my-pi/pi-coding-agent/mcp/config-writer";
-import type { MCPDroppedServer } from "@oh-my-pi/pi-coding-agent/mcp/transforms";
-import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
+import type { SourceMeta } from "@linxiraos/zeta/capability/types";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { readMCPConfigFile } from "@linxiraos/zeta/mcp/config-writer";
+import type { MCPDroppedServer } from "@linxiraos/zeta/mcp/transforms";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -14,7 +14,7 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { createInteractiveModeContext, createMcpManagerStub } from "./helpers/interactive-mode-context";
 import { initTheme } from "../src/ui/theme/service";
 

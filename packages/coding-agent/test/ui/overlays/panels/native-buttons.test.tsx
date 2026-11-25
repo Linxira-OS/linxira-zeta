@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The shared button-like controls as Tern receives them: `button` nodes and
  * segmented `tabs`, whose clicks run the same action the row/icon did.
  */
 import { describe, expect, it } from "bun:test";
-import { signal } from "@oh-my-pi/pi-tui";
-import { memoryTerminal } from "@oh-my-pi/pi-tui/testing/memory-terminal";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { signal } from "@linxiraos/pi-tui";
+import { memoryTerminal } from "@linxiraos/pi-tui/testing/memory-terminal";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import {
 	ActionButton,
 	EscCloseButton,

@@ -4,12 +4,12 @@
  * source highlighted in its file's language, and fitting file groups into a
  * row budget with a `… N more` summary.
  */
-import type { PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { highlightCode, supportsLanguage } from "@oh-my-pi/pi-tui/text/highlight";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
-import { stripControl } from "@oh-my-pi/pi-tui/text/sanitize";
-import { replaceTabs, truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { highlightCode, supportsLanguage } from "@linxiraos/pi-tui/text/highlight";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
+import { stripControl } from "@linxiraos/pi-tui/text/sanitize";
+import { replaceTabs, truncate } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import {
 	type GroupedLinks,
 	type GroupedRow,

@@ -11,7 +11,7 @@
 import * as fs from "node:fs";
 import { IpcConnection, IpcServer } from "@linxiraos/pi-natives";
 import { acquireFileLock, logger, postmortem, setProcessName } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { DISASM_BACKENDS, type DisasmBackendId } from "./backend";
 
 export { DISASM_HOST_WORKER_ARG } from "../cli/worker-selectors";

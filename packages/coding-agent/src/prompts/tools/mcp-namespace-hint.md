@@ -3,5 +3,6 @@ Write one routing hint of at most 15 words: WHEN to call these functions; WHEN N
 Namespace: {{name}} (MCP server {{#each servers}}{{this}}{{#unless @last}}, {{/unless}}{{/each}})
 Functions:
 {{#each methods}}
+
 - {{name}}: {{description}}
-{{/each}}
+  {{/each}}

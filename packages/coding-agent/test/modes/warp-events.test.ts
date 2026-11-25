@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { VERSION } from "@oh-my-pi/pi-utils/dirs";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import type {
 	AgentEndEvent,
 	AgentStartEvent,

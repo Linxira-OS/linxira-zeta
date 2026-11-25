@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Live board and scoreboard for `omp if-bench`.
  *
@@ -8,8 +8,8 @@
  * settles. Non-TTY output falls back to one plain line per turn so scripted
  * callers keep a parseable trace.
  */
-import { formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type {
 	IfBenchFailure,
 	IfBenchModelReport,

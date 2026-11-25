@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A Markdown table's chart: the table's numbers planned into a chart (the
  * local planner's guess), drawn as SVG and rastered like any figure. Tables
@@ -7,8 +7,8 @@
  *
  * Terminal look: `src/ui/styles/figures/figure.ts` (`omp.figure.chart`).
  */
-import { computed, effect, type JSXNode, type Reactive, read, untrack } from "@oh-my-pi/pi-tui";
-import { lexMarkdown, type Tokens } from "@oh-my-pi/pi-tui/text/markdown/lexer";
+import { computed, effect, type JSXNode, type Reactive, read, untrack } from "@linxiraos/pi-tui";
+import { lexMarkdown, type Tokens } from "@linxiraos/pi-tui/text/markdown/lexer";
 import { buildChart, planChart } from "../../../auto-graph/chart-plan";
 import { analyzeTable } from "../../../auto-graph/table-data";
 import { renderChartSvg } from "../../../auto-graph/chart-svg";
@@ -52,6 +52,6 @@ export function TableChart(
 		if (svg() === undefined || (rows !== undefined && rows < CHART_MIN_ROWS)) return undefined;
 		const state = raster.state();
 		if (state.status !== "ready") return undefined;
-		return untrack(() => <RasterImage raster={state.raster} role="omp.figure.chart" term={term} />);
+		return untrack(() => <RasterImage raster={state.raster} role="zeta.figure.chart" term={term} />);
 	};
 }

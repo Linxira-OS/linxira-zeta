@@ -14,7 +14,6 @@ import { APP_NAME, isTerminalHeadless, sanitizeText } from "@linxiraos/pi-utils"
 import { writeTerminalSequence } from "@linxiraos/pi-tui/driver/session";
 import { setTerminalTitleState, type TerminalTitleState } from "./title-generator";
 import { type Accessor, signal } from "@linxiraos/pi-tui";
-import { writeTerminalSequence } from "@linxiraos/pi-tui/driver/session";
 
 /** What a blocked run waits on: an approval (`permission`) or an answer (`question`). */
 export type BlockedKind = "permission" | "question";

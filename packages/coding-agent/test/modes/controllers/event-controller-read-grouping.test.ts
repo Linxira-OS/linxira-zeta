@@ -13,17 +13,17 @@
  * one-entry block).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ImageContent, ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import type { AssistantView, InteractiveModeContext, PendingTool } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { isSettled, nativeSupports } from "@oh-my-pi/pi-tui";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { TSP_KINDS } from "@oh-my-pi/pi-wire";
+import type { AssistantMessage, ImageContent, ToolResultMessage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import type { AssistantView, InteractiveModeContext, PendingTool } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { isSettled, nativeSupports } from "@linxiraos/pi-tui";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { TSP_KINDS } from "@linxiraos/pi-wire";
 import { followInlineImageLimits } from "../../../src/ui/transcript/messages/image";
 import { initTheme } from "../../../src/ui/theme/service";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
@@ -34,7 +34,7 @@ import {
 	cfgDisplayShowTokenUsage,
 	cfgTerminalShowImages,
 	cfgTuiMaxInlineImageRows,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
+} from "@linxiraos/zeta/modes/settings";
 
 beforeAll(() => {
 	initTheme();

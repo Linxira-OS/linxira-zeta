@@ -3291,3 +3291,12 @@ export class InputController {
 		}
 	}
 }
+
+// The backend-attach routing tables live in `backend/attach-commands`; re-export
+// the predicates here for the attach tests and callers that reach them through
+// the controller (the 19.1 surface).
+export {
+	backendAttachRefusalHint,
+	isBackendAttachLocalCommand,
+	isBackendAttachRefusedCommand,
+} from "../../backend/attach-commands";

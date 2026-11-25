@@ -7,10 +7,10 @@
  * - when even that does not fit, the most important lines first (status,
  *   keys, session, title, clock), and on one row `Paused · ⎋ to resume`.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { formatDuration } from "@oh-my-pi/pi-tui/term/painters/elapsed";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { formatDuration } from "@linxiraos/pi-tui/term/painters/elapsed";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { keyLabel } from "../../keys/hints";
 import { termOf } from "./common";
 import { appInterruptKeys } from "../../../config/keybindings/matchers";

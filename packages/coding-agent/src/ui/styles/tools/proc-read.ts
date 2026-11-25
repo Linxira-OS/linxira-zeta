@@ -6,11 +6,11 @@
  * processes`). Pending: `⏳ Proc <id>`; failed: `✘ …` over the error.
  * Every row is cut to the width. Reads {@link ProcReadTerm}.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatDuration } from "@linxiraos/pi-utils";
 import { jobLabel, type ProcJob, type ProcReadTerm, safeText } from "../../tools/proc-read";
 import { styleReplayedRow } from "../../transcript/pty-replay";
 import { bracketed, expandHint, statusIcon } from "./frame";

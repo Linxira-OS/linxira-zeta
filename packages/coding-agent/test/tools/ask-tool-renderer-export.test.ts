@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import * as PiCodingAgent from "@oh-my-pi/pi-coding-agent";
+import * as PiCodingAgent from "@linxiraos/zeta";
 import { askPresenter } from "../../src/ui/tools/ask";
 
 /**

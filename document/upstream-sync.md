@@ -3509,3 +3509,22 @@ Automation completion checks (2026-11-15): fixed quick profile passed 3/3; autom
   implied by this entry.
 - Test callsites that still lag the OMP 19.1 API were marked `@ts-nocheck`
   as a merge checkpoint; remove those markers as the follow-up migration.
+
+## 2026-11-25: OMP v19.2.0
+
+- Source tag `v19.2.0` = `5c5ecb16fa4903c09a57a84983e482d9c9c2232e`; prior
+  baseline `v19.1.0` = `a7135b8f318`.
+- Real merge on `sync/omp-release/v19.2.0` from `c1deb382dcd`; merge commit
+  `cc12f580c58`; `git merge-base --is-ancestor v19.2.0 HEAD` passes.
+- Conflict count `1994 -> 0`; 669 delete/modify conflicts accepted as upstream
+  deletions; 1247 content conflicts resolved from the merge worktree.
+- Upstream change is a TUI platform replacement: `packages/tui/src` changes 620
+  files (+41,166/−213,542), `packages/coding-agent/src/ui` adds 442 files
+  (+105,575), extension/custom-tool rendering moves to the host pi-tui node API.
+- TUI package is ported and type-checks green (`packages/tui`: 813 files).
+  `packages/agent`, `utils`, `browser-relay`, `stats`, `natives` also green.
+- `packages/coding-agent` API migration is in progress; remaining errors are
+  Zeta-only fields/adapters removed by the upstream rewrite (session/xdev,
+  channels, backend attach, lead mode, Studio Host). This entry does **not**
+  claim semantic acceptance, `check:ts` green, push, tag, or release.
+

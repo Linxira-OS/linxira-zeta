@@ -9,15 +9,11 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-	getKeybindings,
-	KeybindingsManager,
-	setKeybindings,
-} from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { getKeybindings, KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { Composer } from "../src/ui/composer/composer";
 import { createInputHarness } from "./helpers/input-harness";
 

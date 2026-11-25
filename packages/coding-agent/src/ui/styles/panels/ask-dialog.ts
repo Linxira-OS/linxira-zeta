@@ -10,12 +10,12 @@
  * the terminal and never below ten rows; the column scrolls inside it,
  * following the highlighted row.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type Painter } from "@oh-my-pi/pi-tui/term/paint";
-import { highlightCode } from "@oh-my-pi/pi-tui/text/highlight";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/index";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { padTo, replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type Painter } from "@linxiraos/pi-tui/term/paint";
+import { highlightCode } from "@linxiraos/pi-tui/text/highlight";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/index";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { padTo, replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import type { AskDialogModel, AskFoldSummary, AskRow } from "../../overlays/panels/ask-dialog";
 import { foldPills, inlineCodeSpans, inlineText } from "../../overlays/panels/ask-dialog";
 import { bindingGlyph, boxRows, termOf } from "./common";

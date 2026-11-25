@@ -6,13 +6,13 @@
  * keywords and failures.
  */
 import * as path from "node:path";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { highlightCode, supportsLanguage } from "@oh-my-pi/pi-tui/text/highlight";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
-import { replaceTabs, truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspProgressProps, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { highlightCode, supportsLanguage } from "@linxiraos/pi-tui/text/highlight";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
+import { replaceTabs, truncate, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspProgressProps, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import { splitUrlScheme } from "../../../internal-urls/url-scheme";
 import type { FindTerm } from "../../tools/find";
 import { fileLink, uriLink } from "./file-common";

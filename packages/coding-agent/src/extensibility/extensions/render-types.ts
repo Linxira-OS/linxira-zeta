@@ -1,7 +1,7 @@
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspText } from "@oh-my-pi/pi-wire";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspText } from "@linxiraos/pi-wire";
 import type { TodoItem } from "../../tools/details/todo";
 import type {
 	BashExecutionMessage,
@@ -27,7 +27,7 @@ export interface ExtensionRows {
 }
 
 /**
- * What extension renderers and custom UI return: pi-tui nodes (JSX via `@oh-my-pi/pi-tui`, node
+ * What extension renderers and custom UI return: pi-tui nodes (JSX via `@linxiraos/pi-tui`, node
  * objects, strings, arrays, accessors) or an {@link ExtensionRows} object.
  */
 export type ExtensionRender = JSXNode | ExtensionRows;

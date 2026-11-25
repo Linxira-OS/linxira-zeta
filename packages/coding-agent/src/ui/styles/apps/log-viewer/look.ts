@@ -4,9 +4,9 @@
  * and filter lines, the entries with cursor, selection and fold markers, the
  * status and key hints. Pointer events anywhere on it go to the viewer.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
 import type { LogViewerModel } from "../../../apps/log-viewer/model";
 import { paintViewerFrame } from "../viewer/frame";
 

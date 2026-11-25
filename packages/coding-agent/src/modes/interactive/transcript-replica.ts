@@ -9,8 +9,8 @@
  * request's usage row, which the replay flushes when the next entry starts,
  * stays with the turn it measures. Entries that draw nothing have no turn.
  */
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { type Signal, signal, type UiNode } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { type Signal, signal, type UiNode } from "@linxiraos/pi-tui";
 import { getAssistantMessageLinkTargets } from "../../session/transcript/link-targets";
 import { ServedModelTracker } from "../../session/transcript/served-model-marker";
 import {

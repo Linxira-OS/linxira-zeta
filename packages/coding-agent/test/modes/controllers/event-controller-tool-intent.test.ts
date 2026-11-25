@@ -1,8 +1,8 @@
 // A live tool card renders the model's intent, as a card rebuilt from the transcript does.
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Settings, resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import type { PendingTool } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { Settings, resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import type { PendingTool } from "@linxiraos/zeta/modes/types";
 import { initTheme } from "../../../src/ui/theme/service";
 import { createAssistantMessage } from "../../helpers/agent-session-setup";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";

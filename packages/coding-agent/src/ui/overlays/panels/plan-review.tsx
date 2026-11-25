@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The plan review: the plan as an editable, commentable document beside its
  * Contents (while it has no comments), the decision dock (an Approve split
@@ -10,8 +10,8 @@
  * The terminal draws it as one fullscreen box (role look `omp.planReview`)
  * and drives it with keys: see {@link PlanReviewModel}.
  */
-import { computed, type JSXNode, type KeyEvent, type UiNode, untrack } from "@oh-my-pi/pi-tui";
-import type { TspMenuItem } from "@oh-my-pi/pi-wire";
+import { computed, type JSXNode, type KeyEvent, type UiNode, untrack } from "@linxiraos/pi-tui";
+import type { TspMenuItem } from "@linxiraos/pi-wire";
 import { sanitizeStatusText } from "../../../modes/view-model/chrome/shared";
 import { findNode } from "../../styles/panels/common";
 import "../../styles/panels/plan-review";
@@ -61,10 +61,10 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 	});
 
 	const doc = () => (
-		<col key="body" role="omp.plan.body" grow={1}>
+		<col key="body" role="zeta.plan.body" grow={1}>
 			<doc
 				key="doc"
-				role="omp.plan.doc"
+				role="zeta.plan.doc"
 				text={() => (rev(), model.docText())}
 				edit
 				comment
@@ -86,7 +86,7 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 	const toc = () => (
 		<list
 			key="toc"
-			role="omp.plan.toc"
+			role="zeta.plan.toc"
 			actions={{ click: "select", dblclick: "activate" }}
 			selected={() => {
 				rev();
@@ -113,8 +113,8 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 	);
 
 	const dock = () => (
-		<row key="dock" role="omp.plan.dock" gap="sm" align="center">
-			<buttons key="approve" role="omp.plan.approve" variant="split">
+		<row key="dock" role="zeta.plan.dock" gap="sm" align="center">
+			<buttons key="approve" role="zeta.plan.approve" variant="split">
 				<button
 					key="main"
 					text={() => (rev(), model.hasFeedback && model.refine ? "Refine" : "Approve")}
@@ -145,7 +145,7 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 			{model.slider && model.slider.segments.length >= 2 && (
 				<menu
 					key="model"
-					role="omp.plan.model"
+					role="zeta.plan.model"
 					text={() => {
 						rev();
 						const active = model.slider!.segments[model.sliderIndex]!;
@@ -166,10 +166,10 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 				/>
 			)}
 			<spacer grow={1} />
-			{model.callbacks.onSave && <button key="save" role="omp.btn" text="Save" actions={{ click: "save" }} />}
+			{model.callbacks.onSave && <button key="save" role="zeta.btn" text="Save" actions={{ click: "save" }} />}
 			<button
 				key="cancel"
-				role="omp.btn"
+				role="zeta.btn"
 				text="Cancel"
 				keys={keysOf(model.cancelKey)}
 				actions={{ click: "cancel" }}
@@ -224,7 +224,7 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 	];
 
 	const feedback = () => (
-		<col key="feedback" role="omp.plan.feedback" gap="xs">
+		<col key="feedback" role="zeta.plan.feedback" gap="xs">
 			<text
 				key="annotateHead"
 				truncate="end"
@@ -241,7 +241,7 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 					];
 				}}
 			/>
-			<col role="omp.field">
+			<col role="zeta.field">
 				<editor
 					key="input"
 					text={() => (rev(), model.draft.text)}

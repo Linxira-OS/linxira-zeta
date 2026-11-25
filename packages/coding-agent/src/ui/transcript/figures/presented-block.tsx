@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A transcript block (a message or an event) drawn the way the extension
  * transcript presenters ask: in full (its own face), as one compact tool row
@@ -11,10 +11,10 @@
  *
  * Terminal look of the compact row: `src/ui/styles/figures/presented.ts`.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import { computed, type JSXNode, type Reactive, read, resolveChildren, type UiNode, untrack } from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import type { TspSpan, TspText, TspToolProps } from "@oh-my-pi/pi-wire";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { computed, type JSXNode, type Reactive, read, resolveChildren, type UiNode, untrack } from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import type { TspSpan, TspText, TspToolProps } from "@linxiraos/pi-wire";
 import type { TranscriptBlock, TranscriptPresentation } from "../../../extensibility/extensions/render-types";
 
 /** What a compact row says about a block. */

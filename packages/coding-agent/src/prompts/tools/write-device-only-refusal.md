@@ -1,4 +1,5 @@
 This `write` tool is limited to the xd:// device transport and local:// session scratch:
+
 - call it with path `xd://<tool>` and the device's JSON arguments in `content` (`read xd://` lists mounted devices), or
 - write a `local://<name>` file.
 

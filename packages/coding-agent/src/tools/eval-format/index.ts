@@ -1,6 +1,6 @@
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import type { EvalLanguage } from "../details/eval";
-import { EvalLanguage } from "../details/eval";
+
 import { formatJavaScriptForDisplay } from "./javascript";
 import { formatPythonForDisplay } from "./python";
 

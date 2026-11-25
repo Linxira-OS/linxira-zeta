@@ -3,8 +3,8 @@
  * scrolled to the panel's offset (with a scrollbar when it overflows), and
  * the key hint; cut to the panel's most rows.
  */
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { boxRows, termOf } from "./common";
 
 interface ReportTerm {

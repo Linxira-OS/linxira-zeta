@@ -3,7 +3,7 @@
  * the shape picker's preview with the gallery session's status line where
  * the shape puts it.
  */
-import { signal } from "@oh-my-pi/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
 import type { StatusLineSettings } from "../../modes/view-model/status-line/types";
 import { ComposerShapePreview } from "../../ui/overlays/composer-shape-preview";
 import { printRows } from "../../ui/print-rows";

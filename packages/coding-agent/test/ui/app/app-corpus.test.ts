@@ -8,8 +8,8 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
-import { CORPUS_DIR } from "@oh-my-pi/pi-tui/testing/corpus";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
+import { CORPUS_DIR } from "@linxiraos/pi-tui/testing/corpus";
 import { captureStage, skipsAt } from "../deviations";
 import type { ReplayedStage } from "./replay";
 

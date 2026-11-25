@@ -1,8 +1,8 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** The settings capture builder's host, rebuilt from a case's plain-JSON fixture. */
-import { createRoot, type UiNode } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
-import type { CorpusCase } from "@oh-my-pi/pi-tui/testing/corpus";
+import { createRoot, type UiNode } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
+import type { CorpusCase } from "@linxiraos/pi-tui/testing/corpus";
 import type { SettingsDisplayEntry, SettingsHost } from "../../../src/config/settings-defs";
 import type { PluginSettingsHost } from "../../../src/modes/view-model/overlays/plugin-settings";
 import { createPluginSettingsPage } from "../../../src/ui/overlays/plugins/settings";

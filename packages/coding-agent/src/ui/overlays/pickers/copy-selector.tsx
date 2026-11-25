@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/copy`: pick what to put on the clipboard from the transcript, as a
  * `timeline` picker of the branch's turns.
@@ -13,10 +13,10 @@
  * blocks (`./transcript-turns`; ^O expands them), the outlined turn boxed, or
  * the turn's blocks in its place once descended.
  */
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { type Accessor, batch, computed, type JSXNode, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
-import { lexMarkdown } from "@oh-my-pi/pi-tui/text/markdown/lexer";
-import type { TspPickerAction, TspPickerItem } from "@oh-my-pi/pi-wire";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { type Accessor, batch, computed, type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
+import { lexMarkdown } from "@linxiraos/pi-tui/text/markdown/lexer";
+import type { TspPickerAction, TspPickerItem } from "@linxiraos/pi-wire";
 import type { CopyBlock, CopyPickSource } from "../../../modes/view-model/overlays/copy-selector";
 import { commandFromToolCall } from "../../../modes/view-model/overlays/copy-targets";
 import { isReplyWrite, toolResultReplies } from "../../../session/transcript/reply-write";

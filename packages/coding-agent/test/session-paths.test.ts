@@ -7,10 +7,10 @@ import {
 	hasPositiveMovedProjectEvidence,
 	readCwdIdentity,
 	writeTerminalBreadcrumb,
-} from "@oh-my-pi/pi-coding-agent/session/session-paths";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { FileSessionStorage, MemorySessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { getTerminalId } from "@oh-my-pi/pi-coding-agent/utils/ttyid";
+} from "@linxiraos/zeta/session/session-paths";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage, MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { getTerminalId } from "@linxiraos/zeta/utils/ttyid";
 import {
 	getAgentDir,
 	getCustomSessionFilesDir,
@@ -18,8 +18,8 @@ import {
 	getTerminalSessionsDir,
 	hashPath,
 	setAgentDir,
-} from "@oh-my-pi/pi-utils";
-import { resolveEquivalentPath } from "@oh-my-pi/pi-utils/dirs";
+} from "@linxiraos/pi-utils";
+import { resolveEquivalentPath } from "@linxiraos/pi-utils/dirs";
 
 const cleanup: string[] = [];
 

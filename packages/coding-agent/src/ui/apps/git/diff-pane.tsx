@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The git app's diff pane as a node: natively a `diff` of the selected file
  * (its hunks as unified text, the view mode, wrapping); the terminal draws
  * the pane from its {@link DiffPaneModel} (`omp.app.git.diff` look).
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import "../../styles/apps/git/diff-pane";
 import type { DiffDocument } from "../../../cli/git-tui/model/diff-pane";
 import type { DiffPaneModel } from "./diff-pane-model";
@@ -56,7 +56,7 @@ export function GitDiffPane(props: { readonly model: DiffPaneModel; readonly nod
 	return (
 		<diff
 			key={props.nodeKey ?? "diff"}
-			role="omp.app.git.diff"
+			role="zeta.app.git.diff"
 			path={() => pane.doc?.filePath}
 			mode={() => (pane.mode === "split" ? "split" : "unified")}
 			wrap={() => pane.wrap}

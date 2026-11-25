@@ -1,10 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { quotaFromReports } from "@oh-my-pi/pi-coding-agent/modes/interactive/status-quota";
-import { statusLineHost } from "@oh-my-pi/pi-coding-agent/modes/status-line-host";
-import type { StatusQuota } from "@oh-my-pi/pi-coding-agent/ui/status/facts";
-import { effectiveStatusSettings, segmentView } from "@oh-my-pi/pi-coding-agent/ui/status/segments";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { quotaFromReports } from "@linxiraos/zeta/modes/interactive/status-quota";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import type { StatusQuota } from "@linxiraos/zeta/ui/status/facts";
+import { effectiveStatusSettings, segmentView } from "@linxiraos/zeta/ui/status/segments";
 import {
 	disposeStatusLines,
 	flushStatus,

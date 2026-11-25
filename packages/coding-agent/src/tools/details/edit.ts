@@ -1,4 +1,4 @@
-import { type EditInspection, editInspect } from "@oh-my-pi/pi-natives";
+import { type EditInspection, editInspect } from "@linxiraos/pi-natives";
 import type { FileDiagnosticsResult } from "./lsp";
 import type { OutputMeta } from "../output-meta-format";
 import {

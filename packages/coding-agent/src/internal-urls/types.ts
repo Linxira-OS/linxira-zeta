@@ -25,6 +25,7 @@ import type { ToolSession } from "../tools";
 import type { CoordinationDetails } from "../tools/details/wait";
 import type { ProcReadDetails, ProcWriteDetails } from "../tools/details/proc-render";
 import type { CfgReadDetails, CfgWriteDetails } from "../tools/details/cfg-render";
+import type { XdevDispatch } from "../tools/xdev";
 import type { SchemeWriteScope } from "./url-scheme";
 
 /** Render state and prewalk facts a handler write attaches to the `write` tool result. */
@@ -32,6 +33,8 @@ export interface InternalWriteDetails {
 	message?: CoordinationDetails;
 	proc?: ProcWriteDetails;
 	cfg?: CfgWriteDetails;
+	/** Device dispatch metadata (`xd://`) forwarded to the wrapped tool's renderer. */
+	xdev?: XdevDispatch;
 	/** Absolute file the write landed in, for the transcript card's file link (conflict://). */
 	resolvedPath?: string;
 	/**
@@ -120,6 +123,8 @@ export interface SchemeSpec {
 	 * session storage (`local://N.log` spills) that selectors re-read, so a spill would only copy it.
 	 */
 	unspilledPages?: true;
+	/** Resources are session artifact storage (artifact://); located read pages skip the artifact spill. */
+	artifactStore?: true;
 	/** Approval tier for reading/searching this scheme. Default `read`; ssh:// is `exec`. */
 	readTier?: ToolTier;
 	/** Read output bypasses result truncation limits (skill:// instructions). */
@@ -164,6 +169,8 @@ export interface SchemeHost {
 	outReplies: boolean;
 	/** Advertise PID-qualified agent URLs and same-folder peer discovery. */
 	crossInstanceAgents?: boolean;
+	/** Whether `canvas.enabled` is on for this session; gates `vault://…?op=canvas` advertising. */
+	canvasEnabled?: boolean;
 	/** The session is a subagent: `agent://all` broadcasts are refused, so they go unadvertised. */
 	subagent: boolean;
 }

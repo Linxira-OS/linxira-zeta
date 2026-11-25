@@ -12,9 +12,9 @@ import {
 	type OutputMeta,
 	stripGeneratedOutputNotice,
 	stripOutputNotice,
-} from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
-import { formatOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
-import { outputMeta } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
+} from "@linxiraos/zeta/tools/output-meta-format";
+import { formatOutputNotice } from "@linxiraos/zeta/tools/output-meta-format";
+import { outputMeta } from "@linxiraos/zeta/tools/output-meta";
 
 const truncation: OutputMeta = {
 	truncation: {

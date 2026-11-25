@@ -12,11 +12,11 @@
  *   rows tall scrolled to `term.offset` with a scrollbar while it overflows,
  *   and the key-hint rule.
  */
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { padTo, replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { PLAIN_THEME } from "@oh-my-pi/pi-tui/theme/plain";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { padTo, replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { PLAIN_THEME } from "@linxiraos/pi-tui/theme/plain";
 import { keyLabel } from "../../../keys/hints";
 import { keyLabels } from "../../panels/common";
 import {

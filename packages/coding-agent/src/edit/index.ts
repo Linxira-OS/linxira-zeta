@@ -9,8 +9,8 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { Model, ToolExample } from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-agent-core";
+import type { Model, ToolExample } from "@linxiraos/pi-ai";
 import {
 	EditSession,
 	editDescription,
@@ -23,8 +23,8 @@ import {
 	type EditUrlResolution,
 	type EditWriteRequest,
 	type EditWriteResponse,
-} from "@oh-my-pi/pi-natives";
-import { isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-natives";
+import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { type FileSnapshot, readSnapshot } from "../commit/selective/journal";
 import {
 	extractUriScheme,

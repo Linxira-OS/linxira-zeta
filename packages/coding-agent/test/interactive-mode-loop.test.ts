@@ -1,19 +1,19 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import * as loopCondition from "@oh-my-pi/pi-coding-agent/modes/loop-condition";
-import type { LoopConditionVerdict } from "@oh-my-pi/pi-coding-agent/modes/loop-condition";
-import type { SubmittedUserInput } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import * as loopCondition from "@linxiraos/zeta/modes/loop-condition";
+import type { LoopConditionVerdict } from "@linxiraos/zeta/modes/loop-condition";
+import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
-import { cfgLoopMode } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgLoopMode } from "@linxiraos/zeta/modes/settings";
 import { initTheme } from "../src/ui/theme/service";
 import { createModeTerminal } from "./helpers/mode-terminal";
 

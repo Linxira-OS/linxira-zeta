@@ -53,4 +53,4 @@ analysis tools on binaries that you produce yourself during development.
 
 - Running the executable with any inputs, flags, and arguments to observe its behavior
 - Reading any documentation files bundled in the workspace
- </RULES>
+  </RULES>

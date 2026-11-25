@@ -1,6 +1,6 @@
 # TUI core renderer — explicit history and viewport contract
 
-This document describes the terminal renderer contract of `@oh-my-pi/pi-tui`
+This document describes the terminal renderer contract of `@linxiraos/pi-tui`
 (`packages/tui`). The relevant implementation lives in:
 
 - [`packages/tui/src/term/backend.ts`](../packages/tui/src/term/backend.ts) — the

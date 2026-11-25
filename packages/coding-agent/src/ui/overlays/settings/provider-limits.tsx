@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The in-flight request limits editor (`providers.maxInFlightRequests`): a
  * provider list (each with its cap, plus "Clear all limits" once any is set)
@@ -6,7 +6,7 @@
  * control for a per-provider map, so the window shows this as an
  * `omp.prefs.editor` child; its keys are the program's.
  */
-import { type JSXNode, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
+import { type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
 import type { SettingsHost } from "../../../config/settings-defs";
 import { editLine, type LineState } from "./line-edit";
 import { listKeyId, matchesSelectCancel } from "../../../config/keybindings/matchers";
@@ -39,7 +39,7 @@ function Field(props: {
 	hint: string;
 }): JSXNode {
 	return (
-		<col role="omp.form.field" gap="sm">
+		<col role="zeta.form.field" gap="sm">
 			<text spans={[{ s: "strong", t: props.label }]} />
 			<text spans={[{ s: "muted", t: props.description }]} />
 			{props.control}
@@ -164,7 +164,7 @@ export function createProviderLimitsEditor(
 						label="Max In-Flight Requests"
 						description="Select a provider, enter a positive number to cap concurrent LLM requests, or clear it for unlimited."
 						control={
-							<col role="omp.select">
+							<col role="zeta.select">
 								<list
 									key="list"
 									empty="No items"

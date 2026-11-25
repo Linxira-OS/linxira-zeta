@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { signal } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { signal } from "@linxiraos/pi-tui";
 import {
 	BlockUnitCounter,
 	buildDisplayMessage,
@@ -10,8 +10,8 @@ import {
 	STREAMING_REVEAL_FRAME_MS,
 	StreamingRevealController,
 	visibleUnits,
-} from "@oh-my-pi/pi-coding-agent/modes/controllers/streaming-reveal";
-import { getSegmenter } from "@oh-my-pi/pi-coding-agent/utils/text-width";
+} from "@linxiraos/zeta/modes/controllers/streaming-reveal";
+import { getSegmenter } from "@linxiraos/zeta/utils/text-width";
 
 function makeUsage(): AssistantMessage["usage"] {
 	return {

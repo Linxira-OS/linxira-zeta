@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Command output queued while the agent streams (`deferredCommand` slot):
  * `/usage` and friends answer at once from the dock, and the real panels
@@ -10,7 +10,7 @@
  *   panels' rows, then the dim note; past `maxRows` the panels are cut and the
  *   note counts the rows left out.
  */
-import { For, type JSXNode, signal } from "@oh-my-pi/pi-tui";
+import { For, type JSXNode, signal } from "@linxiraos/pi-tui";
 import "../styles/dock";
 
 /** Never shrink the preview below this, even on a short terminal. */
@@ -43,7 +43,7 @@ export function DeferredCommand(props: { readonly model: DeferredCommandModel })
 	return () => {
 		if (model.panels().length === 0) return undefined;
 		return (
-			<col role="omp.hud.deferred" term={{ deferred: model }}>
+			<col role="zeta.hud.deferred" term={{ deferred: model }}>
 				<col max={{ h: `${model.maxRows()}lines` }}>
 					<For each={model.panels}>{panel => panel()}</For>
 				</col>

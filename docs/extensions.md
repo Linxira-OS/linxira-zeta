@@ -19,7 +19,7 @@ For packaged user-facing extension CLIs/features, see [`user-facing-packages.md`
 An extension is a TS/JS module exporting a default factory. Factories may initialize synchronously or return a promise:
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function myExtension(pi: ExtensionAPI) {
 	// register handlers/tools/commands/renderers
@@ -35,7 +35,7 @@ Extensions can combine all of the following in one module:
 - custom message rendering
 - session/message injection APIs (`sendMessage`, `sendUserMessage`, `appendEntry`)
 
-Import host values from the package root, `@oh-my-pi/pi-coding-agent`, and UI from `@oh-my-pi/pi-tui` (nodes, JSX, signals). Both resolve to the host's own copy inside the omp binary. Deeper coding-agent paths also resolve, but they name internal files: when a file moves, a static import of it stops the whole extension from loading. `@oh-my-pi/pi-tui` is gone; an extension importing it does not load (see [Migrating from pi-tui](#migrating-from-pi-tui)). Besides the extension types and the theme service (`getThemeByName`, `onThemeChange`, …), the root exports these helpers:
+Import host values from the package root, `@linxiraos/zeta`, and UI from `@linxiraos/pi-tui` (nodes, JSX, signals). Both resolve to the host's own copy inside the omp binary. Deeper coding-agent paths also resolve, but they name internal files: when a file moves, a static import of it stops the whole extension from loading. `@linxiraos/pi-tui` is gone; an extension importing it does not load (see [Migrating from pi-tui](#migrating-from-pi-tui)). Besides the extension types and the theme service (`getThemeByName`, `onThemeChange`, …), the root exports these helpers:
 
 - `formatKeyHint` and `formatKeyHints` for key hints
 - `ansiSpans` to turn ANSI-styled text into `TspText` spans, such as a transcript presenter's `{ compact: { label, rows } }`
@@ -77,7 +77,7 @@ Important constraint from `loader.ts`:
 ## Quick start
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function (pi: ExtensionAPI) {
 	const z = pi.zod;
@@ -185,7 +185,7 @@ pi.registerProvider("my-gateway", {
 ```
 
 `pi.registerProvider(name, config)` can include an optional `usage` field containing a
-`UsageProvider` imported from `@oh-my-pi/pi-ai`. Its `fetchUsage` implementation receives the
+`UsageProvider` imported from `@linxiraos/pi-ai`. Its `fetchUsage` implementation receives the
 normalized credential and returns a normalized `UsageReport`; the result is then handled
 by the host's AuthStorage cache, history, and usage displays just like built-in provider
 usage.
@@ -278,8 +278,8 @@ names are reserved), and `streamSimple` returns the canonical
 `AssistantMessageEventStream`; it does not need to be an HTTP endpoint:
 
 ```ts
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai";
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function (pi: ExtensionAPI) {
 	pi.registerProvider("local-command", {
@@ -338,7 +338,7 @@ Also exposed:
 A todo backend copies the session's todo list into an external store: a task tracker, a file, a dashboard. omp keeps the list and its own `todo` tool, HUD, `/todo` and reminders. The backend the `todo.backend` setting names (default `native`: none) is handed the whole list after every change.
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function (pi: ExtensionAPI) {
 	pi.registerTodoBackend({
@@ -361,11 +361,11 @@ export default function (pi: ExtensionAPI) {
 
 ### Runtime setting overrides
 
-Settings are addressed through typed registry handles (see "Definitions" in [config-usage.md](./config-usage.md#definitions-srcconfigregistryts)); the string-path `settings.get`/`set`/`override` methods were removed in 18.3. Extensions resolve a handle by id with `lookup(id)` (and enumerate them with `all()`) from the `@oh-my-pi/pi-coding-agent/config/registry` subpath, then pass `pi.pi.settings` as the scope:
+Settings are addressed through typed registry handles (see "Definitions" in [config-usage.md](./config-usage.md#definitions-srcconfigregistryts)); the string-path `settings.get`/`set`/`override` methods were removed in 18.3. Extensions resolve a handle by id with `lookup(id)` (and enumerate them with `all()`) from the `@linxiraos/zeta/config/registry` subpath, then pass `pi.pi.settings` as the scope:
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
-import { lookup } from "@oh-my-pi/pi-coding-agent/config/registry";
+import type { ExtensionAPI } from "@linxiraos/zeta";
+import { lookup } from "@linxiraos/zeta/config/registry";
 
 export default function (pi: ExtensionAPI) {
 	const recap = lookup("recap.enabled");
@@ -911,7 +911,7 @@ with a permission error (`EPERM`/`EACCES`/`EROFS` — every other error, such as
 via `pi.registerFileWriteFallback` before giving up:
 
 ```ts
-import type { FileWriteFallbackHandler } from "@oh-my-pi/pi-coding-agent";
+import type { FileWriteFallbackHandler } from "@linxiraos/zeta";
 
 const writeThroughBroker: FileWriteFallbackHandler = async (req, ctx) => {
 	// req: { dst: string; content: string; cause: unknown; sessionId: string | undefined }
@@ -1086,7 +1086,7 @@ Herdr, CMUX, and Orca are supported; screen and wmux remain recognized by the
 multiplexer taxonomy but are currently unsupported.
 
 Provider-specific session detection is centralized in the pi-tui terminal driver,
-`@oh-my-pi/pi-tui/driver/mux/detect` (`MultiplexerId` names every recognized
+`@linxiraos/pi-tui/driver/mux/detect` (`MultiplexerId` names every recognized
 multiplexer). `hasMultiplexerSession(provider, env)` checks explicit session markers,
 while `classifyMultiplexer(env)` names the multiplexer hosting the process: session
 markers first, then a `tmux`/`screen` `TERM` fallback, then outer applications such as
@@ -1339,9 +1339,9 @@ for (const entry of ctx.sessionManager.getBranch()) {
 
 ## Rendering extension points
 
-Extensions draw with `@oh-my-pi/pi-tui`, the same UI library omp's own screens use. Every renderer and custom view returns an **extension render**:
+Extensions draw with `@linxiraos/pi-tui`, the same UI library omp's own screens use. Every renderer and custom view returns an **extension render**:
 
-- **pi-tui nodes**: JSX (a `.tsx` file starting with `/** @jsxImportSource @oh-my-pi/pi-tui */`), node objects, strings, arrays or accessors. Lowercase tags are TSP node kinds (`col`, `row`, `text`, `md`, `code`, `card`, `spinner`, …); a Tern terminal draws them natively and the terminal paints them. Signals (`signal`, `computed`) make them live: a node repaints when a signal it read changes.
+- **pi-tui nodes**: JSX (a `.tsx` file starting with `/** @jsxImportSource @linxiraos/pi-tui */`), node objects, strings, arrays or accessors. Lowercase tags are TSP node kinds (`col`, `row`, `text`, `md`, `code`, `card`, `spinner`, …); a Tern terminal draws them natively and the terminal paints them. Signals (`signal`, `computed`) make them live: a node repaints when a signal it read changes.
 - **a rows object** `{ render(width): string[] }`, the escape hatch for row renderers: drawn as a `canvas` node (a `rows` node in Tern). Rows wider than `width` are cut. It repaints when its host redraws it (`ui.requestRender()` in factories that receive a `ui`, after each input it handles in `ctx.ui.custom`). Optional `isTranscriptBlockCompact()`, `handleInput(data)` and `dispose()` keep their pi-tui meaning.
 - **`undefined`** draws nothing (or the host's default, where one exists).
 
@@ -1354,7 +1354,7 @@ Renderers receive the extension theme: pi-tui's `Theme` (`fg`, `bg`, `style(toke
 `registerComposerShape` adds an extension-owned composer shape to **Appearance → Composer Shape**: the chrome drawn around the composer's text rows. Register it from the extension factory.
 
 ```ts
-import type { ComposerShape, ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ComposerShape, ExtensionAPI } from "@linxiraos/zeta";
 
 const dock: ComposerShape & { label: string } = {
 	id: "acme-dock",
@@ -1562,7 +1562,7 @@ Nodes are drawn by the terminal and by Tern. Rows objects are drawn by the termi
 
 ## Migrating from pi-tui
 
-`@oh-my-pi/pi-tui` was replaced by `@oh-my-pi/pi-tui`. This is a breaking change: an extension, hook or custom tool that imports `@oh-my-pi/pi-tui` (or the upstream `@mariozechner/pi-tui` / `@earendil-works/pi-tui`) fails to load with an error naming the import and this section. To port it:
+`@linxiraos/pi-tui` was replaced by `@linxiraos/pi-tui`. This is a breaking change: an extension, hook or custom tool that imports `@linxiraos/pi-tui` (or the upstream `@mariozechner/pi-tui` / `@earendil-works/pi-tui`) fails to load with an error naming the import and this section. To port it:
 
 | pi-tui | now |
 | --- | --- |
@@ -1577,8 +1577,8 @@ Nodes are drawn by the terminal and by Tern. Rows objects are drawn by the termi
 | `registerComposerShape({ label, style: ComposerStyle })` | `registerComposerShape(shape: ComposerShape)` |
 | `describeCall` / `describeResult` (`NativeToolView`) | return nodes from `renderCall` / `renderResult` |
 | `matchesKey(data, "ctrl+c")`, `Key.shift("p")` | key ids: `key.id === "ctrl+c"` in `onKey`, `"shift+p"` for shortcuts |
-| `truncateToWidth`, `visibleWidth`, `wrapTextWithAnsi` | `truncate`, `visibleWidth`, `wrap` from `@oh-my-pi/pi-tui/text/width` |
-| `theme` from `@oh-my-pi/pi-tui/theme` | the `theme` argument, `ctx.ui.theme`, or `currentTheme()` from `@oh-my-pi/pi-tui/theme/runtime` |
+| `truncateToWidth`, `visibleWidth`, `wrapTextWithAnsi` | `truncate`, `visibleWidth`, `wrap` from `@linxiraos/pi-tui/text/width` |
+| `theme` from `@linxiraos/pi-tui/theme` | the `theme` argument, `ctx.ui.theme`, or `currentTheme()` from `@linxiraos/pi-tui/theme/runtime` |
 | `styledSpans`, `compactText`, `rowsText`, `formTheme`, `getSettingsListTheme` and the pi-tui component re-exports of the package root | `ansiSpans` for spans; draw the rest with nodes |
 
 ## Constraints and pitfalls

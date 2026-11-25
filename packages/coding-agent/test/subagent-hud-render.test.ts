@@ -7,46 +7,38 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import {
-	isSettingsInitialized,
-	resetSettingsForTest,
-	Settings,
-	settings,
-} from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import {
-	type ObservableSession,
-	SessionObserverRegistry,
-} from "@oh-my-pi/pi-coding-agent/task/session-observer-registry";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { type AgentProgress } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import type { TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/details/todo";
-import { cfgTasksTodoClearDelay } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { isSettingsInitialized, resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { type ObservableSession, SessionObserverRegistry } from "@linxiraos/zeta/task/session-observer-registry";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { type AgentProgress } from "@linxiraos/zeta/task/task-details";
+import type { TodoPhase } from "@linxiraos/zeta/tools/details/todo";
+import { cfgTasksTodoClearDelay } from "@linxiraos/zeta/tools/settings";
 import {
 	type SubagentLifecyclePayload,
 	type SubagentProgressPayload,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@oh-my-pi/pi-coding-agent/task";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { createRoot, resolveChildren } from "@oh-my-pi/pi-tui";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/task";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { createRoot, resolveChildren } from "@linxiraos/pi-tui";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { TempDir } from "@linxiraos/pi-utils";
 import { StatusHud, SubagentHud, SubagentHudModel, subagentEntries, subagentLayout, TodoHud } from "../src/ui/dock";
 import { thinkingLevelGlyph } from "../src/ui/tools/agent-common";
 import { setActiveTodoDescriptions } from "../src/ui/tools/todo";
 import { initTheme } from "../src/ui/theme/service";
 import { createModeTerminal, renderRows } from "./helpers/mode-terminal";
 
-import { cfgDisplayPinnedAgents, cfgDisplaySubagentLivePreview } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { cfgTaskShowResolvedModelBadge } from "@oh-my-pi/pi-coding-agent/task/settings";
+import { cfgDisplayPinnedAgents, cfgDisplaySubagentLivePreview } from "@linxiraos/zeta/modes/settings";
+import { cfgTaskShowResolvedModelBadge } from "@linxiraos/zeta/task/settings";
 
 function makeSession(overrides: Partial<ObservableSession> & { id: string }): ObservableSession {
 	return {

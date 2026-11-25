@@ -10,14 +10,34 @@
  * only turns them into picker props.
  */
 import type { TspPickerGroup, TspPickerItem, TspPickerScope, TspSpan, TspTone } from "@linxiraos/pi-wire";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { type JSXNode, tuiText, tuiTextFmt, UiNode } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { SessionSelectorStatus } from "./session-selector";
-import { tuiText, tuiTextFmt } from "../i18n";
-import { compact, kv, md, node, span } from "../native/describe";
-import { pickerAge, pickerDate, pickerHits } from "../native/picker";
-import type { NativeChild } from "../native/node";
-import { plainText } from "../native/spans";
-import { theme } from "../theme/theme";
-import { shortenPath } from "../render/render-utils";
+import { pickerAge, pickerDate } from "../../../ui/overlays/pickers/format";
+import { shortenPath } from "../../../utils/render-utils";
+
+/** One styled span of a picker text: the wire's `{ t, s }` shape. */
+function span(t: string, s?: string): TspSpan {
+	return s === undefined ? { t } : { t, s };
+}
+
+/** Drop absent entries (`undefined`, `null`, `false`) from a child list. */
+function compact<T>(items: readonly (T | undefined | null | false)[]): T[] {
+	const out: T[] = [];
+	for (const entry of items) if (entry !== undefined && entry !== null && entry !== false) out.push(entry);
+	return out;
+}
+
+/** A `kv` grid from label/value pairs with muted labels; undefined when nothing is left. */
+function kv(pairs: readonly (readonly [string, TspSpan[] | string | undefined])[]): UiNode | undefined {
+	const items: { k: TspSpan[]; v: TspSpan[] | string }[] = [];
+	for (const [label, value] of pairs) {
+		if (value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) continue;
+		items.push({ k: [span(label, "muted")], v: value });
+	}
+	return items.length > 0 ? new UiNode("kv", { items }) : undefined;
+}
 
 export type ResumeScopeKindLike = "workspace" | "project" | "all";
 
@@ -330,15 +350,15 @@ function statusTone(status: SessionSelectorStatus | undefined): TspTone | undefi
 function statusDot(status: SessionSelectorStatus | undefined): string | undefined {
 	switch (status) {
 		case "complete":
-			return theme.status.success;
+			return currentTheme().symbols.symbol("status.success");
 		case "interrupted":
-			return theme.status.warning;
+			return currentTheme().symbols.symbol("status.warning");
 		case "aborted":
-			return theme.status.aborted;
+			return currentTheme().symbols.symbol("status.aborted");
 		case "error":
-			return theme.status.error;
+			return currentTheme().symbols.symbol("status.error");
 		case "pending":
-			return theme.status.pending;
+			return currentTheme().symbols.symbol("status.pending");
 		default:
 			return undefined;
 	}
@@ -362,13 +382,13 @@ function cwdSpans(cwd: string): TspSpan[] {
 }
 
 function conversationMessage(conversation: ResumeConversationLike): string {
-	return plainText(conversation.session.firstMessage ?? "")
+	return sanitizeText(conversation.session.firstMessage ?? "")
 		.replace(/\s+/g, " ")
 		.trim();
 }
 
 function conversationLabel(conversation: ResumeConversationLike): string {
-	const title = conversation.title ? plainText(conversation.title).trim() : "";
+	const title = conversation.title ? sanitizeText(conversation.title).trim() : "";
 	return title || conversationMessage(conversation) || conversation.id;
 }
 
@@ -400,11 +420,11 @@ export function resumePickerItem(
 ): TspPickerItem {
 	const conversation = row.conversation;
 	const message = conversationMessage(conversation);
-	const title = conversation.title ? plainText(conversation.title).trim() : "";
+	const title = conversation.title ? sanitizeText(conversation.title).trim() : "";
 	const badges: { text: string; tone?: TspTone; title?: string }[] = [];
 	if (conversation.fork) badges.push({ text: "fork" });
 	if (conversation.current) badges.push({ text: "current", tone: "accent" });
-	const when = pickerDate(conversation.modified);
+	const when = pickerDate(conversation.modified.getTime());
 	const detail = options.showCwd && conversation.cwd ? cwdSpans(conversation.cwd) : title ? message : undefined;
 	const dot = statusTone(conversation.status);
 	// The workspace header already names its branch. Repeat it only when this
@@ -420,7 +440,7 @@ export function resumePickerItem(
 		label: conversationLabel(conversation),
 		...(detail ? { detail } : {}),
 		facts: {
-			when: pickerAge(conversation.modified, options.now),
+			when: pickerAge(conversation.modified.getTime(), options.now),
 			turns: resumeTurnCount(conversation),
 			...(branch ? { branch } : {}),
 			...(model ? { model } : {}),
@@ -479,8 +499,22 @@ export function resumePickerHits(
 	for (const row of viewConversations(view)) {
 		const label = items.get(row.conversation.path)?.label;
 		if (typeof label !== "string") continue;
-		const ranges = pickerHits(label, terms);
-		if (ranges.length > 0) (hits ??= {})[row.conversation.path] = ranges;
+		const lower = label.toLowerCase();
+		const ranges: [number, number][] = [];
+		for (const term of terms) {
+			if (term.length === 0) continue;
+			for (let from = lower.indexOf(term); from !== -1; from = lower.indexOf(term, from + term.length)) {
+				ranges.push([from, from + term.length]);
+			}
+		}
+		ranges.sort((left, right) => left[0] - right[0]);
+		const merged: [number, number][] = [];
+		for (const range of ranges) {
+			const last = merged.at(-1);
+			if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+			else merged.push([...range]);
+		}
+		if (merged.length > 0) (hits ??= {})[row.conversation.path] = merged;
 	}
 	return hits;
 }
@@ -675,34 +709,42 @@ export function resumeConversationPreview(
 	conversation: ResumeConversationLike,
 	project: ResumeProjectLike | undefined,
 	workspace: ResumeWorkspaceLike | undefined,
-): NativeChild[] {
+): JSXNode {
 	const first = (conversation.session.firstMessage ?? "").trim();
 	const allMessages = conversation.session.allMessagesText ?? "";
 	const rest = allMessages.startsWith(first) ? allMessages.slice(first.length).trim() : "";
-	const excerpt = compact([
-		first.length > 0 &&
-			md(first.length > PREVIEW_EXCERPT_CHARS ? `${first.slice(0, PREVIEW_EXCERPT_CHARS)}…` : first, {
-				tone: "user",
-			}),
-		rest.length > 0 && md(rest.length > PREVIEW_EXCERPT_CHARS ? `…${rest.slice(-PREVIEW_EXCERPT_CHARS)}` : rest),
+	const excerpt = compact<UiNode>([
+		first.length > 0
+			? new UiNode("md", {
+					text: first.length > PREVIEW_EXCERPT_CHARS ? `${first.slice(0, PREVIEW_EXCERPT_CHARS)}…` : first,
+					tone: "user",
+				})
+			: undefined,
+		rest.length > 0
+			? new UiNode("md", {
+					text: rest.length > PREVIEW_EXCERPT_CHARS ? `…${rest.slice(-PREVIEW_EXCERPT_CHARS)}` : rest,
+				})
+			: undefined,
 	]);
 	const created =
 		conversation.created && !Number.isNaN(conversation.created.getTime()) ? conversation.created : undefined;
 	const model = conversation.session.model;
-	return compact([
-		node("text", { text: conversationLabel(conversation), role: "zeta.picker.title" }),
-		kv([
-			["Project", project?.displayName],
-			["Workspace", workspace?.displayName ?? workspace?.name],
-			["Branch", workspace?.branch ?? undefined],
-			["Status", statusSpans(conversation.status)],
-			["Model", model],
-			["Turns", String(resumeTurnCount(conversation))],
-			["Created", created && pickerDate(created)],
-			["Modified", pickerDate(conversation.modified)],
-			["Folder", conversation.cwd ? cwdSpans(conversation.cwd) : undefined],
-		]),
-		excerpt.length > 0 && node("section", { head: "Conversation" }, excerpt),
+	const facts = kv([
+		["Project", project?.displayName],
+		["Workspace", workspace?.displayName ?? workspace?.name],
+		["Branch", workspace?.branch ?? undefined],
+		["Status", statusSpans(conversation.status)],
+		["Model", model],
+		["Turns", String(resumeTurnCount(conversation))],
+		["Created", created && pickerDate(created.getTime())],
+		["Modified", pickerDate(conversation.modified.getTime())],
+		["Folder", conversation.cwd ? cwdSpans(conversation.cwd) : undefined],
+	]);
+	const section = excerpt.length > 0 ? new UiNode("section", { head: "Conversation", children: excerpt }) : undefined;
+	return compact<JSXNode>([
+		new UiNode("text", { text: conversationLabel(conversation), role: "zeta.picker.title" }),
+		facts,
+		section,
 	]);
 }
 

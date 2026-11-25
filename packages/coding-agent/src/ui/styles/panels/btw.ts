@@ -3,12 +3,12 @@
  * the block's lines and its state label) and the `/btw` sheet (a rounded
  * box titled with the topic, the answer, and a footer of status and hints).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { TspTextProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { wrap } from "@linxiraos/pi-tui/text/width";
+import type { TspTextProps } from "@linxiraos/pi-wire";
 import { boxRows, hintText, plainText, propsOf, roleOf, termOf } from "./common";
 
 defineRolePainter("card", "omp.btw.inject", (node, cx): Block => {

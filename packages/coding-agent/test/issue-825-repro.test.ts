@@ -19,9 +19,9 @@
  */
 
 import { beforeAll, describe, expect, mock, test } from "bun:test";
-import { AgentBusyError } from "@oh-my-pi/pi-agent-core";
-import type { CompactionQueuedMessage, InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
+import { AgentBusyError } from "@linxiraos/pi-agent-core";
+import type { CompactionQueuedMessage, InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { initTheme } from "../src/ui/theme/service";
 
 beforeAll(() => {

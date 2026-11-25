@@ -16,8 +16,8 @@
  * batch survives kernel resets (`attach(id)`) until `close()` or its owner
  * session releases it.
  */
-import type { ImageContent, JudgmentState, Question } from "@oh-my-pi/pi-ai";
-import { isRecord, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import type { ImageContent, JudgmentState, Question } from "@linxiraos/pi-ai";
+import { isRecord, logger, Snowflake } from "@linxiraos/pi-utils";
 import { formatCost } from "../modes/view-model/overlays/agent-hub-renderer";
 import type { ChainJudge } from "../judgment";
 import { MAIN_AGENT_ID } from "../registry/agent-registry";
@@ -288,6 +288,29 @@ export class JudgmentBatch {
 		}
 		if (!this.#running && this.#error !== undefined) throw new ToolError(this.#error);
 		return [];
+	}
+
+	/** Observer reads leave the eval cell's drain cursor untouched. */
+	readItems(offset: number, limit: number): JudgmentBatchItem[] {
+		if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 50)
+			throw invalid("invalid observer page");
+		return this.#settled.slice(offset, offset + limit);
+	}
+
+	studioInput(): {
+		items: Array<{ key: BatchKey; state: JudgmentState; images?: unknown }>;
+		questions: Record<string, Question>;
+		options: BatchOptions;
+	} {
+		return {
+			items: this.#inputs.map(item => ({
+				key: item.key,
+				state: item.state,
+				...(item.imageSources ? { images: item.imageSources } : {}),
+			})),
+			questions: this.#questions,
+			options: this.#options,
+		};
 	}
 
 	results(): Record<string, Record<string, CellAnswer>> {

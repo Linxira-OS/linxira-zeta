@@ -10,8 +10,8 @@ import {
 import { effect, register } from "../config/registry";
 import type { Settings } from "../config/settings";
 import { type ServiceTierInheritSettingValue, validateAgentServiceTierOverrides } from "../config/service-tier";
-import { THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
-import { $which, isRecord, logger, setWorktreesDir } from "@oh-my-pi/pi-utils";
+import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
+import { $which, isRecord, logger, setWorktreesDir } from "@linxiraos/pi-utils";
 import { getThinkingLevelMetadata } from "../thinking/levels";
 import { setFeedModelBadgeEnabled } from "../utils/render-utils";
 
@@ -53,7 +53,7 @@ export const cfgIsolationBackend = register({
 				value: "auto",
 				label: "Auto",
 				description:
-					"Isolated subagents and `/wt` use ovnfs checkouts when ovnfs is found; otherwise (and for other worktrees) the PAL picks the best available backend",
+					"Isolated subagents and `/wt` use the best native copy-on-write backend; ovnfs is only used when explicitly configured",
 			},
 			{ value: "apfs", label: "APFS", description: "macOS clonefile reflink (APFS)" },
 			{ value: "btrfs", label: "btrfs", description: "btrfs subvolume snapshot" },
@@ -179,7 +179,7 @@ export const cfgOvnfsPath = register({
 		group: "Isolation",
 		label: "ovnfs Binary",
 		description:
-			"ovnfs executable; unset looks for `ovnfs` on PATH. When it is found, ovnfs checkouts (copy-on-write views of a folder, ready in about a second at any size) serve every separate copy: the system prompt tells agents to open checkouts instead of git worktrees or copies, and with `isolation.backend` on auto, isolated subagents (when allowed) run in checkouts instead of native clones and `/wt` moves the session into a checkout instead of a linked worktree",
+			"Optional ovnfs executable. Zeta does not look it up on PATH and does not recommend it; git worktrees/native copy-on-write are the default. Set this only when you explicitly want ovnfs checkouts for isolation or `/wt`.",
 	},
 });
 
@@ -192,7 +192,8 @@ export const cfgOvnfsPath = register({
  * bash, which strips backslashes (`C:\Users\…` runs as `C:Users…`).
  */
 export function ovnfsCommand(settings?: Settings): string | undefined {
-	const configured = (settings && cfgOvnfsPath.get(settings)?.trim()) || "ovnfs";
+	const configured = settings && cfgOvnfsPath.get(settings)?.trim();
+	if (!configured) return undefined;
 	const command = process.platform === "win32" ? configured.replaceAll("\\", "/") : configured;
 	return $which(command) ? command : undefined;
 }

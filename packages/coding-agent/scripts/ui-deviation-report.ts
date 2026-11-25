@@ -17,9 +17,9 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type Cell, cellGrid } from "@oh-my-pi/pi-tui/testing/cells";
-import { CORPUS_DIR, type CorpusCase, type CorpusStage, stageNative } from "@oh-my-pi/pi-tui/testing/corpus";
-import { paletteHex } from "@oh-my-pi/pi-tui/theme/color";
+import { type Cell, cellGrid } from "@linxiraos/pi-tui/testing/cells";
+import { CORPUS_DIR, type CorpusCase, type CorpusStage, stageNative } from "@linxiraos/pi-tui/testing/corpus";
+import { paletteHex } from "@linxiraos/pi-tui/theme/color";
 import {
 	caseStem,
 	DEVIATIONS,

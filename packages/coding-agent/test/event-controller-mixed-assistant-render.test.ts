@@ -1,18 +1,18 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ToolCall, ToolResultMessage, Usage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
+import { type } from "@linxiraos/zeta-schema";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ToolCall, ToolResultMessage, Usage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "../src/ui/theme/service";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { AssistantView, InteractiveModeContext, PendingTool } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { isSettled } from "@oh-my-pi/pi-tui";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { AssistantView, InteractiveModeContext, PendingTool } from "@linxiraos/zeta/modes/types";
+import { isSettled } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 import { blockText, transcriptText } from "./helpers/transcript-text";
 
-import { cfgTerminalShowImages } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgTerminalShowImages } from "@linxiraos/zeta/modes/settings";
 
 const TOOL_CALL_A_ID = "toolu_mixed_text_order_a";
 const TOOL_CALL_B_ID = "toolu_mixed_text_order_b";

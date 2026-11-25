@@ -8,8 +8,8 @@
  * and generating are {@link SidebarAction}s the host carries out, after which
  * it calls {@link SidebarModel.reconcile} with the refreshed state.
  */
-import { batch, computed, type KeyEvent, type Signal, signal, type TextEdit, untrack } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import { batch, computed, type KeyEvent, type Signal, signal, type TextEdit, untrack } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { GitCommitMessage, SidebarAction } from "../../../cli/git-tui/model/sidebar";
 import type { ChangedFile, GitViewState, HeadCommit } from "../../../cli/git-tui/model/state";
 import { editLine, type LineState } from "../../overlays/settings/line-edit";

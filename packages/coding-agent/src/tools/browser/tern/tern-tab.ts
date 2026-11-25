@@ -18,7 +18,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isRecord, logger, Snowflake, untilAborted } from "@oh-my-pi/pi-utils";
+import { isRecord, logger, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 import { ToolError } from "../../tool-errors";
 import { JsRuntime } from "../../../eval/js/shared/runtime";
 import { resizeImage } from "../../../utils/image-resize";

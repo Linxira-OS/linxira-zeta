@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import type { ExtensionAPI } from "@linxiraos/zeta/extensibility/extensions/types";
 
 /** Offline quota reports for testing the real Usage sheet with more rows than fit in a short pane. */
 export default function ternUsage(pi: ExtensionAPI): void {

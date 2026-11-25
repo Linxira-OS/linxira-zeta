@@ -3,12 +3,12 @@
  * scripted pi-tui terminal, driven by raw input bytes the way a terminal
  * delivers them and read back as painted rows.
  */
-import type { JSXNode, UiNode } from "@oh-my-pi/pi-tui";
-import { decodeKey } from "@oh-my-pi/pi-tui/driver/input/keys";
-import { decodeMouse } from "@oh-my-pi/pi-tui/driver/input/mouse";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { JSXNode, UiNode } from "@linxiraos/pi-tui";
+import { decodeKey } from "@linxiraos/pi-tui/driver/input/keys";
+import { decodeMouse } from "@linxiraos/pi-tui/driver/input/mouse";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { fullscreenMenuView } from "../../src/modes/controllers/selector-views";
 
 export interface LayerTerminal {

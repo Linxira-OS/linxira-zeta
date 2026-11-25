@@ -10,12 +10,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { agentTranscriptSource } from "@oh-my-pi/pi-coding-agent/modes/agent-hub-runtime";
-import type { AgentHubRemote } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/agent-hub";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { CURRENT_SESSION_VERSION } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { agentTranscriptSource } from "@linxiraos/zeta/modes/agent-hub-runtime";
+import type { AgentHubRemote } from "@linxiraos/zeta/modes/view-model/overlays/agent-hub";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { AgentTranscriptViewer } from "../src/ui/overlays/panels/agent-transcript-viewer";
 import { AgentTranscriptViewerModel } from "../src/ui/overlays/panels/agent-transcript-viewer-model";
 import { type LayerTerminal, mountLayer } from "./helpers/layer-terminal";

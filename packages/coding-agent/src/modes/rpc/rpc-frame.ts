@@ -347,6 +347,14 @@ export class RpcFrameEncoder {
 	}
 
 	/**
+	 * Largest UTF-8 JSON size (excluding the newline) of a frame delivered intact
+	 * under the negotiated protocol; larger frames are chunked or replaced.
+	 */
+	get maxIntactFrameBytes(): number {
+		return this.#protocolVersion === 2 ? MAX_RPC_REASSEMBLED_BYTES : MAX_RPC_FRAME_BYTES - 1;
+	}
+
+	/**
 	 * Encode one logical frame into physical JSONL lines. Encoder bookkeeping runs
 	 * eagerly; only chunk emission is lazy, so a chunked result can be streamed to
 	 * stdout with backpressure without holding the whole transport in memory. The

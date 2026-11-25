@@ -10,7 +10,9 @@
  * run), the session's `agent_end` (the run's end) to a plain `agent_end`.
  */
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { logger } from "@linxiraos/pi-utils";
 import type { AgentSessionEvent } from "../../session/agent-session";
+import type { ExtensionRunner } from "./runner";
 import type {
 	AgentEndEvent,
 	AutoCompactionEndEvent,
@@ -217,5 +219,50 @@ export function extensionEventFromSessionEvent(
 			return { type: "goal_updated", goal: event.goal, state: event.state };
 		default:
 			return null;
+	}
+}
+
+/**
+ * Mirrors lifecycle-relevant collab guest events into an `ExtensionRunner`.
+ *
+ * Owns the per-join turn index the session maintains for its own extension
+ * events: the wire's turn_start/turn_end carry no counter, so this class
+ * numbers turns itself exactly like `AgentSession` numbers its own (zero-based,
+ * reset on `agent_start`, incremented after each `turn_end`).
+ *
+ * Emissions are chained onto one promise queue, so handler completion order
+ * matches event order even when a handler awaits. Delivery is never awaited
+ * inline: a slow extension handler must not stall the guest's frame application.
+ */
+export class GuestLifecycleEmitter {
+	#turnIndex = 0;
+	#chain: Promise<void> = Promise.resolve();
+	/** True between a mirrored (or synthesized) `agent_start` and the stop of that loop. */
+	#active = false;
+
+	get sawAgentStart(): boolean {
+		return this.#active;
+	}
+
+	emit(runner: ExtensionRunner, event: AgentSessionEvent): void {
+		if (event.type === "agent_start") {
+			this.#turnIndex = 0;
+			this.#active = true;
+		} else if (event.type === "agent_end" || event.type === "agent_pause") {
+			this.#active = false;
+		}
+		const handlerType = event.type === "agent_pause" ? "agent_end" : event.type;
+		if (handlerType !== "agent_start" && !runner.hasHandlers(handlerType)) return;
+		const mapped = extensionEventFromSessionEvent(event, this.#turnIndex);
+		if (!mapped) return;
+		if (event.type === "turn_end") this.#turnIndex++;
+		this.#chain = this.#chain
+			.then(() => runner.emit(mapped))
+			.then(
+				() => {},
+				err => {
+					logger.warn("collab guest extension event emit failed", { type: event.type, error: String(err) });
+				},
+			);
 	}
 }

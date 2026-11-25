@@ -6,9 +6,9 @@
  * running benchmark `Running 3s...`; a logged experiment one paragraph of
  * status, description and metrics. Other results paint their text.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, truncate, wrap } from "@linxiraos/pi-tui/text/width";
 import type { AutoresearchTerm } from "../../tools/autoresearch";
 import { defineToolLook, toolProps } from "./look";
 

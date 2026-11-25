@@ -1,5 +1,5 @@
-import type { DiffStreamResult } from "@oh-my-pi/pi-natives";
-import { structuredPatchHunks } from "@oh-my-pi/pi-natives";
+import type { DiffStreamResult } from "@linxiraos/pi-natives";
+import { structuredPatchHunks } from "@linxiraos/pi-natives";
 import { DIFF_CONTEXT_LINES } from "./state";
 
 /** Column ranges (inclusive start, exclusive end) carrying intraline emphasis. */

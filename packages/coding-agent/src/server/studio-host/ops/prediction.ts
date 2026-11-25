@@ -1,4 +1,4 @@
-import { isWordCompletionMethod } from "@linxiraos/pi-tui/prompt/word-completion";
+import { isWordCompletionMethod } from "../../../modes/view-model/prompt/word-completion";
 import { invalid } from "../errors";
 import type { PredictionChannelOperation, PredictionResultMap } from "../protocol/contracts/prediction-channel";
 import type { StudioFamily, StudioHostContext } from "../registry";

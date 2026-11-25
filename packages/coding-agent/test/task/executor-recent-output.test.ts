@@ -16,17 +16,17 @@
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import type { AssistantMessage, AssistantMessageEvent, TextContent, ToolCall } from "@oh-my-pi/pi-ai";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import { TRUNCATE_LENGTHS } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
-import type { AgentProgress, AgentStreaming } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import type { AssistantMessage, AssistantMessageEvent, TextContent, ToolCall } from "@linxiraos/pi-ai";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import { TRUNCATE_LENGTHS } from "@linxiraos/zeta/utils/render-utils";
+import type { AgentProgress, AgentStreaming } from "@linxiraos/zeta/task/task-details";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 const TAIL_BYTES = 8 * 1024;

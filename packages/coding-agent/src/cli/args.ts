@@ -2,8 +2,8 @@
  * CLI argument parsing and help display
  */
 import * as path from "node:path";
-import { $env, APP_NAME } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { $env, APP_NAME } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import type { MotionMode } from "../config/motion-presets";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
 import type { ApprovalMode } from "../tools/approval";
@@ -94,6 +94,18 @@ export interface Args {
 	pluginDirs?: string[];
 	print?: boolean;
 	printThoughts?: boolean;
+	/** Route a print/RPC launch through a running `zetacode serve` backend instead of a local session. */
+	backend?: boolean;
+	/** Attach the interactive TUI to the running backend's newest session in this cwd. */
+	attach?: boolean;
+	/** Attach the interactive TUI to a specific backend session id. */
+	attachSession?: string;
+	/** Force a fresh backend session in the current cwd instead of reusing one. */
+	attachNew?: boolean;
+	/** Explicit backend gateway URL (`ZETA_GATEWAY_URL` overrides discovery when unset). */
+	backendUrl?: string;
+	/** Force a local process even when backend mode is enabled. */
+	standalone?: boolean;
 	export?: string;
 	noSkills?: boolean;
 	skills?: string[];
@@ -211,7 +223,7 @@ export function validateGoalStartup(
 /**
  * Runtime dependencies the data-driven setters need. Constructed once at
  * module load and passed to every {@link STRING_SETTERS} call so the
- * setter table itself can stay free of `@oh-my-pi/pi-utils` runtime imports
+ * setter table itself can stay free of `@linxiraos/pi-utils` runtime imports
  * (which would otherwise trip the profile bootstrap's env-init ordering).
  */
 const PARSE_DEPS: ParseDeps = {
@@ -409,6 +421,14 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.print = true;
 		} else if (arg === "--print-thoughts") {
 			result.printThoughts = true;
+		} else if (arg === "--backend") {
+			result.backend = true;
+		} else if (arg === "--standalone" || arg === "--local") {
+			result.standalone = true;
+		} else if (arg === "--attach") {
+			result.attach = true;
+		} else if (arg === "--attach-new") {
+			result.attachNew = true;
 		} else if (arg === "--no-extensions") {
 			result.noExtensions = true;
 		} else if (arg === "--no-skills") {

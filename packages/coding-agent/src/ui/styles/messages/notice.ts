@@ -15,10 +15,10 @@
  *   every side, filled inverse in the severity color (or on a background):
  *   the glyph and header, then a blank row and the body texts.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { stack } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { padTo, replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { stack } from "@linxiraos/pi-tui/term/painters/layout";
+import { padTo, replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
 import { terminalPaddingX } from "../terminal-padding";
 import type { NoticeBox, StatusRow } from "../../transcript/messages/notices";
 import { fillRow, paddedText, propsOf, termOf } from "./fill";

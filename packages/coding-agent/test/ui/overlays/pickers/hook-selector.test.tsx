@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test } from "bun:test";
-import { createRoot, resolveChildren, signal, type UiEvent } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+import { createRoot, resolveChildren, signal, type UiEvent } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import {
 	HookSelector,
 	type HookSelectorOptionInput,
@@ -29,8 +29,12 @@ test("ASCII option markers distinguish selection and checked state", () => {
 					/>,
 				)();
 				const rows = paintNode(env, node!, 50).rows.map(stripEscapes);
-				expect(rows.find(row => row.includes("Read"))).toContain(selectionMarker === "radio" ? "(o) Read" : "[x] Read");
-				expect(rows.find(row => row.includes("Search"))).toContain(selectionMarker === "radio" ? "( ) Search" : "[ ] Search");
+				expect(rows.find(row => row.includes("Read"))).toContain(
+					selectionMarker === "radio" ? "(o) Read" : "[x] Read",
+				);
+				expect(rows.find(row => row.includes("Search"))).toContain(
+					selectionMarker === "radio" ? "( ) Search" : "[ ] Search",
+				);
 			}
 		} finally {
 			dispose();

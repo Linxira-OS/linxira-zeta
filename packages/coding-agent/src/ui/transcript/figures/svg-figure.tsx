@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * SVG figures and fenced figures.
  *
@@ -20,9 +20,9 @@ import {
 	type Signal,
 	signal,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/pi-tui";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { holdSettle } from "../../shell/transcript";
 import {
 	closePartialSvg,
@@ -165,10 +165,10 @@ export function SvgFigure(props: { readonly raster: SvgRaster; readonly codeFall
 	const raster = props.raster;
 	return () => {
 		const state = raster.state();
-		if (state.status === "ready") return untrack(() => <RasterImage raster={state.raster} role="omp.figure" />);
+		if (state.status === "ready") return untrack(() => <RasterImage raster={state.raster} role="zeta.figure" />);
 		if (!props.codeFallback) return undefined;
-		if (state.status === "failed") return <md role="omp.figure.code" text={() => fenced("svg", raster.source())} />;
-		return <text role="omp.figure.pending" spans={[{ t: "Drawing SVG…", s: "dim" }]} />;
+		if (state.status === "failed") return <md role="zeta.figure.code" text={() => fenced("svg", raster.source())} />;
+		return <text role="zeta.figure.pending" spans={[{ t: "Drawing SVG…", s: "dim" }]} />;
 	};
 }
 
@@ -184,7 +184,7 @@ export function FenceFigure(
 		readonly closed: Reactive<boolean>;
 	} & FigureOptions,
 ): JSXNode {
-	if (props.lang !== "svg") return <md role="omp.figure.code" text={() => fenced(props.lang, read(props.source))} />;
+	if (props.lang !== "svg") return <md role="zeta.figure.code" text={() => fenced(props.lang, read(props.source))} />;
 	const raster = new SvgRaster(props);
 	effect(() => {
 		const source = read(props.source);

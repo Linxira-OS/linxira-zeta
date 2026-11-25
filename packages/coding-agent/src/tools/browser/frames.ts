@@ -1,4 +1,4 @@
-import { untilAborted } from "@oh-my-pi/pi-utils";
+import { untilAborted } from "@linxiraos/pi-utils";
 import type { ElementHandle, ElementScreenshotOptions, Frame, Page } from "puppeteer-core";
 import { throwIfAborted } from "../tool-errors";
 import { markHandled } from "../run-scope";

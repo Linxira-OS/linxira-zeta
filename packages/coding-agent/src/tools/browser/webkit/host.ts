@@ -13,7 +13,7 @@
  */
 import * as path from "node:path";
 import { ToolError } from "../../tool-errors";
-import { logger, readLines } from "@oh-my-pi/pi-utils";
+import { logger, readLines } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import { ToolAbortError } from "../../tool-errors";
 import { gracefulKillTreeOnce } from "../attach";

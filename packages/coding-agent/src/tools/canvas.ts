@@ -8,7 +8,7 @@ import type {
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/zeta-schema";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { summarizeCanvas } from "../internal-urls/canvas";
 import canvasDescription from "../prompts/tools/canvas.md" with { type: "text" };
 import type { ToolSession } from ".";

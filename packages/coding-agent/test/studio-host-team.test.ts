@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ActiveTeamHubSnapshot } from "@linxiraos/pi-tui/overlays/active-team-hub";
+import type { ActiveTeamHubSnapshot } from "../src/modes/view-model/overlays/active-team-hub";
 import { projectTeamGraph, type TeamGraphFacts } from "../src/server/studio-host/ops/team-projection";
 import { workspaceIdFor } from "../src/server/studio-host/ops/workspace-id";
 

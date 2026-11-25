@@ -1,5 +1,5 @@
-import { type } from "@oh-my-pi/omptype";
-import { getProjectDir, isRecord, prompt } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/zeta-schema";
+import { getProjectDir, isRecord, prompt } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../config/model-registry";
 import { formatModelString, formatModelStringWithRouting, resolveCliModel } from "../config/model-resolver";
 import { Settings } from "../config/settings";

@@ -9,12 +9,12 @@ import type {
 	OAuthAccess,
 	OAuthAccessResolution,
 	SimpleStreamOptions,
-} from "@oh-my-pi/pi-ai";
-import { streamSimple } from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
+import { streamSimple } from "@linxiraos/pi-ai";
 import { replaceTabs, truncateToWidth } from "../utils/text-width";
 import { SPINNER_FRAMES } from "../modes/view-model/theme/symbols";
-import { formatDuration, getProjectDir } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatDuration, getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import {
 	formatModelString,

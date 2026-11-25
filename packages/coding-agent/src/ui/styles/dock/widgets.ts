@@ -5,8 +5,8 @@
  *   cell in, word-wrapped, its own SGR kept (the truncation notice muted).
  * - `col` with `term.role` `omp.editor-gap`: one blank row while open.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
 import { paddedText, termOf } from "../messages/fill";
 
 function paintWidgetLine(node: UiNode, cx: PaintContext): Block {

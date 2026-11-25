@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { StoredAuthCredential } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { toLogoutAccounts } from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/logout";
+import type { StoredAuthCredential } from "@linxiraos/zeta/session/auth-storage";
+import { toLogoutAccounts } from "@linxiraos/zeta/slash-commands/helpers/logout";
 import { LogoutAccountSelector } from "../../../src/ui/overlays/pickers/logout-account-selector";
 import { mountOverlay } from "../../helpers/overlay-terminal";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

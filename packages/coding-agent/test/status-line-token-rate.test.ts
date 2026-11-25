@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { calculateTokensPerSecond } from "@oh-my-pi/pi-coding-agent/utils/token-rate";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { calculateTokensPerSecond } from "@linxiraos/zeta/utils/token-rate";
 import { segmentText, statusFacts } from "./helpers/session-status-line";
 
 function assistantMessage(overrides?: Partial<AssistantMessage>): AssistantMessage {

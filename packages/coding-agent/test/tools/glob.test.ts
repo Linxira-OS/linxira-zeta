@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { FileType } from "@oh-my-pi/pi-natives";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { FileType } from "@linxiraos/pi-natives";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Settings } from "../../src/config/settings";
 import type { ToolSession } from "../../src/tools";
 import { GlobTool, type GlobToolInput } from "../../src/tools/glob";
-import type { GlobToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/glob";
+import type { GlobToolDetails } from "@linxiraos/zeta/tools/details/glob";
 import { findUniqueWorkspaceSuffixWithGlobForTest } from "../../src/tools/path-utils";
 import { ToolAbortError } from "../../src/tools/tool-errors";
-import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { formatOutputNotice, type OutputMeta } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { formatOutputNotice, type OutputMeta } from "@linxiraos/zeta/tools/output-meta-format";
 
 function createSession(cwd = process.cwd()): ToolSession {
 	return {

@@ -3,12 +3,12 @@
  * and pastes and routed as the terminal backend routes them, the draft read back as lines and a
  * line/column caret.
  */
-import { createRoot, effect } from "@oh-my-pi/pi-tui";
-import { bubbleEvent, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import { decodeInput } from "@oh-my-pi/pi-tui/driver/input/decoder";
-import type { EditorProps, EditorTerm } from "@oh-my-pi/pi-tui/term/painters/editor";
-import { paintNode } from "@oh-my-pi/pi-tui/term/paint";
-import { corpusEnvironment } from "@oh-my-pi/pi-tui/testing/corpus";
+import { createRoot, effect } from "@linxiraos/pi-tui";
+import { bubbleEvent, pathTo } from "@linxiraos/pi-tui/dispatch";
+import { decodeInput } from "@linxiraos/pi-tui/driver/input/decoder";
+import type { EditorProps, EditorTerm } from "@linxiraos/pi-tui/term/painters/editor";
+import { paintNode } from "@linxiraos/pi-tui/term/paint";
+import { corpusEnvironment } from "@linxiraos/pi-tui/testing/corpus";
 import { type AutocompleteProvider, Composer, type VimMode } from "../../../src/ui/composer";
 import { sendKey, sendPaste } from "./harness";
 

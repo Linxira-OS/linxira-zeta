@@ -22,31 +22,31 @@ import {
  *   CLI flags, scope globs — onto that pipeline.
  */
 
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { ModelRoleLookup } from "../modes/view-model/overlays/model-browser";
-import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { roleDefaultModels } from "@oh-my-pi/pi-catalog/compat/behavior";
-import { resolveBareVariantSelector, resolveVariantSelector } from "@oh-my-pi/pi-catalog/compat/collapse";
-import { cascadeRulesRevision, catalogAxisProviders } from "@oh-my-pi/pi-catalog/compat/cascade";
-import { resolveCatalogPolicy } from "@oh-my-pi/pi-catalog/compat/catalog-policy";
-import { providerEntry } from "@oh-my-pi/pi-catalog/compat/providers";
-import { collapseVariantId, stripThinkingVariantSuffix } from "@oh-my-pi/pi-catalog/compat/taxonomy";
-import { modelMatchesHost } from "@oh-my-pi/pi-catalog/hosts";
-import { buildModelProviderPriorityRank } from "@oh-my-pi/pi-catalog/identity";
-import { clampThinkingLevelForModel } from "@oh-my-pi/pi-catalog/model-thinking";
+import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
+import { resolveBareVariantSelector, resolveVariantSelector } from "@linxiraos/pi-catalog/compat/collapse";
+import { cascadeRulesRevision, catalogAxisProviders } from "@linxiraos/pi-catalog/compat/cascade";
+import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";
+import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
+import { collapseVariantId, stripThinkingVariantSuffix } from "@linxiraos/pi-catalog/compat/taxonomy";
+import { modelMatchesHost } from "@linxiraos/pi-catalog/hosts";
+import { buildModelProviderPriorityRank } from "@linxiraos/pi-catalog/identity";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
 import {
 	type GeneratedProvider,
 	getBundledModels,
 	getUpstreamPin,
 	modelsAreEqual,
 	routedModelsAreEqual,
-} from "@oh-my-pi/pi-catalog/models";
-import { modelKind } from "@oh-my-pi/pi-catalog/types";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models";
+} from "@linxiraos/pi-catalog/models";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models";
 import { fuzzyMatch } from "../utils/fuzzy";
-import { logger } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { logger } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import {
 	AUTO_THINKING,
 	concreteThinkingLevel,

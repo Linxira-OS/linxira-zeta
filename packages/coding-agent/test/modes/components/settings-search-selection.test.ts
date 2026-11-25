@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgComposerPredictions } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import { settings } from "@linxiraos/zeta/config/settings";
+import { cfgComposerPredictions } from "@linxiraos/zeta/modes/settings";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { settingsScreen, setupSettingsWindow } from "../../helpers/settings-window";
 
 const restoreTheme = currentTheme();

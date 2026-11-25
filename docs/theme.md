@@ -7,15 +7,15 @@ This document describes how theming works in the coding-agent today: schema, loa
 The theme system drives:
 
 - foreground/background color tokens used across the UI (`theme.fg(key, text)`, `theme.bg(key, text)`, `theme.style(tokens, text)`)
-- markdown styling (`@oh-my-pi/pi-tui/text/markdown`, styled from the active theme)
+- markdown styling (`@linxiraos/pi-tui/text/markdown`, styled from the active theme)
 - symbol preset + symbol overrides (`unicode`, `nerd`, `ascii`) via `theme.symbols`
-- syntax highlighting colors used by native highlighter (`@oh-my-pi/pi-natives`)
+- syntax highlighting colors used by native highlighter (`@linxiraos/pi-natives`)
 - status line segment colors
 - agent name colors in the agent hub, agent tree and Task tool rows
 
 Implementation:
 
-- `packages/tui/src/theme/` (`@oh-my-pi/pi-tui/theme/*`): the theme file format (`schema.ts`), loading (`loader.ts`), resolution at a color depth (`theme.ts`, `ResolvedTheme`), symbols (`symbols.ts`), the active-theme signal and `ThemeController` (`runtime.ts`).
+- `packages/tui/src/theme/` (`@linxiraos/pi-tui/theme/*`): the theme file format (`schema.ts`), loading (`loader.ts`), resolution at a color depth (`theme.ts`, `ResolvedTheme`), symbols (`symbols.ts`), the active-theme signal and `ThemeController` (`runtime.ts`).
 - `packages/coding-agent/src/ui/theme/service.ts`: the app's theme service. It owns the one `ThemeController` and wires it to settings, the terminal and the theme picker.
 
 ## Theme JSON shape
@@ -139,7 +139,7 @@ Custom themes directory comes from `getCustomThemesDir()`:
 - default-profile override: `PI_CODING_AGENT_DIR` (`$PI_CODING_AGENT_DIR/themes`)
 - named profile: `~/.omp/profiles/<name>/agent/themes` (under the configured root); named profiles derive their own agent directory
 
-`listThemes()` (`@oh-my-pi/pi-tui/theme/loader`) returns merged built-in + custom names, sorted, with built-ins taking precedence on name collision. `getAvailableThemesWithPaths()` in the theme service adds each custom theme's file path.
+`listThemes()` (`@linxiraos/pi-tui/theme/loader`) returns merged built-in + custom names, sorted, with built-ins taking precedence on name collision. `getAvailableThemesWithPaths()` in the theme service adds each custom theme's file path.
 
 ## Loading, validation, and resolution
 
@@ -176,11 +176,11 @@ Conversion behavior:
 
 ## Runtime switching behavior
 
-The active theme is a reactive signal: `currentTheme()` from `@oh-my-pi/pi-tui/theme/runtime`. It always holds a theme (the built-in `dark` until the service starts). Code that runs once, such as CLI output and command reports, reads `currentTheme()` when it formats. Components and painters read it while they render, so they repaint on every switch. Don't keep a theme instance across switches. Extension renderer callbacks may also use the theme argument they receive.
+The active theme is a reactive signal: `currentTheme()` from `@linxiraos/pi-tui/theme/runtime`. It always holds a theme (the built-in `dark` until the service starts). Code that runs once, such as CLI output and command reports, reads `currentTheme()` when it formats. Components and painters read it while they render, so they repaint on every switch. Don't keep a theme instance across switches. Extension renderer callbacks may also use the theme argument they receive.
 
 ```ts
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { bold } from "@oh-my-pi/pi-tui/theme/theme";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { bold } from "@linxiraos/pi-tui/theme/theme";
 
 const renderStatus = () => {
 	const theme = currentTheme();
@@ -188,13 +188,13 @@ const renderStatus = () => {
 };
 ```
 
-Theme API at a glance (`Theme` in `@oh-my-pi/pi-tui/theme/contract`, implemented by `ResolvedTheme`):
+Theme API at a glance (`Theme` in `@linxiraos/pi-tui/theme/contract`, implemented by `ResolvedTheme`):
 
 | Need | Call |
 |---|---|
 | color text | `theme.fg("accent", text)`, `theme.bg("selectedBg", text)` |
 | span tokens (colors, tones, attributes, semantics) | `theme.style("accent strong", text)` |
-| bold/italic/underline/strikethrough/inverse/faint | `bold(text)` … from `@oh-my-pi/pi-tui/theme/theme` |
+| bold/italic/underline/strikethrough/inverse/faint | `bold(text)` … from `@linxiraos/pi-tui/theme/theme` |
 | a glyph | `theme.symbols.symbol("status.success")`, `"tree.branch"`, `"sep.dot"`, `"icon.pin"`, … |
 | a named or slash-command icon | `theme.symbols.icon("model")` |
 | box glyphs | `theme.symbols.box` (rounded), `theme.symbols.sharp` |
@@ -202,7 +202,7 @@ Theme API at a glance (`Theme` in `@oh-my-pi/pi-tui/theme/contract`, implemented
 | symbol preset | `theme.symbols.preset` |
 | light or dark | `theme.dark` |
 | a color as hex / raw SGR | `theme.hex(key)`, `theme.fgSgr(key)` |
-| thinking-level color | `theme.fg(thinkingColor(level), text)` (`thinkingColor` from `@oh-my-pi/pi-tui/theme/schema`) |
+| thinking-level color | `theme.fg(thinkingColor(level), text)` (`thinkingColor` from `@linxiraos/pi-tui/theme/schema`) |
 
 ### Starting the service (`initTheme`)
 

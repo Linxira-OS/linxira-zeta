@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tool-errors";
 import type { TabSession } from "./tab-supervisor";
 
 interface ControlLease {

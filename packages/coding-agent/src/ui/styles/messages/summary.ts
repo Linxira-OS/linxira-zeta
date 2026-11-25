@@ -5,10 +5,10 @@
  * fewer than four rule cells), a blank row; expanded, the detail Markdown in
  * a `customMessageBg` box one row and one cell in.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { renderMarkdownFrame } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { renderMarkdownFrame } from "@linxiraos/pi-tui/text/markdown/index";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
 import type { SummaryTerm } from "../../transcript/messages/summaries";
 import { expandKeyLabel } from "../../keys/hints";
 import { fillRow, propsOf, termOf } from "./fill";

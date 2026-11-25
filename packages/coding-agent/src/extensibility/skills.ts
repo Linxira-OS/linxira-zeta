@@ -7,7 +7,7 @@ import {
 	parseFrontmatter,
 	prompt,
 	relativePathWithinNormalizedRoot,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import {
 	isValidManagedSkillName,
 	MANAGED_SKILLS_PROVIDER_ID,

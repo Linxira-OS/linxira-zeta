@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The realtime-call panel: the phase (a spinner while the model works), the
  * mic level as a meter, the user's streaming transcript and Mute / End call
@@ -9,8 +9,8 @@
  * call's frame counter (the `omp.app.live` look); natively the frame ticks
  * leave the tree unchanged.
  */
-import type { JSXNode, KeyEvent } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { JSXNode, KeyEvent } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import "../../styles/apps/live-visualizer/look";
 import { callEnergy, type LiveCallModel, meterValue, PHASE_COLORS, PHASE_ICONS, PHASE_TONES } from "./model";
 import { formatTooltipKey } from "../../keys/hints";
@@ -58,7 +58,7 @@ export function LiveVisualizer(props: LiveVisualizerProps): JSXNode {
 	const meterTone = () => (model.phase() === "muted" ? "muted" : model.phase() === "error" ? "error" : "success");
 	return (
 		<card
-			role="omp.app.live"
+			role="zeta.app.live"
 			tone={() => PHASE_TONES[model.phase()]}
 			term={() => ({ phase: model.phase(), frame: model.frame(), energy: energy() }) satisfies LiveCardTerm}
 			onKey={onKey}
@@ -67,7 +67,7 @@ export function LiveVisualizer(props: LiveVisualizerProps): JSXNode {
 			<row key="head" gap="sm" align="center">
 				{status}
 			</row>
-			<row role="omp.app.live.level" gap="sm" align="center">
+			<row role="zeta.app.live.level" gap="sm" align="center">
 				<text spans={[{ s: "muted", t: "mic" }]} />
 				<meter value={() => meterValue(energy())} style="bar" size="md" tone={meterTone} grow={1} />
 			</row>
@@ -76,7 +76,7 @@ export function LiveVisualizer(props: LiveVisualizerProps): JSXNode {
 				wrap="none"
 				truncate="start"
 			/>
-			<row key="actions" role="omp.actions" gap="sm" align="center">
+			<row key="actions" role="zeta.actions" gap="sm" align="center">
 				<spacer grow={1} />
 				<ActionButton
 					id="mute"

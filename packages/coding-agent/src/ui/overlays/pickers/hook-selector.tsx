@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The option selector extensions and hooks open (`ctx.ui.select`): a list of
  * options (inline markdown, optional descriptions), with radio or checkbox
@@ -26,10 +26,10 @@ import {
 	type Reactive,
 	signal,
 	type UiEvent,
-} from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import type { TspPickerItem, TspSpan } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import type { TspPickerItem, TspSpan } from "@linxiraos/pi-wire";
 import type { HookSelectorSlider } from "../../../modes/view-model/overlays/hook-selector";
 import { fuzzyFilter } from "../../../utils/fuzzy";
 import { plainInlineMarkdown } from "../../styles/pickers/common";
@@ -343,7 +343,7 @@ export function HookSelector(props: HookSelectorProps): JSXNode {
 	};
 	return (
 		<card
-			role="omp.overlay.hook-select"
+			role="zeta.overlay.hook-select"
 			head={timed ? undefined : plainTitle}
 			term={term}
 			onKey={onKey}
@@ -405,7 +405,7 @@ export function HookSelector(props: HookSelectorProps): JSXNode {
 			{props.helpText !== undefined ? (
 				<text key="hints" spans={[{ t: stripEscapes(props.helpText), s: "dim" }]} wrap="word" />
 			) : (
-				<row key="hints" role="omp.overlay.hints" gap="md" wrap={true}>
+				<row key="hints" role="zeta.overlay.hints" gap="md" wrap={true}>
 					{hint([actionKbd("tui.select.up", "up"), actionKbd("tui.select.down", "down")], "navigate")}
 					{hint([confirmKbd()], "select")}
 					{hint([cancelKbd()], "cancel")}

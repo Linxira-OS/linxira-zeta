@@ -92,7 +92,7 @@ import {
 import { MODEL_ROLES } from "../config/model-roles";
 import { serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/service-tier";
 import type { Settings } from "../config/settings";
-import type { CursorMcpResourceAdapter, CursorExecHandlers} from "../cursor";
+import type { CursorMcpResourceAdapter, CursorExecHandlers } from "../cursor";
 import { estimateContextToolSchemaTokens } from "./context-usage";
 import { bridgeToolMap } from "../cursor-bridge-tools";
 import type { PlanModeState } from "../plan-mode/state";

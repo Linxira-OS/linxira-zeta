@@ -5,13 +5,13 @@
  * The settings registry (`config/registry.ts`) is the source of truth for available settings.
  */
 
-import { APP_NAME, getAgentDir, isRecord } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { APP_NAME, getAgentDir, isRecord } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { orderedSettings } from "../config/all-settings";
 import { type AnySetting, lookup } from "../config/registry";
 import { Settings, settings } from "../config/settings";
 import { initXdg } from "./commands/init-xdg";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 // =============================================================================
 // Types

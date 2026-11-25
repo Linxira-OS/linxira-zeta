@@ -1,4 +1,4 @@
-import type { UsageResetCreditDetail } from "@oh-my-pi/pi-ai";
+import type { UsageResetCreditDetail } from "@linxiraos/pi-ai";
 
 /** One account row with its redeemable rate-limit reset credits. */
 export interface ResetUsageAccount {

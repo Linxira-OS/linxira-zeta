@@ -2,15 +2,15 @@
  * Reads and drives what the /btw controller mounts on a real {@link Shell}: the inline panel in
  * the `btw` slot, the history sheet overlay and Tern's transcript notes.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
+import type { UiNode } from "@linxiraos/pi-tui";
 import { keyEvent } from "./input-harness";
-import type { BtwNoteAction } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/btw-note";
-import type { InteractiveModeContext, PresentOptions } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { printRows } from "@oh-my-pi/pi-coding-agent/ui/print-rows";
-import type { BtwHistoryModel } from "@oh-my-pi/pi-coding-agent/ui/overlays/panels/btw-history-panel-model";
-import type { Shell, TranscriptBlock } from "@oh-my-pi/pi-coding-agent/ui/shell/index";
-import { propsOf, termOf } from "@oh-my-pi/pi-coding-agent/ui/styles/panels/common";
-import type { TspMenuEntry } from "@oh-my-pi/pi-wire";
+import type { BtwNoteAction } from "@linxiraos/zeta/modes/view-model/overlays/btw-note";
+import type { InteractiveModeContext, PresentOptions } from "@linxiraos/zeta/modes/types";
+import { printRows } from "@linxiraos/zeta/ui/print-rows";
+import type { BtwHistoryModel } from "@linxiraos/zeta/ui/overlays/panels/btw-history-panel-model";
+import type { Shell, TranscriptBlock } from "@linxiraos/zeta/ui/shell/index";
+import { propsOf, termOf } from "@linxiraos/zeta/ui/styles/panels/common";
+import type { TspMenuEntry } from "@linxiraos/pi-wire";
 
 /** The fake-context members the btw controller reaches on the shell. */
 export function btwShellMembers(shell: Shell): Pick<InteractiveModeContext, "shell" | "present" | "transcriptBlocks"> {

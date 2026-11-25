@@ -10,9 +10,9 @@
  * read-only.
  */
 import type * as fs from "node:fs";
-import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
-import { type Accessor, signal, untrack } from "@oh-my-pi/pi-tui";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import { type Accessor, signal, untrack } from "@linxiraos/pi-tui";
+import { logger } from "@linxiraos/pi-utils";
 import type { Settings } from "../../../config/settings";
 import { formatModelString } from "../../../config/model-resolver";
 import type { AgentHubRemote } from "../../../modes/view-model/overlays/agent-hub";

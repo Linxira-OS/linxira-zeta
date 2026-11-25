@@ -1,4 +1,4 @@
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import { ToolError } from "../tool-errors";
 import { CELL_BUDGET_SLACK_MS } from "../run-scope";
 import { renderCallChain, renderRunArg } from "../run-code";

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `omp predict`: type a prompt and watch every word-completion engine's ghost
  * text side by side.
@@ -22,8 +22,8 @@ import {
 	nativeSupports,
 	signal,
 	type UiNode,
-} from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { closeDaemonClient } from "../daemon/client";
 import {
 	type WordCompletionEngine,

@@ -28,7 +28,7 @@ import { type RelayServer, startRelayServer } from "../../src/tools/browser/rela
 
 const OLD = "1.2.3";
 const NEWER = "999.0.0";
-const MANIFEST = "sh.omp.browser.json";
+const MANIFEST = "sh.zeta.browser.json";
 
 let home: TempDir;
 let registryFile: string;
@@ -275,8 +275,8 @@ describe("Chrome native host install", () => {
 			expect(targets).toEqual(roots.map(root => home.join(root, MANIFEST)));
 			for (const target of targets) {
 				expect(await Bun.file(target).json()).toEqual({
-					name: "sh.omp.browser",
-					description: "omp browser native messaging host",
+					name: "sh.zeta.browser",
+					description: "zeta browser native messaging host",
 					path: path.join(dir, platform === "win32" ? "native-host.cmd" : "native-host"),
 					type: "stdio",
 					allowed_origins: [

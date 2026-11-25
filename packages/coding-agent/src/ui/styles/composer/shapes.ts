@@ -15,9 +15,9 @@
  * prompt, a chip docked on the top rule) and/or as a bar under the composer
  * (`bottomBar`, after a blank row when `bottomBarGap`).
  */
-import type { PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import type { BoxGlyphs, Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { PaintContext } from "@linxiraos/pi-tui/term/paint";
+import type { BoxGlyphs, Theme } from "@linxiraos/pi-tui/theme/contract";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 
 /** Pre-styled status content a shape shows in its top chrome. */
 export interface ComposerStatusContent {

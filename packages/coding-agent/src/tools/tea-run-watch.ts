@@ -9,8 +9,8 @@
  */
 import { scheduler } from "node:timers/promises";
 import type { AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
-import { formatShortSha, pushLine } from "@linxiraos/pi-tui/tools/gh-format";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { formatShortSha, pushLine } from "./gh-format";
+import { ToolError } from "./tool-errors";
 import { gitea } from "../utils/gitea";
 import type { ToolSession } from ".";
 import { RUN_WATCH_FAST_WINDOW_MS, RUN_WATCH_INTERVAL_DEFAULT, RUN_WATCH_INTERVAL_SLOW } from "./gh-run-watch";

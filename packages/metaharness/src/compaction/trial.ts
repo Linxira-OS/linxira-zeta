@@ -24,7 +24,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 import { benchSettingsYaml } from "../bench-settings";
 import type { Subprocess } from "bun";
 import { type FreshStart, HISTORY_DIR } from "./fresh";

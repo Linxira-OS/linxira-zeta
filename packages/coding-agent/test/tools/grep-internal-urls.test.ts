@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as capability from "@oh-my-pi/pi-coding-agent/capability";
-import type { CapabilityResult } from "@oh-my-pi/pi-coding-agent/capability/types";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resetActiveSkillsForTests, setActiveSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import * as capability from "@linxiraos/zeta/capability";
+import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
 import {
 	type InternalResource,
 	type InternalUrl,
@@ -13,22 +13,22 @@ import {
 	LocalProtocolHandler,
 	type ProtocolHandler,
 	sessionResolveContext,
-} from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { InternalUrlFilesystem } from "@oh-my-pi/pi-coding-agent/internal-urls/url-filesystem";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import * as sshFileTransfer from "@oh-my-pi/pi-coding-agent/ssh/file-transfer";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ShellFsOp } from "@oh-my-pi/pi-natives";
-import { formatOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/internal-urls";
+import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import * as sshFileTransfer from "@linxiraos/zeta/ssh/file-transfer";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ShellFsOp } from "@linxiraos/pi-natives";
+import { formatOutputNotice } from "@linxiraos/zeta/tools/output-meta-format";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { AstGrepTool } from "../../src/tools/ast-grep";
 import { GlobTool } from "../../src/tools/glob";
 import { GrepTool } from "../../src/tools/grep";
 
-import { cfgCompactionExperimentalContextManagement } from "@oh-my-pi/pi-coding-agent/session/context-settings";
-import { cfgReadSummarizeEnabled } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { cfgCompactionExperimentalContextManagement } from "@linxiraos/zeta/session/context-settings";
+import { cfgReadSummarizeEnabled } from "@linxiraos/zeta/tools/settings";
 
 function getResultText(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content

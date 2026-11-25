@@ -7,7 +7,7 @@
  * progress reaches the client through `runtime.output`.
  */
 
-import type { CleanseStatusBoard } from "@linxiraos/pi-tui/apps/cleanse-board";
+import type { CleanseStatusBoard } from "../modes/view-model/apps/cleanse-board";
 import { runCleanse, type CleanseCommandOptions } from "../cleanse";
 import type { CleanseAssignment, CleanseAgentOutcome, CleanseCheckResult } from "../cleanse/types";
 import { commandConsumed } from "./helpers/parse";

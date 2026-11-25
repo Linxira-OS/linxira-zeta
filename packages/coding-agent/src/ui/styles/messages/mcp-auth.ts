@@ -13,11 +13,11 @@
  * So no trailing OAuth parameter is ever cut off (#4418). Where the terminal
  * draws hyperlinks, every chunk links to the full URL (#20192).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { hyperlink } from "@oh-my-pi/pi-tui/text/osc";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { hyperlink } from "@linxiraos/pi-tui/text/osc";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { termOf } from "./fill";
 
 /** The narrowest URL chunk: below it the terminal is unusable, but every character still shows. */

@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as agentCore from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@oh-my-pi/pi-utils";
+import * as agentCore from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../src/config/auxiliary-model-policy";
 import { ModelRegistry } from "../src/config/model-registry";
 import { resolveRoleChain, resolveRoleSelection } from "../src/config/model-resolver";

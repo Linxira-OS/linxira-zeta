@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { AsyncJob } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { AsyncJob } from "@linxiraos/zeta/async/job-manager";
 import {
 	buildTrayItems,
 	runsInlineAgent,
@@ -11,15 +11,15 @@ import {
 	TrayMainActivity,
 	TrayMemory,
 	trayAgentDetail,
-} from "@oh-my-pi/pi-coding-agent/modes/tray";
-import type { AgentRecordLike } from "@oh-my-pi/pi-coding-agent/registry/agent-hub-types";
-import type { ObservableSession } from "@oh-my-pi/pi-coding-agent/task/session-observer-registry";
-import type { AgentProgress } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import type { JobWidgetView } from "@oh-my-pi/pi-coding-agent/tools/details/job-widget";
-import { createRoot, resolveChildren } from "@oh-my-pi/pi-tui";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+} from "@linxiraos/zeta/modes/tray";
+import type { AgentRecordLike } from "@linxiraos/zeta/registry/agent-hub-types";
+import type { ObservableSession } from "@linxiraos/zeta/task/session-observer-registry";
+import type { AgentProgress } from "@linxiraos/zeta/task/task-details";
+import type { JobWidgetView } from "@linxiraos/zeta/tools/details/job-widget";
+import { createRoot, resolveChildren } from "@linxiraos/pi-tui";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { Tray, type TrayAgentItem, TrayModel, trayDoingText } from "../src/ui/dock";
 
 function progress(id: string, overrides: Partial<AgentProgress> = {}): AgentProgress {

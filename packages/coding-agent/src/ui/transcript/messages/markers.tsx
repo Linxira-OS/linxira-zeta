@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Dividers and turn markers: a short rule and a label set off by blank rows
  * in the terminal.
@@ -11,10 +11,10 @@
  *
  * Terminal look: `omp.divider` / `omp.marker.*` (`src/ui/styles/messages/divider.ts`).
  */
-import { type JSXNode, type Reactive, read } from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatNumber } from "@oh-my-pi/pi-utils";
+import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatNumber } from "@linxiraos/pi-utils";
 
 /** What a divider shows and how the terminal draws it. */
 export interface DividerProps {
@@ -84,7 +84,7 @@ export function CacheMissMarker(props: { info: CacheInvalidation }): JSXNode {
 			labelColor="muted"
 			ruleColor="dim"
 			ruleWidth={10}
-			role="omp.marker.cache-miss"
+			role="zeta.marker.cache-miss"
 			native={{ icon: "database", label: `Cache miss · ${tokens} tokens` }}
 			truncateWhenNarrow={false}
 		/>
@@ -108,7 +108,7 @@ export function ServedModelMarker(props: { info: ServedModelMismatch }): JSXNode
 			labelColor="warning"
 			ruleColor="dim"
 			ruleWidth={10}
-			role="omp.marker.served-model"
+			role="zeta.marker.served-model"
 			native={{
 				icon: "warn",
 				label: `Served ${served} · requested ${requested} · via ${provider}`,

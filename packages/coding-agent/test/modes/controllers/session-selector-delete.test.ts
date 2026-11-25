@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { SessionSelectorEntry } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/session-selector";
+import type { SessionSelectorEntry } from "@linxiraos/zeta/modes/view-model/overlays/session-selector";
 import { initTheme } from "../../../src/ui/theme/service";
 import { type MountedSessionSelector, mountSessionSelector, sessionEntry } from "../../helpers/session-selector";
 

@@ -949,3 +949,31 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		}
 	}
 }
+
+/** Lazy-connection MCP tool: resolves the server connection on first execute. */
+export class DeferredMCPTool {
+	readonly name: string;
+	readonly label: string;
+	readonly description: string;
+	readonly parameters: TSchema;
+	readonly mcpToolName: string;
+	readonly mcpServerName: string;
+	readonly approval = "write" as const;
+
+	constructor(
+		serverName: string,
+		private readonly tool: MCPToolDefinition,
+		private readonly getConnection: () => Promise<MCPServerConnection>,
+	) {
+		this.name = createMCPToolName(serverName, tool.name);
+		this.label = `${serverName}/${tool.name}`;
+		this.description = tool.description ?? `MCP tool from ${serverName}`;
+		this.parameters = normalizeSchemaForMCP(tool.inputSchema) as TSchema;
+		this.mcpToolName = tool.name;
+		this.mcpServerName = serverName;
+	}
+
+	async execute(...args: Parameters<MCPTool["execute"]>): ReturnType<MCPTool["execute"]> {
+		return new MCPTool(await this.getConnection(), this.tool).execute(...args);
+	}
+}

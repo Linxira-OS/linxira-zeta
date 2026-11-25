@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A side answer's body: markdown, with its `<inject>` block (the steering
  * prompt the answer drafted for the main session) shown apart as an
  * `omp.btw.inject` card: `Inject into main session` while sendable,
  * `➤ Injected into main session` once sent.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { sanitizeDisplayText } from "../../../extensibility/inventory/display-text";
 import {
 	BTW_INJECT_LABEL,
@@ -29,7 +29,7 @@ export function BtwInjectCard(props: { readonly text: string; readonly state: Bt
 		? { s: "success", t: `➤ ${BTW_INJECTED_LABEL}` }
 		: { s: "customMessageLabel", t: BTW_INJECT_LABEL };
 	return (
-		<card role="omp.btw.inject" tone={sent ? "success" : "user"}>
+		<card role="zeta.btw.inject" tone={sent ? "success" : "user"}>
 			{formatBtwInjectText(props.text)
 				.split("\n")
 				.map(line => (

@@ -4,7 +4,7 @@
  * Uses the embedded bash engine through native bindings for shell
  * execution.
  */
-import type { ImageContent } from "@oh-my-pi/pi-ai";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import {
 	type MinimizerOptions,
 	type PipeStreams,
@@ -15,12 +15,12 @@ import {
 	type ShellFilesystem,
 	type ShellRunResult,
 	type ShellSpeech,
-} from "@oh-my-pi/pi-natives";
-import { isShellTrace, type ShellTrace } from "@oh-my-pi/pi-wire";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-natives";
+import { isShellTrace, type ShellTrace } from "@linxiraos/pi-wire";
+import { logger } from "@linxiraos/pi-utils";
 import { formatRawOutputNotice } from "../tools/output-meta-format";
-import { $env } from "@oh-my-pi/pi-utils/env";
-import { isCmdShell, isExecutable, type ShellConfig } from "@oh-my-pi/pi-utils/procmgr";
+import { $env } from "@linxiraos/pi-utils/env";
+import { isCmdShell, isExecutable, type ShellConfig } from "@linxiraos/pi-utils/procmgr";
 import { Settings } from "../config/settings";
 import type { MinimizedMeta } from "../tools/output-meta-format";
 import { type ArtifactAllocator, OutputSink, type OutputSummary } from "../tools/streaming-output";

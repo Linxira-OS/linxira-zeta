@@ -1,21 +1,21 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@oh-my-pi/pi-coding-agent/task";
-import type { TodoItem, TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/details/todo";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task";
+import type { TodoItem, TodoPhase } from "@linxiraos/zeta/tools/details/todo";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
-import { cfgTasksTodoClearDelay } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { cfgTasksTodoClearDelay } from "@linxiraos/zeta/tools/settings";
 import { getCurrentThemeName, initTheme, setTheme } from "../src/ui/theme/service";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { StatusHud, TodoHud } from "../src/ui/dock";
 import { createModeTerminal, type ModeTerminal, renderRows } from "./helpers/mode-terminal";
 

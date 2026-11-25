@@ -6,14 +6,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { createRoot, isUiNode, type JSXNode, signal } from "@oh-my-pi/pi-tui";
+import { createRoot, isUiNode, type JSXNode, signal } from "@linxiraos/pi-tui";
 import {
 	CORPUS_DIR,
 	type CorpusCase,
 	corpusEnvironment,
 	describeTree,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
+} from "@linxiraos/pi-tui/testing/corpus";
 import { composerFacts } from "../../../src/ui/status/composer-facts";
 import type { StatusFacts } from "../../../src/ui/status/facts";
 import { corpusStatusFacts } from "./fixture";

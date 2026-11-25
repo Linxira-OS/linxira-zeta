@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as ai from "@oh-my-pi/pi-ai";
-import type { Api, AssistantMessage, Model, ModelSpec } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { cfgOffline } from "@oh-my-pi/pi-coding-agent/config/auxiliary-model-policy";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createModelJobWidgetAuthor } from "@oh-my-pi/pi-coding-agent/job-widgets/author";
-import { createModelJobCaptionWriter } from "@oh-my-pi/pi-coding-agent/job-widgets/caption";
-import { CostGate } from "@oh-my-pi/pi-coding-agent/session/cost-gate";
+import * as ai from "@linxiraos/pi-ai";
+import type { Api, AssistantMessage, Model, ModelSpec } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { cfgOffline } from "@linxiraos/zeta/config/auxiliary-model-policy";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createModelJobWidgetAuthor } from "@linxiraos/zeta/job-widgets/author";
+import { createModelJobCaptionWriter } from "@linxiraos/zeta/job-widgets/caption";
+import { CostGate } from "@linxiraos/zeta/session/cost-gate";
 import { createAssistantMessage } from "../helpers/agent-session-setup";
 import { rejectionOf } from "../helpers/rejection";
 

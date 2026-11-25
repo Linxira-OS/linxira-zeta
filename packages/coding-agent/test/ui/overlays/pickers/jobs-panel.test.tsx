@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test } from "bun:test";
-import { createRoot, resolveChildren, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { bubbleEvent, bubbleKey, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot, resolveChildren, signal, type UiNode } from "@linxiraos/pi-tui";
+import { bubbleEvent, bubbleKey, pathTo } from "@linxiraos/pi-tui/dispatch";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import {
 	type JobsPanelDetail,
 	JobsPanel,
@@ -83,8 +83,22 @@ const GROUPED_JOBS: JobsPanelSnapshot = {
 	running: [
 		{ id: "main", type: "bash", status: "running", label: "run suite", startTime: NOW - 10_000, ownerId: "root" },
 		{ id: "verify", type: "bash", status: "running", label: "check diff", startTime: NOW - 7_000, ownerId: "Verify" },
-		{ id: "audit-1", type: "bash", status: "running", label: "read ledger", startTime: NOW - 2_000, ownerId: "Audit" },
-		{ id: "audit-2", type: "bash", status: "running", label: "sort ledger", startTime: NOW - 1_000, ownerId: "Audit" },
+		{
+			id: "audit-1",
+			type: "bash",
+			status: "running",
+			label: "read ledger",
+			startTime: NOW - 2_000,
+			ownerId: "Audit",
+		},
+		{
+			id: "audit-2",
+			type: "bash",
+			status: "running",
+			label: "sort ledger",
+			startTime: NOW - 1_000,
+			ownerId: "Audit",
+		},
 	],
 	recent: [],
 };
@@ -125,18 +139,36 @@ test("describes subagents without task jobs as plain headings in tree order", ()
 			key: "jobs",
 			p: { selected: "audit-2", max: { lines: 12 }, actions: { click: "select", dblclick: "activate" } },
 			c: [
-				{ k: "text", key: expect.any(String), p: { role: "omp.jobs.group", spans: [{ t: "Audit" }], wrap: "none" } },
+				{
+					k: "text",
+					key: expect.any(String),
+					p: { role: "omp.jobs.group", spans: [{ t: "Audit" }], wrap: "none" },
+				},
 				expect.objectContaining({
 					k: "item",
 					key: "audit-1",
-					p: expect.objectContaining({ label: [{ t: `${branch} `, s: "mono dim" }, { t: "read ledger", s: "mono" }] }),
+					p: expect.objectContaining({
+						label: [
+							{ t: `${branch} `, s: "mono dim" },
+							{ t: "read ledger", s: "mono" },
+						],
+					}),
 				}),
 				expect.objectContaining({ k: "item", key: "audit-2" }),
-				{ k: "text", key: expect.any(String), p: { role: "omp.jobs.group", spans: [{ t: "Verify" }], wrap: "none" } },
+				{
+					k: "text",
+					key: expect.any(String),
+					p: { role: "omp.jobs.group", spans: [{ t: "Verify" }], wrap: "none" },
+				},
 				expect.objectContaining({
 					k: "item",
 					key: "verify",
-					p: expect.objectContaining({ label: [{ t: `${last} `, s: "mono dim" }, { t: "check diff", s: "mono" }] }),
+					p: expect.objectContaining({
+						label: [
+							{ t: `${last} `, s: "mono dim" },
+							{ t: "check diff", s: "mono" },
+						],
+					}),
 				}),
 				expect.objectContaining({ k: "item", key: "main" }),
 			],

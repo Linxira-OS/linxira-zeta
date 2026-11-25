@@ -2,34 +2,34 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage, AgentTool, AgentToolContext, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import type { Message } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as bashExecutor from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import { resolveToolCallIntent } from "@oh-my-pi/pi-coding-agent/job-widgets/intent";
-import type { CustomEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { SpotlightClient } from "@oh-my-pi/pi-coding-agent/spotlight/client";
-import { type CalledToolResult, shapeCalledTool } from "@oh-my-pi/pi-coding-agent/spotlight/index";
-import { buildCallContext, callSummary } from "@oh-my-pi/pi-coding-agent/spotlight/context";
-import { RecordingScorer } from "@oh-my-pi/pi-coding-agent/spotlight/scorer";
-import { readArtifactText } from "@oh-my-pi/pi-coding-agent/spotlight/sink";
+import type { AgentMessage, AgentTool, AgentToolContext, AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { Message } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as bashExecutor from "@linxiraos/zeta/exec/bash-executor";
+import { resolveToolCallIntent } from "@linxiraos/zeta/job-widgets/intent";
+import type { CustomEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { SpotlightClient } from "@linxiraos/zeta/spotlight/client";
+import { type CalledToolResult, shapeCalledTool } from "@linxiraos/zeta/spotlight/index";
+import { buildCallContext, callSummary } from "@linxiraos/zeta/spotlight/context";
+import { RecordingScorer } from "@linxiraos/zeta/spotlight/scorer";
+import { readArtifactText } from "@linxiraos/zeta/spotlight/sink";
 import {
 	SpotlightExperiment,
 	type SpotlightExperimentOptions,
 	startSpotlightExperiment,
-} from "@oh-my-pi/pi-coding-agent/spotlight/session";
-import { countTokens } from "@oh-my-pi/pi-coding-agent/spotlight/shape/shape";
-import { SPOTLIGHT_ENTRY } from "@oh-my-pi/pi-coding-agent/spotlight/types";
-import { StencilCredential } from "@oh-my-pi/pi-coding-agent/stencil/credential";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { wrapToolWithMetaNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import * as scrapers from "@oh-my-pi/pi-coding-agent/web/scrapers/types";
-import { reasonShows, type SpotlightReason, spotlightDetails } from "@oh-my-pi/pi-coding-agent/tools/details/spotlight";
-import { formatOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/spotlight/session";
+import { countTokens } from "@linxiraos/zeta/spotlight/shape/shape";
+import { SPOTLIGHT_ENTRY } from "@linxiraos/zeta/spotlight/types";
+import { StencilCredential } from "@linxiraos/zeta/stencil/credential";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import * as scrapers from "@linxiraos/zeta/web/scrapers/types";
+import { reasonShows, type SpotlightReason, spotlightDetails } from "@linxiraos/zeta/tools/details/spotlight";
+import { formatOutputNotice } from "@linxiraos/zeta/tools/output-meta-format";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const tmpDirs: string[] = [];
 
@@ -618,7 +618,7 @@ describe("spotlight plain baseline", () => {
 
 	/** Every bash call spills: the sink keeps the last 300 lines and the session holds the whole output. */
 	async function spill(manager: SessionManager): Promise<void> {
-		const artifactId = await manager.saveArtifact(FULL);
+		const artifactId = await manager.saveArtifact(FULL, "bash");
 		if (artifactId === undefined) throw new Error("the in-memory session keeps artifacts");
 		vi.spyOn(bashExecutor, "executeBash").mockResolvedValue({
 			...bashOutput(FULL.split("\n").slice(-300).join("\n")),
@@ -690,7 +690,7 @@ describe("spotlight column-capped output", () => {
 	it("gives a short cut of the whole artifact over the column cap's preview, counting what it costs", async () => {
 		const client = spotlightClient(fakeSpotlight({ score: item => (item.includes("on_hold") ? 1 : 0.05) }));
 		const { session, manager } = await experimentSession(client);
-		const artifactId = await manager.saveArtifact(FULL);
+		const artifactId = await manager.saveArtifact(FULL, "bash");
 		if (artifactId === undefined) throw new Error("the in-memory session keeps artifacts");
 		const preview = `${FULL.slice(0, 768)}…`;
 		const capped: bashExecutor.BashResult = {
@@ -716,7 +716,7 @@ describe("spotlight column-capped output", () => {
 	it("still says a timed-out command timed out when its cut comes from the artifact", async () => {
 		const client = spotlightClient(fakeSpotlight({ score: item => (item.includes("on_hold") ? 1 : 0.05) }));
 		const { session, manager } = await experimentSession(client);
-		const artifactId = await manager.saveArtifact(FULL);
+		const artifactId = await manager.saveArtifact(FULL, "bash");
 		if (artifactId === undefined) throw new Error("the in-memory session keeps artifacts");
 		// The sink puts its timeout notice above the preview; the artifact holds only what the command printed.
 		const preview = `[Command timed out after 1 seconds]\n${FULL.slice(0, 768)}…`;

@@ -11,13 +11,13 @@
  * - `omp.status.*` (`seg`): a segment drawn from its look pieces.
  * - `omp.status.hook` (`text`): one extension status.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { stack } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { statusRow } from "@oh-my-pi/pi-tui/term/painters/status";
-import { truncate, truncateStart, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { FG_DEFAULT, fgSgr } from "@oh-my-pi/pi-tui/theme/color";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { stack } from "@linxiraos/pi-tui/term/painters/layout";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { statusRow } from "@linxiraos/pi-tui/term/painters/status";
+import { truncate, truncateStart, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { FG_DEFAULT, fgSgr } from "@linxiraos/pi-tui/theme/color";
 
 /** `from` → `to` at `t` (0…1), as `rrggbb`. */
 function blendHex(from: string, to: string, t: number): string {
@@ -29,7 +29,7 @@ function blendHex(from: string, to: string, t: number): string {
 	}
 	return out;
 }
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { sanitizeInlineStatusText } from "../../../modes/view-model/chrome/shared";
 import { sessionAccentHex } from "../../status/accent";
 import { BRAND_FADE_MS } from "../../status/facts";

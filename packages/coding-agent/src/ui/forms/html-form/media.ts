@@ -6,9 +6,9 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { signal } from "@oh-my-pi/pi-tui";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { signal } from "@linxiraos/pi-tui";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { HtmlForm } from "../../../tools/html-form/parse";
 import {
 	DEFAULT_FIGURE_CELL,

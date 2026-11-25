@@ -8,11 +8,11 @@
  * ask toolResults).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionEntry, SessionTreeNode } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { createRoot } from "@oh-my-pi/pi-tui";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
+import { createRoot } from "@linxiraos/pi-tui";
 import * as treeSelectorModule from "../../../src/ui/overlays/pickers/tree-selector";
 import { initTheme } from "../../../src/ui/theme/service";
 

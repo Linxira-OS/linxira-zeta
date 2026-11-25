@@ -1,9 +1,9 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test, vi } from "bun:test";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
 import { fullscreenMenuView, layerContent } from "../../../../src/modes/controllers/selector-views";
 import { nativeShell } from "../../../helpers/native-shell";
-import { signal, type UiEvent } from "@oh-my-pi/pi-tui";
+import { signal, type UiEvent } from "@linxiraos/pi-tui";
 import type { SessionSelectorEntry } from "../../../../src/modes/view-model/overlays/session-selector";
 import { SessionSelector } from "../../../../src/ui/overlays/pickers/session-selector";
 import { type Driver, pickerSuite } from "./harness";

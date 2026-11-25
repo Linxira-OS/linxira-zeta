@@ -1,11 +1,20 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Form controls: a field frame (label, description, details, preview, the
  * control, error, summary, hint, footer), a text field, a select field and a
  * form of text fields. Looks: `../styles/forms`.
  */
-import { type Accessor, computed, For, type JSXNode, type KeyEvent, type Reactive, read, Show } from "@oh-my-pi/pi-tui";
-import type { TspPickerAction, TspPickerItem, TspSpan } from "@oh-my-pi/pi-wire";
+import {
+	type Accessor,
+	computed,
+	For,
+	type JSXNode,
+	type KeyEvent,
+	type Reactive,
+	read,
+	Show,
+} from "@linxiraos/pi-tui";
+import type { TspPickerAction, TspPickerItem, TspSpan } from "@linxiraos/pi-wire";
 import "../styles/forms";
 import { type FieldSlot, type FieldTerm, SELECT_LOOK } from "../styles/forms/field";
 import { applyEdit } from "../overlays/panels/common";
@@ -65,7 +74,7 @@ export function FormField(
 	const preview = computed(() => read(props.preview));
 	return (
 		<col
-			role="omp.form.field"
+			role="zeta.form.field"
 			gap="sm"
 			term={term}
 			onKey={props.onKey}
@@ -156,7 +165,7 @@ export function SelectList(props: { readonly model: SelectFieldModel }) {
 		return [{ s: "muted", t: query ? `Search: ${query}` : "Type to search" }];
 	};
 	return (
-		<col role="omp.select">
+		<col role="zeta.select">
 			<list
 				key="list"
 				empty={() => (model.query() ? "No matching items" : "No items")}
@@ -246,7 +255,7 @@ export function Form(props: {
 	const model = props.model;
 	return (
 		<col
-			role="omp.form"
+			role="zeta.form"
 			gap="md"
 			onKey={key => model.key(key)}
 			onPaste={paste => {

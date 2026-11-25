@@ -11,15 +11,15 @@
  *  - UiHelpers.renderSessionContext: replay collapses the same runs.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { cfgDisplayShowTokenUsage } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import type { InteractiveModeContext, PendingTool } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { displaceableBy } from "@oh-my-pi/pi-coding-agent/modes/utils/displaceable";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import { isSettled } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { cfgDisplayShowTokenUsage } from "@linxiraos/zeta/modes/settings";
+import type { InteractiveModeContext, PendingTool } from "@linxiraos/zeta/modes/types";
+import { displaceableBy } from "@linxiraos/zeta/modes/utils/displaceable";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import { isSettled } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 
 type JobStatus = "running" | "completed" | "failed" | "cancelled";

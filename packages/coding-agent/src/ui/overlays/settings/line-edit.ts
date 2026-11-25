@@ -3,7 +3,7 @@
  * setting drafts): a key applied to `{ text, cursor }` (UTF-16 caret), by
  * the `tui.editor.*` bindings.
  */
-import type { KeyEvent } from "@oh-my-pi/pi-tui";
+import type { KeyEvent } from "@linxiraos/pi-tui";
 import type { Keybinding } from "../../../config/keybindings/app-keybindings";
 import { getKeybindings } from "../../../config/keybindings/keybindings";
 

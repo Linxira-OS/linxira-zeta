@@ -11,11 +11,11 @@
  *   starts above the view, else down to its end; the wheel scrolls it three
  *   rows a notch. A scrollbar takes the last column while it overflows.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { pickerState } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { SgrState } from "@oh-my-pi/pi-tui/text/ansi";
-import { padTo, sliceCells, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { pickerState } from "@linxiraos/pi-tui/term/painters/picker";
+import { SgrState } from "@linxiraos/pi-tui/text/ansi";
+import { padTo, sliceCells, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import "../messages";
 import "../tools";
 import "../transcript/read-group";

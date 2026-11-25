@@ -8,9 +8,9 @@
  *   instead: the `Join` link and why the code is hidden (warning), cut to
  *   the width.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import type { CollabPromptTerm, CollabQrTerm } from "../../transcript/figures/collab";
 import { bubbleRows } from "../messages/user";
 import { termOf } from "../messages/fill";

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { FileMentions, type MentionedFile } from "../../../../src/ui/transcript/messages/file-mention";
 import { screenSuite, single } from "./harness";
 

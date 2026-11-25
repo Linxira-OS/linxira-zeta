@@ -1,11 +1,11 @@
 import { describe, expect, test, vi } from "bun:test";
-import { type Api, Effort, type Model, type ModelSpec } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { setRuntimeProviderRule } from "@oh-my-pi/pi-catalog/compat/cascade";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models";
-import { logger } from "@oh-my-pi/pi-utils";
-import { parseModelString } from "@oh-my-pi/pi-coding-agent/config/model-selector";
+import { type Api, Effort, type Model, type ModelSpec } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { setRuntimeProviderRule } from "@linxiraos/pi-catalog/compat/cascade";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models";
+import { logger } from "@linxiraos/pi-utils";
+import { parseModelString } from "@linxiraos/zeta/config/model-selector";
 import {
 	expandRoleAlias,
 	extractExplicitThinkingSelector,
@@ -34,11 +34,11 @@ import {
 	scopeAllowList,
 	rolePriorityDefaults,
 	resolveProviderModelReference,
-} from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { DEFAULT_MODEL_ROLE_ALIAS, LEGACY_MODEL_ROLE_ALIAS_PREFIX } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+} from "@linxiraos/zeta/config/model-resolver";
+import { DEFAULT_MODEL_ROLE_ALIAS, LEGACY_MODEL_ROLE_ALIAS_PREFIX } from "@linxiraos/zeta/config/model-roles";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 
 // Mock models for testing
 const mockModels: Model<"anthropic-messages">[] = [

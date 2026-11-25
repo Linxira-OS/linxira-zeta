@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** The account picker `/session pin` opens for the current model provider. */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import type { SessionPinAccount } from "../../../modes/view-model/overlays/session-account-selector";
 import { SelectSheet } from "./select-sheet";
 

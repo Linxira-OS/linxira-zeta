@@ -1,8 +1,8 @@
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
-import { prompt } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, Model } from "@linxiraos/pi-ai";
+import { prompt } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import typesDescriptionPrompt from "../../commit/prompts/types-description.md" with { type: "text" };
 import type { ModelRegistry } from "../../config/model-registry";
 import type { Settings } from "../../config/settings";
@@ -14,8 +14,8 @@ import agentUserPrompt from "./prompts/session-user.md" with { type: "text" };
 import agentSystemPrompt from "./prompts/system.md" with { type: "text" };
 import type { CommitAgentState } from "./state";
 import { createCommitTools } from "./tools";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/render";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/render";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 export interface CommitAgentInput {
 	cwd: string;

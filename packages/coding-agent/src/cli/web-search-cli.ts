@@ -4,8 +4,8 @@
  * Handles `omp q`/`omp web-search` subcommands for testing web search models.
  */
 
-import { APP_NAME, getProjectDir } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { APP_NAME, getProjectDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { Settings } from "../config/settings";
 import { runSearchQuery, type SearchQueryParams } from "../web/search/index";
 import { initTheme } from "../ui/theme/service";

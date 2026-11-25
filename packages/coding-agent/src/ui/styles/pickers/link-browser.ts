@@ -14,13 +14,13 @@
  * Tags, the scroll range and the page height of the last paint are what the
  * screen's keys act on ({@link linkBrowserMeasure}).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type Hit } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import { takeExtensionLinks } from "@oh-my-pi/pi-tui/text/markdown/links";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/render";
-import { padTo, pieces, sliceColumns, truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type Hit } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import { takeExtensionLinks } from "@linxiraos/pi-tui/text/markdown/links";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/render";
+import { padTo, pieces, sliceColumns, truncate } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 /** The browser's term facts. */
 export type LinkBrowserTerm = {

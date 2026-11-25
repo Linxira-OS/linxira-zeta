@@ -10,9 +10,9 @@ Background jobs auto-deliver when they finish. You NEVER need to poll. `jobs` is
   Sending wakes `idle`/`parked` peers. Answering: lead with answer, NEVER quote, set `replyTo`.
 - **Format**: plain prose ONLY. No JSON status objects. Share paths via `local://`/`artifact://` URLs, not pasted blobs.
 - **`wait`**: use ONLY when completely blocked with no other work. Returns on the FIRST of: an incoming message, a watched job finishing, the wait window elapsing (5s, lengthening with each back-to-back wait up to 5m), or a steering interrupt — NOT when all jobs finish; re-issue to keep waiting.
-  - Any queued completion notice (an unwatched job finishing, a supervised process exiting) cuts every form of `wait` short as "skipped"; the notice lands on the next step. Re-issue the wait after handling it.
-  - Bare `wait` watches every running job AND incoming messages. NEVER pass an array of every running ID; `ids` narrows to specific jobs, `from` to one peer (or use `await: true` on send).
-  - A **user** message arriving as steering is not a wake reason to poll past: answer it in a text block BEFORE re-issuing `wait`. Parent/peer steering is answered with `send`; advisor and budget steers need no reply.
+   - Any queued completion notice (an unwatched job finishing, a supervised process exiting) cuts every form of `wait` short as "skipped"; the notice lands on the next step. Re-issue the wait after handling it.
+   - Bare `wait` watches every running job AND incoming messages. NEVER pass an array of every running ID; `ids` narrows to specific jobs, `from` to one peer (or use `await: true` on send).
+   - A **user** message arriving as steering is not a wake reason to poll past: answer it in a text block BEFORE re-issuing `wait`. Parent/peer steering is answered with `send`; advisor and budget steers need no reply.
 - **`inbox`**: drain queued messages without blocking.
 - **`cancel`**: kill background jobs by `ids` when they have hung, stalled, or are no longer needed. Returns immediately.
 - **`jobs`**: non-consuming status summary of every job. Use `wait` with an id to recover a settled result before auto-delivery. Also names running subagents with no job entry — coordinate with those via `send`.
@@ -26,10 +26,10 @@ Background jobs auto-deliver when they finish. You NEVER need to poll. `jobs` is
 Project-scoped long-running processes shared by every zeta instance in the same directory. A long-running service, watcher, debugger, REPL, or process needing later input MUST use `op:"start"`, not `bash`.
 
 - **`start`** launches `application` + `args` directly. `cwd` defaults to the session directory; `pty` defaults true.
-  - `ready.log` is a JavaScript `RegExp` compiled with the `u` flag; PCRE inline modifiers such as `(?i)` are REJECTED — use `[Rr]eady` instead. `ready.port` is a TCP port. Both supplied? BOTH MUST pass. `ready.timeout` is seconds. Readiness MUST be observed; process creation alone is not readiness.
-  - Names are unique per project directory. A completed name MAY be started again; a live name MUST be stopped or restarted.
-  - `restart` policy defaults `no`; `on-failure` and `always` use bounded backoff.
-  - `persist: true` opts out of last-zeta teardown; `detached: true` survives broker shutdown and all zeta exits (implies persist, disables PTY input). Omit both unless their survival guarantees are required.
+   - `ready.log` is a JavaScript `RegExp` compiled with the `u` flag; PCRE inline modifiers such as `(?i)` are REJECTED — use `[Rr]eady` instead. `ready.port` is a TCP port. Both supplied? BOTH MUST pass. `ready.timeout` is seconds. Readiness MUST be observed; process creation alone is not readiness.
+   - Names are unique per project directory. A completed name MAY be started again; a live name MUST be stopped or restarted.
+   - `restart` policy defaults `no`; `on-failure` and `always` use bounded backoff.
+   - `persist: true` opts out of last-zeta teardown; `detached: true` survives broker shutdown and all zeta exits (implies persist, disables PTY input). Omit both unless their survival guarantees are required.
 - **`ps`**, **`logs`**, **`wait`** (with `name`), **`send`** (with `name`), **`stop`**, **`restart`**, and **`describe`** address the stable `name`.
 - **`logs`** defaults to the last 100 lines. `head: true` reads the beginning. `grep` is a JavaScript `RegExp` compiled with the `u` flag (no inline modifiers such as `(?i)`). `follow: true` waits for output after `cursor`; reuse the returned cursor on the next call.
 - **`wait`** with `name` blocks until readiness/exit/`pattern` or `timeout` (seconds). `pattern` is a JavaScript `RegExp` compiled with the `u` flag (no inline modifiers such as `(?i)`). A `pattern` wait also returns when the process exits without ever printing it — check the reported state before assuming a match.

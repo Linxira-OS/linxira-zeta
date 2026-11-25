@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext, WorkingKind } from "@oh-my-pi/pi-coding-agent/modes/types";
-import * as sessionWorktree from "@oh-my-pi/pi-coding-agent/session/session-worktree";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import type { InteractiveModeContext, WorkingKind } from "@linxiraos/zeta/modes/types";
+import * as sessionWorktree from "@linxiraos/zeta/session/session-worktree";
 
 function createMoveContext(sourceDir: string, settingsFlush?: () => Promise<void>) {
 	const state = { cwd: sourceDir, movedTo: undefined as string | undefined, completedBtwVisible: true };

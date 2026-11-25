@@ -8,8 +8,8 @@
  * runs only on the caller's live selected resident session so the cwd used to
  * resolve relative paths is the conversation's own.
  */
-import { ImageInputTooLargeError } from "@linxiraos/pi-tui/chat/image-loading";
-import { extractImagePastePathsFromText } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { ImageInputTooLargeError } from "../../../utils/image-loading";
+import { extractImagePastePathsFromText } from "../../../modes/view-model/prompt/custom-editor";
 import { getRpcSession } from "../../web-gateway/agents.js";
 import { loadImageInput, type LoadedImageInput } from "../../../utils/image-loading.js";
 import { invalid, unavailable } from "../errors.js";

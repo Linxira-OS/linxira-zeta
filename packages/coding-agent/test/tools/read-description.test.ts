@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgEditMode } from "@oh-my-pi/pi-coding-agent/edit/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { cfgReadLineNumbers } from "@oh-my-pi/pi-coding-agent/tools/settings";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { cfgEditMode } from "@linxiraos/zeta/edit/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { cfgReadLineNumbers } from "@linxiraos/zeta/tools/settings";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function textOutput(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The interactive console: a program on a pseudo-terminal the user drives
  * (`bash` with `pty`). The head names the command and its state, the body is
@@ -9,9 +9,9 @@
  * output and reads `cursorAfterText()` for its input-wait heuristic; keys and
  * pastes leave through `onInput` as the bytes a terminal would send.
  */
-import { type JSXNode, type KeyEvent, nativeRendering, type Signal, signal } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type JSXNode, type KeyEvent, nativeRendering, type Signal, signal } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { ActionButton } from "./common";
 import { consoleStateLabel, type PtyConsoleTerm } from "../../styles/panels/pty-console";
 import { PtyReplay, styleReplayedRow } from "../../transcript/pty-replay";
@@ -272,7 +272,7 @@ export function PtyConsole(props: { readonly model: PtyConsoleModel }): JSXNode 
 			)}
 			{() =>
 				model.state() === "running" ? (
-					<row key="footer" role="omp.actions" align="center" gap="sm">
+					<row key="footer" role="zeta.actions" align="center" gap="sm">
 						<text spans={[{ s: "dim", t: "Input forwarded to PTY" }]} />
 						<spacer grow={1} />
 						<ActionButton
@@ -285,7 +285,7 @@ export function PtyConsole(props: { readonly model: PtyConsoleModel }): JSXNode 
 						/>
 					</row>
 				) : native ? (
-					<row key="footer" role="omp.actions" align="center" gap="sm">
+					<row key="footer" role="zeta.actions" align="center" gap="sm">
 						<text spans={[{ s: "dim", t: "Session finished" }]} />
 					</row>
 				) : (

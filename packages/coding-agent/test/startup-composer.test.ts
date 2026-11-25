@@ -1,28 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import * as registry from "@oh-my-pi/pi-coding-agent/collab/registry";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as pluginHelpers from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
+import * as registry from "@linxiraos/zeta/collab/registry";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	applyStartupComposerPreferences,
 	beginStartupComposer,
 	type ComposerLease,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
-} from "@oh-my-pi/pi-coding-agent/modes/startup-composer";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { memoryTerminal } from "@oh-my-pi/pi-tui/testing/memory-terminal";
-import { getProjectDir, isInteractiveHost, setInteractiveHost, setProjectDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/modes/startup-composer";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { memoryTerminal } from "@linxiraos/pi-tui/testing/memory-terminal";
+import { getProjectDir, isInteractiveHost, setInteractiveHost, setProjectDir } from "@linxiraos/pi-utils";
 import type { StartupPreferences } from "../src/modes/interactive/startup-cache";
 import type { StatusPrediction } from "../src/modes/interactive/status-prediction";
 import { initTheme } from "../src/ui/theme/service";
@@ -42,7 +42,7 @@ import {
 	cfgStartupShowSplash,
 	cfgTuiResizeScrollback,
 	cfgTuiVimMode,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
+} from "@linxiraos/zeta/modes/settings";
 
 let savedInteractiveHost: boolean;
 beforeEach(() => {

@@ -5,9 +5,9 @@
  * Apple's service replaced by a fake backend.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createRoot, type KeyEvent } from "@oh-my-pi/pi-tui";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot, type KeyEvent } from "@linxiraos/pi-tui";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { Settings } from "../../../src/config/settings";
 import { MacOSSpellingProvider, type SpellingBackend } from "../../../src/modes/view-model/prompt/macos-spelling";
 import { Composer, ComposerChips } from "../../../src/ui/composer";

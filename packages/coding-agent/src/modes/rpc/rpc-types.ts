@@ -48,6 +48,22 @@ import type { BtwHistoryRecord } from "../../session/btw-history";
  */
 export type RpcMessageUpdates = "full" | "delta";
 
+/** A companion binary shipped with the product (desktop app, IDE, workbench, runtime). */
+export type RpcComponentId = "zetacode" | "zetawork" | "zetawork-gui" | "zetaide";
+
+/** One component as resolved on the host running the backend. */
+export interface RpcComponentInfo {
+	id: RpcComponentId;
+	/** Installed command name; the same in every layout. */
+	command: string;
+	/** Resolved absolute executable; absent when the component is not installed. */
+	path?: string;
+	/** Whether `component_open` can launch it as a detached GUI process. */
+	openable: boolean;
+	/** Why `component_open` refuses it, when it does. */
+	reason?: string;
+}
+
 export type RpcCommand =
 	// Protocol
 	| { id?: string; type: "negotiate_protocol"; protocolVersion: number }
@@ -70,6 +86,7 @@ export type RpcCommand =
 	| { id?: string; type: "get_state" }
 	| { id?: string; type: "set_fast_mode"; enabled: boolean }
 	| { id?: string; type: "set_slow_mode"; enabled: boolean }
+	| { id?: string; type: "guided_goal"; message?: string; images?: ImageContent[] }
 	| {
 			id?: string;
 			type: "goal";
@@ -233,6 +250,8 @@ export interface RpcSessionState {
 	contextUsage?: ContextUsage;
 	/** Current goal-mode state; `null` when the session has no goal. */
 	goal: GoalModeState | null;
+	/** True while the guided-goal interview is open. */
+	guidedGoalInterview?: boolean;
 }
 
 export interface RpcAvailableSlashCommand {

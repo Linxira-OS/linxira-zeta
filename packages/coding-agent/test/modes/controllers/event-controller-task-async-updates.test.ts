@@ -14,18 +14,18 @@
  *    background ("running") finalizes and untracks it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext, PendingTool } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { isSettled } from "@oh-my-pi/pi-tui";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
+import type { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext, PendingTool } from "@linxiraos/zeta/modes/types";
+import { isSettled } from "@linxiraos/pi-tui";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "../../../src/ui/theme/service";
 import { blockText, transcriptText } from "../../helpers/transcript-text";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import type { TaskToolDetails } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import { type BashToolDetails, formatBackgroundNotice } from "@oh-my-pi/pi-coding-agent/tools/details/bash";
-import type { CoordinationDetails } from "@oh-my-pi/pi-coding-agent/tools/details/wait";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import type { TaskToolDetails } from "@linxiraos/zeta/task/task-details";
+import { type BashToolDetails, formatBackgroundNotice } from "@linxiraos/zeta/tools/details/bash";
+import type { CoordinationDetails } from "@linxiraos/zeta/tools/details/wait";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 function taskResult(asyncState: "running" | "completed" | "failed" | undefined, text: string) {

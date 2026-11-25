@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AgentToolContext, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import type { AskToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/ask";
+import type { AgentToolContext, AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { AskToolDetails } from "@linxiraos/zeta/tools/details/ask";
 import { Settings } from "../src/config/settings";
 import type { ExtensionUIDialogOptions, ExtensionUISelectItem } from "../src/extensibility/extensions";
 import type { ToolSession } from "../src/tools";

@@ -1,14 +1,14 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { resolveModelCacheProviderId } from "@oh-my-pi/pi-catalog/provider-models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgExtendedContext } from "@oh-my-pi/pi-coding-agent/session/context-settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { cfgExtendedContext } from "@linxiraos/zeta/session/context-settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 
 describe("composed startup catalog", () => {
 	let dir: TempDir;

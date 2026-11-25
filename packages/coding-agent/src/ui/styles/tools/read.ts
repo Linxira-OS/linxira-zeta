@@ -8,10 +8,10 @@
  *
  * Reads {@link ReadTerm} (and the `md` child of a Markdown read).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { ReadTerm } from "../../tools/read";
 import { codeCellRows, markdownCellRows } from "./code-cell";
 import { fileLink } from "./file-common";

@@ -1,8 +1,8 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** The select card in terminal rows: the framed list an inline selector draws in the composer's place. */
 import { describe, expect, it, vi } from "bun:test";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { SelectCard } from "../../../../src/ui/overlays/panels/select-card";
 import { findKind } from "../../../helpers/overlay-terminal";
 

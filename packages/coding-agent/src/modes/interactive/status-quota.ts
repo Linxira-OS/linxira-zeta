@@ -7,11 +7,11 @@
  * remaining model/tier scopes, exact-model groups outrank provider-wide ones
  * and untiered groups outrank tiered ones.
  */
-import type { UsageLimit, UsageReport } from "@oh-my-pi/pi-ai";
+import type { UsageLimit, UsageReport } from "@linxiraos/pi-ai";
 import {
 	getAntigravityCounterKeyForModel,
 	scopeAntigravityLimitsForModel,
-} from "@oh-my-pi/pi-ai/usage/google-antigravity";
+} from "@linxiraos/pi-ai/usage/google-antigravity";
 import { summarizeUsageResetCredits } from "../../session/usage-display";
 import type { StatusQuota } from "../../ui/status/facts";
 import type { CodexResetUsageSnapshot } from "../view-model/overlays/codex-reset-fireworks";

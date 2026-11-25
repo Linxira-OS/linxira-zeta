@@ -4,7 +4,7 @@ This document maps terminal input and rendering ownership in interactive mode. S
 
 ## Ownership
 
-- **`packages/tui`** (`@oh-my-pi/pi-tui`) owns terminal lifecycle (`host.ts`), the driver (`driver/`: input decoding, probes, the frame writer `driver/output/writer.ts`, images), the terminal backend (`term/backend.ts`: history batches, commit frontier, natural streaming, viewport allocation, replay, shutdown flush), painters (`term/painters/`) and the native Tern backend (`native/`).
+- **`packages/tui`** (`@linxiraos/pi-tui`) owns terminal lifecycle (`host.ts`), the driver (`driver/`: input decoding, probes, the frame writer `driver/output/writer.ts`, images), the terminal backend (`term/backend.ts`: history batches, commit frontier, natural streaming, viewport allocation, replay, shutdown flush), painters (`term/painters/`) and the native Tern backend (`native/`).
 - **`packages/coding-agent`** owns session semantics: it builds the surface (`src/modes/interactive/`: the transcript as `main`, composer/status/HUD as `dock`) and settles blocks when messages and tools finalize. Tool looks render viewport allocations (`src/ui/styles/tools/block.ts`).
 
 The terminal backend never interprets messages, tools or transcript blocks: it sees `main` nodes, their settle marks and the rows (and stable heads) their painters return.

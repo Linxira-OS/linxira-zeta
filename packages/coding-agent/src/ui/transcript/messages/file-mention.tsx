@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Files a prompt's `@path` mentions auto-read (a `fileMention` message): one
  * `└─ Read dir/name (N lines)` row per file — `image`, `unknown lines`, or
@@ -7,9 +7,9 @@
  *
  * Terminal look: `omp.status-block` (`src/ui/styles/messages/notice.ts`).
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatBytes, formatCount } from "@oh-my-pi/pi-utils";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatBytes, formatCount } from "@linxiraos/pi-utils";
 import type { FileMentionMessage } from "../../../session/transcript/messages";
 import { styledPath } from "../../styles/tools/file-common";
 import { statusFacts } from "./async-cards";

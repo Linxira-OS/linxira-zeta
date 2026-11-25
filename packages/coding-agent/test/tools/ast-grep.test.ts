@@ -2,16 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { createTools, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { AstGrepTool } from "@oh-my-pi/pi-coding-agent/tools/ast-grep";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
+import { AstGrepTool } from "@linxiraos/zeta/tools/ast-grep";
 import { astGrepPresenter } from "../../src/ui/tools/ast-grep";
-import { createRoot, resolveChildren } from "@oh-my-pi/pi-tui";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { createRoot, resolveChildren } from "@linxiraos/pi-tui";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function createTestSession(cwd = "/tmp/test", overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

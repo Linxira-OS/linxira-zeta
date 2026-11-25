@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Standalone prompts a CLI command shows before any session exists: pick one
  * item from a list, or type one line of text.
@@ -21,9 +21,9 @@ import {
 	signal,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import type { PickerTerm } from "@oh-my-pi/pi-tui/term/painters/picker";
-import type { TspPickerAction, TspPickerItem } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import type { PickerTerm } from "@linxiraos/pi-tui/term/painters/picker";
+import type { TspPickerAction, TspPickerItem } from "@linxiraos/pi-wire";
 import { fuzzyFilter } from "../../utils/fuzzy";
 import { Form } from "../forms/field";
 import { FormModel, TextFieldModel } from "../forms/models";

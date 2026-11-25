@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { formatKey, kbdKeys, setKeyHintPlatform } from "@oh-my-pi/pi-coding-agent/ui/keys/format";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { formatKey, kbdKeys, setKeyHintPlatform } from "@linxiraos/zeta/ui/keys/format";
 import {
 	actionHintSpans,
 	actionKey,
@@ -11,10 +11,10 @@ import {
 	formatTooltipDoubleTap,
 	formatTooltipKey,
 	keyHintSpans,
-} from "@oh-my-pi/pi-coding-agent/ui/keys/hints";
-import type { SymbolPreset } from "@oh-my-pi/pi-tui/theme/schema";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/ui/keys/hints";
+import type { SymbolPreset } from "@linxiraos/pi-tui/theme/schema";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const original = currentTheme();
 const usePreset = (preset: SymbolPreset): void => setCurrentTheme(loadThemeSync("dark", { symbolPreset: preset }));

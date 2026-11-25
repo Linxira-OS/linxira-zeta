@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The ask dialog: the ask tool's questions as one card (`omp.ask.card`).
  *
@@ -13,10 +13,10 @@
  * text. Escape hands the keys back to the composer. The terminal draws the
  * same column in a scrolling box ({@link AskDialogModel} is what it reads).
  */
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { type Accessor, type JSXNode, onCleanup, signal, untrack } from "@oh-my-pi/pi-tui";
-import { replaceTabs, truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { type Accessor, type JSXNode, onCleanup, signal, untrack } from "@linxiraos/pi-tui";
+import { replaceTabs, truncate } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import {
 	type AskDialogPrompt,
 	type AskDialogPromptDraft,
@@ -640,7 +640,7 @@ export function FoldSummaryNode(props: {
 	const { summary, nodeKey: key } = props;
 	const note = summary.note ? (
 		<text
-			role="omp.ask.fold.note"
+			role="zeta.ask.fold.note"
 			truncate="end"
 			lines={1}
 			spans={[
@@ -655,26 +655,26 @@ export function FoldSummaryNode(props: {
 				<text
 					key={key}
 					motionKey={key}
-					role="omp.ask.fold.answer"
+					role="zeta.ask.fold.answer"
 					truncate="end"
 					lines={1}
 					spans={[{ s: "muted", t: summary.text }]}
 				/>
 			);
 		return (
-			<row key={key} motionKey={key} role="omp.ask.pills" gap="xs" align="center">
-				<text role="omp.ask.fold.answer" truncate="end" lines={1} spans={[{ s: "muted", t: summary.text }]} />
+			<row key={key} motionKey={key} role="zeta.ask.pills" gap="xs" align="center">
+				<text role="zeta.ask.fold.answer" truncate="end" lines={1} spans={[{ s: "muted", t: summary.text }]} />
 				{note}
 			</row>
 		);
 	}
 	const { shown, hidden } = foldPills(summary.pills);
 	return (
-		<row key={key} motionKey={key} role="omp.ask.pills" gap="xs" align="center" wrap>
+		<row key={key} motionKey={key} role="zeta.ask.pills" gap="xs" align="center" wrap>
 			{shown.map((pill, i) => (
 				<button
 					key={`p${i}`}
-					role="omp.ask.pill"
+					role="zeta.ask.pill"
 					text={pill.cut}
 					size="sm"
 					actions={{ click: pill.act }}
@@ -686,7 +686,7 @@ export function FoldSummaryNode(props: {
 			{hidden > 0 && (
 				<button
 					key="more"
-					role="omp.ask.pill.more"
+					role="zeta.ask.pill.more"
 					text={`+${hidden}`}
 					size="sm"
 					actions={{ click: props.more }}
@@ -705,14 +705,14 @@ function FoldedQuestion(props: { readonly model: AskDialogModel; readonly index:
 		<col
 			key={`q${index}`}
 			motionKey={`q${index}`}
-			role="omp.ask.fold"
+			role="zeta.ask.fold"
 			gap="xs"
 			title="Answer this question"
 			actions={{ click: `open:${index}` }}
 		>
-			<row role="omp.ask.fold.head" gap="sm" align="baseline">
-				<text role="omp.ask.fold.mark" spans={[answered ? { s: "success", t: "✓" } : { s: "muted", t: "○" }]} />
-				<text role="omp.ask.fold.question" wrap="word" spans={inlineCodeSpans(model.foldQuestion(index))} />
+			<row role="zeta.ask.fold.head" gap="sm" align="baseline">
+				<text role="zeta.ask.fold.mark" spans={[answered ? { s: "success", t: "✓" } : { s: "muted", t: "○" }]} />
+				<text role="zeta.ask.fold.question" wrap="word" spans={inlineCodeSpans(model.foldQuestion(index))} />
 			</row>
 			<FoldSummaryNode summary={model.foldSummary(index)} nodeKey={`q${index}.summary`} more={`open:${index}`} />
 		</col>
@@ -733,13 +733,13 @@ function OpenQuestion(props: { readonly model: AskDialogModel; readonly index: n
 		<col
 			key={`q${index}`}
 			motionKey={`q${index}`}
-			role="omp.ask.open"
+			role="zeta.ask.open"
 			gap="sm"
 			reveal={{ at: "start", n: model.reveal }}
 		>
-			{header && <text role="omp.ask.header" spans={[{ s: "muted", t: replaceTabs(header) }]} />}
-			<md key="question" role="omp.ask.question" text={replaceTabs(sanitizeCarriageReturns(question.question))} />
-			<list key={`q${index}`} role="omp.ask.options" selected={highlighted?.key ?? null}>
+			{header && <text role="zeta.ask.header" spans={[{ s: "muted", t: replaceTabs(header) }]} />}
+			<md key="question" role="zeta.ask.question" text={replaceTabs(sanitizeCarriageReturns(question.question))} />
+			<list key={`q${index}`} role="zeta.ask.options" selected={highlighted?.key ?? null}>
 				{rows.map(row => {
 					const option = row.kind === "option" ? question.options[row.optionIndex ?? -1] : undefined;
 					const checked =
@@ -791,7 +791,7 @@ function OpenQuestion(props: { readonly model: AskDialogModel; readonly index: n
 			{preview && (
 				<md
 					key="preview"
-					role="omp.ask.preview"
+					role="zeta.ask.preview"
 					text={replaceTabs(question.options[highlighted!.optionIndex!]!.preview!)}
 				/>
 			)}
@@ -813,7 +813,7 @@ export function AskDialog(props: AskDialogProps): JSXNode {
 	const skip = () => model.options.skipNotice?.();
 	return (
 		<col
-			role="omp.ask.card"
+			role="zeta.ask.card"
 			gap="md"
 			transition="layout"
 			reveal="start"
@@ -828,18 +828,18 @@ export function AskDialog(props: AskDialogProps): JSXNode {
 				const total = model.questions.length;
 				const answered = model.states.filter(isAnswered).length;
 				return (
-					<row key="head" motionKey="head" role="omp.ask.card.head" gap="sm" align="baseline" justify="between">
-						<text role="omp.ask.card.tag" spans={[{ s: "accent", t: "ask" }]} />
+					<row key="head" motionKey="head" role="zeta.ask.card.head" gap="sm" align="baseline" justify="between">
+						<text role="zeta.ask.card.tag" spans={[{ s: "accent", t: "ask" }]} />
 						{total > 1 && (
 							<text
-								role="omp.ask.card.progress"
+								role="zeta.ask.card.progress"
 								spans={[{ s: "muted", t: `${answered} of ${total} answered` }]}
 							/>
 						)}
 					</row>
 				);
 			}}
-			<col key="body" role="omp.ask.card.body" gap="lg" mark={() => (skip() ? "drop" : undefined)}>
+			<col key="body" role="zeta.ask.card.body" gap="lg" mark={() => (skip() ? "drop" : undefined)}>
 				{() => {
 					model.rev();
 					return model.questions.map((_, index) =>
@@ -858,14 +858,14 @@ export function AskDialog(props: AskDialogProps): JSXNode {
 						<text
 							key="skip"
 							motionKey="skip"
-							role="omp.ask.skip"
+							role="zeta.ask.skip"
 							wrap="word"
 							spans={[{ s: "warning", t: `⚠ ${notice}` }]}
 						/>
 					)
 				);
 			}}
-			<row key="actions" motionKey="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" motionKey="actions" role="zeta.actions" align="center" gap="sm">
 				{model.options.timeout !== undefined && model.options.timeout > 0 && (
 					<elapsed format="short" age={-model.options.timeout} />
 				)}

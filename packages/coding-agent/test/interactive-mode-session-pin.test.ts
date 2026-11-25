@@ -1,16 +1,16 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgComposerShape } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as sessionPins from "@oh-my-pi/pi-coding-agent/session/session-pins";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { cfgComposerShape } from "@linxiraos/zeta/modes/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as sessionPins from "@linxiraos/zeta/session/session-pins";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { initTheme } from "../src/ui/theme/service";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { createModeTerminal } from "./helpers/mode-terminal";
 
 describe("InteractiveMode session pin indicator", () => {

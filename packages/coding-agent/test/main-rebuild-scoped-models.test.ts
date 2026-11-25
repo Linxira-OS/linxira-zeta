@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { type Api, type AuthStorage, Effort, type Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { formatModelStringWithRouting, resolveModelScope } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { cfgEnabledModels, cfgModelProviderOrder } from "@oh-my-pi/pi-coding-agent/config/model-settings";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { type Api, type AuthStorage, Effort, type Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { formatModelStringWithRouting, resolveModelScope } from "@linxiraos/zeta/config/model-resolver";
+import { cfgEnabledModels, cfgModelProviderOrder } from "@linxiraos/zeta/config/model-settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	buildSessionOptions,
 	rebuildScopedModels,
@@ -16,11 +16,11 @@ import {
 	type ScopedModelSink,
 	toSessionScopedModels,
 	watchScopedModelSettings,
-} from "@oh-my-pi/pi-coding-agent/main";
-import { createSetupHost } from "@oh-my-pi/pi-coding-agent/modes/setup";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/main";
+import { createSetupHost } from "@linxiraos/zeta/modes/setup";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function model(id: string): Model<Api> {

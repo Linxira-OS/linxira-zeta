@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { AsyncJobError, AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { buildAsyncResultBatchMessage } from "@oh-my-pi/pi-coding-agent/session/async-job-delivery";
-import { YieldQueue, yieldQueueStaleMessage } from "@oh-my-pi/pi-coding-agent/session/yield-queue";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { AsyncJobError, AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { buildAsyncResultBatchMessage } from "@linxiraos/zeta/session/async-job-delivery";
+import { YieldQueue, yieldQueueStaleMessage } from "@linxiraos/zeta/session/yield-queue";
+import { logger } from "@linxiraos/pi-utils";
 
 async function waitForJobEviction(manager: AsyncJobManager, jobId: string): Promise<void> {
 	const deadline = Date.now() + 2_000;

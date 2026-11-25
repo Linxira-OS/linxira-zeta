@@ -1,4 +1,4 @@
-import { splitBtwInject, formatBtwInjectText } from "@linxiraos/pi-tui/overlays/btw-history";
+import { splitBtwInject, formatBtwInjectText } from "../../../session/btw-history";
 import type { BtwInjection } from "../protocol/contracts/btw.js";
 import { randomUUID } from "node:crypto";
 import { BtwHistoryStore, type BtwHistoryRecord, type BtwHistoryTurn, getBtwTurns } from "../../../session/btw-history";

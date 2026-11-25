@@ -6,13 +6,13 @@
  * from the main conversation the user is not looking at.
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import * as clipboard from "@oh-my-pi/pi-coding-agent/utils/clipboard";
-import { createRoot } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
+import { createRoot } from "@linxiraos/pi-tui";
 import * as copySelectorModule from "../../../src/ui/overlays/pickers/copy-selector";
 
 function sessionWithReply(reply: string) {

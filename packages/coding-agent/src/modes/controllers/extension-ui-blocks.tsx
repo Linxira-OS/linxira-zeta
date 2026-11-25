@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** Views the extension UI controller mounts that need markup of their own. */
-import type { JSXNode, UiNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode, UiNode } from "@linxiraos/pi-tui";
 import "../../ui/styles/overlays/bare-sheet";
 import { SESSION_PAGE } from "./selector-views";
 

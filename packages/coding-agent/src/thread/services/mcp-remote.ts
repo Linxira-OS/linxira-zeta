@@ -4,7 +4,7 @@
  * {@link MCP_MANAGER_KIND}). Workers never own MCP connections: every tool call,
  * resource read and change subscription runs on main.
  */
-import type { TSchema } from "@oh-my-pi/pi-ai";
+import type { TSchema } from "@linxiraos/pi-ai";
 import type { MCPToolDetails } from "../../tools/details/mcp";
 import type { CustomTool } from "../../extensibility/custom-tools/types";
 import type { MCPManagerApi, MCPToolScope } from "../../mcp/manager";
@@ -36,6 +36,13 @@ export type McpManagerProtocol = {
 	onToolsChanged: RpcMethod<[listener: () => void], () => void>;
 	onNotification: RpcMethod<[listener: McpNotificationListener], () => void>;
 	connectedServers: RpcMethod<[], string[]>;
+	/** Every configured server name, connected or not. */
+	allServerNames: RpcMethod<[], string[]>;
+	/** One server's launch configuration as plain data, when configured. */
+	serverConfig: RpcMethod<
+		[name: string],
+		{ type: "stdio"; command: string; args?: string[] } | { type: "http" | "sse"; url: string } | undefined
+	>;
 	serverResources: RpcMethod<
 		[name: string],
 		{ resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined
@@ -90,6 +97,14 @@ export class RemoteMCPManager implements MCPManagerApi {
 
 	getConnectedServers(): string[] {
 		return this.#remote.callSync("connectedServers");
+	}
+
+	getServerConfig(name: string): ReturnType<MCPManagerApi["getServerConfig"]> {
+		return this.#remote.callSync("serverConfig", name) as ReturnType<MCPManagerApi["getServerConfig"]>;
+	}
+
+	getAllServerNames(): string[] {
+		return this.#remote.callSync("allServerNames");
 	}
 
 	getServerResources(name: string): { resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined {

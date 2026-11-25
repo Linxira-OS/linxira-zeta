@@ -1,4 +1,4 @@
-import type { ImageContent } from "@oh-my-pi/pi-ai";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import { sanitizeCarriageReturns } from "../../../utils/render-utils";
 
 /** One selectable answer in an ask dialog. */

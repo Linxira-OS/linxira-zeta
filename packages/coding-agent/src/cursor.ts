@@ -12,7 +12,7 @@ import {
 	TOOL_RESULT_ADDITIONAL_CONTEXT,
 	type ToolResultWithAdditionalContext,
 	validateAgentToolArguments,
-} from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import type {
 	CursorExecFrameContext,
 	CursorMcpCall,
@@ -22,7 +22,7 @@ import type {
 	CursorTodoSnapshot,
 	CursorExecHandlers as ICursorExecHandlers,
 	ToolResultMessage,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	cursorRawReadPath,
 	omitUndefinedArgs,
@@ -34,9 +34,9 @@ import {
 	piReadPath,
 	piTimeout,
 	shellDeadlineSeconds,
-} from "@oh-my-pi/pi-ai/providers/cursor-pi-args";
-import { editDiffString } from "@oh-my-pi/pi-natives";
-import { isEnoent, sanitizeText } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/providers/cursor-pi-args";
+import { editDiffString } from "@linxiraos/pi-natives";
+import { isEnoent, sanitizeText } from "@linxiraos/pi-utils";
 import { cursorMcpPrefersReplaceEdit, normalizeCursorReplaceArgs } from "./cursor-replace-args";
 import { normalizeToLF, stripBom } from "./edit/normalize";
 import type { MCPResourceReadResult } from "./mcp/types";

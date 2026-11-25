@@ -1,5 +1,5 @@
-import { type } from "@oh-my-pi/omptype";
-import type { Tool } from "@oh-my-pi/pi-ai";
+import { type } from "@linxiraos/zeta-schema";
+import type { Tool } from "@linxiraos/pi-ai";
 import { fileLines, numberedLines } from "./magic-view";
 import { normalizeToLF } from "./normalize";
 

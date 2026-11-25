@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Resume a session (`/resume`): the sessions of this folder (Tab: all
  * projects, loaded on first switch) as a `cards` picker grouped by day, pins
@@ -9,9 +9,18 @@
  * Enter resumes; Backspace (on an empty query) asks to delete; F2 renames in
  * a form that takes the sheet's place; Alt+K / Alt+Shift+K pin and unpin.
  */
-import { batch, computed, type JSXNode, type KeyEvent, onCleanup, type Reactive, read, signal } from "@oh-my-pi/pi-tui";
-import { formatBytes } from "@oh-my-pi/pi-utils";
-import type { TspPickerAction, TspPickerGroup, TspPickerItem, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import {
+	batch,
+	computed,
+	type JSXNode,
+	type KeyEvent,
+	onCleanup,
+	type Reactive,
+	read,
+	signal,
+} from "@linxiraos/pi-tui";
+import { formatBytes } from "@linxiraos/pi-utils";
+import type { TspPickerAction, TspPickerGroup, TspPickerItem, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import {
 	rankSessionSearchMatches,
 	type SessionHistoryMatcher,
@@ -591,7 +600,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 				<md text={rest.length > PREVIEW_EXCERPT_CHARS ? `…${rest.slice(-PREVIEW_EXCERPT_CHARS)}` : rest} />,
 			);
 		return [
-			<text text={sessionLabel(shown)} role="omp.picker.title" />,
+			<text text={sessionLabel(shown)} role="zeta.picker.title" />,
 			<kv items={facts} />,
 			conversation.length > 0 ? <section head="Conversation">{conversation}</section> : null,
 		];
@@ -683,7 +692,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 		return (
 			<card
 				head={props.title ?? (props.scopeLabel ? `Resume Session (${props.scopeLabel})` : "Resume Session")}
-				role="omp.overlay.sessions"
+				role="zeta.overlay.sessions"
 				term={term}
 				onKey={onKey}
 			>
@@ -697,8 +706,8 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 						active={scope}
 					/>
 				)}
-				<card head="Rename Session" role="omp.overlay">
-					<col gap="sm" role="omp.form.field">
+				<card head="Rename Session" role="zeta.overlay">
+					<col gap="sm" role="zeta.form.field">
 						<text spans={[{ t: "Rename session", s: "strong" }]} />
 						<input
 							text={() => rename()?.line.text ?? ""}
@@ -715,7 +724,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 						<text hidden={true} text="" />
 					</col>
 				</card>
-				<row key="hints" gap="md" role="omp.overlay.hints" wrap={true}>
+				<row key="hints" gap="md" role="zeta.overlay.hints" wrap={true}>
 					{hint(getKeybindings().keysFor("app.session.delete").map(kbdOf), "delete")}
 					{hint([["f2"]], "rename")}
 					{hint([actionKbd("app.session.pin", "alt+k")], "pin")}

@@ -6,11 +6,11 @@
  * - compare a tool capability tier against the active approval mode,
  * - format the generic approval prompt body.
  */
-import { isRecord, prompt, sanitizeText } from "@oh-my-pi/pi-utils";
+import { isRecord, prompt, sanitizeText } from "@linxiraos/pi-utils";
 import { replaceTabs } from "../utils/text-width";
 import { shortenPath } from "../utils/render-utils";
 import approvalFolderTemplate from "../prompts/tools/approval-folder.md" with { type: "text" };
-import type { AgentTool, AgentToolContext, ToolApprovalDecision, ToolTier } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool, AgentToolContext, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
 import * as path from "node:path";
 import type { Settings } from "../config/settings";
 import type {
@@ -35,7 +35,7 @@ import {
 } from "./approval-targets";
 import { expandTilde, resolveToCwd } from "./path-utils";
 
-export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@oh-my-pi/pi-agent-core";
+export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
 
 export type ApprovalPolicy = "allow" | "deny" | "prompt";
 

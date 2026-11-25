@@ -2,23 +2,14 @@
 	"name": "@linxiraos/zeta",
 	"version": "18.9.2",
 	"description": "Coding agent CLI with read, bash, edit, write tools and session management",
-	"keywords": [
-		"agent",
-		"ai",
-		"cli",
-		"coding-agent",
-		"llm",
-		"tui"
-	],
+	"keywords": ["agent", "ai", "cli", "coding-agent", "llm", "tui"],
 	"homepage": "https://omp.sh",
 	"bugs": {
 		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
 	},
 	"license": "MIT",
 	"author": { "name": "Stencil Labs, Inc.", "url": "https://stencil.so" },
-	"contributors": [
-		"Mario Zechner"
-	],
+	"contributors": ["Mario Zechner"],
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",

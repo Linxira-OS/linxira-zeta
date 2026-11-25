@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A side-question note in the transcript (native face): the topic head
  * (`btw` tag, question, copy/fold tools), one column per turn, and the
@@ -8,8 +8,8 @@
  * shows, and runs presses. Host answers are read when the note renders:
  * bump `revision` after they change.
  */
-import { type Accessor, type JSXNode, untrack } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type Accessor, type JSXNode, untrack } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { BtwInjectState } from "../../../modes/view-model/overlays/btw-inject";
 import type { BtwNoteAction, BtwNoteHost } from "../../../modes/view-model/overlays/btw-note";
 import {
@@ -60,11 +60,12 @@ export function BtwTurnBody(props: {
 	const out: JSXNode[] = [];
 	if (hasAnswer)
 		out.push(<BtwAnswerBody answer={turn.answer} inject={props.inject} stream={turn.status === "running"} />);
-	else if (turn.status === "running") out.push(<text role="omp.btw.pending" spans={[{ s: "dim", t: "Thinking…" }]} />);
+	else if (turn.status === "running")
+		out.push(<text role="zeta.btw.pending" spans={[{ s: "dim", t: "Thinking…" }]} />);
 	if (turn.status === "error") {
-		out.push(<text role="omp.btw.error" wrap="word" spans={[{ s: "error", t: flatError(turn.error) }]} />);
+		out.push(<text role="zeta.btw.error" wrap="word" spans={[{ s: "error", t: flatError(turn.error) }]} />);
 	} else if (!hasAnswer && turn.status !== "running") {
-		out.push(<text role="omp.btw.pending" spans={[{ s: "dim", t: "No answer text." }]} />);
+		out.push(<text role="zeta.btw.pending" spans={[{ s: "dim", t: "No answer text." }]} />);
 	}
 	return out;
 }
@@ -96,7 +97,7 @@ export function BtwNote(props: BtwNoteProps): JSXNode {
 			if (folded) {
 				return (
 					<row
-						role="omp.btw.note.folded"
+						role="zeta.btw.note.folded"
 						align="center"
 						gap="sm"
 						title="Show this side answer"
@@ -105,7 +106,7 @@ export function BtwNote(props: BtwNoteProps): JSXNode {
 					>
 						<icon key="chev" name="chev-r" />
 						<text
-							role="omp.btw.note.topic"
+							role="zeta.btw.note.topic"
 							lines={1}
 							truncate="end"
 							spans={[{ s: "accent", t: "btw" }, { t: "  " }, ...topicSpans(topic)]}
@@ -122,14 +123,14 @@ export function BtwNote(props: BtwNoteProps): JSXNode {
 					actions={{ click: "btw-focus", menu, hold: menu }}
 					onAction={run}
 				>
-					<row key="head" role="omp.btw.note.head" align="start" gap="sm">
-						<text role="omp.btw.note.tag" spans={[{ s: "accent", t: "btw" }]} />
-						<md role="omp.btw.note.question" text={topic} />
-						<row role="omp.btw.note.tools" align="center" gap="xs">
+					<row key="head" role="zeta.btw.note.head" align="start" gap="sm">
+						<text role="zeta.btw.note.tag" spans={[{ s: "accent", t: "btw" }]} />
+						<md role="zeta.btw.note.question" text={topic} />
+						<row role="zeta.btw.note.tools" align="center" gap="xs">
 							{getBtwCopyText(record) !== undefined && (
 								<icon
 									key="copy"
-									role="omp.btw.note.tool"
+									role="zeta.btw.note.tool"
 									name="copy"
 									title="Copy answer"
 									actions={{ click: "btw-copy" }}
@@ -137,7 +138,7 @@ export function BtwNote(props: BtwNoteProps): JSXNode {
 							)}
 							<icon
 								key="fold"
-								role="omp.btw.note.tool"
+								role="zeta.btw.note.tool"
 								name="x"
 								title="Fold to one line"
 								actions={{ click: "btw-fold" }}
@@ -145,12 +146,12 @@ export function BtwNote(props: BtwNoteProps): JSXNode {
 						</row>
 					</row>
 					{getBtwTurns(record).map((turn, index) => (
-						<col key={`turn-${index}`} role="omp.btw.note.turn" gap="sm">
-							{index > 0 && <md role="omp.btw.followup" text={turn.question} />}
+						<col key={`turn-${index}`} role="zeta.btw.note.turn" gap="sm">
+							{index > 0 && <md role="zeta.btw.followup" text={turn.question} />}
 							<BtwTurnBody turn={turn} inject={props.host.injectState(record, index)} />
 						</col>
 					))}
-					{status && <text key="status" role="omp.btw.note.status" spans={status} />}
+					{status && <text key="status" role="zeta.btw.note.status" spans={status} />}
 				</col>
 			);
 		});

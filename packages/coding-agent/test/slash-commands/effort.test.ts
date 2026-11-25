@@ -1,21 +1,21 @@
 import { describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import type { Model } from "@oh-my-pi/pi-catalog/types";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { ModelControls, type ModelControlsHost } from "@oh-my-pi/pi-coding-agent/session/model-controls";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import type { Model } from "@linxiraos/pi-catalog/types";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { ModelControls, type ModelControlsHost } from "@linxiraos/zeta/session/model-controls";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import {
 	BUILTIN_SLASH_COMMANDS,
 	buildTuiBuiltinSlashCommands,
 	executeBuiltinSlashCommand,
 	lookupBuiltinSlashCommand,
 	type SlashCommandRuntime,
-} from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/types";
-import { CombinedAutocompleteProvider } from "@oh-my-pi/pi-coding-agent/autocomplete/autocomplete";
-import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking/levels";
-import { type ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
+} from "@linxiraos/zeta/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
+import { CombinedAutocompleteProvider } from "@linxiraos/zeta/autocomplete/autocomplete";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking/levels";
+import { type ConfiguredThinkingLevel } from "@linxiraos/zeta/utils/render-utils";
 
 const command = lookupBuiltinSlashCommand("effort");
 

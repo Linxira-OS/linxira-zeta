@@ -1,5 +1,5 @@
-import { logger } from "@oh-my-pi/pi-utils";
-import { getAgentDir } from "@oh-my-pi/pi-utils/dirs";
+import { logger } from "@linxiraos/pi-utils";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { shortenPath } from "../utils/render-utils";
 import { memoryNoticeErrorText } from "../memory-backend/messages";
 import { findPersistedRecall, persistRecall } from "../memory-backend/recall-entry";
@@ -458,6 +458,11 @@ export class HindsightSessionState implements HindsightSessionStateApi {
 	 * when it starts, so it carries the latest turns. A forced request wins over a
 	 * pending auto one. Resolves once the queue drains.
 	 */
+	/** Retains on a turn-end event when due; compatibility entry point to the single-flight queue. */
+	async maybeRetainOnAgentEnd(): Promise<void> {
+		await this.#requestRetain(false);
+	}
+
 	#requestRetain(forced: boolean): Promise<void> {
 		this.#pendingRetain = forced || this.#pendingRetain === "forced" ? "forced" : "auto";
 		// #drainRetains always awaits before returning, so its `finally` cannot clear

@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { createRoot, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { createRoot, signal, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { Settings } from "../src/config/settings";
 import {
 	BlockUnitCounter,

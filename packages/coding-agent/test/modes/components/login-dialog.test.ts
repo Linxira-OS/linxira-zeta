@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cellGrid } from "@oh-my-pi/pi-tui/testing/cells";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { cellGrid } from "@linxiraos/pi-tui/testing/cells";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { LoginDialog, LoginDialogState } from "../../../src/ui/overlays/panels/login-dialog";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

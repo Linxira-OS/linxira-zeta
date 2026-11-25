@@ -12,26 +12,33 @@ Update project tracking documents in `<project>/.zeta/tracking/`. Use this to ma
 
 **Sanctioned delivery path.** The cache-neutral way to carry a mid-run update is the existing hidden phase-progress nudge (the tracking-phase nudge emitted when a todo phase completes). It rides as a custom message, so it never touches the cached base prompt; prefer it over any base-prompt mutation.
 
-**Memory boundary.** Tracking records *process* state only — phase, progress, blockers, plan mirrors, the action log. It is NEVER a store for learned knowledge facts: durable facts belong to the memory tools (`retain`, `recall`, `memory_edit`). Keep the two stores disjoint.
+**Memory boundary.** Tracking records _process_ state only — phase, progress, blockers, plan mirrors, the action log. It is NEVER a store for learned knowledge facts: durable facts belong to the memory tools (`retain`, `recall`, `memory_edit`). Keep the two stores disjoint.
 </contract>
 
 ## Operations
 
 ### `update_status`
+
 Update the project status file (`status.json`). Fields are merged — only provide the fields you want to change.
+
 - `phase`: current project phase (e.g. "planning", "implementation", "testing", "review")
 - `progress`: one-line summary of current progress
 - `blockers`: list of active blockers
 - `decisions`: key decisions made (appended, not replaced)
 
 ### `update_index`
+
 Overwrite the project index (`INDEX.md`) with markdown content. Use this to maintain a structured overview of the project.
 
 ### `log_action`
+
 Append a timestamped action entry to the project action log (rotated: `actions.<day>.jsonl.log`). Each entry records what was done and why.
+
 - `action`: short action description
 - `detail`: optional extended detail
 
 ### `sync_plan`
+
 Copy a plan file from the agent's session directory into the tracking `sessions/` folder so it persists across sessions.
+
 - `plan_path`: absolute path to the plan `.md` file

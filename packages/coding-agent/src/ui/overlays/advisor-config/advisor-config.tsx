@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The advisor-configuration overlay: one `WATCHDOG.yml` (project or user) as
  * an editable roster of advisors plus the shared instructions.
@@ -15,8 +15,8 @@
  * editor); native page, picker and editor events arrive as UI events; the
  * look's pointer input arrives as `action pointer`.
  */
-import type { UsageReport } from "@oh-my-pi/pi-ai";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import {
 	batch,
 	computed,
@@ -26,8 +26,8 @@ import {
 	signal,
 	type UiEvent,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import type { TspPickerAction, TspPickerItem, TspPrefsProps, TspPrefsRow } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import type { TspPickerAction, TspPickerItem, TspPrefsProps, TspPrefsRow } from "@linxiraos/pi-wire";
 import {
 	ADVISOR_REVIEW_MODES,
 	ADVISOR_SYNC_BACKLOG_MODES,
@@ -1507,9 +1507,9 @@ export function AdvisorConfigOverlay(props: AdvisorConfigOverlayProps): JSXNode 
 	);
 
 	const intervalCard = (current: Extract<Screen, { k: "review-interval" }>): JSXNode => (
-		<col role="omp.prefs.editor">
+		<col role="zeta.prefs.editor">
 			<card
-				role="omp.overlay.advisor.interval"
+				role="zeta.overlay.advisor.interval"
 				head={`Review interval · ${advisorName(current.index, "this advisor")}`}
 			>
 				<text
@@ -1523,7 +1523,7 @@ export function AdvisorConfigOverlay(props: AdvisorConfigOverlayProps): JSXNode 
 					sendable={false}
 					onEdit={onFieldEdit}
 				/>
-				<row key="actions" role="omp.actions" align="center" gap="sm">
+				<row key="actions" role="zeta.actions" align="center" gap="sm">
 					<spacer grow={1} />
 					{actionButton(
 						"field-cancel",
@@ -1545,12 +1545,12 @@ export function AdvisorConfigOverlay(props: AdvisorConfigOverlayProps): JSXNode 
 	);
 
 	const instructionsCard = (current: Extract<Screen, { k: "instructions" }>): JSXNode => (
-		<col role="omp.prefs.editor">
-			<col role="omp.overlay.hook-editor" onAction={onHookAction}>
-				<col key="head" role="omp.hook-editor.head" gap="xs">
+		<col role="zeta.prefs.editor">
+			<col role="zeta.overlay.hook-editor" onAction={onHookAction}>
+				<col key="head" role="zeta.hook-editor.head" gap="xs">
 					<text
 						key="title"
-						role="omp.hook-editor.title"
+						role="zeta.hook-editor.title"
 						spans={[
 							{
 								t:
@@ -1562,7 +1562,7 @@ export function AdvisorConfigOverlay(props: AdvisorConfigOverlayProps): JSXNode 
 						wrap="word"
 					/>
 				</col>
-				<col role="omp.hook-editor.field">
+				<col role="zeta.hook-editor.field">
 					<editor
 						key="input"
 						text={current.text}
@@ -1573,7 +1573,7 @@ export function AdvisorConfigOverlay(props: AdvisorConfigOverlayProps): JSXNode 
 						onEdit={onFieldEdit}
 					/>
 				</col>
-				<row key="actions" role="omp.actions" align="center" gap="sm">
+				<row key="actions" role="zeta.actions" align="center" gap="sm">
 					<spacer grow={1} />
 					{actionButton(
 						"cancel",

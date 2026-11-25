@@ -16,8 +16,8 @@ try {
  */
 import type * as WorkerThreads from "node:worker_threads";
 import type { MessagePort } from "node:worker_threads";
-import type { CliConfig, CommandMetadata } from "@oh-my-pi/pi-utils/cli";
-import type * as Postmortem from "@oh-my-pi/pi-utils/postmortem";
+import type { CliConfig, CommandMetadata } from "@linxiraos/pi-utils/cli";
+import type * as Postmortem from "@linxiraos/pi-utils/postmortem";
 import {
 	APP_NAME,
 	getActiveProfile,
@@ -25,17 +25,17 @@ import {
 	resolveProfileEnv,
 	setProfile,
 	VERSION,
-} from "@oh-my-pi/pi-utils/dirs";
+} from "@linxiraos/pi-utils/dirs";
 
-import { materializeDatalessFiles } from "@oh-my-pi/pi-utils/dataless-files";
-import { raiseInteractiveQos } from "@oh-my-pi/pi-utils/process-qos";
+import { materializeDatalessFiles } from "@linxiraos/pi-utils/dataless-files";
+import { raiseInteractiveQos } from "@linxiraos/pi-utils/process-qos";
 import {
 	declareWorkerHostEntry,
 	installWorkerInbox,
 	isWorkerHostSelector,
 	SHELL_PROCESS_SELECTOR,
-} from "@oh-my-pi/pi-utils/worker-host";
-import { installSqliteLockShim } from "@oh-my-pi/pi-natives/sqlite-locks";
+} from "@linxiraos/pi-utils/worker-host";
+import { installSqliteLockShim } from "@linxiraos/pi-natives/sqlite-locks";
 import { isNativeShell, runNativeShell } from "./cli/native-shell";
 import { extractProfileFlags } from "./cli/profile-bootstrap";
 import {
@@ -135,28 +135,28 @@ export function isPrepaintSafeArgv(argv: readonly string[]): boolean {
 /** Complete the OS-visible process-name setup after speculative first paint. */
 async function setFullProcessName(): Promise<void> {
 	// Latency boundary: bun:ffi/node:os are unnecessary before the first frame.
-	const { setProcessName } = await import("@oh-my-pi/pi-utils/process-name");
+	const { setProcessName } = await import("@linxiraos/pi-utils/process-name");
 	setProcessName(APP_NAME);
 }
 
 /** Install PI_PROXY handling before any command implementation can make a provider request. */
 async function installNetworkBootstrap(): Promise<void> {
 	// Latency boundary: proxy socket/error modules are unnecessary before the first frame.
-	const { installGlobalProxyFetch } = await import("@oh-my-pi/pi-ai/utils/proxy");
+	const { installGlobalProxyFetch } = await import("@linxiraos/pi-ai/utils/proxy");
 	installGlobalProxyFetch();
 }
 
 // Worker-host entry declaration (Worker threads and worker subprocesses
 // re-enter `Bun.main` with a hidden argv selector instead of loading separate
 // worker entrypoints) happens inside `runCli` after profile bootstrap:
-// `@oh-my-pi/pi-utils/env` eagerly loads `.env` from the agent directory at
+// `@linxiraos/pi-utils/env` eagerly loads `.env` from the agent directory at
 // import time, so it must not be imported before `setProfile` runs.
 
 async function showHelp(config: CliConfig<CommandMetadata>): Promise<void> {
 	// Root help historically loads the selected profile's environment. The
 	// lazily loaded help module imports it statically after profile bootstrap.
 	const [{ renderRootHelp }, { getExtraHelpText }] = await Promise.all([
-		import("@oh-my-pi/pi-utils/cli"),
+		import("@linxiraos/pi-utils/cli"),
 		import("./cli/help-extra"),
 	]);
 	renderRootHelp(config);
@@ -176,7 +176,7 @@ async function showHelp(config: CliConfig<CommandMetadata>): Promise<void> {
  * tarball installs all exercise it on every CI run.
  */
 async function runSmokeTest(): Promise<void> {
-	const { smokeTestSpotlightWorker, smokeTestSyncWorker, startServer } = await import("@oh-my-pi/omp-stats");
+	const { smokeTestSpotlightWorker, smokeTestSyncWorker, startServer } = await import("@linxiraos/pi-stats");
 	const { smokeTestTinyTitleWorker } = await import("./tiny/title-client");
 	const { smokeTestSttWorker } = await import("./stt/asr-client");
 	const { smokeTestTtsWorker } = await import("./tts/tts-client");
@@ -251,8 +251,8 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 			pending.push(event);
 		};
 		scope.onmessage = buffer;
-		if (arg === STATS_SYNC_WORKER_ARG) await import("@oh-my-pi/omp-stats/sync-worker");
-		else await import("@oh-my-pi/omp-stats/spotlight-worker");
+		if (arg === STATS_SYNC_WORKER_ARG) await import("@linxiraos/pi-stats/sync-worker");
+		else await import("@linxiraos/pi-stats/spotlight-worker");
 		const handler = scope.onmessage;
 		if (handler && handler !== buffer) {
 			for (const event of pending) handler.call(scope, event);
@@ -295,7 +295,7 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 		// putting an await ahead of the subprocess message handler.
 		const { startJsEvalProcess }: typeof JsProcessEntry = require("./eval/js/process-entry");
 		// The .js subpath is the package's unconditional export for synchronous loading.
-		const { interceptUnhandledRejections }: typeof Postmortem = require("@oh-my-pi/pi-utils/postmortem.js");
+		const { interceptUnhandledRejections }: typeof Postmortem = require("@linxiraos/pi-utils/postmortem.js");
 		// The JS evaluator forwards user-controlled payloads (tool-call args,
 		// display outputs); a non-serializable one must fail that cell, not
 		// SIGKILL the kernel and erase the eval session's state.
@@ -469,6 +469,19 @@ async function runTinyWorker(): Promise<void> {
 /** Resolved top-level command name (never its arguments), for the unsettled-entry report. */
 let runningCommand: string | undefined;
 
+/**
+ * `zeta` is the local-first launcher; `zetacode` is the shared-Host TUI.
+ * Resolve the basename before the command table so `zeta` never silently
+ * adopts a machine Host, while `zeta serve|daemon|...` keeps its subcommand.
+ */
+export function resolveInvokedArgv(invokedName: string, argv: readonly string[]): string[] {
+	const out = [...argv];
+	if (invokedName.replace(/\.(exe|cmd|bat|js)$/iu, "") !== "zeta") return out;
+	if (out[0]?.toLowerCase() === "help") return ["--help"];
+	if (out.length === 0) out.push("--standalone");
+	return out;
+}
+
 /** Run the CLI with the given argv (no `process.argv` prefix). */
 export async function runCli(argv: string[]): Promise<void> {
 	// `omp zsh|bash|sh [args...]`: the whole argv belongs to the shell (`--help`,
@@ -500,7 +513,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			// validation here turns `OMP_PROFILE=.. omp --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
-			setProfile(resolveProfileEnv(process.env.OMP_PROFILE, process.env.PI_PROFILE));
+			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE ?? process.env.OMP_PROFILE ?? process.env.PI_PROFILE));
 		}
 		if (extracted.aliasName !== undefined) {
 			// Command boundary: shell/path setup is used only by --alias.
@@ -603,7 +616,7 @@ export async function runCli(argv: string[]): Promise<void> {
 
 	try {
 		const [{ run }, { commands, resolveCliArgv }] = await Promise.all([
-			import("@oh-my-pi/pi-utils/cli"),
+			import("@linxiraos/pi-utils/cli"),
 			import("./cli-commands"),
 		]);
 		// --help and --version are handled by run() directly; --license returned above.
@@ -633,7 +646,7 @@ export async function runCli(argv: string[]): Promise<void> {
 // their entry with `import.meta.main === false`, so the worker-host dispatch
 // is admitted via `!Bun.isMainThread`.
 if (isProcessEntry || !Bun.isMainThread) {
-	const postmortem: typeof Postmortem = require("@oh-my-pi/pi-utils/postmortem.js");
+	const postmortem: typeof Postmortem = require("@linxiraos/pi-utils/postmortem.js");
 	postmortem.installProcessHandlers();
 	// A one-shot CLI run (`omp --help | head`, `omp --version | true`, `omp <sub> | grep -m1`)
 	// whose stdout consumer closes before the write drains gets an EPIPE that Bun surfaces as
@@ -646,7 +659,7 @@ if (isProcessEntry || !Bun.isMainThread) {
 	postmortem.reportUnsettledEntry(entry, () => runningCommand);
 	entry.catch(async error => {
 		// Failure boundary: inspector/postmortem is irrelevant to successful startup.
-		const { fatal } = await import("@oh-my-pi/pi-utils/postmortem");
+		const { fatal } = await import("@linxiraos/pi-utils/postmortem");
 		fatal(error);
 	});
 }

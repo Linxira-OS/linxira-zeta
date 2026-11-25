@@ -93,14 +93,14 @@ export class StudioArchiveService {
 		}
 		const cwd = operation.scope === "workspace" ? this.session.sessionManager.getCwd() : undefined;
 		if (operation.kind === "archive.sessions.list") {
-			const rows = (await archiveSessions(cwd, PAGE + 1)).records;
+			const rows = (await archiveSessions({ cwd, window: undefined, limit: PAGE + 1 })).records;
 			check();
 			return { rows: rows.slice(0, PAGE).map(sessionRow), truncated: rows.length > PAGE };
 		}
 		const rows =
 			operation.kind === "archive.recaps.list"
-				? archiveRecaps(cwd, PAGE + 1).records
-				: archivePrompts(operation.query.trim() || undefined, cwd, PAGE + 1).records;
+				? archiveRecaps({ cwd, window: undefined, limit: PAGE + 1 }).records
+				: archivePrompts(operation.query.trim() || undefined, { cwd, window: undefined, limit: PAGE + 1 }).records;
 		check();
 		return { rows: rows.slice(0, PAGE).map(textRow), truncated: rows.length > PAGE };
 	}

@@ -166,7 +166,7 @@ describe("Vibe source pinning across /resume", () => {
 		});
 		try {
 			const registry = VibeSessionRegistry.global();
-			const spawned = await registry.spawn(owner, { cli: "fast", role: "tests", prompt: "first task" });
+			const spawned = (await registry.spawn(owner, { cli: "fast", role: "tests", prompt: "first task" }))!;
 			await firstStarted.promise;
 			expect(await registry.send(owner, { session: spawned.id, message: "queued directive" })).toMatchObject({
 				mode: "queued",

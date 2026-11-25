@@ -5,30 +5,30 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Type } from "@oh-my-pi/omptype/typebox";
-import type { AgentMessage, AgentTool, AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { streamAnthropic } from "@oh-my-pi/pi-ai/providers/anthropic";
-import type { MessageCreateParams } from "@oh-my-pi/pi-ai/providers/anthropic-wire";
-import type { ImageContent, TextContent, TSchema } from "@oh-my-pi/pi-ai";
+import { Type } from "@linxiraos/zeta-schema/typebox";
+import type { AgentMessage, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
+import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
+import type { MessageCreateParams } from "@linxiraos/pi-ai/providers/anthropic-wire";
+import type { ImageContent, TextContent, TSchema } from "@linxiraos/pi-ai";
 import {
 	isPerCallContextMessage,
 	kCursorExecResolved,
 	kStreamingBlockIndex,
-} from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { convertToLlm, wrapSteeringForModel } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { disposeVmContextsByOwner } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { disposeKernelSessionsByOwner } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import { ExtensionRuntime, loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+} from "@linxiraos/pi-ai/utils/block-symbols";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { convertToLlm, wrapSteeringForModel } from "@linxiraos/zeta/session/messages";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeVmContextsByOwner } from "@linxiraos/zeta/eval/js/context-manager";
+import { disposeKernelSessionsByOwner } from "@linxiraos/zeta/eval/py/executor";
+import { ExtensionRuntime, loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	SESSION_SHUTDOWN_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
 	testSetSessionShutdownHandlerTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+} from "@linxiraos/zeta/extensibility/extensions/runner";
 import type {
 	Extension,
 	ExtensionError,
@@ -36,14 +36,14 @@ import type {
 	ExtensionUIDialogOptions,
 	InputEvent,
 	InputEventResult,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { ExtensionToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/wrapper";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createEvalCustomTools, describeEvalTools } from "@oh-my-pi/pi-coding-agent/task/eval-tools";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
-import { getProjectAgentDir, logger, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions/types";
+import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createEvalCustomTools, describeEvalTools } from "@linxiraos/zeta/task/eval-tools";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import { getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("ExtensionRunner", () => {

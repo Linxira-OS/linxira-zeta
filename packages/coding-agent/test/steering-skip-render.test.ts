@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { toolText } from "./helpers/tool-text";
 
 beforeAll(async () => {

@@ -1,15 +1,15 @@
 import { afterAll, describe, expect, it, vi } from "bun:test";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import {
 	BUILTIN_SLASH_COMMANDS,
 	executeBuiltinSlashCommand,
 	type BuiltinSlashCommandRuntime,
-} from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import { CombinedAutocompleteProvider } from "@oh-my-pi/pi-coding-agent/autocomplete/autocomplete";
-import { createRoot } from "@oh-my-pi/pi-tui";
+} from "@linxiraos/zeta/slash-commands/builtin-registry";
+import { CombinedAutocompleteProvider } from "@linxiraos/zeta/autocomplete/autocomplete";
+import { createRoot } from "@linxiraos/pi-tui";
 import { Composer } from "../../src/ui/composer";
 import { key, sendKey } from "../ui/composer/harness";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

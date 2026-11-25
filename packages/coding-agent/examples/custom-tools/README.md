@@ -58,7 +58,7 @@ See [docs/custom-tools.md](../../../../docs/custom-tools.md) for full documentat
 **Factory pattern:**
 
 ```typescript
-import type { CustomToolFactory } from "@oh-my-pi/pi-coding-agent";
+import type { CustomToolFactory } from "@linxiraos/zeta";
 
 const factory: CustomToolFactory = pi => ({
 	name: "my_tool",
@@ -86,7 +86,7 @@ export default factory;
 
 **Custom rendering:**
 
-Renderers return pi-tui nodes (JSX in a `.tsx` file with `/** @jsxImportSource @oh-my-pi/pi-tui */`),
+Renderers return pi-tui nodes (JSX in a `.tsx` file with `/** @jsxImportSource @linxiraos/pi-tui */`),
 drawn in the terminal and in Tern, or a rows object `{ render(width): string[] }`, drawn in the
 terminal only. See [Migrating from pi-tui](../../../../docs/extensions.md#migrating-from-pi-tui).
 

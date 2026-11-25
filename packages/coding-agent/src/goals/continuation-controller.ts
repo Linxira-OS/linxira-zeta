@@ -8,11 +8,11 @@
  * opt-in continuation driver keyed to agent lifecycle events instead of an
  * editor idle window.
  */
-import type { Goal } from "../../tools/details/goal";
-import { logger } from "@oh-my-pi/pi-utils";
-import { cfgGoalContinuationModes, cfgGoalEnabled } from "../../goals/settings";
-import { type GoalModeState, goalContinuationActivity, goalFromModeData } from "../../goals/state";
-import type { AgentSession, AgentSessionEvent } from "../../session/agent-session";
+import type { Goal } from "../tools/details/goal";
+import { logger } from "@linxiraos/pi-utils";
+import { cfgGoalContinuationModes, cfgGoalEnabled } from "./settings";
+import { type GoalModeState, goalContinuationActivity, goalFromModeData } from "./state";
+import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
 
 /** `goal.continuationModes` value that enables automatic continuation for RPC hosts. */
 export const RPC_GOAL_CONTINUATION_MODE = "rpc";
@@ -54,6 +54,7 @@ export type RpcGoalSession = Pick<
 
 export class RpcGoalController {
 	readonly #session: RpcGoalSession;
+	readonly #continuationMode: string;
 	/** Whether goal mode added `goal` to the live roster; exit strips only that tool. */
 	#goalToolAddedByMode = false;
 	/** Continuation turns submitted whose run has not reached its `agent_end`. */
@@ -90,14 +91,32 @@ export class RpcGoalController {
 	 */
 	#changeOverlappedReconcile = false;
 	readonly #onContinuationDropped: (() => void) | undefined;
+	/** Host predicate: another driver owns the session (web loop), so no goal turn may be admitted. */
+	readonly #continuationSuppressed: (() => boolean) | undefined;
 
 	/**
 	 * @param onContinuationDropped called when a pending continuation is abandoned
 	 *   (a gate closed while it waited), so settle reporting can re-check.
 	 */
-	constructor(session: RpcGoalSession, onContinuationDropped?: () => void) {
+	constructor(
+		session: RpcGoalSession,
+		onContinuationDroppedOrOptions?:
+			| (() => void)
+			| {
+					continuationMode?: string;
+					continuationSuppressed?: () => boolean;
+					onContinuationDropped?: () => void;
+			  },
+		options?: { continuationMode?: string; continuationSuppressed?: () => boolean },
+	) {
+		const opts = typeof onContinuationDroppedOrOptions === "object" ? onContinuationDroppedOrOptions : options;
 		this.#session = session;
-		this.#onContinuationDropped = onContinuationDropped;
+		this.#onContinuationDropped =
+			typeof onContinuationDroppedOrOptions === "function"
+				? onContinuationDroppedOrOptions
+				: onContinuationDroppedOrOptions?.onContinuationDropped;
+		this.#continuationMode = opts?.continuationMode ?? RPC_GOAL_CONTINUATION_MODE;
+		this.#continuationSuppressed = opts?.continuationSuppressed;
 	}
 
 	/**
@@ -427,6 +446,7 @@ export class RpcGoalController {
 	 * an abort, disposal, pause, plan mode, or another turn starting meanwhile drops it.
 	 */
 	#scheduleContinuation(): void {
+		if (this.#continuationSuppressed?.()) return;
 		if (this.#sessionChanges > 0) {
 			// Held until the change ends; a same-session change resumes it.
 			if (this.#continuationWanted()) this.#heldDuringChange = true;

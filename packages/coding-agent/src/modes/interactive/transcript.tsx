@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The live transcript blocks the interactive mode presents: assistant
  * replies, tool calls (cards, read groups, reply writes) and user `!`/`$`
@@ -12,8 +12,8 @@
  * snapshot), which the event controller seals; a read group only when sealed;
  * a run once it completes.
  */
-import type { AgentMessage, AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 import {
 	type Accessor,
 	batch,
@@ -24,10 +24,10 @@ import {
 	type Signal,
 	signal,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { isRecord } from "@oh-my-pi/pi-utils";
-import type { TspText } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { isRecord } from "@linxiraos/pi-utils";
+import type { TspText } from "@linxiraos/pi-wire";
 import type {
 	TranscriptPresentation,
 	TranscriptPresenter as PresenterFn,

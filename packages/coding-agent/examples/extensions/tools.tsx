@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Tools Extension
  *
@@ -9,8 +9,8 @@
  * 1. Copy this file to ~/.omp/agent/extensions/ (legacy: ~/.pi/agent/extensions/) or your project's .omp/extensions/
  * 2. Use /tools to open the tool selector
  */
-import type { ExtensionAPI, ExtensionContext } from "@oh-my-pi/pi-coding-agent";
-import { For, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
+import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta";
+import { For, type KeyEvent, signal } from "@linxiraos/pi-tui";
 
 // State persisted to session
 interface ToolsState {

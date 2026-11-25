@@ -64,21 +64,23 @@ await sh(command, { cwd?, timeout? })  await sh`cmd ${arg}` — embedded bash en
 {{else}}
 <namespaces>
 More globals; `read` the linked docs before first use:
+
 - `judge`, `{{#if py}}judge_batch{{else}}judgeBatch{{/if}}`, `completion`: classification, bulk judgment, model calls → help://eval/judge
 - `%load`{{#if py}}, `%pip`{{/if}}{{#if js}}, `%bun add`{{/if}}, `budget`{{#if evalTools}}, `@tool`/`tool(fn)`{{/if}}: setup, installs, utilities → help://eval/helpers
-{{#if spawns}}
+  {{#if spawns}}
 - `agent`, `workpool`: background subagents, DAG waves → help://eval/agents
-{{/if}}
-{{#each preludes}}
+  {{/if}}
+  {{#each preludes}}
 - `{{name}}`{{#if summary}}: {{summary}}{{/if}} → help://eval/{{name}}
-{{/each}}
-{{#if firstCallPreludes}}
-No `read` needed before first use; the guide follows the first call's result (full reference linked):
-{{#each firstCallPreludes}}
+  {{/each}}
+  {{#if firstCallPreludes}}
+  No `read` needed before first use; the guide follows the first call's result (full reference linked):
+  {{#each firstCallPreludes}}
 - `{{name}}`{{#if summary}}: {{summary}}{{/if}} → `help://eval/{{name}}`
 {{/each}}
 {{/if}}
-</namespaces>
+ </namespaces>
+
 {{#each inlinePreludes}}
 
 <{{name}}>

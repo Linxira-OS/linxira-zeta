@@ -25,7 +25,7 @@ import type {
 	ResumeTreeSource,
 	ResumeTreeView,
 	ResumeTreeWorkspace,
-} from "@linxiraos/pi-tui/overlays/resume-tree";
+} from "./view-model/overlays/resume-tree";
 
 import {
 	buildResumeView,
@@ -36,7 +36,7 @@ import {
 	type ResumeDirectory,
 	type ResumeScopeKind,
 } from "../resume";
-import type { ResumeSourceLike } from "@linxiraos/pi-tui/overlays/resume-picker";
+import type { ResumeSourceLike } from "./view-model/overlays/resume-picker";
 import {
 	setProjectHidden,
 	setWorkspaceAlias,

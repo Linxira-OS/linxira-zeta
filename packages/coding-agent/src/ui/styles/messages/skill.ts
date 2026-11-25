@@ -10,9 +10,9 @@
  * - Expanded, the callout ends with a muted `prompt` subhead and the loaded
  *   skill prompt.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { wrap } from "@linxiraos/pi-tui/text/width";
 import type { TermChip } from "../../transcript/messages/chips";
 import { fillRow, termOf } from "./fill";
 import { fileLink } from "../tools/file-common";

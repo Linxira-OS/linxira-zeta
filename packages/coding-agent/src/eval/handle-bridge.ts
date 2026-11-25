@@ -1,4 +1,4 @@
-import { isRecord, truncate } from "@oh-my-pi/pi-utils";
+import { isRecord, truncate } from "@linxiraos/pi-utils";
 import { type AsyncJob, type AsyncJobManagerApi, agentProgress } from "../async";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { ToolSession } from "../tools";

@@ -12,10 +12,10 @@
  *   scrollbar in the last column while items are hidden (accent thumb, muted
  *   track).
  */
-import type { TspText } from "@oh-my-pi/pi-wire";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { TspText } from "@linxiraos/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 
 /** Terminal-only layout facts of the popup (its `term` prop). */
 export type PopupTerm = {

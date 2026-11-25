@@ -6,10 +6,10 @@
  * looks.
  */
 import "../forms";
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan } from "@linxiraos/pi-wire";
 
 /** Terminal facts of the preview child. */
 interface PreviewTerm {

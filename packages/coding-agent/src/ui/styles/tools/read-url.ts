@@ -7,10 +7,10 @@
  *
  * Reads {@link ReadUrlTerm}.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { formatFullOutputReference } from "../../../tools/output-meta-format";
 import type { ReadUrlTerm } from "../../tools/read-url";
 import { webLink } from "./file-common";

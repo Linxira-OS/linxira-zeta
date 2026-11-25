@@ -17,14 +17,15 @@ The `dsm` object exists in JavaScript and Python Eval; it is not a standalone to
 - Handles expose `id`, `backend`, `ref`, `path`, and `info`. Closed references require another `dsm.open(path or handle)` or `dsm.get(id)`.
 
 JavaScript:
+
 ```javascript
 const db = await dsm.open("./program");
 await dsm.list();
 const other = await dsm.get(db.id);
 await other.close();
-print(db.handle());                 // copy this exact string into child context
+print(db.handle()); // copy this exact string into child context
 await db.view("overview");
-await db.view("main");             // pseudocode
+await db.view("main"); // pseudocode
 await db.view("main:asm");
 await db.exec("functions('crypt|aes')", { timeout: 120 });
 await db.rename("sub_401000", "parse_header");
@@ -36,6 +37,7 @@ await db.close({ save: true });
 ```
 
 Python uses the same methods except `set_type` and `make_function`; options are keyword arguments:
+
 ```python
 db = await dsm.open("./program")
 c = await db.view("main")
@@ -51,19 +53,19 @@ await db.close(save=True)
 - Edits return objects: `rename` → `{ea, old, new}`; `comment` → `{ea}`; `setType`/`set_type` → `{ea, type}` (the applied type as the backend prints it); `makeFunction`/`make_function` → `{ea, name}`; `save` → `{path}`; `close` → null. `ea` is a `0x` string. The same-named `exec` helpers return the same objects.
 - The Python namespace persists per database and is shared across agents, not per handle. Reopening after idle-close resets it.
 - Every backend preloads helpers accepting a name, `0x` string, or integer address:
-  - `resolve(t)`, `func(t)`, `name_of(ea)`
-  - `pseudocode(t)`, `asm(t)` → str
-  - `xrefs_to(t)`, `xrefs_from(t)` → dicts; `callers(t)`, `callees(t)` → names
-  - `functions(pattern)`, `strings(pattern)`, `imports(pattern)` → tuples (optional case-insensitive regex)
-  - `hexdump(t, size=64)`, `read_bytes(t, size)`
-  - `rename(t, name)`, `comment(t, text, repeatable=False)`, `set_type(t, decl)`, `make_function(t)`
-  - `comment` sets an address comment and, at a function start, also the function comment.
+   - `resolve(t)`, `func(t)`, `name_of(ea)`
+   - `pseudocode(t)`, `asm(t)` → str
+   - `xrefs_to(t)`, `xrefs_from(t)` → dicts; `callers(t)`, `callees(t)` → names
+   - `functions(pattern)`, `strings(pattern)`, `imports(pattern)` → tuples (optional case-insensitive regex)
+   - `hexdump(t, size=64)`, `read_bytes(t, size)`
+   - `rename(t, name)`, `comment(t, text, repeatable=False)`, `set_type(t, decl)`, `make_function(t)`
+   - `comment` sets an address comment and, at a function start, also the function comment.
 - IDA additionally preloads `db` (ida_domain Database), `ida_domain`, `ida_*`, `idautils`; `help_ida()` lists its helpers. `setType`/`set_type` accepts a C declaration.
 - Ghidra additionally preloads `program` / `currentProgram`, `project`, `flat`, `monitor`, `pyghidra`, `jpype`; `help_ghidra()` lists its helpers. Types are C prototypes at function entries and type expressions (`char[16]`, `uint32_t *`) elsewhere.
 - Binary Ninja additionally preloads `bv` (the BinaryView), `binaryninja`, `wait_analysis()`; `help_binja()` lists its helpers. Types work as for Ghidra: a C prototype at a function entry, a type expression elsewhere. `repeatable` on comments is accepted and ignored. Inside a function an address comment is that function's (`func.get_comment_at(ea)`), not a view comment (`bv.get_comment_at(ea)`). A function, its PLT entry and its import slot share one name: `callers`/`xrefs_to` on the function include calls through the other two.
 - Default exec timeout is 120 s; an unresponsive worker is killed after cancellation. Ghidra pseudocode falls back to disassembly when its decompiler is unavailable.
 - Retained references pin against idle-close and LRU eviction; close every owned handle when done. `disassembler.maxOpen` bounds databases across all backends; unreferenced idle databases may be evicted or closed by `disassembler.idleCloseSec`.
-</instruction>
+ </instruction>
 
 <critical>
 - Ghidra exec database changes roll back on error or interruption; Python variables do not. IDA changes made before an exec failure remain.

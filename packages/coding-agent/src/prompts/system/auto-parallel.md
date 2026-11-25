@@ -4,23 +4,26 @@ A classifier split this request into {{len subtasks}} subtasks that can run conc
 
 Subtask {{add @index 1}}:
 {{#each this}}
+
 - {{this}}
-{{/each}}
-{{/each}}
-{{#if context}}
+  {{/each}}
+  {{/each}}
+  {{#if context}}
 
 Context every subtask needs:
 {{#each context}}
+
 - {{this}}
-{{/each}}
-{{/if}}
-{{#if wrapup}}
+  {{/each}}
+  {{/if}}
+  {{#if wrapup}}
 
 After every subtask finishes, do yourself:
 {{#each wrapup}}
+
 - {{this}}
-{{/each}}
-{{/if}}
+  {{/each}}
+  {{/if}}
 
 Settle cross-subtask contracts first, then delegate the subtasks in ONE parallel `{{taskTool}}` call, with the context in each assignment. The split is a guess: merge subtasks you find coupled; NEVER split one further.
 </system-reminder>

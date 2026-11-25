@@ -3,12 +3,12 @@
  * submit transform), extension hooks, the shape registry, undo and Vim.
  */
 import { describe, expect, test } from "bun:test";
-import { createRoot, signal } from "@oh-my-pi/pi-tui";
-import { bubbleEvent, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import { corpusEnvironment } from "@oh-my-pi/pi-tui/testing/corpus";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { plainRows } from "@oh-my-pi/pi-tui/testing/cells";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createRoot, signal } from "@linxiraos/pi-tui";
+import { bubbleEvent, pathTo } from "@linxiraos/pi-tui/dispatch";
+import { corpusEnvironment } from "@linxiraos/pi-tui/testing/corpus";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { plainRows } from "@linxiraos/pi-tui/testing/cells";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { getKeybindings, KeybindingsManager, setKeybindings } from "../../../src/config/keybindings/keybindings";
 import {
 	Composer,

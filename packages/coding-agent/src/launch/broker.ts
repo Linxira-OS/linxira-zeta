@@ -8,12 +8,7 @@ import { isEnoent, isRecord, logger, postmortem, procmgr, sanitizeText, setProce
 import { TerminalQueryResponder } from "@linxiraos/pi-utils/vterm";
 import { hostHasInheritableConsole } from "../eval/py/spawn-options";
 import { replaceFileWithRetry } from "../utils/atomic-file";
-import {
-	truncateHead,
-	truncateHeadBytes,
-	truncateTail,
-	truncateTailBytes,
-} from "@linxiraos/pi-tui/tools/streaming-output";
+import { truncateHead, truncateHeadBytes, truncateTail, truncateTailBytes } from "../tools/streaming-output";
 import { workerEnvFromParent } from "../subprocess/worker-client";
 import {
 	canonicalProjectDir,

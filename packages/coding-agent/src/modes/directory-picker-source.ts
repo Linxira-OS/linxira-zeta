@@ -16,7 +16,7 @@ import type {
 	DirectoryPickerEntry,
 	DirectoryPickerListing,
 	DirectoryPickerSource,
-} from "@linxiraos/pi-tui/overlays/directory-picker";
+} from "./view-model/overlays/directory-picker";
 import {
 	type DriveInfo,
 	type MountInfo,

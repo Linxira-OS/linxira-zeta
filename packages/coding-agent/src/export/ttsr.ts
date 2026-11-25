@@ -10,10 +10,10 @@
  * delivers a yes as a non-interrupting warning.
  */
 import * as path from "node:path";
-import type { Judge, JudgeOptions, NoulQuestion } from "@oh-my-pi/pi-ai";
-import { AstMatchStrictness, astMatch, truncateToTokens } from "@oh-my-pi/pi-natives";
-import { logger } from "@oh-my-pi/pi-utils";
-import { countCapturingGroups, type LinearRegExp, type RegexStream } from "@oh-my-pi/pi-utils/regex";
+import type { Judge, JudgeOptions, NoulQuestion } from "@linxiraos/pi-ai";
+import { AstMatchStrictness, astMatch, truncateToTokens } from "@linxiraos/pi-natives";
+import { logger } from "@linxiraos/pi-utils";
+import { countCapturingGroups, type LinearRegExp, type RegexStream } from "@linxiraos/pi-utils/regex";
 import { compileRuleCondition, type Rule } from "../capability/rule";
 import { ensureGrammar } from "../utils/grammars";
 import type { TtsrSettings } from "./ttsr-settings";

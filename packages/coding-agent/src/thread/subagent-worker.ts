@@ -31,8 +31,8 @@ function workerThreads(): typeof WorkerThreads {
 	if (!workerThreadsCache) workerThreadsCache = require("node:worker_threads") as typeof WorkerThreads;
 	return workerThreadsCache;
 }
-import { getProjectDir, logger, postmortem } from "@oh-my-pi/pi-utils";
-import { workerHostEntry } from "@oh-my-pi/pi-utils/worker-host";
+import { getProjectDir, logger, postmortem } from "@linxiraos/pi-utils";
+import { workerHostEntry } from "@linxiraos/pi-utils/worker-host";
 import { SUBAGENT_WORKER_ARG } from "../cli/worker-selectors";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";

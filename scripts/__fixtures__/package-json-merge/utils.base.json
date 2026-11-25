@@ -2,12 +2,7 @@
 	"name": "@linxiraos/pi-utils",
 	"version": "18.9.2",
 	"description": "Shared utilities for pi packages",
-	"keywords": [
-		"cli",
-		"logging",
-		"streams",
-		"utilities"
-	],
+	"keywords": ["cli", "logging", "streams", "utilities"],
 	"homepage": "https://omp.sh",
 	"bugs": {
 		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
@@ -19,11 +14,7 @@
 		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/utils"
 	},
-	"files": [
-		"src",
-		"README.md",
-		"CHANGELOG.md"
-	],
+	"files": ["src", "README.md", "CHANGELOG.md"],
 	"type": "module",
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",

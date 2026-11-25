@@ -1,6 +1,6 @@
 // oxlint-disable no-template-curly-in-string -- sample source-code strings intentionally contain literal placeholders.
 // Gallery fixtures for the filesystem tools (read, write, glob).
-import type { Usage } from "@oh-my-pi/pi-ai";
+import type { Usage } from "@linxiraos/pi-ai";
 import { printRows } from "../../ui/print-rows";
 import "../../ui/styles/transcript/read-group";
 import { ReadGroup, ReadGroupBlock } from "../../ui/transcript/read-group";

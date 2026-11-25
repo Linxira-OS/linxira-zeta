@@ -25,7 +25,7 @@ import { runStructuredSubagent, type StructuredSubagentRequest } from "@linxirao
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import { taskSchema } from "@linxiraos/zeta/task/types";
 import { TaskTool } from "@linxiraos/zeta/task";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import type { SingleResult } from "@linxiraos/zeta/task/task-details";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { getTestModel } from "../helpers/model-fixtures";
 

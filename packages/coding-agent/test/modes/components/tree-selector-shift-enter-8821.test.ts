@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { SessionEntry, SessionTreeNode } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { decodeKey } from "@oh-my-pi/pi-tui/driver/input/keys";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
+import { decodeKey } from "@linxiraos/pi-tui/driver/input/keys";
 import { mountTreeSelector } from "../../helpers/tree-selector";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

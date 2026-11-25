@@ -5,8 +5,8 @@
  * it, and the suggestions key lists replacement guesses for the word at the
  * caret in the completion popup.
  */
-import type { KeyEvent } from "@oh-my-pi/pi-tui";
-import { signal } from "@oh-my-pi/pi-tui";
+import type { KeyEvent } from "@linxiraos/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
 import type { MacOSSpellingFeatures, MacOSSpellingProvider } from "../../modes/view-model/prompt/macos-spelling";
 import type { TypingWord } from "../../modes/view-model/prompt/typing-word";
 import type { Composer, ComposerDecoration } from "./composer";

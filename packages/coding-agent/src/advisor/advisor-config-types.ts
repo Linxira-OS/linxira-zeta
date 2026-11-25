@@ -1,5 +1,5 @@
-import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@oh-my-pi/pi-ai";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@linxiraos/pi-ai";
+import { formatDuration } from "@linxiraos/pi-utils";
 
 export const ADVISOR_REVIEW_MODES = ["turn", "agent-end"] as const;
 

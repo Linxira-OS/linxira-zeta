@@ -1,6 +1,6 @@
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { formatMoreItems } from "../../utils/render-utils";
-import { pluralize } from "@oh-my-pi/pi-utils";
+import { pluralize } from "@linxiraos/pi-utils";
 import { replaceTabs } from "../../utils/text-width";
 
 // =============================================================================

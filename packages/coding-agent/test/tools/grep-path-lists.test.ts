@@ -2,18 +2,18 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getEditStore } from "@oh-my-pi/pi-coding-agent/edit/store";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { getEditStore } from "@linxiraos/zeta/edit/store";
 import { ToolCall } from "../../src/ui/transcript/tool-block";
 import { toolCallText } from "../helpers/tool-text";
 import { renderTreeSelector } from "../helpers/tree-selector";
-import type { SessionEntry, SessionTreeNode } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { ToolChoiceQueue } from "@oh-my-pi/pi-coding-agent/session/tool-choice-queue";
-import { createTools, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
+import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";
+import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

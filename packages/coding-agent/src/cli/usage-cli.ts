@@ -23,14 +23,14 @@ import {
 	type UsageReport,
 	type UsageUnit,
 	usageSubscriptionPlan,
-} from "@oh-my-pi/pi-ai";
-import { AuthBrokerClient, AuthBrokerError } from "@oh-my-pi/pi-ai/auth-broker";
-import { OAUTH_ORG_POLICY_BLOCK_SCOPE } from "@oh-my-pi/pi-ai/auth-storage";
-import type { ClientUsageClientSummary } from "@oh-my-pi/pi-ai/usage";
+} from "@linxiraos/pi-ai";
+import { AuthBrokerClient, AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
+import { OAUTH_ORG_POLICY_BLOCK_SCOPE } from "@linxiraos/pi-ai/auth-storage";
+import type { ClientUsageClientSummary } from "@linxiraos/pi-ai/usage";
 import { formatProviderName } from "../modes/view-model/chrome/format";
-import { peakBuckets, sparkline } from "@oh-my-pi/pi-tui/term/painters/chart";
-import { formatDuration, formatNumber, getProjectDir, sanitizeText } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { peakBuckets, sparkline } from "@linxiraos/pi-tui/term/painters/chart";
+import { formatDuration, formatNumber, getProjectDir, sanitizeText } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";
@@ -702,7 +702,7 @@ export type UsagePolicyDiagnostics = {
 	| { state: "eligible" | "inside-reserve"; remainingPct: number }
 );
 
-function computePolicyDiagnostics(
+export function computePolicyDiagnostics(
 	provider: string,
 	identity: OAuthAccountIdentity,
 	limits: UsageLimit[] | undefined,

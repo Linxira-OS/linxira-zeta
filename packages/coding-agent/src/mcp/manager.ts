@@ -262,6 +262,10 @@ export interface MCPManagerApi {
 	addNotificationListener(listener: (serverName: string, method: string, params: unknown) => void): () => void;
 	/** Names of currently connected servers. */
 	getConnectedServers(): string[];
+	/** Read the server configuration used by session-local analysis precedence. */
+	getServerConfig(name: string): MCPServerConfig | undefined;
+	/** Include configured servers whose tool list has not arrived yet. */
+	getAllServerNames(): string[];
 	/** Cached resources/templates of one server. */
 	getServerResources(name: string): { resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined;
 	/** Wait until one server's resource catalog is loaded. */

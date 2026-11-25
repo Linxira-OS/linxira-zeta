@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncAllSessions } from "@oh-my-pi/omp-stats/aggregator";
-import { closeDb, initDb } from "@oh-my-pi/omp-stats/db";
-import type { SpotlightAgentScope, SpotlightDashboardStats } from "@oh-my-pi/omp-stats/shared-types";
-import { buildSpotlightDashboard } from "@oh-my-pi/omp-stats/spotlight-aggregator";
-import { getSessionsDir, spillFileName, spillUrl } from "@oh-my-pi/pi-utils";
+import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
+import { closeDb, initDb } from "@linxiraos/pi-stats/db";
+import type { SpotlightAgentScope, SpotlightDashboardStats } from "@linxiraos/pi-stats/shared-types";
+import { buildSpotlightDashboard } from "@linxiraos/pi-stats/spotlight-aggregator";
+import { getSessionsDir, spillFileName, spillUrl } from "@linxiraos/pi-utils";
 import { type ShapeSpec, SpotlightSessionBuilder } from "./helpers/spotlight-session";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 

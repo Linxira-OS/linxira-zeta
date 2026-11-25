@@ -5,10 +5,10 @@
  * steering and compaction queues untouched.
  */
 import { beforeAll, describe, expect, mock, test } from "bun:test";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import { splitQueuedMessages } from "@oh-my-pi/pi-coding-agent/modes/view-model/prompt/queue-input";
-import type { CompactionQueuedMessage, InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { DequeuedMessage, RestoredQueuedMessage } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { splitQueuedMessages } from "@linxiraos/zeta/modes/view-model/prompt/queue-input";
+import type { CompactionQueuedMessage, InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { DequeuedMessage, RestoredQueuedMessage } from "@linxiraos/zeta/session/agent-session";
 import { Composer } from "../src/ui/composer/composer";
 import { initTheme } from "../src/ui/theme/service";
 

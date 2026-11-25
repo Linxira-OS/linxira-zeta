@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
 
 interface SuspendCtx {
 	ctx: InteractiveModeContext;

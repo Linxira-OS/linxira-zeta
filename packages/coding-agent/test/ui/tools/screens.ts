@@ -11,15 +11,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, setSystemTime } from "bun:test";
 import { capturing, type StageResult, stageTest } from "../deviations";
-import { createRoot, isUiNode, type JSXNode, jsx, resolveChildren, type Signal, type UiNode } from "@oh-my-pi/pi-tui";
+import { createRoot, isUiNode, type JSXNode, jsx, resolveChildren, type Signal, type UiNode } from "@linxiraos/pi-tui";
 import {
 	defineRolePainter,
 	type PaintEnvironment,
 	paintNode,
 	type StaticEnvironment,
-} from "@oh-my-pi/pi-tui/term/paint";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+} from "@linxiraos/pi-tui/term/paint";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 import {
 	CORPUS_DIR,
 	CORPUS_NOW,
@@ -28,8 +28,8 @@ import {
 	describeTree,
 	firstDiff,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
-import type { TspCardStatus } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui/testing/corpus";
+import type { TspCardStatus } from "@linxiraos/pi-wire";
 import { paintToolLook } from "../../../src/ui/styles/tools/block";
 import "../../../src/ui/styles/tools";
 import type { ToolPresenter, ToolResult, ToolView, ToolViewState } from "../../../src/ui/tools/contract";

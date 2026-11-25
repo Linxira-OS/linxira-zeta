@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `forms/form-field`, `forms/text-field`, `forms/select-field`, `forms/form`
  * corpus: the reusable form controls driven by keys and host calls.

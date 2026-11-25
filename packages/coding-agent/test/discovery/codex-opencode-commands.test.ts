@@ -2,19 +2,16 @@ import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "bun
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import { type SlashCommand, slashCommandCapability } from "@oh-my-pi/pi-coding-agent/capability/slash-command";
-import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { loadCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { loadSlashCommands } from "@oh-my-pi/pi-coding-agent/extensibility/slash-commands";
-import {
-	commandInspectorData,
-	commandPreview,
-} from "@oh-my-pi/pi-coding-agent/extensibility/inventory/inspector-model";
-import { applyFilter } from "@oh-my-pi/pi-coding-agent/extensibility/inventory/state-manager";
-import type { Extension } from "@oh-my-pi/pi-coding-agent/extensibility/inventory/types";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { type SlashCommand, slashCommandCapability } from "@linxiraos/zeta/capability/slash-command";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { loadCapability } from "@linxiraos/zeta/discovery";
+import { loadSlashCommands } from "@linxiraos/zeta/extensibility/slash-commands";
+import { commandInspectorData, commandPreview } from "@linxiraos/zeta/extensibility/inventory/inspector-model";
+import { applyFilter } from "@linxiraos/zeta/extensibility/inventory/state-manager";
+import type { Extension } from "@linxiraos/zeta/extensibility/inventory/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

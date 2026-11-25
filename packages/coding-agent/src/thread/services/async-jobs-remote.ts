@@ -228,6 +228,14 @@ export class RemoteAsyncJobManager implements AsyncJobManagerApi {
 		return this.#widgets ?? undefined;
 	}
 
+	nextPollWaitMs(ownerId: string | undefined, now?: number): number {
+		return this.#remote.callSync("nextPollWaitMs", ownerId, now);
+	}
+
+	recordPollWaitEnd(ownerId: string | undefined, now?: number): void {
+		this.#remote.callSync("recordPollWaitEnd", ownerId, now);
+	}
+
 	get atCapacity(): boolean {
 		return this.#remote.callSync("atCapacity");
 	}

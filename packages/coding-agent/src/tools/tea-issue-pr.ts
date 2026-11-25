@@ -6,7 +6,7 @@
  * the already-resolved `--login` flags. Rendering reuses the tea tool's
  * formatters; diff parsing reuses the unified-diff splitter shared with `gh`.
  */
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { type PrDiffPayload, parsePrUnifiedDiff } from "./gh-pr-diff";
 import { formatCommentsSection, formatIssueView, formatPrView } from "./tea";
 import { giteaApiArgs, parseRepoRef } from "./tea-common";

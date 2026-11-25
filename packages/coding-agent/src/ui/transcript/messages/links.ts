@@ -3,7 +3,7 @@
  * Markdown source itself and would resolve `./a.ts` against its own idea of
  * the working directory.
  */
-import { lexMarkdown, type Token } from "@oh-my-pi/pi-tui/text/markdown/lexer";
+import { lexMarkdown, type Token } from "@linxiraos/pi-tui/text/markdown/lexer";
 
 /**
  * `text` with the destination of every inline link and link definition

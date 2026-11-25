@@ -5,9 +5,9 @@
  * the wizard gives the scene. The browser is drawn from its state (the
  * picker's `term.browser`).
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { definePickerLook, pickerTerm } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { padTo, wrap } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { definePickerLook, pickerTerm } from "@linxiraos/pi-tui/term/painters/picker";
+import { padTo, wrap } from "@linxiraos/pi-tui/text/width";
 import type { ModelBrowserState, ModelBrowserView } from "../../overlays/pickers/model-browser-state";
 import { modelBrowserRows } from "../pickers/model-browser";
 

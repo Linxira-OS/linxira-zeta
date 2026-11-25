@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
-import { type Api, type FetchImpl, type Model, type OAuthAccess, streamSimple } from "@oh-my-pi/pi-ai";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth-storage";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { type DryBalanceModelRegistry, runDryBalanceCommand } from "@oh-my-pi/pi-coding-agent/cli/dry-balance-cli";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { type Api, type FetchImpl, type Model, type OAuthAccess, streamSimple } from "@linxiraos/pi-ai";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type DryBalanceModelRegistry, runDryBalanceCommand } from "@linxiraos/zeta/cli/dry-balance-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 function fakeModel(provider: string, id: string): Model<Api> {
 	return {

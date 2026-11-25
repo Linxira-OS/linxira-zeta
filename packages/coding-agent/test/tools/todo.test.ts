@@ -1,14 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import {
-	markdownToPhases,
-	nextActionableTask,
-	resolveTodoMarkdownPath,
-	TodoTool,
-} from "@oh-my-pi/pi-coding-agent/tools";
+import { type } from "@linxiraos/zeta-schema";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { markdownToPhases, nextActionableTask, resolveTodoMarkdownPath, TodoTool } from "@linxiraos/zeta/tools";
 import {
 	selectCollapsedTodos,
 	TODO_STRIKE_HOLD_FRAMES,
@@ -17,13 +12,13 @@ import {
 	type TodoPhase,
 	type TodoStatus,
 	todoMatchesAnyDescription,
-} from "@oh-my-pi/pi-coding-agent/tools/details/todo";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+} from "@linxiraos/zeta/tools/details/todo";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { ToolBlock, ToolCall, type ToolCallResult } from "../../src/ui/transcript/tool-block";
 import { toolCall } from "../helpers/tool-text";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

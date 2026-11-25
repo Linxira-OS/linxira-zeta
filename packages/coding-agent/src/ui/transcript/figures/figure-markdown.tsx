@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A reply's Markdown with its figures: ```` ```svg ```` fences drawn as
  * rasters, chartable tables followed by their chart, and HTML `<img>` /
@@ -11,8 +11,8 @@
  *
  * Terminal look: `src/ui/styles/figures/figure.ts` (`omp.figures`).
  */
-import { computed, For, type JSXNode, type Reactive, read, Show, untrack } from "@oh-my-pi/pi-tui";
-import { lexMarkdown } from "@oh-my-pi/pi-tui/text/markdown/lexer";
+import { computed, For, type JSXNode, type Reactive, read, Show, untrack } from "@linxiraos/pi-tui";
+import { lexMarkdown } from "@linxiraos/pi-tui/text/markdown/lexer";
 import { type EmbedHost, EmbedFigure, parseEmbed } from "./embed";
 import { fenced, type FigureOptions, RasterImage, SvgRaster } from "./svg-figure";
 import type { FigureTerm } from "./svg-figure";
@@ -90,8 +90,8 @@ function SvgSegment(props: { readonly source: string } & FigureOptions): JSXNode
 	const term: FigureTerm = { code };
 	return () => {
 		const state = raster.state();
-		if (state.status !== "ready") return <md role="omp.figure.code" text={code} />;
-		return untrack(() => <RasterImage raster={state.raster} role="omp.figure.svg" term={term} />);
+		if (state.status !== "ready") return <md role="zeta.figure.code" text={code} />;
+		return untrack(() => <RasterImage raster={state.raster} role="zeta.figure.svg" term={term} />);
 	};
 }
 
@@ -126,7 +126,7 @@ export function FigureMarkdown(
 		}
 	};
 	return (
-		<col role="omp.figures">
+		<col role="zeta.figures">
 			<Show when={streaming} fallback={<For each={keys}>{key => segment(key)}</For>}>
 				<md stream text={() => read(props.text)} />
 			</Show>

@@ -19,8 +19,15 @@
  * model registry, async job manager, settings), which travel back to main as
  * references to the originals.
  */
-import type { AgentMessage, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Effort, ImageContent, Model, ServiceTierByFamily, ToolResultMessage, UsageReport } from "@oh-my-pi/pi-ai";
+import type { AgentMessage, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type {
+	Effort,
+	ImageContent,
+	Model,
+	ServiceTierByFamily,
+	ToolResultMessage,
+	UsageReport,
+} from "@linxiraos/pi-ai";
 import type { ConfiguredThinkingLevel } from "../utils/render-utils";
 import type { IrcMessage } from "../irc/irc-types";
 import type { TodoPhase } from "../tools/details/todo";
@@ -144,6 +151,8 @@ export interface SessionQueuedEntry {
 export interface SessionViewState {
 	/** Provider-facing session id (`AgentSession.sessionId`). */
 	providerSessionId: string;
+	/** Schemes the session's extension tool links may use (`studio://` handlers). */
+	studioLinkSchemes: string[];
 	sessionName: string | undefined;
 	leafId: string | null;
 	/** Effort applied to the agent loop (`agent.state.thinkingLevel`). */
@@ -247,10 +256,12 @@ export type SessionHostProtocol = {
 	setTodoPhases: RpcMethod<[phases: TodoPhase[]], void>;
 	appendCustomEntry: RpcMethod<[customType: string, data: unknown], void>;
 	appendModelUsage: RpcMethod<[usage: ModelUsageRecord, owner: { sessionId: string; parentId: string | null }], void>;
+	getArtifactContent: RpcMethod<[id: string], string | null>;
+	activateStudioLink: RpcMethod<[url: string], boolean>;
 	flushSession: RpcMethod<[], void>;
 	ensureOnDisk: RpcMethod<[], void>;
 	getArtifactPath: RpcMethod<[id: string], string | null>;
-	resume: RpcMethod<[], void>;
+	resume: RpcMethod<[], "restored" | "continue">;
 	retry: RpcMethod<[], boolean>;
 	abortRetry: RpcMethod<[], void>;
 	abortCompaction: RpcMethod<[reason?: unknown], void>;

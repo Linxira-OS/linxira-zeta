@@ -11,8 +11,8 @@ import {
 	toError,
 	untilAborted,
 	withTimeout,
-} from "@oh-my-pi/pi-utils";
-import type * as BrowsersNs from "@oh-my-pi/pi-utils/browsers";
+} from "@linxiraos/pi-utils";
+import type * as BrowsersNs from "@linxiraos/pi-utils/browsers";
 import type { BunFile } from "bun";
 import type {
 	Browser,
@@ -327,7 +327,7 @@ export function loadedNetworkConditions(): Readonly<Record<string, NetworkCondit
 let browsersModule: typeof BrowsersNs | undefined;
 async function loadBrowsers(): Promise<typeof BrowsersNs> {
 	if (!browsersModule) {
-		browsersModule = await import("@oh-my-pi/pi-utils/browsers");
+		browsersModule = await import("@linxiraos/pi-utils/browsers");
 	}
 	return browsersModule;
 }

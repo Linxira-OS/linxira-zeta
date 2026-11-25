@@ -10,10 +10,10 @@
  *   filling over the outro's length, on a starfield.
  * - done: blank rows.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import { truncate } from "@linxiraos/pi-tui/text/width";
 import { gradientArt, LOGO } from "../../welcome/logo";
 import { centered, splashRows, starRow } from "./splash";
 

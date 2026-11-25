@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The text prompts extensions and tools open: {@link HookInput} (one line,
  * optionally secret and timed) and {@link HookEditor} (multi-line, prompt
@@ -9,10 +9,10 @@
  * sends the same). With `tui.vimMode` the hook editor's box is a Vim box:
  * Escape first leaves Insert mode, and only a quiet Normal mode cancels.
  */
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { type Accessor, type JSXNode, onCleanup, type Signal, signal, type TextEdit, untrack } from "@oh-my-pi/pi-tui";
-import type { EditorTerm } from "@oh-my-pi/pi-tui/term/painters/editor";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { type Accessor, type JSXNode, onCleanup, type Signal, signal, type TextEdit, untrack } from "@linxiraos/pi-tui";
+import type { EditorTerm } from "@linxiraos/pi-tui/term/painters/editor";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { HookEditorOptions } from "../../../modes/view-model/overlays/hook-editor";
 import {
 	compactImageMarkers,
@@ -103,7 +103,7 @@ export function HookInput(props: HookInputProps): JSXNode {
 	const placeholder = props.placeholder?.trim() ? props.placeholder : undefined;
 	return (
 		<col
-			role="omp.overlay.hook-input"
+			role="zeta.overlay.hook-input"
 			term={() => ({
 				title: frameTitle(`${props.title}${timeout !== undefined ? ` (${remaining()}s)` : ""}`),
 			})}
@@ -118,24 +118,24 @@ export function HookInput(props: HookInputProps): JSXNode {
 				else if (act === "cancel") props.onCancel();
 			}}
 		>
-			<col key="head" role="omp.hook-input.head" gap="xs">
+			<col key="head" role="zeta.hook-input.head" gap="xs">
 				<row key="line" align="baseline" gap="md">
-					<text key="title" role="omp.hook-input.title" grow={1} wrap="word" spans={[{ t: head }]} />
+					<text key="title" role="zeta.hook-input.title" grow={1} wrap="word" spans={[{ t: head }]} />
 					{timeout !== undefined && (
 						<row
 							key="timer"
-							role="omp.hook-input.timer"
+							role="zeta.hook-input.timer"
 							title="Cancels when the time runs out; typing restarts it"
 						>
 							<elapsed format="short" age={-timeout} />
 						</row>
 					)}
 				</row>
-				{detail && <text key="detail" role="omp.hook-input.detail" wrap="word" spans={[{ t: detail }]} />}
+				{detail && <text key="detail" role="zeta.hook-input.detail" wrap="word" spans={[{ t: detail }]} />}
 			</col>
-			<col key="field" role="omp.hook-input.field">
-				<col role="omp.form" gap="md">
-					<col role="omp.form.field" gap="sm">
+			<col key="field" role="zeta.hook-input.field">
+				<col role="zeta.form" gap="md">
+					<col role="zeta.form.field" gap="sm">
 						<input
 							prompt="> "
 							placeholder={placeholder}
@@ -154,7 +154,7 @@ export function HookInput(props: HookInputProps): JSXNode {
 					</col>
 				</col>
 			</col>
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<CancelButton />
 				<ActionButton
@@ -339,7 +339,7 @@ export function HookEditor(props: HookEditorProps & { readonly ref?: (handle: Ho
 	const flatQuestion = question === undefined ? undefined : replaceTabs(question.replace(/\r\n?/g, "\n"));
 	return (
 		<col
-			role="omp.overlay.hook-editor"
+			role="zeta.overlay.hook-editor"
 			term={() => ({
 				title: frameTitle(flatQuestion !== undefined ? `${props.title}: ${flatQuestion}` : head),
 				detail: flatQuestion === undefined ? detail : undefined,
@@ -362,21 +362,21 @@ export function HookEditor(props: HookEditorProps & { readonly ref?: (handle: Ho
 				else if (act === "external") void external();
 			}}
 		>
-			<col key="head" role="omp.hook-editor.head" gap="xs">
+			<col key="head" role="zeta.hook-editor.head" gap="xs">
 				{flatQuestion !== undefined
 					? [
 							<text
 								key="eyebrow"
-								role="omp.hook-editor.eyebrow"
+								role="zeta.hook-editor.eyebrow"
 								wrap="none"
 								truncate="end"
 								spans={[{ t: head }]}
 							/>,
-							<md key="question" role="omp.ask.question" text={flatQuestion} />,
+							<md key="question" role="zeta.ask.question" text={flatQuestion} />,
 						]
 					: [
-							<text key="title" role="omp.hook-editor.title" wrap="word" spans={[{ t: head }]} />,
-							detail && <text key="detail" role="omp.hook-editor.detail" wrap="word" spans={[{ t: detail }]} />,
+							<text key="title" role="zeta.hook-editor.title" wrap="word" spans={[{ t: head }]} />,
+							detail && <text key="detail" role="zeta.hook-editor.detail" wrap="word" spans={[{ t: detail }]} />,
 						]}
 			</col>
 			<col role={prompt ? "omp.hook-editor.line" : "omp.hook-editor.field"}>
@@ -408,7 +408,7 @@ export function HookEditor(props: HookEditorProps & { readonly ref?: (handle: Ho
 					term={() => (vim ? vimTerm(vim) : undefined)}
 				/>
 			</col>
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				{options.externalEditor && (
 					<ActionButton
 						id="external"

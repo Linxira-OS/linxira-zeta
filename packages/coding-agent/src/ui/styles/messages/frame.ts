@@ -10,12 +10,12 @@
  * cell in from the left, like other transcript text; a rows object (`canvas`)
  * keeps the full width, flush at the left edge.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { stack } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { renderMarkdownFrame } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { stack } from "@linxiraos/pi-tui/term/painters/layout";
+import { renderMarkdownFrame } from "@linxiraos/pi-tui/text/markdown/index";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { fillRow, propsOf, termOf } from "./fill";
 
 interface FrameTerm {

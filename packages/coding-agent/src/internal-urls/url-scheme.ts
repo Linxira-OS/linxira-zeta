@@ -10,7 +10,7 @@
  * - `coordination`: peer messaging (agent://); always allowed. `SchemeWritePolicy.cancels` grants the same per URL.
  * - `reply`: a message to the user (out://); always allowed, and transcripts draw the content as assistant prose.
  */
-export type SchemeWriteScope = "workspace" | "sandbox" | "coordination" | "reply";
+export type SchemeWriteScope = "workspace" | "sandbox" | "coordination" | "reply" | "device";
 
 const URL_SCHEME_RE = /^([a-z][a-z0-9+.-]*):\/\//i;
 

@@ -4,10 +4,10 @@
  */
 import * as os from "node:os";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { createRoot, jsx, resolveChildren, signal } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot, jsx, resolveChildren, signal } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { Footer, type FooterFacts } from "../../../src/ui/status/footer";
 import "../../../src/ui/styles/status";
 import { stagedSuite } from "./corpus-suite";

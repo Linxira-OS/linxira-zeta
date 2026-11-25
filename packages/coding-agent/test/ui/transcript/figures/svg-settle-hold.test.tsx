@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A finished reply stays out of terminal scrollback until its figure's
  * raster lands: settling a transcript block whose SVG still rasterizes
@@ -6,7 +6,7 @@
  * once the raster lands, or once the source fails to draw.
  */
 import { describe, expect, test } from "bun:test";
-import { isSettled, signal } from "@oh-my-pi/pi-tui";
+import { isSettled, signal } from "@linxiraos/pi-tui";
 import { Transcript } from "../../../../src/ui/shell/transcript";
 import {
 	DEFAULT_FIGURE_CELL,

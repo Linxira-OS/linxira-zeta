@@ -25,6 +25,7 @@
 - Released as part of Zeta 1.5.11; no package-specific user-visible changes.
 
 ## [1.5.10] - 2026-11-19
+
 ### Added
 
 - Added `readDailyActivity()`, which reads the stored daily activity through its own connection that never writes, so another process holding the stats database write lock cannot fail or delay it; it returns null when no stats database exists yet ([#19896](https://github.com/Linxira-OS/linxira-zeta/pull/19896) by [@Xytronix](https://github.com/Xytronix))
@@ -32,6 +33,7 @@
 ### Fixed
 
 - Fixed opening an already initialized stats database taking the write lock, and daily activity trusting a rollup built by an older version instead of reading the raw rows ([#19896](https://github.com/Linxira-OS/linxira-zeta/pull/19896) by [@Xytronix](https://github.com/Xytronix))
+
 ## [19.1.1] - 2026-11-23
 
 ### Added

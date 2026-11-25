@@ -1,4 +1,4 @@
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { InternalUrlRouter } from "../../internal-urls/router";
 import { splitUrlScheme } from "../../internal-urls/url-scheme";
 import { canonicalizeMessage } from "./thinking-display";

@@ -1,7 +1,7 @@
 import { sanitizeDisplayLine } from "../../extensibility/inventory/display-text";
 import { formatShortSha, pushLine } from "../gh-format";
 import type { OutputMeta } from "../output-meta-format";
-import type { IsoBackendKind } from "@oh-my-pi/pi-natives";
+import type { IsoBackendKind } from "@linxiraos/pi-natives";
 
 const FAILURE_CONCLUSIONS = new Set(["failure", "timed_out", "cancelled", "action_required", "startup_failure"]);
 

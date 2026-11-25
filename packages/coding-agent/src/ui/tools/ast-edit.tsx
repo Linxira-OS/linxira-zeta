@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `ast_edit`: structural rewrites. The call heads with the rewrite pattern
  * (or `N rewrites`) and the scope. A result heads like edit: one file by its
@@ -9,8 +9,8 @@
  * Terminal look: `ast_edit` (`src/ui/styles/tools/ast-edit.ts`), fed by {@link AstEditTerm}.
  */
 
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { OutputMeta } from "../../tools/output-meta-format";
 import { ErrorText, NoteText } from "./agent-common";
 import type { ToolHead, ToolPresenter, ToolResult, ToolView } from "./contract";
@@ -135,7 +135,7 @@ function FileSection(props: { readonly file: FileChanges }): JSXNode {
 	if (file.added) head.push({ s: "ins", t: ` +${file.added}` });
 	if (file.removed) head.push({ s: "del", t: ` \u2212${file.removed}` });
 	return (
-		<section key={file.path} head={head} role="omp.tool.ast_edit.file">
+		<section key={file.path} head={head} role="zeta.tool.ast_edit.file">
 			<FileDiff file={file} />
 		</section>
 	);
@@ -149,7 +149,7 @@ function ScopeStats(props: { readonly details: AstEditDetails | undefined }): JS
 	if (details?.filesSearched) parts.push(`searched ${countText(details.filesSearched, "file")}`);
 	if (details?.limitReached) parts.push("limit reached; narrow path");
 	if (parts.length === 0) return undefined;
-	return <text spans={[{ s: "muted", t: parts.join(" · ") }]} wrap="word" role="omp.tool.stats" />;
+	return <text spans={[{ s: "muted", t: parts.join(" · ") }]} wrap="word" role="zeta.tool.stats" />;
 }
 
 export const astEditPresenter: ToolPresenter<AstEditArgs, AstEditDetails> = {
@@ -252,7 +252,7 @@ export const astEditPresenter: ToolPresenter<AstEditArgs, AstEditDetails> = {
 			...(limitReached ? { tone: "warning" as const } : {}),
 			body: [
 				pattern !== undefined && (
-					<text spans={[{ s: "code", t: pattern }]} lines={1} truncate="end" role="omp.tool.context" />
+					<text spans={[{ s: "code", t: pattern }]} lines={1} truncate="end" role="zeta.tool.context" />
 				),
 				...(changes.length > 0 ? changes : [<NoteText message={kept.join("\n")} />]),
 				issues,

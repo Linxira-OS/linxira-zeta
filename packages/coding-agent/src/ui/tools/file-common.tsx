@@ -1,14 +1,14 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Pieces the file-changing tools (write, edit) share: display paths and file
  * links, LSP diagnostics (section and head chip) and line counts.
  */
 import * as os from "node:os";
 import * as path from "node:path";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { shortenHome } from "@oh-my-pi/pi-tui/text/sanitize";
-import { parseArchivePathCandidates } from "@oh-my-pi/pi-utils/ar";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { shortenHome } from "@linxiraos/pi-tui/text/sanitize";
+import { parseArchivePathCandidates } from "@linxiraos/pi-utils/ar";
 import { tryFileUri } from "../../utils/file-links";
 import { cleanText } from "./agent-common";
 
@@ -133,7 +133,7 @@ export function DiagnosticsSection(props: {
 			const source = [d.source, d.code].filter(Boolean).join(" ");
 			if (source) message.push({ s: "muted", t: ` ${source}` });
 			return (
-				<row propKey={`d${i}`} role="omp.tool.diagnostic">
+				<row propKey={`d${i}`} role="zeta.tool.diagnostic">
 					<icon name={SEVERITY_ICON[d.severity] ?? "warn"} tone={SEVERITY_TONE[d.severity]} aria={d.severity} />
 					<text
 						spans={[
@@ -149,19 +149,19 @@ export function DiagnosticsSection(props: {
 			);
 		}),
 		...unparsed.map((message, i) => (
-			<text propKey={`u${i}`} role="omp.tool.diagnostic" spans={[{ t: message }]} wrap="word" />
+			<text propKey={`u${i}`} role="zeta.tool.diagnostic" spans={[{ t: message }]} wrap="word" />
 		)),
 	];
 	const shown = rows.slice(0, DIAGNOSTIC_ROWS);
 	const hidden = rows.length - shown.length;
 	if (hidden > 0)
-		shown.push(<text propKey="more" role="omp.tool.stats" spans={[{ s: "muted", t: `+${hidden} more` }]} />);
+		shown.push(<text propKey="more" role="zeta.tool.stats" spans={[{ s: "muted", t: `+${hidden} more` }]} />);
 	return (
 		<section
 			key="diagnostics"
 			head={[{ t: "Diagnostics" }]}
 			tone={diagnostics.errored ? "error" : "warning"}
-			role="omp.tool.diagnostics"
+			role="zeta.tool.diagnostics"
 			term={{ diagnostics }}
 		>
 			{shown}

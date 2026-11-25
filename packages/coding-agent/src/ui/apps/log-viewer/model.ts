@@ -4,11 +4,11 @@
  * terminal frame the list scrolls in. Every key, pointer and native event
  * runs through here; `version` changes whenever anything shown changes.
  */
-import { type Accessor, type Reactive, signal } from "@oh-my-pi/pi-tui";
-import type { MouseEvent } from "@oh-my-pi/pi-tui/driver/contract";
-import { stripControl } from "@oh-my-pi/pi-tui/text/sanitize";
-import { replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { type Accessor, type Reactive, signal } from "@linxiraos/pi-tui";
+import type { MouseEvent } from "@linxiraos/pi-tui/driver/contract";
+import { stripControl } from "@linxiraos/pi-tui/text/sanitize";
+import { replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { formatKeyHint, formatKeyHints } from "../../keys/hints";
 import { ViewerFrameModel } from "../viewer-frame";
 import { LOG_CHUNK, LogEntries, logCopyPayload } from "./entries";

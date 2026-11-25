@@ -4,7 +4,7 @@
  * running-agents roster for activity with no job entry.
  */
 
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 
 import {
 	type AsyncJob,
@@ -16,13 +16,13 @@ import {
 } from "./job-manager";
 
 import { renderStructuredJson, structuredStatusLabel, taskAgentHandles } from "../session/async-job-delivery";
-import { AGENT_KILL_LABEL, type InterruptReason } from "../session/messages";
+import { AGENT_KILL_LABEL, type InterruptReason } from "../session/transcript/messages";
 import type { StructuredSubagentOutput } from "../task/task-details";
 import { parseConfiguredThinkingLevel } from "../thinking/levels";
 
 import type { ToolSession } from "../tools";
 
-import { formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
+import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
 import type { AgentActivitySnapshot, CancelOutcome, CoordinationDetails, JobSnapshot } from "../tools/details/wait";
 
 import { isWaitingPollDetails } from "../tools/details/wait";

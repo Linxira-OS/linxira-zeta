@@ -4,8 +4,8 @@
  * Handles `omp setup` for onboarding and `omp setup <component>` for optional dependencies.
  */
 import * as path from "node:path";
-import { APP_NAME, getProjectDir, getPythonEnvDir } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { APP_NAME, getProjectDir, getPythonEnvDir } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { formatKeyHint } from "../ui/keys/hints";
 import { Settings } from "../config/settings";
 import { ModelRegistry } from "../config/model-registry";
@@ -19,7 +19,7 @@ import { downloadTtsModel, isTtsLocalModelKey, isTtsModelCached, TTS_LOCAL_MODEL
 import { selectStandaloneItem } from "../ui/apps/standalone-picker";
 
 import { cfgPythonInterpreter } from "../eval/settings";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 export type SetupComponent = "python" | "speech";
 

@@ -4,7 +4,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { corpusEnvironment } from "@oh-my-pi/pi-tui/testing/corpus";
+import { corpusEnvironment } from "@linxiraos/pi-tui/testing/corpus";
 import { caseFiles, hasCorpus, runCase } from "../settings/harness";
 import { buildPluginSettings } from "./fixture";
 import { buildSelector } from "./selector-fixture";

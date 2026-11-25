@@ -1,27 +1,27 @@
 import { asGlobalFetch } from "./helpers/fetch-mock";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage } from "@oh-my-pi/pi-agent-core";
-import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
-import type { AssistantMessage, Context, Model, ToolResultMessage, UserMessage } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { type CompactionMethod, resolveSpeculationMethod } from "@oh-my-pi/pi-coding-agent/session/compaction-methods";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionMaintenance, type SessionMaintenanceHost } from "@oh-my-pi/pi-coding-agent/session/session-maintenance";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { cfgMemoryBackend } from "@oh-my-pi/pi-coding-agent/memory-backend/settings";
-import { hindsightBackend } from "@oh-my-pi/pi-coding-agent/hindsight/backend";
-import * as snapcompactModule from "@oh-my-pi/snapcompact";
+import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
+import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, Context, Model, ToolResultMessage, UserMessage } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { type CompactionMethod, resolveSpeculationMethod } from "@linxiraos/zeta/session/compaction-methods";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionMaintenance, type SessionMaintenanceHost } from "@linxiraos/zeta/session/session-maintenance";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
+import { hindsightBackend } from "@linxiraos/zeta/hindsight/backend";
+import * as snapcompactModule from "@linxiraos/zeta-compact";
 
 import {
 	cfgCompaction,
 	cfgCompactionAsyncEnabled,
 	cfgCompactionMethodOrder,
 	cfgCompactionRemoteEndpoint,
-} from "@oh-my-pi/pi-coding-agent/session/context-settings";
+} from "@linxiraos/zeta/session/context-settings";
 
 const CONTEXT_WINDOW = 100_000;
 const THRESHOLD = 50_000;
@@ -241,7 +241,7 @@ describe("async speculative compaction", () => {
 		}));
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 		await waitForState("armed");
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 		expect(events).not.toContain("notes-reminder");
 	});
 
@@ -255,12 +255,12 @@ describe("async speculative compaction", () => {
 
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START - 1, CONTEXT_WINDOW);
 		expect(maintenance.speculationState).toBe("idle");
-		expect(compactSpy).not.toHaveBeenCalled();
+		expect(compactSpy!).not.toHaveBeenCalled();
 
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 		expect(maintenance.speculationState).toBe("running");
 		await waitForState("armed");
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 	});
 
 	it("does not recall unused memory while arming native Codex compaction", async () => {
@@ -299,7 +299,7 @@ describe("async speculative compaction", () => {
 
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("armed summary");
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 		expect(events).toEqual(expect.arrayContaining(["auto_compaction_start", "auto_compaction_end"]));
 	});
 
@@ -343,7 +343,7 @@ describe("async speculative compaction", () => {
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		if (entry?.type !== "compaction") throw new Error("Expected native compaction entry");
 		expect(entry.providerReplayThroughEntryId).toBe(snapshotLeafId);
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 		expect(agent.state.messages.map(message => message.role)).toEqual([
 			"compactionSummary",
 			"assistant",
@@ -389,7 +389,7 @@ describe("async speculative compaction", () => {
 		sessionManager.appendMessage(userMessage("new suffix"));
 
 		await maintenance.runAutoCompaction("threshold", false, { triggerContextTokens: THRESHOLD });
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("native summary 2");
 	});
@@ -530,9 +530,9 @@ describe("async speculative compaction", () => {
 
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 		await waitForState("armed");
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 
-		const [capturedPreparation, , , , , capturedOptions] = compactSpy.mock.calls[0] ?? [];
+		const [capturedPreparation, , , , , capturedOptions] = compactSpy!.mock.calls[0] ?? [];
 		expect(capturedPreparation?.previousSummary).toBe("MARKED PREVIOUS");
 		const converted = capturedOptions?.convertToLlm?.([{ role: "user", content: "probe", timestamp: 1 }]);
 		expect(converted?.[0]).toMatchObject({ role: "user", content: "MARKED:probe" });
@@ -576,7 +576,7 @@ describe("async speculative compaction", () => {
 			triggerContextTokens: THRESHOLD + 1_000,
 		});
 
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("remote summary 2");
 	});
@@ -675,19 +675,19 @@ describe("async speculative compaction", () => {
 		const context = { message: boundary, toolResults: [], willContinue: true };
 
 		await maintenance.maintainContextMidRun(activeMessages, undefined, context);
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 		cfgCompactionAsyncEnabled.override(maintenanceSettings, true);
 		await maintenance.maintainContextMidRun(activeMessages, undefined, context);
-		await maintenance.speculationCompletion();
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		await maintenance.speculationCompletion;
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 		expect(sessionManager.getEntries().filter(entry => entry.type === "compaction")).toHaveLength(0);
 
 		const nextRequest = userMessage("new request opens a cut point");
 		sessionManager.appendMessage(nextRequest);
 		activeMessages.push(nextRequest);
 		await maintenance.maintainContextMidRun(activeMessages, undefined, context);
-		await maintenance.speculationCompletion();
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		await maintenance.speculationCompletion;
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 	});
 
 	/** A short conversation ending in a tool call whose result has not arrived. */
@@ -712,7 +712,7 @@ describe("async speculative compaction", () => {
 			methodOrder: ["handoff"],
 			persistTurnMessagesForMidRunCompaction: async () => true,
 			generateHandoffDocument: async (_instructions, options) => {
-				handoffMessages = options.messages;
+				handoffMessages = options?.messages;
 				return "## Goal\nFinish once the tool returns.\n";
 			},
 		});
@@ -752,7 +752,7 @@ describe("async speculative compaction", () => {
 		maintenance = createMaintenance({
 			methodOrder: ["handoff"],
 			generateHandoffDocument: async (_instructions, options) => {
-				if (billed) options.onAttempt?.(assistantMessage("", model));
+				if (billed) options?.onAttempt?.(assistantMessage("", model));
 				return undefined;
 			},
 		});
@@ -785,7 +785,7 @@ describe("async speculative compaction", () => {
 
 		await maintenance.runAutoCompaction("threshold", false, { triggerContextTokens: THRESHOLD });
 
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("summary 2");
 	});
@@ -797,7 +797,7 @@ describe("async speculative compaction", () => {
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 
 		expect(maintenance.speculationState).toBe("idle");
-		expect(compactSpy).not.toHaveBeenCalled();
+		expect(compactSpy!).not.toHaveBeenCalled();
 	});
 
 	it("does not speculate when snapcompact leads the configured methods", () => {
@@ -809,7 +809,7 @@ describe("async speculative compaction", () => {
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 
 		expect(maintenance.speculationState).toBe("idle");
-		expect(compactSpy).not.toHaveBeenCalled();
+		expect(compactSpy!).not.toHaveBeenCalled();
 	});
 
 	it("discards an armed summary when the real pass resolves to snapcompact", async () => {
@@ -836,7 +836,7 @@ describe("async speculative compaction", () => {
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("snapcompact archive");
 		// Exactly the speculation's summarizer call — the pass never re-summarized.
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 	});
 
 	it("clears an armed speculation when manual compaction starts", async () => {
@@ -872,8 +872,8 @@ describe("async speculative compaction", () => {
 
 		// The speculative pass and the manual pass both carried the agent's
 		// prompt; the threshold auto-compaction pass reads the same source.
-		expect(compactSpy).toHaveBeenCalledTimes(2);
-		for (const call of compactSpy.mock.calls) {
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
+		for (const call of compactSpy!.mock.calls) {
 			expect(call[5]?.remoteSystemPrompt).toEqual(["per-turn override"]);
 		}
 	});
@@ -902,7 +902,7 @@ describe("async speculative compaction", () => {
 
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("grace summary");
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 	});
 
 	it("stops deferring at the grace cap so the blocking pass reclaims context", () => {
@@ -913,7 +913,7 @@ describe("async speculative compaction", () => {
 		const graceCap = THRESHOLD + 8_192;
 		expect(maintenance.deferThresholdCompactionToSpeculation(graceCap, CONTEXT_WINDOW)).toBe(false);
 		expect(maintenance.speculationState).toBe("idle");
-		expect(compactSpy).not.toHaveBeenCalled();
+		expect(compactSpy!).not.toHaveBeenCalled();
 	});
 
 	it("never defers when async compaction is disabled or a local method leads", () => {
@@ -952,8 +952,8 @@ describe("async speculative compaction", () => {
 		}));
 
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
-		await maintenance.speculationCompletion();
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		await maintenance.speculationCompletion;
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 
 		// Later boundaries neither re-send it nor hold the threshold pass for it.
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START + 500, CONTEXT_WINDOW);
@@ -966,14 +966,14 @@ describe("async speculative compaction", () => {
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.method : undefined).toBe("snapcompact");
 		expect(snapSpy).toHaveBeenCalledTimes(1);
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 
 		// The committed compaction starts a new cycle with a fresh native attempt.
 		appendSummarizableConversation();
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 		expect(maintenance.speculationState).toBe("running");
-		await maintenance.speculationCompletion();
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		await maintenance.speculationCompletion;
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 	});
 
 	it("speculates the next configured method after a native speculation failed for good", async () => {
@@ -994,8 +994,8 @@ describe("async speculative compaction", () => {
 			}));
 
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
-		await maintenance.speculationCompletion();
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		await maintenance.speculationCompletion;
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 
 		// The failed native method is skipped; soft still runs in the background
 		// instead of on the blocking threshold pass.
@@ -1010,7 +1010,7 @@ describe("async speculative compaction", () => {
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.method : undefined).toBe("soft");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("soft summary");
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 	});
 
 	it("keeps speculating natively after a failure a retry can clear", async () => {
@@ -1024,11 +1024,11 @@ describe("async speculative compaction", () => {
 			);
 
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
-		await maintenance.speculationCompletion();
+		await maintenance.speculationCompletion;
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START + 500, CONTEXT_WINDOW);
 		expect(maintenance.speculationState).toBe("running");
-		await maintenance.speculationCompletion();
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		await maintenance.speculationCompletion;
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 	});
 
 	it("gives a new session a fresh native speculation", async () => {
@@ -1042,13 +1042,13 @@ describe("async speculative compaction", () => {
 			);
 
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
-		await maintenance.speculationCompletion();
+		await maintenance.speculationCompletion;
 		await sessionManager.newSession();
 		appendSummarizableConversation();
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 		expect(maintenance.speculationState).toBe("running");
-		await maintenance.speculationCompletion();
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		await maintenance.speculationCompletion;
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 	});
 
 	const REMOTE_ENDPOINT = "https://compaction.example.test/openai/v1/chat/completions";
@@ -1083,14 +1083,14 @@ describe("async speculative compaction", () => {
 			const endpointCalls = stubRemoteEndpoint(status);
 
 			expect(maintenance.deferThresholdCompactionToSpeculation(THRESHOLD + 1_000, CONTEXT_WINDOW)).toBe(true);
-			await maintenance.speculationCompletion();
+			await maintenance.speculationCompletion;
 			const rejected = endpointCalls();
 			expect(rejected).toBeGreaterThan(0);
 			expect(maintenance.speculationState).toBe("idle");
 
 			// The next deferral speculates the next configured method instead of re-sending the request.
 			expect(maintenance.deferThresholdCompactionToSpeculation(THRESHOLD + 2_000, CONTEXT_WINDOW)).toBe(true);
-			await maintenance.speculationCompletion();
+			await maintenance.speculationCompletion;
 			expect(endpointCalls()).toBe(rejected);
 			expect(generateHandoffDocument).toHaveBeenCalledTimes(1);
 			expect(maintenance.speculationState).toBe("armed");
@@ -1109,12 +1109,12 @@ describe("async speculative compaction", () => {
 		const endpointCalls = stubRemoteEndpoint(429);
 
 		expect(maintenance.deferThresholdCompactionToSpeculation(THRESHOLD + 1_000, CONTEXT_WINDOW)).toBe(true);
-		await maintenance.speculationCompletion();
+		await maintenance.speculationCompletion;
 		expect(endpointCalls()).toBe(1);
 
 		// A rate limit clears with time, so the next deferral sends the remote request again.
 		expect(maintenance.deferThresholdCompactionToSpeculation(THRESHOLD + 2_000, CONTEXT_WINDOW)).toBe(true);
-		await maintenance.speculationCompletion();
+		await maintenance.speculationCompletion;
 		expect(endpointCalls()).toBe(2);
 		expect(generateHandoffDocument).not.toHaveBeenCalled();
 	});
@@ -1129,7 +1129,7 @@ describe("async speculative compaction", () => {
 		}));
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 		await waitForState("armed");
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 
 		// Post-snapshot branch growth pushes projected tokens above the recovery band (recoveryBand is 40k)
 		const largeText = "large-tail-token ".repeat(45_000);
@@ -1140,7 +1140,7 @@ describe("async speculative compaction", () => {
 		});
 
 		// Stale speculation was discarded and a fresh compaction was run on the new branch
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("summary 2");
 	});
@@ -1155,7 +1155,7 @@ describe("async speculative compaction", () => {
 		}));
 		maintenance.maybeStartSpeculativeCompaction(SPECULATION_BAND_START, CONTEXT_WINDOW);
 		await waitForState("armed");
-		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy!).toHaveBeenCalledTimes(1);
 
 		// Custom messages participate in the rebuilt model context and can be large
 		// enough to invalidate the stale projection just like an assistant turn.
@@ -1173,7 +1173,7 @@ describe("async speculative compaction", () => {
 
 		// The custom-message growth is included in the projection, so stale
 		// speculation is discarded and fresh compaction runs on the new branch.
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("summary 2");
 	});
@@ -1195,7 +1195,7 @@ describe("async speculative compaction", () => {
 			pendingContextTokens: 45_000,
 		});
 
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		expect(compactSpy!).toHaveBeenCalledTimes(2);
 		const entry = sessionManager.getEntries().findLast(item => item.type === "compaction");
 		expect(entry?.type === "compaction" ? entry.summary : undefined).toBe("summary 2");
 	});

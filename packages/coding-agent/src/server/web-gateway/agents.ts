@@ -50,9 +50,9 @@ import type { SessionClient } from "../../session/session-entries";
 import { SESSION_CLIENT_HEADER, clientFromHeaderValue } from "../../session/session-client";
 import { SessionManager } from "../../session/session-manager";
 import type { SessionOrigin } from "../../session/session-origin";
-import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
-import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { type TodoPhase } from "../../tools/details/todo";
+import { PROPOSE_DEVICE_NAME } from "../../tools/xd-url";
+import type { ConfiguredThinkingLevel } from "../../thinking";
 import { writeDeviceDispatch } from "../../tools/resolve";
 import { EventBus } from "../../utils/event-bus";
 import type { VibeModeState } from "../../vibe/state";
@@ -393,8 +393,7 @@ export class AgentSessionWrapper {
 				if (!this.#destroyed) this.#emit({ type: "command_output", text: reason });
 			},
 		});
-		this.#goalController = new RpcGoalController(inner, {
-			continuationMode: GOAL_CONTINUATION_MODE_WEB,
+		this.#goalController = new RpcGoalController(inner, undefined, {
 			continuationSuppressed: () => this.#loopController.active,
 		});
 		// Live voice is session state: one microphone/voice session for the
@@ -1347,10 +1346,6 @@ export function createGatewayUiContext(
 		// `cancelled: true` — treat that as user cancellation, not a timeout,
 		// so the ask tool reports "cancelled by the user" instead of aborting.
 		timeoutStartsOnPresentation: false,
-		// Upstream's #8655 editor-factory surface (v18.11.1): the gateway runs no
-		// in-process TUI, so extensions there get no custom editor — the same
-		// `undefined` the ACP, headless and session contexts answer with.
-		getEditorComponent: () => undefined,
 		rerenderMessage: () => {},
 		// The gateway streams transcript updates itself; extension-driven refreshes are a no-op.
 		refreshTranscript: () => {},
@@ -1433,7 +1428,6 @@ export function createGatewayUiContext(
 		setFooter() {},
 		setHeader() {},
 		addAutocompleteProvider() {},
-		setEditorComponent() {},
 		// The rich multi-question `ask` dialog rides the same SSE channel as the
 		// other dialogs: one `extension_ui_request(method="ask")` frame carrying
 		// every question (the stdio-RPC wire shape) answered by one `answers`

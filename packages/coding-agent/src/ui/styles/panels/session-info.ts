@@ -4,8 +4,8 @@
  * it overflows), a rule, and the key hint. The box takes at most the
  * terminal's rows.
  */
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { padTo, wrap } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { padTo, wrap } from "@linxiraos/pi-tui/text/width";
 import { bindingGlyph, boxRows, selectNavGlyphs, termOf } from "./common";
 
 interface InfoTerm {

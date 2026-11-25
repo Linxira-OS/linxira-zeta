@@ -1,4 +1,4 @@
-import { signal } from "@oh-my-pi/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
 import { ViewerFrame, ViewerFrameModel } from "../../../src/ui/apps";
 import { appSuite } from "./harness";
 

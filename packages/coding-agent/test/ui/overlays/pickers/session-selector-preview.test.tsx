@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The session picker's preview and search placeholder as Tern is sent them: the preview shows what
  * the complete listing knows once it replaces the preliminary rows, and the placeholder names the folder.
  */
 import { describe, expect, test } from "bun:test";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { corpusEnvironment, describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { corpusEnvironment, describeTree } from "@linxiraos/pi-tui/testing/corpus";
 import type { SessionSelectorEntry } from "../../../../src/modes/view-model/overlays/session-selector";
 import { SessionSelector, type SessionSelectorProps } from "../../../../src/ui/overlays/pickers/session-selector";
 

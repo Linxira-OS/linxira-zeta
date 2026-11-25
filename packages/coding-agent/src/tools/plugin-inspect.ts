@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/zeta-schema";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { isEnoent } from "@linxiraos/pi-utils";
 import { PluginManager, validateSetting } from "../extensibility/plugins/manager";
 import { resolvePluginManifestEntries } from "../extensibility/plugins/loader";

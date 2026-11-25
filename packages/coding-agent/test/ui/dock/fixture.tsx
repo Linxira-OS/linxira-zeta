@@ -1,11 +1,11 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The dock as a text terminal stacks it, for corpus comparison: the HUD slots
  * this suite covers in terminal order (queued messages, todo, subagents,
  * model cycle, status, editor gap, widgets above), and the widgets below the
  * composer.
  */
-import { type JSXNode, signal } from "@oh-my-pi/pi-tui";
+import { type JSXNode, signal } from "@linxiraos/pi-tui";
 import {
 	EditorGap,
 	HookWidgets,

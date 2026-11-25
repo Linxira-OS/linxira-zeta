@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** Updates: install new releases automatically, or only announce them. */
 import "../../styles/setup";
 import type { SetupScene } from "../types";
@@ -29,7 +29,7 @@ export const updatesScene: SetupScene = {
 		return {
 			body: (
 				<col
-					role="omp.setup.updates"
+					role="zeta.setup.updates"
 					gap="sm"
 					term={() => ({ maxLines: context.maxLines() })}
 					onKey={key => model.key(key)}

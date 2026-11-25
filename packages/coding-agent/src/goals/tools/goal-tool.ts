@@ -1,13 +1,13 @@
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolTier,
-} from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 
 import goalDescription from "../../prompts/tools/goal.md" with { type: "text" };
 

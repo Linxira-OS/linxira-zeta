@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A user-invoked skill: a user-toned card headed by the skill chip (linked to
  * its SKILL.md) and the prompt's size, the user's draft always visible, and
@@ -12,8 +12,8 @@
  *
  * Terminal look: `omp.skill` (`src/ui/styles/messages/skill.ts`).
  */
-import type { JSXNode, Reactive } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { JSXNode, Reactive } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { SkillPromptDetails } from "../../../session/transcript/messages";
 import { cardExpansion } from "../expansion";
 import { chipText, skillChipLabel, termChips } from "./chips";
@@ -62,7 +62,7 @@ export function SkillMessage(props: SkillMessageProps): JSXNode {
 	const { expanded, toggle } = cardExpansion(props.expanded, props.onToggle);
 	return (
 		<card
-			role="omp.skill"
+			role="zeta.skill"
 			tone="user"
 			head={head}
 			term={() => ({
@@ -80,7 +80,7 @@ export function SkillMessage(props: SkillMessageProps): JSXNode {
 			<section
 				key="prompt"
 				head={[{ t: "prompt", s: "muted" }]}
-				role="omp.skill.prompt"
+				role="zeta.skill.prompt"
 				collapsible
 				collapsed={() => !expanded()}
 				onToggle={toggle}

@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hashlineFileHash } from "@oh-my-pi/pi-natives";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
-import { type EditToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/edit";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
-import type { ClientBridge } from "@oh-my-pi/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { hashlineFileHash } from "@linxiraos/pi-natives";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool } from "@linxiraos/zeta/edit";
+import { type EditToolDetails } from "@linxiraos/zeta/tools/details/edit";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
+import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 interface SessionOptions {
 	bridge?: ClientBridge;

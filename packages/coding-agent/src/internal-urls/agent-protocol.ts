@@ -20,9 +20,9 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { fuzzyFilter } from "../utils/fuzzy";
-import { formatDuration, isEnoent, prompt } from "@oh-my-pi/pi-utils";
+import { formatDuration, isEnoent, prompt } from "@linxiraos/pi-utils";
 import { AgentRegistry, type AgentRegistryApi, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { ensurePersistedRoster, sessionFileBelongsToRoot } from "../registry/persisted-agents";
 import { IrcBus } from "../irc/bus";
@@ -309,7 +309,9 @@ export class AgentProtocolHandler implements ProtocolHandler {
 			{ registry, senderId, sessionFileHint: session.getSessionFile?.() },
 			{ to, message: content, progress, remote },
 		);
-		const toLabel = remote ? agentMesh()?.label(pid.address) : undefined;
+		const peer = pid && !pid.local ? agentMesh()?.peer(pid.address.pid) : undefined;
+		const toLabel =
+			peer?.title && pid ? (pid.address.id ? `${peer.title}/${pid.address.id}` : peer.title) : undefined;
 		const message = result.details;
 		return {
 			content: [

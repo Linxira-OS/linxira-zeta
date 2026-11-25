@@ -9,12 +9,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import { clearClaudePluginRootsCache } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { discoverAndLoadMCPTools } from "@oh-my-pi/pi-coding-agent/mcp/loader";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
-import "@oh-my-pi/pi-coding-agent/discovery";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
+import { discoverAndLoadMCPTools } from "@linxiraos/zeta/mcp/loader";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import "@linxiraos/zeta/discovery";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 
 describe("discoverAndLoadMCPTools extension roots", () => {

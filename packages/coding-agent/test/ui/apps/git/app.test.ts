@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, it } from "bun:test";
-import type { MouseEvent } from "@oh-my-pi/pi-tui/driver/contract";
+import type { MouseEvent } from "@linxiraos/pi-tui/driver/contract";
 import type { GitTuiHost } from "../../../../src/cli/git-tui/model/git-tui";
 import type {
 	AssetFileContents,

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { getKeybindings, KeybindingsManager, setKeybindings } from "../../../src/config/keybindings/keybindings";
 import { defaultPresenter } from "../../../src/ui/tools/default";
 import type { ToolResult } from "../../../src/ui/tools/contract";

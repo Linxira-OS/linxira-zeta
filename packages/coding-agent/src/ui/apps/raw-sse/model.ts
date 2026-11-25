@@ -3,12 +3,12 @@
  * every change), the copy status, the native scroll requests, and the
  * terminal frame (scroll position, follow-tail) the viewer paints in.
  */
-import type { MouseEvent } from "@oh-my-pi/pi-tui/driver/contract";
-import { type Accessor, signal } from "@oh-my-pi/pi-tui";
-import { stripControl } from "@oh-my-pi/pi-tui/text/sanitize";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspScrollBy } from "@oh-my-pi/pi-wire";
+import type { MouseEvent } from "@linxiraos/pi-tui/driver/contract";
+import { type Accessor, signal } from "@linxiraos/pi-tui";
+import { stripControl } from "@linxiraos/pi-tui/text/sanitize";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspScrollBy } from "@linxiraos/pi-wire";
 import {
 	formatRawSseIsoTime,
 	type RawSseDebugBuffer,

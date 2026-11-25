@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import type { UsageLimit, UsageReport } from "@oh-my-pi/pi-ai";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+/** @jsxImportSource @linxiraos/pi-tui */
+import type { UsageLimit, UsageReport } from "@linxiraos/pi-ai";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import {
 	type DailyActivityPoint,
 	UsageDashboardModel,

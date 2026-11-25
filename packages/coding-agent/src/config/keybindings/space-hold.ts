@@ -1,4 +1,4 @@
-import type { KeyEvent } from "@oh-my-pi/pi-tui";
+import type { KeyEvent } from "@linxiraos/pi-tui";
 
 /** Consecutive mechanical (fast + steady) deltas that confirm a configured key is held and start
  *  recording. Needs a sustained metronomic cadence, so jittery typing and deliberate taps never

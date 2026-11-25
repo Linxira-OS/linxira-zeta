@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `forms/html-form` corpus: the HTML form dialog driven by keys, UI events
  * and host changes (focus, skip notice, the clock).
  */
 import { expect, test, vi } from "bun:test";
 import { nativeShell } from "../../helpers/native-shell";
-import { signal } from "@oh-my-pi/pi-tui";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+import { signal } from "@linxiraos/pi-tui";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import { parseHtmlForm } from "../../../src/tools/html-form/parse";
 import { formMedia, HtmlFormDialog, HtmlFormModel } from "../../../src/ui/forms/html-form";
 import { figureWorkSettled } from "../../../src/ui/transcript/figures";

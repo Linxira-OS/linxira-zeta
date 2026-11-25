@@ -7,11 +7,13 @@
  * daemon's sqlite store, and every live row that could not have outlived the
  * daemon is shown as exited.
  */
-import { getProjectDir } from "@oh-my-pi/pi-utils";
+import { getProjectDir } from "@linxiraos/pi-utils";
 import type { DaemonClient, UnitSnapshot } from "../daemon/protocol";
 import { canonicalProjectDir, daemonDbPath } from "../daemon/paths";
 import { readStoredUnits } from "../daemon/store";
 import { groupUnits, type PsBoard, type PsTarget, TERMINAL_STATES, unitName } from "./ps-model";
+
+export { TERMINAL_STATES } from "./ps-model";
 
 /** Hard SIGTERM->SIGKILL grace used by `kill`; effectively immediate. */
 export const KILL_GRACE_MS = 100;

@@ -7,10 +7,10 @@
  * heights follow the call energy, a carrier and a shimmer wave advanced by
  * the frame counter; the working phase's spinner also steps with the frame.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { padTo, truncate, truncateStart, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { TspTextProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { padTo, truncate, truncateStart, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { TspTextProps } from "@linxiraos/pi-wire";
 import type { LiveCardTerm } from "../../../apps/live-visualizer/live-visualizer";
 import { type LivePhase, PHASE_COLORS, PHASE_ICONS } from "../../../apps/live-visualizer/model";
 import { keyLabel } from "../../../keys/hints";

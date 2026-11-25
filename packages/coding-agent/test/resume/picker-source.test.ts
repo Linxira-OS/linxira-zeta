@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { buildResumeDirectory, resumePathKey } from "@linxiraos/zeta/resume";
 import { parseTitleSlotFromContent, serializeTitleSlot } from "@linxiraos/zeta/session/session-title-slot";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
-import type { ResumeTreeConversation } from "@linxiraos/pi-tui/overlays/resume-tree";
+import type { ResumeTreeConversation } from "../../src/modes/view-model/overlays/resume-tree";
 import {
 	LiveResumePickerSource,
 	loadResumePickerScope,

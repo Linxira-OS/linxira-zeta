@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import type { Model } from "@oh-my-pi/pi-ai";
+/** @jsxImportSource @linxiraos/pi-tui */
+import type { Model } from "@linxiraos/pi-ai";
 import type { KeyId } from "../../../../src/config/keybindings/key-id";
 import type { ModelPickerOptions, ResolvedRoleModel } from "../../../../src/modes/view-model/overlays/model-picker";
 import type { ConfiguredThinkingLevel } from "../../../../src/utils/render-utils";

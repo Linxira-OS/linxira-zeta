@@ -1,7 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
-import { Text } from "@linxiraos/pi-tui";
 import type { Settings } from "../config/settings";
 import { handleDesignCommand } from "../design/command";
 import { parseInitTeamArgs, runInitTeamCommand } from "../team/bootstrap-command";
@@ -74,7 +73,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			} catch (error) {
 				runtime.ctx.showWarning(error instanceof Error ? error.message : String(error));
 			}
-			runtime.ctx.editor.setText("");
+			runtime.ctx.composer.setText("");
 		},
 	},
 	{
@@ -105,7 +104,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			} catch (error) {
 				runtime.ctx.showWarning(error instanceof Error ? error.message : String(error));
 			}
-			runtime.ctx.editor.setText("");
+			runtime.ctx.composer.setText("");
 		},
 	},
 	{
@@ -196,25 +195,37 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handleTui: async (command, runtime) => {
 			const sub = command.args.trim().split(/\s+/)[0]?.toLowerCase();
 			if (sub === "hub") {
+				if (!runtime.ctx.showTeamHub) {
+					runtime.ctx.showError("Team Hub is unavailable in this host build.");
+					return;
+				}
 				runtime.ctx.showTeamHub();
-				runtime.ctx.editor.setText("");
+				runtime.ctx.composer.setText("");
 				return;
 			}
 			if (sub === "" || sub === "home") {
+				if (!runtime.ctx.showTeamWorkspace) {
+					runtime.ctx.showError("Team workspace is unavailable in this host build.");
+					return;
+				}
 				runtime.ctx.showTeamWorkspace();
-				runtime.ctx.editor.setText("");
+				runtime.ctx.composer.setText("");
 				return;
 			}
 			if (sub === "on" || sub === "off") {
+				if (!runtime.ctx.handleTeamModeCommand) {
+					runtime.ctx.showError("Team mode is unavailable in this host build.");
+					return;
+				}
 				await runtime.ctx.handleTeamModeCommand(sub === "on");
-				runtime.ctx.editor.setText("");
+				runtime.ctx.composer.setText("");
 				return;
 			}
 			const result = await runTeamSessionCommand(runtime.ctx.sessionManager.getCwd(), command.args);
-			if (result.ok) runtime.ctx.presentCommandOutput(new Text(result.text, 1, 0));
+			if (result.ok) runtime.ctx.presentCommandOutput(() => result.text);
 			else runtime.ctx.showWarning(result.text);
-			runtime.ctx.editor.setText("");
-			runtime.ctx.editor.setText("");
+			runtime.ctx.composer.setText("");
+			runtime.ctx.composer.setText("");
 		},
 	},
 	{
@@ -267,12 +278,12 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 					),
 				].join("\n");
 				runtime.ctx.showStatus(rows);
-				runtime.ctx.editor.setText("");
+				runtime.ctx.composer.setText("");
 				return;
 			}
 			if (!(LANGUAGE_TAGS as readonly string[]).includes(arg)) {
 				runtime.ctx.showStatus(M.languageUnknownFmt.replace("%s", arg));
-				runtime.ctx.editor.setText("");
+				runtime.ctx.composer.setText("");
 				return;
 			}
 			const tag = arg as ZetaLanguage;
@@ -283,7 +294,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			// reflects the new locale without a restart.
 			void runtime.ctx.refreshSlashCommandState();
 			runtime.ctx.showStatus(M.languageChangedFmt.replace("%s", tag));
-			runtime.ctx.editor.setText("");
+			runtime.ctx.composer.setText("");
 		},
 	},
 	{
@@ -321,7 +332,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				runtime.ctx.sessionManager.getCwd(),
 			);
 			if (changed === false) {
-				runtime.ctx.editor.setText("");
+				runtime.ctx.composer.setText("");
 				return;
 			}
 			if (notice) {
@@ -331,7 +342,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				);
 			}
 			runtime.ctx.showStatus(text);
-			runtime.ctx.editor.setText("");
+			runtime.ctx.composer.setText("");
 		},
 	},
 	{

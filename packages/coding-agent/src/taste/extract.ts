@@ -16,7 +16,7 @@ import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { completeSimple, Effort, retryTransientCompletion } from "@linxiraos/pi-ai";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
 import { type } from "@linxiraos/zeta-schema";
-import { getSegmenter } from "@linxiraos/pi-tui";
+import { getSegmenter } from "../utils/text-width";
 import { logger, prompt } from "@linxiraos/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
@@ -114,7 +114,7 @@ export function maybeStartTasteExtraction(options: {
 		if (text.startsWith("/")) return;
 		const minimum = Math.max(MIN_PROMPT_LENGTH_FLOOR, cfgTasteMinPromptLength.get(settings));
 		let characters = 0;
-		for (const _grapheme of getSegmenter().segment(text)) {
+		for (const _grapheme of new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)) {
 			if (++characters >= minimum) break;
 		}
 		if (characters < minimum) return;

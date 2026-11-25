@@ -14,11 +14,11 @@
  * the theme says) with bold, faint and inverse, like the CLI's other
  * plain-text output.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatDuration } from "@linxiraos/pi-utils";
 import { keyLabel } from "../../../keys/hints";
 import {
 	collapseCommand,

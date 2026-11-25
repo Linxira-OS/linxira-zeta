@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
-import { stream } from "@oh-my-pi/pi-ai";
-import type { AssistantMessage, Context, FetchImpl, Model, ToolResultMessage } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { stream } from "@linxiraos/pi-ai";
+import type { AssistantMessage, Context, FetchImpl, Model, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 // vLLM's Llama 3 chat templates reject an assistant message holding several
 // tool calls ("This model only supports single tool-calls at once!"), and

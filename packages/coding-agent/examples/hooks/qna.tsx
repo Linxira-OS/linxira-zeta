@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Q&A extraction hook - extracts questions from assistant responses
  *
@@ -7,8 +7,8 @@
  * 2. Shows a spinner while extracting (hides editor)
  * 3. Loads the result into the editor for user to fill in answers
  */
-import { complete, type UserMessage } from "@oh-my-pi/pi-ai";
-import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
+import { complete, type UserMessage } from "@linxiraos/pi-ai";
+import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
 
 const SYSTEM_PROMPT = `You are a question extractor. Given text from a conversation, extract any questions that need answering and format them for the user to fill in.
 

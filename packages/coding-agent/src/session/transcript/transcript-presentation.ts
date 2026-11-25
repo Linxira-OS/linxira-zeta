@@ -1,4 +1,4 @@
-import type { TspText } from "@oh-my-pi/pi-wire";
+import type { TspText } from "@linxiraos/pi-wire";
 import type { TranscriptBlock, TranscriptPresentation } from "../../extensibility/extensions/render-types";
 import {
 	type BashExecutionMessage,

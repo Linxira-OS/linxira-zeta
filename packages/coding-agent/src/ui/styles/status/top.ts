@@ -16,13 +16,13 @@
  * window labels; `annotated`/`embedded` also mark where background
  * compaction starts and where auto-compaction fires.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { fitStatus } from "@oh-my-pi/pi-tui/term/painters/status";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { fgSgr } from "@oh-my-pi/pi-tui/theme/color";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { adjustHsv, formatNumber } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { fitStatus } from "@linxiraos/pi-tui/term/painters/status";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { fgSgr } from "@linxiraos/pi-tui/theme/color";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { adjustHsv, formatNumber } from "@linxiraos/pi-utils";
 import type { StatusLineSeparatorStyle } from "../../../config/status-line-schema";
 import { sessionAccentHex } from "../../status/accent";
 import type { StatusTopLook } from "../../status/status-line";

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SkillshareClient } from "@oh-my-pi/pi-coding-agent/skillshare/client";
+import { SkillshareClient } from "@linxiraos/zeta/skillshare/client";
 import {
 	computeIntegrity,
 	installSkillPackages,
@@ -10,7 +10,7 @@ import {
 	type SkillInstallHooks,
 	uninstallSkillPackages,
 	updateSkillPackages,
-} from "@oh-my-pi/pi-coding-agent/skillshare/installer";
+} from "@linxiraos/zeta/skillshare/installer";
 import {
 	getSkillStorePath,
 	getSkillshareStoreDir,
@@ -20,11 +20,11 @@ import {
 	type SkillsLock,
 	writeSkillsLock,
 	writeSkillsManifest,
-} from "@oh-my-pi/pi-coding-agent/skillshare/manifest";
-import { writeTar } from "@oh-my-pi/pi-coding-agent/skillshare/tar";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
-import { getAgentDir, setAgentDir } from "@oh-my-pi/pi-utils/dirs";
-import type { SkillPackument, SkillVersionManifest, SkillVersionSummary } from "@oh-my-pi/pi-wire/skillshare";
+} from "@linxiraos/zeta/skillshare/manifest";
+import { writeTar } from "@linxiraos/zeta/skillshare/tar";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import type { SkillPackument, SkillVersionManifest, SkillVersionSummary } from "@linxiraos/pi-wire/skillshare";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 const SCOPE = "alice";

@@ -13,16 +13,16 @@
  * generated name when nothing survives.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { ExecutorOptions } from "@oh-my-pi/pi-coding-agent/task/executor";
-import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
-import * as nameGenerator from "@oh-my-pi/pi-coding-agent/task/name-generator";
-import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import type { VibeCli } from "@oh-my-pi/pi-coding-agent/tools/details/vibe";
-import { VibeSessionRegistry } from "@oh-my-pi/pi-coding-agent/vibe/runtime";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { ExecutorOptions } from "@linxiraos/zeta/task/executor";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import * as nameGenerator from "@linxiraos/zeta/task/name-generator";
+import type { SingleResult } from "@linxiraos/zeta/task/task-details";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import type { VibeCli } from "@linxiraos/zeta/tools/details/vibe";
+import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
 
 function makeParentSession(settings: Settings): ToolSession {
 	return {
@@ -60,7 +60,7 @@ async function spawnAndCaptureOptions(cli: VibeCli, settings: Settings, name?: s
 	});
 
 	const registry = VibeSessionRegistry.global();
-	await registry.spawn(makeParentSession(settings), { cli, name, prompt: "work" });
+	await registry.spawn(makeParentSession(settings), { cli, role: "worker", name, prompt: "work" });
 	return captured.promise;
 }
 

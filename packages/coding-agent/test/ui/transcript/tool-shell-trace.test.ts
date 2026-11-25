@@ -1,9 +1,9 @@
 /** A bash call's shell presentation across its result frames. */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { executeBash } from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import type { ShellVizPresentation } from "@oh-my-pi/pi-wire";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { executeBash } from "@linxiraos/zeta/exec/bash-executor";
+import { TempDir } from "@linxiraos/pi-utils";
+import type { ShellVizPresentation } from "@linxiraos/pi-wire";
 import "../../../src/ui/tools";
 import { ToolCall } from "../../../src/ui/transcript/tool-block";
 

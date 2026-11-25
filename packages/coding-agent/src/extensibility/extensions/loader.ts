@@ -4,9 +4,9 @@
 import type * as fs1 from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import * as zod from "@oh-my-pi/omptype/zod";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import { type } from "@linxiraos/zeta-schema";
+import * as zod from "@linxiraos/zeta-schema/zod";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type {
 	ImageContent,
 	Model,
@@ -15,9 +15,9 @@ import type {
 	ServiceTierFamily,
 	TextContent,
 	TSchema,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import { type KeyId } from "../../config/keybindings/key-id";
-import { hasFsCode, isEacces, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { hasFsCode, isEacces, isEnoent, logger } from "@linxiraos/pi-utils";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";
 import { type Hook, hookCapability } from "../../capability/hook";
 import { isServiceTierFamily, isServiceTierForFamily } from "../../config/service-tier";
@@ -36,7 +36,7 @@ import { EventBus } from "../../utils/event-bus";
 import * as TypeBox from "../legacy-typebox";
 import { resolveExtensionDirectory } from "./directory-resolution";
 import { installLegacyPiSpecifierShim, loadLegacyPiModule } from "../plugins/legacy-pi-compat";
-import { getEnabledPlugins, resolvePluginExtensionPaths } from "../plugins/loader";
+import { getEnabledPlugins, resolvePluginExtensionPaths, resolvePluginLocaleCatalog } from "../plugins/loader";
 
 import { resolvePath, withHostGuard } from "../utils";
 import { type ComposerShape, isBuiltinComposerShape } from "../../ui/styles/composer/shapes";
@@ -269,7 +269,7 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 	registerCommand(
 		name: string,
 		options: {
-			description?: string;
+			description?: string | (() => string);
 			getArgumentCompletions?: RegisteredCommand["getArgumentCompletions"];
 			handler: RegisteredCommand["handler"];
 		},
@@ -483,10 +483,15 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 /**
  * Create an Extension object with empty collections.
  */
-function createExtension(extensionPath: string, resolvedPath: string): Extension {
+function createExtension(
+	extensionPath: string,
+	resolvedPath: string,
+	localeCatalog?: Extension["localeCatalog"],
+): Extension {
 	return {
 		path: extensionPath,
 		resolvedPath,
+		localeCatalog,
 		handlers: new Map(),
 		tools: new Map(),
 		toolRegistrationListeners: new Set(),
@@ -564,6 +569,7 @@ async function bindExtension(
 	}
 	try {
 		const extension = createExtension(extensionPath, imported.resolvedPath);
+		extension.localeCatalog = await resolvePluginLocaleCatalog(cwd, imported.resolvedPath);
 		const api = new ConcreteExtensionAPI(extension, runtime, cwd, eventBus);
 		await withHostGuard(() => runExtensionFactory(factory, api, runtime));
 

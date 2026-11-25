@@ -20,7 +20,7 @@ import { collectIrcPeerRoster } from "@linxiraos/zeta/task/executor";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { HubTool } from "@linxiraos/zeta/tools/hub/index";
 import { executeList, executeSend } from "@linxiraos/zeta/tools/hub/messaging";
-import { DEFAULT_HUB_LIST_LIMIT, MAX_HUB_LIST_LIMIT } from "@linxiraos/pi-tui/tools/hub";
+import { DEFAULT_HUB_LIST_LIMIT, MAX_HUB_LIST_LIMIT } from "@linxiraos/zeta/tools/hub/protocol";
 import { prompt, TempDir, withTimeout } from "@linxiraos/pi-utils";
 
 function sessionHeader(id: string): string {

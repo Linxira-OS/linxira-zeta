@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock, vi } from "bun:test";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import * as updateCli from "@oh-my-pi/pi-coding-agent/cli/update-cli";
-import { runOnboardingSetup } from "@oh-my-pi/pi-coding-agent/commands/setup";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgSetupVersion, cfgSymbolPreset } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import * as updateCli from "@linxiraos/zeta/cli/update-cli";
+import { runOnboardingSetup } from "@linxiraos/zeta/commands/setup";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { cfgSetupVersion, cfgSymbolPreset } from "@linxiraos/zeta/modes/settings";
 import {
 	ALL_SCENES,
 	CURRENT_SETUP_VERSION,
@@ -13,10 +13,10 @@ import {
 	runSetupWizard,
 	type SetupScene,
 	selectSetupScenes,
-} from "@oh-my-pi/pi-coding-agent/modes/setup";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { jsx, signal } from "@oh-my-pi/pi-tui";
-import * as terminalSession from "@oh-my-pi/pi-tui/driver/session";
+} from "@linxiraos/zeta/modes/setup";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { jsx, signal } from "@linxiraos/pi-tui";
+import * as terminalSession from "@linxiraos/pi-tui/driver/session";
 import type { SceneContext, SceneResult, SceneView, SetupHost } from "../src/ui/setup/types";
 import { SetupWizard, type SetupWizardModel } from "../src/ui/setup/wizard";
 import { type LayerTerminal, mountLayer } from "./helpers/layer-terminal";

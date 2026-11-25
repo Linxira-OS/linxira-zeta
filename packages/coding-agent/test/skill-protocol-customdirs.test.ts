@@ -2,18 +2,18 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	buildSkillPromptMessage,
 	loadSkills,
 	resetActiveSkillsForTests,
 	type Skill,
 	setActiveSkills,
-} from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/skill-protocol";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+} from "@linxiraos/zeta/extensibility/skills";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { SkillProtocolHandler } from "@linxiraos/zeta/internal-urls/skill-protocol";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { toolText } from "./helpers/tool-text";
 
 function makeSkillMd(name: string, dir: string) {

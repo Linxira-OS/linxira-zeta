@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { AsyncJobSnapshotItem } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AsyncJobSnapshotItem } from "@linxiraos/zeta/session/agent-session";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import { printRows } from "../../../src/ui/print-rows";
 
 const WIDTH = 60;

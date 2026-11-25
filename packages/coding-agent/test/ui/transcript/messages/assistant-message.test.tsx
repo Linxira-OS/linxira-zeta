@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { describe, expect, test } from "bun:test";
-import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
-import { type Signal, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import { type Signal, signal, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import type { TurnUsageSummary } from "../../../../src/modes/view-model/overlays/usage-row";
 import type { CacheInvalidation } from "../../../../src/session/transcript/cache-invalidation-marker";
 import type { ServedModelMismatch } from "../../../../src/session/transcript/served-model-marker";

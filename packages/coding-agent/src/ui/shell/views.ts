@@ -6,7 +6,7 @@
  * holds at most one view (a dock row, a banner); {@link ViewList} holds an
  * ordered run of them (the transcript, the overlay stack).
  */
-import { type Accessor, createRoot, type JSXNode, signal, type UiNode, untrack } from "@oh-my-pi/pi-tui";
+import { type Accessor, createRoot, type JSXNode, signal, type UiNode, untrack } from "@linxiraos/pi-tui";
 
 /** Builds a view; runs once, inside the view's own root. */
 export type ViewFactory = () => JSXNode;

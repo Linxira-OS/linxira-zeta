@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The pinned subagents HUD (`subagents` slot, text terminals only; a Tern
  * host shows running agents in the HUD pills or the tray).
@@ -17,10 +17,10 @@
  * expander toggles the list (`onToggle`). Terminal look:
  * `src/ui/styles/dock/subagents.ts`.
  */
-import { type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import { toolIntentLabel } from "@oh-my-pi/pi-wire";
+import { type JSXNode, signal } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { toolIntentLabel } from "@linxiraos/pi-wire";
 import { labelEchoesHandle } from "../../task/label";
 import type { ObservableSession } from "../../task/session-observer-registry";
 import { formatTaskId, isWaitingOnOwnWork } from "../../task/task-details";
@@ -172,7 +172,7 @@ export function SubagentHud(props: { readonly model: SubagentHudModel }): JSXNod
 		if (model.entries().length === 0) return undefined;
 		return (
 			<col
-				role="omp.hud.subagents"
+				role="zeta.hud.subagents"
 				term={{ subagents: model }}
 				onAction={act => {
 					if (act === "subagents.toggle") model.onToggle?.();

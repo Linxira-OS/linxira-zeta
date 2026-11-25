@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { formatRawOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
-import { Shell } from "@oh-my-pi/pi-natives";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { formatRawOutputNotice } from "@linxiraos/zeta/tools/output-meta-format";
+import { Shell } from "@linxiraos/pi-natives";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { toolText } from "./helpers/tool-text";
 
 afterEach(() => {

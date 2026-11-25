@@ -13,9 +13,9 @@
  * input.press(ctx, "ctrl+c");
  * ```
  */
-import type { KeyEvent, UiNode } from "@oh-my-pi/pi-tui";
-import type { InputEvent } from "@oh-my-pi/pi-tui/driver/index";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
+import type { KeyEvent, UiNode } from "@linxiraos/pi-tui";
+import type { InputEvent } from "@linxiraos/pi-tui/driver/index";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import { Composer } from "../../src/ui/composer/composer";
 
 type Interceptor = (event: InputEvent) => boolean;

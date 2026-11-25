@@ -12,6 +12,7 @@ import {
 	resolveEquivalentPath,
 } from "@linxiraos/pi-utils/dirs";
 import { isEnoent } from "@linxiraos/pi-utils/fs-error";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import * as logger from "@linxiraos/pi-utils/logger";
 import type { SessionStorage } from "./session-storage";
 

@@ -5,8 +5,8 @@
  * single child is offered the screen's height, and the rows it leaves are
  * split above and below it.
  */
-import { type Block, defineRolePainter, type Hit } from "@oh-my-pi/pi-tui/term/paint";
-import { padTo } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter, type Hit } from "@linxiraos/pi-tui/term/paint";
+import { padTo } from "@linxiraos/pi-tui/text/width";
 
 defineRolePainter("overlay", "omp.sheet.bare", (node, cx): Block => {
 	const rows: string[] = [];

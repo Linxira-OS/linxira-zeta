@@ -9,7 +9,7 @@
  * never outlives omp.
  */
 import { ToolError } from "../../tool-errors";
-import { isRecord, logger, readLines } from "@oh-my-pi/pi-utils";
+import { isRecord, logger, readLines } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import type { TernInputStep } from "../tern/keys";
 

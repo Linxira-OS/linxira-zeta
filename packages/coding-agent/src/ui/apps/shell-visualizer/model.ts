@@ -4,9 +4,9 @@
  * `seek:3`, …) for the host that owns the presentation and replay, plus the
  * terminal's own scroll positions (body and selected-details pane).
  */
-import { signal } from "@oh-my-pi/pi-tui";
-import type { UiEvent } from "@oh-my-pi/pi-tui";
-import type { ShellVizLayer, ShellVizPreferences, ShellVizPresentation, ShellVizView } from "@oh-my-pi/pi-wire";
+import { signal } from "@linxiraos/pi-tui";
+import type { UiEvent } from "@linxiraos/pi-tui";
+import type { ShellVizLayer, ShellVizPreferences, ShellVizPresentation, ShellVizView } from "@linxiraos/pi-wire";
 import { isShellVizNode } from "../../../tools/shell-viz";
 
 /** Views in key order (`1`, `2`). */

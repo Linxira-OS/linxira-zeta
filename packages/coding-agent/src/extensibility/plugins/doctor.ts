@@ -1,6 +1,6 @@
-import { $which } from "@oh-my-pi/pi-utils";
+import { $which } from "@linxiraos/pi-utils";
 import type { DoctorCheck } from "./types";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 export async function runDoctorChecks(): Promise<DoctorCheck[]> {
 	const checks: DoctorCheck[] = [];

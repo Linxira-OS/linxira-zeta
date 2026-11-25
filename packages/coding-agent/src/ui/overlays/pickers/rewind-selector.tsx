@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Rewind (`/rewind`): pick the turn of the current branch to continue from.
  *
@@ -22,7 +22,7 @@
  * side by side in a strip. A long branch replays its tail first: `a`, the
  * filter, or stepping above the oldest replayed turn loads the rest.
  */
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	type Accessor,
 	batch,
@@ -38,9 +38,9 @@ import {
 	signal,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspMark, TspSpan } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspMark, TspSpan } from "@linxiraos/pi-wire";
 import type { TranscriptReplica } from "../../../modes/interactive/transcript-replica";
 import type { BranchVariantPath } from "../../../modes/view-model/overlays/rewind-selector";
 import {
@@ -652,7 +652,7 @@ export function RewindSelector(props: RewindSelectorProps): JSXNode {
 				<text
 					key={`here:${column}:${turn.turnId}`}
 					reveal="start"
-					role="omp.rewind.here"
+					role="zeta.rewind.here"
 					wrap="none"
 					spans={spans}
 				/>
@@ -665,7 +665,7 @@ export function RewindSelector(props: RewindSelectorProps): JSXNode {
 	let earlierRow: UiNode | undefined;
 	const earlier = (): UiNode =>
 		(earlierRow ??= one(() => (
-			<row key="earlier" role="omp.rewind.earlier" gap="xs" align="center">
+			<row key="earlier" role="zeta.rewind.earlier" gap="xs" align="center">
 				<kbd keys={["a"]} />
 				<text spans={[{ t: "load earlier turns", s: "muted" }]} />
 			</row>
@@ -673,7 +673,7 @@ export function RewindSelector(props: RewindSelectorProps): JSXNode {
 	let emptyText: UiNode | undefined;
 	const empty = (): UiNode =>
 		(emptyText ??= one(() => (
-			<text role="omp.rewind.empty" spans={() => [{ t: `No turns match "${filter()?.text ?? ""}"`, s: "muted" }]} />
+			<text role="zeta.rewind.empty" spans={() => [{ t: `No turns match "${filter()?.text ?? ""}"`, s: "muted" }]} />
 		)));
 	/** The strip's branch columns, one node per branch; the active one carries the accent tone. */
 	const branchColumns = new Map<string, UiNode>();
@@ -682,8 +682,8 @@ export function RewindSelector(props: RewindSelectorProps): JSXNode {
 		if (!node) {
 			const column = (): StripColumn | undefined => layout().strip.find(item => item.key === key);
 			node = one(() => (
-				<col key={key} role="omp.rewind.branch" gap="lg" tone={() => (column()?.active ? "accent" : undefined)}>
-					<text role="omp.rewind.branch.head" wrap="none" spans={() => column()?.head ?? []} />
+				<col key={key} role="zeta.rewind.branch" gap="lg" tone={() => (column()?.active ? "accent" : undefined)}>
+					<text role="zeta.rewind.branch.head" wrap="none" spans={() => column()?.head ?? []} />
 					{() => column()?.nodes ?? []}
 				</col>
 			));
@@ -694,7 +694,7 @@ export function RewindSelector(props: RewindSelectorProps): JSXNode {
 	let stripRow: UiNode | undefined;
 	const strip = (): UiNode =>
 		(stripRow ??= one(() => (
-			<row key="strip" role="omp.rewind.strip" gap="lg" align="start">
+			<row key="strip" role="zeta.rewind.strip" gap="lg" align="start">
 				{() => layout().strip.map(column => branchColumn(column.key))}
 			</row>
 		)));
@@ -807,7 +807,7 @@ export function RewindSelector(props: RewindSelectorProps): JSXNode {
 
 	const bar = (
 		<row
-			role="omp.rewind.bar"
+			role="zeta.rewind.bar"
 			align="center"
 			gap="md"
 			wrap={true}
@@ -846,7 +846,7 @@ export function RewindSelector(props: RewindSelectorProps): JSXNode {
 				) : null
 			}
 			<text spans={() => [counter()]} wrap="none" />
-			<row key="hints" gap="md" role="omp.overlay.hints" wrap={true}>
+			<row key="hints" gap="md" role="zeta.overlay.hints" wrap={true}>
 				{hint([actionKbd("tui.select.up", "up"), actionKbd("tui.select.down", "down")], () => "step")}
 				{hint([["left"], ["right"]], () =>
 					filter() ? "user turns" : columns().length > 0 ? "branches" : "user turns",
@@ -854,7 +854,7 @@ export function RewindSelector(props: RewindSelectorProps): JSXNode {
 				{() => (filter() ? null : hint([["f"]], () => "filter"))}
 				{() => (!filter() && truncated() ? hint([["a"]], () => "earlier turns") : null)}
 			</row>
-			<row key="actions" align="center" gap="sm" role="omp.actions">
+			<row key="actions" align="center" gap="sm" role="zeta.actions">
 				<spacer grow={1} />
 				{button("cancel", "cancel", () => (filter() ? "Show all" : "Cancel"), "tui.select.cancel")}
 				{button("rewind", "rewind", () => "Rewind here", "tui.select.confirm", "accent")}

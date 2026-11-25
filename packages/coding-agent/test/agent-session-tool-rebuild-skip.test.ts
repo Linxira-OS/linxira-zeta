@@ -1,40 +1,36 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { Message, Model } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockResponseSource } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CustomTool } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/types";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { type CustomMessage, convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionMaintenance } from "@oh-my-pi/pi-coding-agent/session/session-maintenance";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { type } from "@linxiraos/zeta-schema";
+import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
+import type { Message, Model } from "@linxiraos/pi-ai";
+import { createMockModel, type MockResponseSource } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { type CustomMessage, convertToLlm } from "@linxiraos/zeta/session/messages";
+import { SessionMaintenance } from "@linxiraos/zeta/session/session-maintenance";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
 	collectMountedMCPToolRoutes,
 	projectMountedMCPToolCommandGuidance,
 	type SettingsGatedToolDelta,
-} from "@oh-my-pi/pi-coding-agent/session/session-tools";
+} from "@linxiraos/zeta/session/session-tools";
 import {
 	listToolCommands,
 	TOOL_COMMAND_EXTERNAL_DESCRIPTION_CAP,
 	type ToolCommandState,
-} from "@oh-my-pi/pi-coding-agent/tools/tool-commands";
-import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
-import { GlobTool } from "@oh-my-pi/pi-coding-agent/tools/glob";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/tools/tool-commands";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import { GlobTool } from "@linxiraos/zeta/tools/glob";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { logger } from "@linxiraos/pi-utils";
 
-import { cfgSkillful } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { cfgStartupQuiet } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import {
-	cfgToolsCommandDocs,
-	cfgToolsCommandInline,
-	cfgToolsCommandNotices,
-} from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { cfgSkillful } from "@linxiraos/zeta/session/settings";
+import { cfgStartupQuiet } from "@linxiraos/zeta/modes/settings";
+import { cfgToolsCommandDocs, cfgToolsCommandInline, cfgToolsCommandNotices } from "@linxiraos/zeta/tools/settings";
 
 // Cache-stability invariant: when MCP servers reconnect with byte-identical tool
 // definitions, `refreshMCPTools` must not rebuild the system prompt. A rebuild

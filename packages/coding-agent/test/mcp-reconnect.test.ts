@@ -2,25 +2,21 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-	createMCPJsonRpcError,
-	MCPTransportError,
-	normalizeMCPTransportError,
-} from "@oh-my-pi/pi-coding-agent/mcp/errors";
-import { disposeLocalMcpHost } from "@oh-my-pi/pi-coding-agent/mcp/host/local";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPReconnect } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
+import { createMCPJsonRpcError, MCPTransportError, normalizeMCPTransportError } from "@linxiraos/zeta/mcp/errors";
+import { disposeLocalMcpHost } from "@linxiraos/zeta/mcp/host/local";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPReconnect } from "@linxiraos/zeta/mcp/tool-bridge";
 import {
 	createLegacyMCPToolName,
 	createMCPToolName,
 	deduplicateMCPToolsByName,
 	isRetriableConnectionError,
 	MCPTool,
-} from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
-import type { MCPImageContent } from "@oh-my-pi/pi-coding-agent/tools/details/mcp";
-import type { MCPServerConnection, MCPToolCallResult, MCPTransport } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { logger, removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/mcp/tool-bridge";
+import type { MCPImageContent } from "@linxiraos/zeta/tools/details/mcp";
+import type { MCPServerConnection, MCPToolCallResult, MCPTransport } from "@linxiraos/zeta/mcp/types";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { logger, removeWithRetries } from "@linxiraos/pi-utils";
 import { asGlobalFetch } from "./helpers/fetch-mock";
 
 // ---------------------------------------------------------------------------

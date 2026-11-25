@@ -118,6 +118,7 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 - Released as part of Zeta 1.5.11; no package-specific user-visible changes.
 
 ## [1.5.10] - 2026-11-19
+
 ### Added
 
 - Added `AGENT_KILL_LABEL`, `InterruptReason` and `isInterruptReason` so hosts can tell a parent agent's kill apart from a user interrupt ([#20012](https://github.com/Linxira-OS/linxira-zeta/pull/20012) by [@nick-maderight](https://github.com/nick-maderight))
@@ -548,7 +549,7 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 
 ## [1.1.24] - 2026-10-03
 
-- 语义角色清扫补全（omp.*→zeta.*，106 文件）；agent-hub 空态提示还原 `omp-dev`；notifications OSC 99 对齐 zeta app id。
+- 语义角色清扫补全（omp._→zeta._，106 文件）；agent-hub 空态提示还原 `omp-dev`；notifications OSC 99 对齐 zeta app id。
 
 ## [1.1.19] - 2026-09-22
 
@@ -572,16 +573,19 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 ### Fixed
 
 - Overlay compositing crash when rendered lines exceed terminal width due to complex ANSI/OSC sequences (e.g., hyperlinks in subagent output) ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+
 ## [19.2.0] - 2026-11-25
 
 ## [0.31.1] - 2026-01-02
 
 Older entries are archived in [packages/tui/CHANGELOG.md@fa14205f838f](https://github.com/Linxira-OS/linxira-zeta/blob/fa14205f838f282fcea048c64fca74026789a492/packages/tui/CHANGELOG.md).
+
 - Added `@linxiraos/pi-tui`, a terminal UI with a unified Tern Surface Protocol node tree, native and terminal rendering, reactive signals, compiler-free JSX, role-based painters and widgets, terminal input and capability support, multiplexer and image handling, resize policies, notifications, Markdown and text utilities, themes, and terminal testing utilities.
 - Added checkout event support to TSP connections and hosts.
 - Added `label` to editor terminal decoration ranges: replacement text drawn in place of a range on rows where it fits and the caret is outside it.
 
 Older entries are archived in [packages/tui/CHANGELOG.md@89ad0a77d575](https://github.com/Linxira-OS/linxira-zeta/blob/89ad0a77d575f01398d3c0a57bc3a22111bef36a/packages/tui/CHANGELOG.md).
+
 - Fixed ED3-risk unknown-viewport renders repainting offscreen structural edits over stale native scrollback, which could duplicate or shift rows when async blocks collapsed or middle rows were deleted.
 - Fixed ED3-risk foreground streams committing mutable live-region rows into native scrollback, which could leave a stale `pending` tool box above the `running` box after the preview re-rendered.
 - Fixed TUI shutdown leaving paint-time terminal state and Kitty image data behind by restoring synchronized-output/autowrap modes and purging all transmitted Kitty image ids on stop.
@@ -602,11 +606,13 @@ Older entries are archived in [packages/tui/CHANGELOG.md@bdbb5c920f69](https://g
 - Fixed TUI renders repeatedly clearing terminal scrollback after content filled the viewport. Unknown viewport probes no longer let foreground-streaming offscreen growth take the destructive `historyRebuild` path on every frame; newly appended tail rows stay reachable while stale history waits for a safe checkpoint. ([#2154](https://github.com/Linxira-OS/linxira-zeta/issues/2154))
 
 Older entries are archived in [packages/tui/CHANGELOG.md@7049d1b1afeb](https://github.com/Linxira-OS/linxira-zeta/blob/7049d1b1afeb8e421e7f9fba5c1dcebd7c382232/packages/tui/CHANGELOG.md).
+
 ### Added
 
 - Added support for asynchronous `onSubmit` handlers by allowing the callback to return a `Promise<void>`
 
 Older entries are archived in [packages/tui/CHANGELOG.md@a95c0a0773af](https://github.com/Linxira-OS/linxira-zeta/blob/a95c0a0773afdfdc7f1f40ef21e79af46c86c11e/packages/tui/CHANGELOG.md).
+
 - Hosts now report when the terminal displays the checkout itself through `checkoutShown`.
 - Theme files are polled for changes, keeping live reload working when editors replace files during save.
 - Terminal animations now skip unchanged frames and share redraws with streaming content; shimmer motion runs at 20 fps.

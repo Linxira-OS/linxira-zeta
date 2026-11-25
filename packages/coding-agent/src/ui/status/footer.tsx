@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The footer: a `status` bar (`omp.footer`) — the working directory (and
  * branch), the usage counters, billing and context on the left, the model
@@ -8,10 +8,10 @@
  * Terminal look: `src/ui/styles/status/footer.ts` (path row, then the stats
  * row with the model right-aligned).
  */
-import { type Accessor, computed, For, type JSXNode, Show } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { type Accessor, computed, For, type JSXNode, Show } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatNumber } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import { sanitizeStatusText } from "../../modes/view-model/chrome/shared";
 import { shortenPath } from "../../utils/render-utils";
 import "../styles/status";
@@ -108,7 +108,7 @@ export function Footer(props: FooterProps): JSXNode {
 	});
 	const statuses = computed(() => props.facts().statuses.map(sanitizeStatusText).join(" "));
 	const bar = (
-		<status key="bar" role="omp.footer">
+		<status key="bar" role="zeta.footer">
 			<For each={keys}>
 				{key => {
 					const seg = () => byKey().get(key);
@@ -127,10 +127,10 @@ export function Footer(props: FooterProps): JSXNode {
 			</For>
 		</status>
 	);
-	const extensions = <text key="ext" role="omp.footer.extensions" text={statuses} wrap="none" />;
+	const extensions = <text key="ext" role="zeta.footer.extensions" text={statuses} wrap="none" />;
 	return (
 		<Show when={() => props.facts().statuses.length > 0} fallback={bar}>
-			<col role="omp.footer.panel">
+			<col role="zeta.footer.panel">
 				{bar}
 				{extensions}
 			</col>

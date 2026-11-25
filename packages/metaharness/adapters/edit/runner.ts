@@ -7,34 +7,34 @@
 /// <reference types="./bun-imports.d.ts" />
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { diffLines, EditStore, hashlineCountOps, hashlineFormatHeader } from "@oh-my-pi/pi-natives";
-import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model, ToolExample } from "@oh-my-pi/pi-ai";
-import { formatSessionDumpText, RpcClient } from "@oh-my-pi/pi-coding-agent";
-import { prompt, TempDir } from "@oh-my-pi/pi-utils";
-import { formatDirectory } from "@oh-my-pi/typescript-edit-benchmark/formatter";
+import { diffLines, EditStore, hashlineCountOps, hashlineFormatHeader } from "@linxiraos/pi-natives";
+import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model, ToolExample } from "@linxiraos/pi-ai";
+import { formatSessionDumpText, RpcClient } from "@linxiraos/zeta";
+import { prompt, TempDir } from "@linxiraos/pi-utils";
+import { formatDirectory } from "@linxiraos/typescript-edit-benchmark/formatter";
 import {
 	discoverSharedInfra,
 	InProcessClient,
 	type SharedInfra,
-} from "@oh-my-pi/typescript-edit-benchmark/in-process-client";
+} from "@linxiraos/typescript-edit-benchmark/in-process-client";
 import { BENCH_SETTINGS, benchSettingsYaml } from "../../src/bench-settings";
 import { conversationDumpRelativePath } from "./dump-path";
 import benchmarkRetryPrompt from "./prompts/benchmark-retry.md" with { type: "text" };
 import benchmarkSystemPrompt from "./prompts/benchmark-system.md" with { type: "text" };
 import benchmarkTaskPrompt from "./prompts/benchmark-task.md" with { type: "text" };
 import { createScratch } from "./scratch";
-import type { EditTask } from "@oh-my-pi/typescript-edit-benchmark/tasks";
+import type { EditTask } from "@linxiraos/typescript-edit-benchmark/tasks";
 import {
 	verifyExpectedFileSubset,
 	verifyExpectedFiles,
-} from "@oh-my-pi/typescript-edit-benchmark/verify";
+} from "@linxiraos/typescript-edit-benchmark/verify";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "..", "..", "..", "..");
 const RUNS_DIR = path.join(REPO_ROOT, "runs");
 /** This process's run logs. They record every run's edit payloads, so no task works under it. */
 const LOG_DIR = path.join(RUNS_DIR, `rb-${Math.random().toString(36).slice(2, 10)}`);
-const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@oh-my-pi/pi-coding-agent/cli"));
+const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@linxiraos/zeta/cli"));
 
 function formatLogPath(logFile: string): string {
 	const relativePath = path.relative(REPO_ROOT, logFile);

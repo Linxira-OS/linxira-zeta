@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Glob: `Glob  25 files · in src`, then the files: a few as path rows, more
  * as wrapped chips; limits and skipped paths in one quiet footnote.
@@ -6,7 +6,7 @@
  * Terminal look: `glob` (`src/ui/styles/tools/glob.ts`): a head line and a
  * branch tree of paths with file-type icons.
  */
-import type { TspText } from "@oh-my-pi/pi-wire";
+import type { TspText } from "@linxiraos/pi-wire";
 import type { ToolHead, ToolPresenter, ToolView } from "./contract";
 import { toPathList } from "../../utils/render-utils";
 import { resultText } from "./default";
@@ -98,7 +98,7 @@ function truncationNote(details: GlobDetails | undefined): string | undefined {
 function fileList(files: readonly string[], cwd?: string) {
 	if (files.length <= LIST_MAX) {
 		return (
-			<col role="omp.tool.files" gap="none">
+			<col role="zeta.tool.files" gap="none">
 				{files.map(file => (
 					<FileRow id={file} path={file} cwd={cwd} />
 				))}
@@ -106,7 +106,7 @@ function fileList(files: readonly string[], cwd?: string) {
 		);
 	}
 	return (
-		<row role="omp.tool.files" gap="xs" wrap>
+		<row role="zeta.tool.files" gap="xs" wrap>
 			{files.map(file => (
 				<FileChip path={file} />
 			))}

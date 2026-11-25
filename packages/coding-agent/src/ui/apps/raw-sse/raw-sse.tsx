@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/debug raw-sse`: the raw provider stream. The page is the capture counters
  * over the SSE wire text (one `ansi` block that follows its tail until the
@@ -9,9 +9,9 @@
  * scrolling stream with the counters above and the key hints below (the
  * `omp.debug.bar` look).
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { formatRawSseIsoTime } from "../../../debug/raw-sse-buffer";
 import { formatTooltipKey } from "../../keys/hints";
 import "../../styles/apps/raw-sse/look";
@@ -23,7 +23,7 @@ export function RawSseViewer(props: { readonly model: RawSseViewerModel }): JSXN
 	const model = props.model;
 	return (
 		<col
-			role="omp.debug.bar"
+			role="zeta.debug.bar"
 			gap="sm"
 			term={{ viewer: model }}
 			onKey={key => model.key(key.id)}
@@ -40,12 +40,12 @@ export function RawSseViewer(props: { readonly model: RawSseViewerModel }): JSXN
 							key="status"
 							spans={[{ s: status.failed ? "error" : "success", t: status.text }]}
 							wrap="word"
-							role="omp.app.status"
+							role="zeta.app.status"
 						/>
 					)
 				);
 			}}
-			<row key="actions" role="omp.actions" gap="sm" align="center">
+			<row key="actions" role="zeta.actions" gap="sm" align="center">
 				<ActionButton
 					id="copy-raw"
 					label="Copy raw"
@@ -80,8 +80,8 @@ export function RawSseMain(props: { readonly model: RawSseViewerModel }): JSXNod
 				: { s: "muted", t: "waiting for first frame" },
 		);
 		return (
-			<row key="head" role="omp.app.head" gap="sm" align="center">
-				<text text="Raw provider stream" role="omp.app.title" />
+			<row key="head" role="zeta.app.head" gap="sm" align="center">
+				<text text="Raw provider stream" role="zeta.app.title" />
 				<text spans={stats} truncate="end" />
 			</row>
 		);
@@ -90,8 +90,8 @@ export function RawSseMain(props: { readonly model: RawSseViewerModel }): JSXNod
 		const snapshot = model.snapshot();
 		if (snapshot.records.length === 0) {
 			return (
-				<col key="empty" role="omp.app.empty" gap="xs" align="center">
-					<text text="No raw SSE frames captured yet" role="omp.app.empty-title" />
+				<col key="empty" role="zeta.app.empty" gap="xs" align="center">
+					<text text="No raw SSE frames captured yet" role="zeta.app.empty-title" />
 					<text
 						spans={[
 							{ s: "muted", t: "HTTP SSE providers populate this view while a model response is streaming." },
@@ -109,7 +109,7 @@ export function RawSseMain(props: { readonly model: RawSseViewerModel }): JSXNod
 			}
 			text += "\n";
 		}
-		return <ansi key="stream" text={text} follow role="omp.debug.stream" max={{ h: 1 }} scroll={model.scroll} />;
+		return <ansi key="stream" text={text} follow role="zeta.debug.stream" max={{ h: 1 }} scroll={model.scroll} />;
 	};
 	return [head, body];
 }

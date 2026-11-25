@@ -29,8 +29,8 @@ import { captureGalleryScreenshots } from "./gallery-screenshot";
 
 import { cfgColorBlindMode, cfgSymbolPreset, cfgThemeDark, cfgThemeLight } from "../modes/settings";
 import { initTheme } from "../ui/theme/service";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { bold } from "@oh-my-pi/pi-tui/theme/theme";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { bold } from "@linxiraos/pi-tui/theme/theme";
 
 /** Lifecycle states the gallery renders, in display order. */
 export const GALLERY_STATES = ["streaming", "progress", "success", "error"] as const;

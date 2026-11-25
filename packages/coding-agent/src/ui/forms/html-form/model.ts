@@ -9,8 +9,8 @@
  * open field's group lists its legend, text and fields (the others folded
  * to their answers); other groups show only their folded fields.
  */
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { batch, type KeyEvent, type Signal, signal, type TextEdit, untrack } from "@oh-my-pi/pi-tui";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { batch, type KeyEvent, type Signal, signal, type TextEdit, untrack } from "@linxiraos/pi-tui";
 import { applyEdit, applyMaskedEdit } from "../../overlays/panels/common";
 import { getKeybindings } from "../../../config/keybindings/keybindings";
 import { compactImageMarkers, formatVisionMarker } from "../../../modes/view-model/prompt/composer-attachments";

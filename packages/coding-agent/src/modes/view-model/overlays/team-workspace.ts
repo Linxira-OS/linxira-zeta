@@ -1,10 +1,12 @@
+/**
+ * Team workspace view model: every registered Team, its contacts, rooms, plans
+ * and memory scopes, plus the selection/refresh state a host view renders.
+ *
+ * Rendering lives in the host UI (`ui/overlays`); this module stays free of
+ * nodes, colors and terminal input so both the TUI and the serve/GUI side can
+ * drive it.
+ */
 import { sanitizeText } from "@linxiraos/pi-utils";
-import { matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
-import { matchesKey } from "../keys";
-import { theme } from "../theme/theme";
-import type { Component, TUI } from "../tui";
-import { truncateToWidth, visibleWidth } from "../utils";
-import { HubFrame, type SidebarEntry } from "./hub-frame";
 
 export interface TeamWorkspaceTeamRow {
 	readonly id: string;
@@ -62,22 +64,30 @@ export interface TeamWorkspaceSource {
 	load(teamId?: string): Promise<TeamWorkspaceSnapshot>;
 }
 
+/** Host hooks of the workspace view; every one is optional so a headless caller can ignore it. */
 export interface TeamWorkspaceDeps {
 	readonly source: TeamWorkspaceSource;
-	readonly onDone: () => void;
-	readonly requestRender: () => void;
-	readonly ui?: TUI;
+	/** Called when the view should close (Escape on the root). */
+	readonly onDone?: () => void;
+	/** Called after state changes; a reactive host re-renders from its own effect instead. */
+	readonly requestRender?: () => void;
 }
 
-type EntryKind = "label" | "team" | "persona" | "person" | "room" | "plan" | "memory";
+export type TeamWorkspaceEntryKind = "label" | "team" | "persona" | "person" | "room" | "plan" | "memory";
 
-interface Entry extends SidebarEntry<EntryKind> {
+/** One sidebar row: a section label or a selectable record. */
+export interface TeamWorkspaceEntry {
+	readonly id: string;
+	readonly kind: TeamWorkspaceEntryKind;
+	readonly label: string;
+	readonly annotation?: string;
 	readonly teamId?: string;
 	readonly detail?: string;
 }
 
-function entriesFor(snapshot: TeamWorkspaceSnapshot): Entry[] {
-	const rows: Entry[] = [{ id: "teams", kind: "label", label: "TEAMS" }];
+/** The sidebar rows of `snapshot`: Teams first, then the open Team's records. */
+export function buildTeamWorkspaceEntries(snapshot: TeamWorkspaceSnapshot): TeamWorkspaceEntry[] {
+	const rows: TeamWorkspaceEntry[] = [{ id: "teams", kind: "label", label: "TEAMS" }];
 	for (const team of snapshot.teams) {
 		rows.push({
 			id: `team:${team.id}`,
@@ -135,156 +145,177 @@ function entriesFor(snapshot: TeamWorkspaceSnapshot): Entry[] {
 	return rows;
 }
 
-function move(entries: readonly Entry[], selected: string | undefined, delta: number): string | undefined {
+/** The selectable row `delta` away from `selected`, wrapping around the section labels. */
+export function moveTeamWorkspaceSelection(
+	entries: readonly TeamWorkspaceEntry[],
+	selected: string | undefined,
+	delta: number,
+): string | undefined {
 	const choices = entries.filter(entry => entry.kind !== "label");
 	if (choices.length === 0) return undefined;
 	const index = choices.findIndex(entry => entry.id === selected);
 	return choices[((index < 0 ? (delta > 0 ? -1 : 0) : index) + delta + choices.length) % choices.length]?.id;
 }
 
-/** Fullscreen Team workspace: every registered Team, its contacts, rooms and plans. */
-export class TeamWorkspaceOverlayComponent implements Component {
+/** The record a sidebar id names, with its typed detail from `snapshot`. */
+export type TeamWorkspaceSelection =
+	| { readonly kind: "none" }
+	| { readonly kind: "team"; readonly team: TeamWorkspaceTeamRow }
+	| { readonly kind: "persona"; readonly persona: TeamWorkspacePersonaRow }
+	| { readonly kind: "person"; readonly person: TeamWorkspacePersonRow }
+	| { readonly kind: "room"; readonly room: TeamWorkspaceRoomRow }
+	| { readonly kind: "plan"; readonly plan: TeamWorkspacePlanRow }
+	| { readonly kind: "memory"; readonly key: string };
+
+/** Resolve the selected sidebar row against the loaded snapshot. */
+export function teamWorkspaceSelection(
+	snapshot: TeamWorkspaceSnapshot | undefined,
+	entry: TeamWorkspaceEntry | undefined,
+): TeamWorkspaceSelection {
+	if (!snapshot || !entry) return { kind: "none" };
+	switch (entry.kind) {
+		case "team": {
+			const team = snapshot.teams.find(row => row.id === entry.teamId);
+			return team ? { kind: "team", team } : { kind: "none" };
+		}
+		case "persona": {
+			const persona = snapshot.personas.find(row => row.id === entry.id.slice("persona:".length));
+			return persona ? { kind: "persona", persona } : { kind: "none" };
+		}
+		case "person": {
+			const person = [...snapshot.pms, ...snapshot.engineers].find(
+				row => entry.id === `pm:${row.id}` || entry.id === `engineer:${row.id}`,
+			);
+			return person ? { kind: "person", person } : { kind: "none" };
+		}
+		case "room": {
+			const room = snapshot.rooms.find(row => row.id === entry.id.slice("room:".length));
+			return room ? { kind: "room", room } : { kind: "none" };
+		}
+		case "plan": {
+			const plan = snapshot.plans.find(row => row.id === entry.id.slice("plan:".length));
+			return plan ? { kind: "plan", plan } : { kind: "none" };
+		}
+		case "memory":
+			return { kind: "memory", key: entry.id.slice("memory:".length) };
+		default:
+			return { kind: "none" };
+	}
+}
+
+/** Selection and refresh state of the Team workspace. */
+export class TeamWorkspaceModel {
 	readonly #deps: TeamWorkspaceDeps;
-	readonly #frame: HubFrame;
-	#snapshot?: TeamWorkspaceSnapshot;
-	#entries: Entry[] = [];
+	#snapshot: TeamWorkspaceSnapshot | undefined;
+	#entries: TeamWorkspaceEntry[] = [];
 	#selected = "teams";
 	#loading = false;
-	#error?: string;
+	#error: string | undefined;
 	#disposed = false;
+	#lastLoad: Promise<void> = Promise.resolve();
 
 	constructor(deps: TeamWorkspaceDeps) {
 		this.#deps = deps;
-		this.#frame = new HubFrame(
-			"Team",
-			{ min: 28, max: 46 },
-			(width, rows) =>
-				this.#frame.renderSidebar(
-					this.#entries,
-					width,
-					rows,
-					{ id: this.#selected, focused: true, follow: true, clamp: false },
-					entry => ({
-						icon: entry.kind === "team" ? "◆" : entry.kind === "label" ? "" : "·",
-						annotation: entry.annotation ?? "",
-						muted: entry.kind === "label",
-					}),
-				),
-			(width, height) => this.#body(width, height ?? this.#height() - 4),
-			{ bodyMinWidth: 30 },
-		);
 		void this.refresh();
 	}
 
+	/** Resolves after the latest database read settles. */
 	get ready(): Promise<void> {
-		return Promise.resolve();
+		return this.#lastLoad;
+	}
+	get snapshot(): TeamWorkspaceSnapshot | undefined {
+		return this.#snapshot;
+	}
+	get entries(): readonly TeamWorkspaceEntry[] {
+		return this.#entries;
 	}
 	get selectedId(): string {
 		return this.#selected;
 	}
-	get snapshot(): TeamWorkspaceSnapshot | undefined {
-		return this.#snapshot;
+	get loading(): boolean {
+		return this.#loading;
+	}
+	get error(): string | undefined {
+		return this.#error;
+	}
+	get selectedEntry(): TeamWorkspaceEntry | undefined {
+		return this.#entries.find(entry => entry.id === this.#selected);
+	}
+	get selection(): TeamWorkspaceSelection {
+		return teamWorkspaceSelection(this.#snapshot, this.selectedEntry);
 	}
 
 	dispose(): void {
 		this.#disposed = true;
 	}
-	invalidate(): void {
-		this.#frame.invalidate();
-	}
-	#render(): void {
-		if (!this.#disposed) this.#deps.requestRender();
-	}
-	#height(): number {
-		return this.#deps.ui?.terminal?.rows || process.stdout.rows || 40;
-	}
-	#rebuild(): void {
-		this.#entries = this.#snapshot ? entriesFor(this.#snapshot) : [];
-		if (!this.#entries.some(entry => entry.id === this.#selected)) {
-			this.#selected = this.#entries.find(entry => entry.kind !== "label")?.id ?? "";
-		}
+
+	/** Load the team list, or the detail of `teamId`. */
+	refresh(teamId?: string): Promise<void> {
+		const promise = this.#load(teamId ?? this.#snapshot?.team?.id);
+		this.#lastLoad = promise;
+		return promise;
 	}
 
-	async refresh(teamId?: string): Promise<void> {
-		if (this.#disposed || this.#loading) return;
+	async #load(teamId?: string): Promise<void> {
+		if (this.#disposed) return;
 		this.#loading = true;
 		try {
-			const snapshot = await this.#deps.source.load(teamId ?? this.#snapshot?.team?.id);
+			const snapshot = await this.#deps.source.load(teamId);
 			if (this.#disposed) return;
 			this.#snapshot = snapshot;
 			this.#error = undefined;
-			this.#frame.setTitle(`Team · ${snapshot.teams.length} teams`);
 			this.#rebuild();
 		} catch (error) {
 			this.#error = error instanceof Error ? error.message : String(error);
 		} finally {
 			this.#loading = false;
-			this.#render();
+			this.#requestRender();
 		}
 	}
 
-	handleInput(data: string): void {
-		if (this.#disposed) return;
-		if (matchesKey(data, "escape")) {
-			if (this.#snapshot?.team && this.#selected !== `team:${this.#snapshot.team.id}`) {
-				this.#selected = `team:${this.#snapshot.team.id}`;
-			} else this.#deps.onDone();
-		} else if (data === "r") void this.refresh();
-		else if (data === "j" || matchesSelectDown(data) || data === "k" || matchesSelectUp(data)) {
-			this.#selected = move(this.#entries, this.#selected, data === "j" || matchesSelectDown(data) ? 1 : -1) ?? "";
-		} else if (matchesKey(data, "enter")) {
-			const entry = this.#entries.find(row => row.id === this.#selected);
-			if (entry?.kind === "team" && entry.teamId && entry.teamId !== this.#snapshot?.team?.id) {
-				void this.refresh(entry.teamId);
-			}
-		}
-		this.#render();
+	/** Move the selection by `delta` selectable rows. */
+	moveSelection(delta: number): void {
+		this.#selected = moveTeamWorkspaceSelection(this.#entries, this.#selected, delta) ?? "";
+		this.#requestRender();
 	}
 
-	#body(width: number, height: number): string[] {
-		const lines: string[] = [];
-		if (this.#error || this.#snapshot?.warning) {
-			lines.push(theme.fg("warning", sanitizeText(this.#error ?? this.#snapshot!.warning!)));
+	/**
+	 * Select `id`. A Team row opens that Team's detail; the promise resolves
+	 * once the reload settles (immediately for non-team rows).
+	 */
+	select(id: string | undefined): Promise<void> {
+		if (!id || id === this.#selected) {
+			this.#requestRender();
+			return Promise.resolve();
 		}
-		const snapshot = this.#snapshot;
-		if (!snapshot) return [this.#loading ? "Loading Teams…" : "No Team database."];
-		const team = snapshot.team;
-		if (!team) return ["Select a Team with Enter."];
-		lines.push(theme.bold(`${sanitizeText(team.name)} · ${team.id}`));
-		lines.push(theme.fg("dim", team.rootPath));
-		lines.push(
-			`${snapshot.personas.length} personas · ${snapshot.pms.length} PMs · ${snapshot.engineers.length} engineers`,
-			`${snapshot.rooms.length} rooms · ${snapshot.plans.length} plans · ${snapshot.taskCount} tasks · ${snapshot.memoryKeys.length} memory scopes`,
-		);
-		if (snapshot.defaultPersonaId) lines.push(`default persona · ${snapshot.defaultPersonaId}`);
-		lines.push("");
-		const entry = this.#entries.find(row => row.id === this.#selected);
-		if (entry?.kind === "plan") {
-			const plan = snapshot.plans.find(row => row.id === entry.id.slice("plan:".length));
-			if (plan)
-				lines.push(
-					`Plan ${plan.id} · ${plan.status} · revision ${plan.revision}`,
-					`${plan.itemCount} items · ${plan.title}`,
-				);
-		} else if (entry?.kind === "room") {
-			const room = snapshot.rooms.find(row => row.id === entry.id.slice("room:".length));
-			if (room) lines.push(`#${room.name} · ${room.kind} · ${room.memberCount} members · #${room.lastSeq}`);
-		} else if (entry?.kind === "persona") {
-			const persona = snapshot.personas.find(row => row.id === entry.id.slice("persona:".length));
-			if (persona) lines.push(`${persona.name} · ${persona.role} · revision ${persona.revision}`);
+		this.#selected = id;
+		const entry = this.selectedEntry;
+		this.#requestRender();
+		if (entry?.kind === "team" && entry.teamId && entry.teamId !== this.#snapshot?.team?.id) {
+			return this.refresh(entry.teamId);
 		}
-		lines.push("", theme.fg("dim", "Use /team persona|plan|profile|memory to edit from the conversation."));
-		return lines.map(line => truncateToWidth(line, width)).slice(0, Math.max(1, height));
+		return Promise.resolve();
 	}
 
-	render(width: number): readonly string[] {
-		return this.#frame
-			.render(
-				width,
-				this.#height(),
-				this.#entries,
-				theme.fg("dim", "j/k:select  Enter:open Team  r:refresh  Esc:back"),
-			)
-			.slice(0, this.#height());
+	/** Escape: leave a Team's detail for the team list, else close the view. */
+	cancel(): void {
+		const openTeamId = this.#snapshot?.team?.id;
+		if (openTeamId && this.#selected !== `team:${openTeamId}`) {
+			this.#selected = `team:${openTeamId}`;
+			this.#requestRender();
+			return;
+		}
+		this.#deps.onDone?.();
+	}
+
+	#rebuild(): void {
+		this.#entries = this.#snapshot ? buildTeamWorkspaceEntries(this.#snapshot) : [];
+		if (!this.#entries.some(entry => entry.id === this.#selected)) {
+			this.#selected = this.#entries.find(entry => entry.kind !== "label")?.id ?? "";
+		}
+	}
+
+	#requestRender(): void {
+		if (!this.#disposed) this.#deps.requestRender?.();
 	}
 }

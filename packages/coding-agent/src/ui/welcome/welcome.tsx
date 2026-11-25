@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The welcome card (`omp.welcome`): the lockup — the omp mark beside the
  * `omp` wordmark with the version (and any self-update activity) under it —
@@ -9,8 +9,8 @@
  * logo's gradient on the terminal clock for {@link INTRO_MS} from
  * `introStart`; a native terminal animates its own builtin mark.
  */
-import { type Accessor, computed, type JSXNode, Show, type Signal, signal } from "@oh-my-pi/pi-tui";
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import { type Accessor, computed, type JSXNode, Show, type Signal, signal } from "@linxiraos/pi-tui";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import type { VersionUpdate } from "../../modes/view-model/prompt/welcome";
 import "../styles/welcome";
 import { INTRO_MS } from "./logo";
@@ -77,19 +77,19 @@ export function Welcome(props: WelcomeProps): JSXNode {
 		};
 	};
 	return (
-		<card role="omp.welcome" term={look}>
-			<row key="lockup" role="omp.welcome.lockup" align="center" gap="md">
-				<image key="logo" role="omp.welcome.logo" builtin="omp" alt="omp" w={128} />
-				<col key="mark" role="omp.welcome.mark">
+		<card role="zeta.welcome" term={look}>
+			<row key="lockup" role="zeta.welcome.lockup" align="center" gap="md">
+				<image key="logo" role="zeta.welcome.logo" builtin="zeta" alt="Zeta" w={128} />
+				<col key="mark" role="zeta.welcome.mark">
 					<text
 						key="omp.welcome.wordmark"
-						role="omp.welcome.wordmark"
+						role="zeta.welcome.wordmark"
 						spans={[{ t: "omp", s: "strong" }]}
 						wrap="none"
 					/>
 					<text
 						key="omp.welcome.version"
-						role="omp.welcome.version"
+						role="zeta.welcome.version"
 						spans={() => {
 							const update = props.update();
 							const version: TspSpan = { t: `v${props.version()}`, s: "dim mono" };
@@ -100,10 +100,10 @@ export function Welcome(props: WelcomeProps): JSXNode {
 				</col>
 			</row>
 			<Show when={() => props.tip() !== undefined}>
-				<row key="tip" role="omp.welcome.tip" align="start" gap="sm">
-					<icon role="omp.welcome.tip-icon" name="lightbulb" />
+				<row key="tip" role="zeta.welcome.tip" align="start" gap="sm">
+					<icon role="zeta.welcome.tip-icon" name="lightbulb" />
 					<text
-						role="omp.welcome.tip-text"
+						role="zeta.welcome.tip-text"
 						text={() => {
 							const text = body();
 							return typeof text === "string" ? text : undefined;
@@ -115,7 +115,7 @@ export function Welcome(props: WelcomeProps): JSXNode {
 						wrap="word"
 					/>
 					<Show when={() => isNewTip(props.tip() ?? "")}>
-						<shimmer role="omp.welcome.new" text="New" />
+						<shimmer role="zeta.welcome.new" text="New" />
 					</Show>
 				</row>
 			</Show>

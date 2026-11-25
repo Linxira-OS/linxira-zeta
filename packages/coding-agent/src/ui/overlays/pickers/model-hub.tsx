@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The fullscreen /models hub as a `lg` picker sheet: the sidebar is the
  * picker's scopes (Roles, All models, providers), the model list or the
@@ -6,10 +6,10 @@
  * selection's facts its side preview. State and behaviour live in
  * {@link ModelHubState}; the terminal look is `omp.model-hub`.
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { modelKind } from "@oh-my-pi/pi-catalog/types";
-import { computed, effect, type JSXNode, onCleanup } from "@oh-my-pi/pi-tui";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import { computed, effect, type JSXNode, onCleanup } from "@linxiraos/pi-tui";
 import type {
 	TspPickerAction,
 	TspPickerColumn,
@@ -18,7 +18,7 @@ import type {
 	TspPickerProps,
 	TspPickerScope,
 	TspSpan,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 import {
 	MODEL_PICKER_COLUMNS,
 	type ModelBrowserItem,
@@ -446,7 +446,7 @@ function rolePreview(hub: ModelHubState, row: RolesRow | undefined): JSXNode[] {
 				);
 			} else {
 				children.push(
-					<text role="omp.picker.title" text={info.name} />,
+					<text role="zeta.picker.title" text={info.name} />,
 					<text spans={[{ s: "muted", t: "Not assigned; no available model fits this role." }]} wrap="word" />,
 				);
 			}
@@ -456,23 +456,23 @@ function rolePreview(hub: ModelHubState, row: RolesRow | undefined): JSXNode[] {
 		case "fallback": {
 			const resolved = hub.resolveFallbackEntry(row.role, row.chainIndex);
 			if (resolved) children.push(...modelPreview(hub.browser, resolved.item, "full", hub.currentSelector));
-			else children.push(<text spans={[{ s: "mono", t: row.selector }]} role="omp.picker.title" />);
+			else children.push(<text spans={[{ s: "mono", t: row.selector }]} role="zeta.picker.title" />);
 			chain(row.role);
 			break;
 		}
 		case "chainKey":
-			children.push(<text spans={[{ s: "mono", t: row.role }]} role="omp.picker.title" />);
+			children.push(<text spans={[{ s: "mono", t: row.role }]} role="zeta.picker.title" />);
 			chain(row.role);
 			break;
 		case "newRole":
 			children.push(
-				<text role="omp.picker.title" text="New role" />,
+				<text role="zeta.picker.title" text="New role" />,
 				<text spans={[{ s: "muted", t: "Name a custom role, then pick the model it runs on." }]} wrap="word" />,
 			);
 			break;
 		case "newFallback":
 			children.push(
-				<text role="omp.picker.title" text="New fallback chain" />,
+				<text role="zeta.picker.title" text="New fallback chain" />,
 				<text
 					spans={[{ s: "muted", t: "Pick the model (or provider) a new retry fallback chain protects." }]}
 					wrap="word"
@@ -487,7 +487,7 @@ function rolePreview(hub: ModelHubState, row: RolesRow | undefined): JSXNode[] {
 function lockedPreview(hub: ModelHubState): JSXNode[] {
 	const entry = hub.activeEntry();
 	const children: JSXNode[] = [
-		<text role="omp.picker.title" text={entry.label} />,
+		<text role="zeta.picker.title" text={entry.label} />,
 		<text spans={[{ s: "muted", t: hub.lockedMessage(entry) }]} wrap="word" />,
 	];
 	const count = entry.catalogCount ?? 0;

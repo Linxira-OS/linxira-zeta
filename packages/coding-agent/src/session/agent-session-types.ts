@@ -27,6 +27,8 @@ import type { EffectiveExtensionRoots } from "../capability/types";
 import type { AgentDefinition } from "../task/types";
 import type { AgentRegistryApi } from "../registry/agent-registry";
 import type { SessionClient } from "./session-client";
+import type { MCPEvalNamespaceCatalog } from "../mcp/eval-namespaces";
+import type { ToolCommandState } from "../tools/tool-commands";
 import type { SessionAccountPoolScope } from "../config/account-pools";
 import type { ModelRegistry } from "../config/model-registry";
 import type { ZetaLanguage } from "../i18n";
@@ -294,6 +296,14 @@ export interface AgentSessionConfig {
 	skills?: Skill[];
 	/** Frozen routing hints shared with the system prompt and later skillful notices. */
 	skillDescriptions?: SkillDescriptionCatalog;
+	/** MCP eval namespace hints; {@link AgentSession.startHintCompression} starts them with the skill hints. */
+	mcpNamespaces?: MCPEvalNamespaceCatalog;
+	/** Tool command state shared with the session tool map; undefined while mounting is off. */
+	toolCommands?: ToolCommandState;
+	/** Whether enabled MCP tools present as eval namespaces (`mcp.evalNamespaces`); read at every apply. */
+	bindsMcpToEval?: () => boolean;
+	/** MCP tools of the initial slate presented as eval namespace methods. */
+	evalBoundToolNames?: Iterable<string>;
 	/** Skill loading warnings already captured by the SDK. */
 	skillWarnings?: SkillWarning[];
 	/** Whether runtime reloads may rediscover disk-backed skills. */
@@ -405,6 +415,8 @@ export interface AgentSessionConfig {
 	systemPromptSources?: SystemPromptSources;
 	/** Tools mounted under `xd://`, for `/tools` display. */
 	getXdevToolEntries?: () => Array<{ name: string; summary: string }>;
+	/** Entries of tools mounted as tool commands; empty when none are mounted. */
+	getToolCommandEntries?: () => Array<{ name: string }>;
 	/** `xd://` presentation state backed by the canonical tool map. */
 	xdev?: XdevState;
 	/** Names pinned top-level during runtime repartitioning. */
@@ -488,6 +500,8 @@ export interface AgentSessionConfig {
 
 /** Options for AgentSession.prompt(). */
 export interface PromptOptions {
+	/** Ingress client for this user message (IM bot, relay, RPC host); stamped on the user message. */
+	client?: SessionClient;
 	/** Original submission time when the host has already displayed the prompt. */
 	submittedAt?: number;
 	/** Whether to expand file-based prompt templates (default: true). */
@@ -620,6 +634,10 @@ export interface HandoffResult {
 export interface SessionHandoffOptions {
 	autoTriggered?: boolean;
 	signal?: AbortSignal;
+	/** Request snapshot when the caller already holds the branch messages (bridge/speculation passes). */
+	messages?: readonly AgentMessage[];
+	/** Sees every provider attempt's response, billed or failed, beside the spend journal. */
+	onAttempt?: (message: AssistantMessage) => void;
 }
 
 /** Result from cycleModel(). */

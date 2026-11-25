@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { getTerminalId } from "@oh-my-pi/pi-coding-agent/utils/ttyid";
+import { getTerminalId } from "@linxiraos/zeta/utils/ttyid";
 
 const stdinIsTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
 const terminalEnvKeys = [

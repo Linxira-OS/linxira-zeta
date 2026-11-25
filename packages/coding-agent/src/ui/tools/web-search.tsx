@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Web search: the query as the head target, the provider and source count as
  * meta, the model as a badge; the answer as markdown, then the sources (site
@@ -9,7 +9,7 @@
  * with Query / Answer / Sources / Metadata sections; plain-text results as a
  * `Response` tree.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { PREVIEW_LIMITS, sanitizeDisplayLines } from "../../utils/render-utils";
 import type { ToolHead, ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
@@ -199,7 +199,7 @@ export const webSearchPresenter: ToolPresenter<WebSearchArgs, WebSearchDetails> 
 			return {
 				head: searchHead(args?.query, { meta: [provider] }),
 				tone: "error",
-				body: <text role="omp.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
+				body: <text role="zeta.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
 				term: {
 					look: "web_search",
 					result: true,
@@ -247,18 +247,18 @@ export const webSearchPresenter: ToolPresenter<WebSearchArgs, WebSearchDetails> 
 					<text spans={[{ s: "muted", t: fallback.join("\n") }]} wrap="word" />
 				) : undefined,
 				sources.length > 0 ? (
-					<col key="sources" role="omp.tool.sources">
+					<col key="sources" role="zeta.tool.sources">
 						{termSources.map(({ title, domain, age, publishedDate, excerpt, url }, i) => {
 							const date = age || publishedDate;
 							const meta = domain && date ? `${domain} · ${date}` : domain || date;
 							return (
-								<row key={`${i}:${url ?? ""}`} role="omp.tool.source" gap="sm" align="baseline" href={url}>
+								<row key={`${i}:${url ?? ""}`} role="zeta.tool.source" gap="sm" align="baseline" href={url}>
 									<badge text={domain[0]?.toUpperCase() ?? "?"} title={domain || undefined} />
 									<text spans={[{ s: "link", t: title, href: url }]} lines={2} truncate="end" />
 									{meta ? <text spans={[{ s: "muted", t: meta }]} lines={1} /> : undefined}
 									{excerpt ? (
 										<text
-											role="omp.tool.excerpt"
+											role="zeta.tool.excerpt"
 											spans={[{ s: "muted", t: excerpt.join("\n") }]}
 											wrap="word"
 											lines={EXCERPT_LINES}

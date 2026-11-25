@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import type { UiEvent } from "@oh-my-pi/pi-tui";
-import { corpusEnvironment } from "@oh-my-pi/pi-tui/testing/corpus";
+/** @jsxImportSource @linxiraos/pi-tui */
+import type { UiEvent } from "@linxiraos/pi-tui";
+import { corpusEnvironment } from "@linxiraos/pi-tui/testing/corpus";
 import { MCPAddWizard } from "../../../../src/ui/overlays/panels/mcp-add-wizard";
 import {
 	type MCPAddWizardDeps,

@@ -1,6 +1,7 @@
 Manage this project's calendar: a file-backed event store under `.zeta/calendar/events/` in the session working directory. Event files are an implementation detail; always act through this tool, which derives the directory itself and never accepts a path.
 
 Actions:
+
 - `list` — return events sorted by start. Optional `from`/`to` bound the range (both inclusive; a bare `YYYY-MM-DD` bound covers that whole day). Optional `project` filters by the event's project label, and `limit` caps the result count.
 - `get` — return one event by `id`.
 - `create` — add an event. Requires `title` and `start`; accepts `end`, `allDay`, `location`, `notes`, `tags`, and `project`. `allDay` defaults to whether `start` is a bare date.

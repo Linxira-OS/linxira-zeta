@@ -4,9 +4,9 @@
  * on the paint clock, over a banner with the spaced-out title and the line.
  * Too few rows for the banner leave the sky blank.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { keyLabel } from "../../keys/hints";
 import { termOf } from "./common";
 

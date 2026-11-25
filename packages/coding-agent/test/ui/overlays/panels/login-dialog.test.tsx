@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { LoginDialog, LoginDialogState } from "../../../../src/ui/overlays/panels/login-dialog";
 import { type Driver, panelSuite } from "./harness";
 

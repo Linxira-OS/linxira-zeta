@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * What the inline selectors and hook dialogs send a Tern terminal: each replaces the composer in
  * the dock, as a card there or as a `picker` Tern hoists into `layer`, and the composer comes back
@@ -6,15 +6,15 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
+import { TempDir } from "@linxiraos/pi-utils";
 import { HistorySearch } from "../src/ui/overlays/pickers/history-search";
 import { ResetUsageSelector } from "../src/ui/overlays/pickers/reset-usage-selector";
 import { TreeSelector, type TreeSelectorNode } from "../src/ui/overlays/pickers/tree-selector";

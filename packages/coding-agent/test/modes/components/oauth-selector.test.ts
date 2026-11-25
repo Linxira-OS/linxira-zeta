@@ -1,11 +1,11 @@
 import { afterAll, afterEach, describe, expect, it } from "bun:test";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { OAuthSelector, type OAuthSelectorAuthSource } from "../../../src/ui/overlays/pickers/oauth-selector";
 import { mountOverlay } from "../../helpers/overlay-terminal";
 
-import { cfgDisabledProviders } from "@oh-my-pi/pi-coding-agent/config/model-settings";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { cfgDisabledProviders } from "@linxiraos/zeta/config/model-settings";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

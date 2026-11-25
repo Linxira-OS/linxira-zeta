@@ -34,7 +34,7 @@ export function formatPersistenceDurabilityFailure(message: string): string {
 export function formatPersistenceNotice(notice: SessionPersistenceNotice): string {
 	const from = shortenPath(notice.from);
 	const to = shortenPath(notice.to);
-	let message: string;
+	let message = `Session ${from} changed on disk; this session now saves to ${to}.`;
 	switch (notice.reason) {
 		case "open-elsewhere":
 			message = `Session ${from} is open for writing in another omp process, so this session now saves to ${to} instead of mixing its entries into that file.`;

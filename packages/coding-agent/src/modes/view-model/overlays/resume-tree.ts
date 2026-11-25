@@ -10,12 +10,11 @@
  */
 
 import * as path from "node:path";
-import { type Component, Input, matchesKey, padding, truncateToWidth, visibleWidth } from "../index";
-import { tuiText, tuiTextFmt } from "../i18n";
-import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
-import { routeSgrMouseInput, type SgrMouseEvent } from "../mouse";
-import { theme } from "../theme/theme";
-import type { ThemeColor } from "../theme/theme";
+import { type TspTone } from "@linxiraos/pi-wire";
+import { tuiText, tuiTextFmt } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { truncateToWidth } from "../../../utils/text-width";
 
 export type ResumeTreeScope = "workspace" | "project" | "all";
 
@@ -227,7 +226,7 @@ export interface ResumeTreeOptions {
 const CURRENT_LABEL_KEY = "resumeCurrentLabel";
 const PINNED_LABEL_KEY = "resumePinnedLabel";
 
-function statusWord(status: ResumeTreeStatus | undefined): { text: string; tone: ThemeColor } | undefined {
+function statusWord(status: ResumeTreeStatus | undefined): { text: string; tone: TspTone } | undefined {
 	switch (status) {
 		case "complete":
 			return { text: tuiText("ssStatusDone", "done"), tone: "success" };
@@ -439,10 +438,10 @@ function conversationTurns(row: ResumeTreeConversationRow): string {
 		: tuiTextFmt("resumeTurnCountFmt", "%d turns", row.conversation.messageCount);
 }
 
-function conversationFlags(row: ResumeTreeConversationRow): { text: string; tone: ThemeColor }[] {
-	const flags: { text: string; tone: ThemeColor }[] = [];
+function conversationFlags(row: ResumeTreeConversationRow): { text: string; tone: TspTone }[] {
+	const flags: { text: string; tone: TspTone }[] = [];
 	if (row.current) flags.push({ text: tuiText(CURRENT_LABEL_KEY, "current"), tone: "accent" });
-	if (row.conversation.fork) flags.push({ text: tuiText("ssForkLabel", "fork"), tone: "dim" });
+	if (row.conversation.fork) flags.push({ text: tuiText("ssForkLabel", "fork"), tone: "muted" });
 	if (row.pinned) flags.push({ text: tuiText(PINNED_LABEL_KEY, "pinned"), tone: "accent" });
 	return flags;
 }
@@ -464,7 +463,7 @@ export function conversationColumns(rows: readonly ResumeTreeConversationRow[], 
 		widths.age = Math.max(widths.age, visibleWidth(conversationAge(row, now)));
 		const flags = conversationFlags(row)
 			.map(flag => flag.text)
-			.join(` ${theme.sep.dot} `);
+			.join(` ${currentTheme().symbols.symbol("sep.dot")} `);
 		widths.flags = Math.max(widths.flags, visibleWidth(flags));
 	}
 	return widths;
@@ -472,7 +471,7 @@ export function conversationColumns(rows: readonly ResumeTreeConversationRow[], 
 
 /** `⋯` at the right edge of a menu-bearing row. */
 function menuAffordance(): string {
-	return theme.fg("muted", "⋯");
+	return currentTheme().fg("muted", "⋯");
 }
 
 /**
@@ -492,10 +491,12 @@ export function renderConversationRow(
 	},
 ): string {
 	const selected = options.selected;
-	const cursor = selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
-	const indent = padding(CONVERSATION_INDENT);
+	const cursor = selected
+		? currentTheme().fg("accent", `${currentTheme().symbols.symbol("nav.cursor")} `)
+		: " ".repeat(2);
+	const indent = " ".repeat(CONVERSATION_INDENT);
 	if (row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
-		return truncateToWidth(`${cursor}${indent}${theme.fg("muted", row.conversation.title)}`, options.width);
+		return truncateToWidth(`${cursor}${indent}${currentTheme().fg("muted", row.conversation.title)}`, options.width);
 	}
 	const columns = options.columns ?? conversationColumns([row], options.now);
 	const status = statusWord(row.conversation.status);
@@ -508,7 +509,9 @@ export function renderConversationRow(
 		parts.push({
 			id: "flags",
 			text: padStartVisible(
-				flags.map(flag => theme.fg(flag.tone, flag.text)).join(` ${theme.fg("dim", theme.sep.dot)} `),
+				flags
+					.map(flag => currentTheme().fg(flag.tone, flag.text))
+					.join(` ${currentTheme().fg("dim", currentTheme().symbols.symbol("sep.dot"))} `),
 				columns.flags,
 			),
 		});
@@ -519,7 +522,8 @@ export function renderConversationRow(
 	// Drop metadata only when the title would otherwise be unreadable, in
 	// priority order: flags, turns, age. The menu glyph never drops.
 	const dropOrder: ("flags" | "turns" | "age")[] = ["flags", "turns", "age"];
-	const joinParts = () => parts.map(part => part.text).join(` ${theme.fg("dim", theme.sep.dot)} `);
+	const joinParts = () =>
+		parts.map(part => part.text).join(` ${currentTheme().fg("dim", currentTheme().symbols.symbol("sep.dot"))} `);
 	while (parts.length > 0 && statusWidth + 8 + visibleWidth(joinParts()) + MENU_WIDTH + 1 > available) {
 		const id = dropOrder.shift();
 		if (!id) break;
@@ -537,15 +541,15 @@ export function renderConversationRow(
 	if (detail) {
 		const detailBudget = Math.min(40, Math.floor(leftBudget * 0.45));
 		if (detailBudget >= 8 && leftBudget - detailBudget - 2 >= 8) {
-			detailText = `  ${theme.fg("dim", truncateResumePath(detail, detailBudget))}`;
+			detailText = `  ${currentTheme().fg("dim", truncateResumePath(detail, detailBudget))}`;
 			titleWidth = leftBudget - visibleWidth(detailText);
 		}
 	}
 	const title = truncateToWidth(row.conversation.title || row.conversation.id, Math.max(1, titleWidth));
-	const statusText = status ? theme.fg(status.tone, padStartVisible(status.text, columns.status)) : "";
+	const statusText = status ? currentTheme().fg(status.tone, padStartVisible(status.text, columns.status)) : "";
 	const left = `${statusText}${" ".repeat(Math.max(0, statusWidth - visibleWidth(statusText)))}${title}${detailText}`;
 	const line = alignRow("", left, right, available);
-	const rendered = selected ? theme.bold(line) : line;
+	const rendered = selected ? currentTheme().style("strong", line) : line;
 	return truncateToWidth(`${cursor}${indent}${rendered}`, options.width);
 }
 
@@ -567,20 +571,23 @@ export function renderWorkspaceRow(
 		showPath?: boolean;
 	},
 ): string {
-	const cursor = options.selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
-	const indent = padding(WORKSPACE_INDENT);
+	const cursor = options.selected
+		? currentTheme().fg("accent", `${currentTheme().symbols.symbol("nav.cursor")} `)
+		: " ".repeat(2);
+	const indent = " ".repeat(WORKSPACE_INDENT);
 	const fold = options.collapsed ? "▸" : "▾";
 	const name = row.workspace.displayName || row.workspace.alias || row.workspace.name || row.workspace.path;
 	const branch = shouldShowBranch(row.workspace.branch, options.referenceBranch, options.current === true, name)
-		? ` ${theme.fg("warning", `[${row.workspace.branch}]`)}`
+		? ` ${currentTheme().fg("warning", `[${row.workspace.branch}]`)}`
 		: "";
-	const nameStyled = theme.bold(theme.fg("accent", name));
-	const right = `${theme.fg("dim", conversationCountText(row))} ${menuAffordance()}`;
+	const nameStyled = currentTheme().style("strong", currentTheme().fg("accent", name));
+	const right = `${currentTheme().fg("dim", conversationCountText(row))} ${menuAffordance()}`;
 	const budget = leftBudgetFor(cursor, [right], options.width);
-	const base = `${theme.fg("muted", fold)} ${nameStyled}${branch}`;
+	const base = `${currentTheme().fg("muted", fold)} ${nameStyled}${branch}`;
 	const path = options.showPath === false ? "" : formatResumePath(row.workspace.path, options.fullPaths === true);
 	const pathBudget = budget.budget - visibleWidth(indent) - visibleWidth(base) - 2;
-	const pathText = path && pathBudget >= 4 ? `  ${theme.fg("dim", truncateResumePath(path, pathBudget))}` : "";
+	const pathText =
+		path && pathBudget >= 4 ? `  ${currentTheme().fg("dim", truncateResumePath(path, pathBudget))}` : "";
 	return alignRow(cursor, indent + base + pathText, budget.right, options.width);
 }
 
@@ -599,37 +606,45 @@ export function renderProjectRow(
 		fullPaths?: boolean;
 	},
 ): string {
-	const cursor = options.selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
+	const cursor = options.selected
+		? currentTheme().fg("accent", `${currentTheme().symbols.symbol("nav.cursor")} `)
+		: " ".repeat(2);
 	if (row.key === MORE_PROJECTS_KEY) {
-		return truncateToWidth(`${cursor}${theme.fg("muted", row.project.displayName)}`, options.width);
+		return truncateToWidth(`${cursor}${currentTheme().fg("muted", row.project.displayName)}`, options.width);
 	}
-	const indent = padding(PROJECT_INDENT);
+	const indent = " ".repeat(PROJECT_INDENT);
 	const fold = options.collapsed ? "▸" : "▾";
-	const pin = row.pinned ? `${theme.icon.pin} ` : "";
+	const pin = row.pinned ? `${currentTheme().symbols.icon("pin")} ` : "";
 	const name = row.project.displayName || row.project.name;
 	const workspaces =
 		row.totalWorkspaceCount === 1
 			? tuiText("resumeWorkspaceCountOne", "1 workspace")
 			: tuiTextFmt("resumeWorkspaceCountFmt", "%d workspaces", row.totalWorkspaceCount);
-	const count = theme.fg("dim", conversationCountText(row));
+	const count = currentTheme().fg("dim", conversationCountText(row));
 	const activity = row.project.lastActivity
-		? theme.fg("dim", formatResumeAge(row.project.lastActivity, options.now))
+		? currentTheme().fg("dim", formatResumeAge(row.project.lastActivity, options.now))
 		: "";
-	const right = [count, theme.fg("dim", workspaces), activity]
+	const right = [count, currentTheme().fg("dim", workspaces), activity]
 		.filter(Boolean)
-		.join(` ${theme.fg("dim", theme.sep.dot)} `);
-	const compact = [count, theme.fg("dim", workspaces)].filter(Boolean).join(` ${theme.fg("dim", theme.sep.dot)} `);
+		.join(` ${currentTheme().fg("dim", currentTheme().symbols.symbol("sep.dot"))} `);
+	const compact = [count, currentTheme().fg("dim", workspaces)]
+		.filter(Boolean)
+		.join(` ${currentTheme().fg("dim", currentTheme().symbols.symbol("sep.dot"))} `);
 	const budget = leftBudgetFor(cursor, [right, compact, count], options.width);
-	const base = `${indent}${theme.fg("muted", fold)} ${pin}${theme.bold(theme.fg("accent", name))}`;
+	const base = `${indent}${currentTheme().fg("muted", fold)} ${pin}${currentTheme().style("strong", currentTheme().fg("accent", name))}`;
 	const path = formatResumePath(row.project.root, options.fullPaths === true);
 	const pathBudget = budget.budget - visibleWidth(base) - 3; // ` (` + `)` + a space
-	const pathTag = path && pathBudget >= 3 ? ` ${theme.fg("dim", `(${truncateResumePath(path, pathBudget)})`)}` : "";
+	const pathTag =
+		path && pathBudget >= 3 ? ` ${currentTheme().fg("dim", `(${truncateResumePath(path, pathBudget)})`)}` : "";
 	return alignRow(cursor, base + pathTag, budget.right, options.width);
 }
 
 /** Full-width rule closing a project section header. */
 export function renderProjectRule(width: number): string {
-	return truncateToWidth(theme.fg("dim", theme.boxRound.horizontal.repeat(Math.max(0, width))), width);
+	return truncateToWidth(
+		currentTheme().fg("dim", currentTheme().symbols.box.horizontal.repeat(Math.max(0, width))),
+		width,
+	);
 }
 
 /**
@@ -638,7 +653,10 @@ export function renderProjectRule(width: number): string {
  * the eye can find where one project ends and the next begins.
  */
 export function renderProjectSeparator(width: number): string {
-	return truncateToWidth(theme.fg("muted", theme.boxRound.horizontal.repeat(Math.max(0, width))), width);
+	return truncateToWidth(
+		currentTheme().fg("muted", currentTheme().symbols.box.horizontal.repeat(Math.max(0, width))),
+		width,
+	);
 }
 
 /** A scope-segment hit range on the header line, in tree-local columns. */
@@ -665,12 +683,14 @@ export function renderScopeHeaderHits(
 		const count = summary.counts[kind] ?? 0;
 		const plain = `${selected ? "[" : " "}${label}${selected ? "]" : " "}`;
 		parts.push({
-			text: selected ? theme.bold(theme.fg("accent", plain)) : theme.fg("muted", plain),
+			text: selected
+				? currentTheme().style("strong", currentTheme().fg("accent", plain))
+				: currentTheme().fg("muted", plain),
 			priority: selected ? 1_000 : 100,
 			kind,
 			plain,
 		});
-		parts.push({ text: theme.fg("dim", `${count}`), priority: selected ? 200 : 40 });
+		parts.push({ text: currentTheme().fg("dim", `${count}`), priority: selected ? 200 : 40 });
 	}
 	let rendered = parts.map(part => part.text).join(" ");
 	const dropable = parts.filter(part => part.priority < 1_000).sort((a, b) => a.priority - b.priority);
@@ -891,15 +911,30 @@ function moreConversationsRow(template: ResumeTreeConversationRow, count: number
 	};
 }
 
+/** Rename in progress: the row and its uncommitted value. */
+export interface ResumeTreeRenameState {
+	readonly key: string;
+	readonly kind: "workspace" | "conversation";
+	readonly value: string;
+}
+
+/** Search observer of the resume tree: the query plus its focus. */
+export interface ResumeTreeSearchState {
+	readonly query: string;
+	readonly focused: boolean;
+}
+
 /**
- * The ANSI resume tree component. The host mounts it inside its panel chrome;
- * this component renders the scope control, search field, banners and rows.
+ * The resume tree's state: scope, path format, collapse sets, search, view
+ * caching, selection and the pin/rename/hide/delete actions.
+ *
+ * Row rendering lives in the host UI; `flattenResumeRows` and the row
+ * formatters above stay here because they are shared by every host.
  */
-export class ResumeTreeComponent implements Component {
+export class ResumeTreeModel {
+	readonly #options: ResumeTreeOptions;
 	readonly #source: ResumeTreeSource;
-	readonly #search: Input;
-	readonly #getTerminalRows: () => number;
-	readonly #state: ResumeTreeState = {
+	#state: ResumeTreeState = {
 		collapsedProjects: new Set(),
 		expandedProjects: new Set(),
 		collapsedWorkspaces: new Set(),
@@ -908,49 +943,24 @@ export class ResumeTreeComponent implements Component {
 	};
 	#scope: ResumeTreeScope;
 	#fullPaths = false;
+	#query = "";
+	#searchFocused: boolean;
 	#view: ResumeTreeView | null = null;
 	#viewQuery = "\0";
 	#viewScope: ResumeTreeScope | null = null;
-	#searchFocused: boolean;
 	#selectedKey: string | undefined;
-	#scrollOffset = 0;
-	#deleteTarget: ResumeTreeConversationRow | null = null;
-	/** Keys pressed on the skeleton while the host's first scan is in flight. */
-	#pendingKeys: string[] | undefined;
 	#busy = false;
 	#notice: string | undefined;
 	#expandedOnce = false;
-	#menu: ResumeTreeMenu | undefined;
-	#rename: ResumeTreeRename | undefined;
-	/** Row hit map captured from the last render (`row → action`). */
-	#hitRows = new Map<number, { kind: "conversation" | "toggle"; key: string }>();
-	/** Lines whose last column is the row's `⋯` menu affordance. */
-	#menuHits = new Map<number, { kind: ResumeTreeMenuKind; key: string; start: number }>();
-	/** Menu item lines captured from the last render. */
-	#menuItemHits = new Map<number, number>();
-	/** Rename/delete modal button ranges, keyed by rendered line. */
-	#renameButtonHits = new Map<number, { confirm?: ResumeButtonHit; cancel?: ResumeButtonHit }>();
-	#deleteButtonHits = new Map<number, { confirm?: ResumeButtonHit; cancel?: ResumeButtonHit }>();
-	/** Scope-segment hit ranges on the header line. */
-	#scopeHits: ResumeScopeHit[] = [];
-	/** Local line/column offset of this component inside the fullscreen frame. */
-	#lineOffset = 0;
-	#columnOffset = 0;
-	#lastClick: { key: string; time: number } | undefined;
-	readonly onSelect: (conversation: ResumeTreeConversation) => void;
-	readonly onCancel: () => void;
-	readonly onExit: () => void;
-	onRequestRender?: () => void;
+	#deleteTarget: ResumeTreeConversationRow | null = null;
+	#rename: ResumeTreeRenameState | undefined;
+	#disposed = false;
 
 	constructor(options: ResumeTreeOptions) {
+		this.#options = options;
 		this.#source = options.source;
 		this.#scope = options.source.initialScope;
-		this.#getTerminalRows = options.getTerminalRows ?? (() => 24);
 		this.#searchFocused = options.searchFocused ?? true;
-		this.onSelect = options.onSelect;
-		this.onCancel = options.onCancel;
-		this.onExit = options.onExit;
-		this.onRequestRender = options.onRequestRender;
 		const restored = options.source.pickerState?.();
 		if (restored) {
 			this.#scope = restored.scope;
@@ -959,23 +969,65 @@ export class ResumeTreeComponent implements Component {
 			for (const key of restored.expandedProjects ?? []) this.#state.expandedProjects.add(key);
 			for (const key of restored.collapsedWorkspaces ?? []) this.#state.collapsedWorkspaces.add(key);
 		}
-		this.#search = new Input();
-		this.#search.prompt = "/ ";
-		this.#search.onSubmit = () => this.#activate();
-		this.#search.onEscape = () => this.#clearSearch();
 	}
 
-	/** Persist scope + local expansion together (the host owns the file). */
-	#persistState(): void {
-		const state: ResumeTreePickerState = {
-			scope: this.#scope,
-			collapsedProjects: [...this.#state.collapsedProjects],
-			expandedProjects: [...this.#state.expandedProjects],
-			collapsedWorkspaces: [...this.#state.collapsedWorkspaces],
-			fullPaths: this.#fullPaths,
-		};
-		if (this.#source.persistPickerState) void this.#source.persistPickerState(state);
-		else void this.#source.persistScope?.(this.#scope);
+	get scope(): ResumeTreeScope {
+		return this.#scope;
+	}
+	get fullPaths(): boolean {
+		return this.#fullPaths;
+	}
+	get search(): ResumeTreeSearchState {
+		return { query: this.#query, focused: this.#searchFocused };
+	}
+	get view(): ResumeTreeView | null {
+		return this.#viewFor();
+	}
+	get visibleRows(): readonly FlatRow[] {
+		return this.#visibleRows();
+	}
+	get selectedKey(): string | undefined {
+		return this.#selectedKey;
+	}
+	get selectedRow(): ResumeTreeRow | undefined {
+		return this.#visibleRows().find(entry => rowIdentity(entry.row) === this.#selectedKey)?.row;
+	}
+	get notice(): string | undefined {
+		return this.#notice;
+	}
+	get busy(): boolean {
+		return this.#busy;
+	}
+	get deleteTarget(): ResumeTreeConversationRow | null {
+		return this.#deleteTarget;
+	}
+	get rename(): ResumeTreeRenameState | undefined {
+		return this.#rename;
+	}
+	get showHidden(): boolean {
+		return this.#source.showHidden === true;
+	}
+	get hiddenCount(): number {
+		return this.#source.hiddenCount?.() ?? 0;
+	}
+	get deleteMode(): ResumeTreeDeleteMode {
+		return this.#source.deleteMode;
+	}
+	get scanWarningNames(): readonly string[] {
+		return this.#source.scanWarningNames?.() ?? [];
+	}
+	get loadError(): string | undefined {
+		return this.#source.loadError?.();
+	}
+	get loading(): boolean {
+		return this.#source.isLoading?.() ?? false;
+	}
+	get scopeSummary(): ResumeTreeScopeSummary {
+		return this.#source.scopeSummary();
+	}
+
+	dispose(): void {
+		this.#disposed = true;
 	}
 
 	/** Rebuild the cached view (call after the host refreshes its directory). */
@@ -984,39 +1036,11 @@ export class ResumeTreeComponent implements Component {
 		this.#viewQuery = "\0";
 	}
 
-	get scope(): ResumeTreeScope {
-		return this.#scope;
-	}
-
-	get fullPaths(): boolean {
-		return this.#fullPaths;
-	}
-
-	/**
-	 * Toggle absolute paths. In workspace scope the path is redundant, so the
-	 * key surfaces a one-line hint and leaves the setting untouched; the
-	 * project/all scopes actually flip and persist it.
-	 */
-	toggleFullPaths(): void {
-		if (this.#scope === "workspace") {
-			this.#notice = tuiText(
-				"resumeFullPathsWorkspaceHint",
-				"Full paths matter outside this workspace — press f after Tab",
-			);
-			this.onRequestRender?.();
-			return;
-		}
-		this.#fullPaths = !this.#fullPaths;
-		this.#notice = undefined;
-		this.#persistState();
-		this.onRequestRender?.();
-	}
-
 	/** Adopt a host-refreshed view while keeping selection and collapse state. */
 	setView(view: ResumeTreeView | null): void {
 		this.#view = view;
 		this.#viewScope = this.#scope;
-		this.#viewQuery = this.#search.getValue();
+		this.#viewQuery = this.#query;
 	}
 
 	/** Cycle workspace → project → all → workspace. */
@@ -1034,7 +1058,23 @@ export class ResumeTreeComponent implements Component {
 		this.invalidate();
 		this.#persistState();
 		this.#rebuild();
-		this.onRequestRender?.();
+		this.#requestRender();
+	}
+
+	/** Toggle absolute paths; workspace scope only explains why it is redundant. */
+	toggleFullPaths(): void {
+		if (this.#scope === "workspace") {
+			this.#notice = tuiText(
+				"resumeFullPathsWorkspaceHint",
+				"Full paths matter outside this workspace — press f after Tab",
+			);
+			this.#requestRender();
+			return;
+		}
+		this.#fullPaths = !this.#fullPaths;
+		this.#notice = undefined;
+		this.#persistState();
+		this.#requestRender();
 	}
 
 	/** Re-read the directory through the host source. */
@@ -1042,7 +1082,7 @@ export class ResumeTreeComponent implements Component {
 		if (this.#busy) return;
 		this.#busy = true;
 		this.#notice = undefined;
-		this.onRequestRender?.();
+		this.#requestRender();
 		try {
 			await this.#source.refresh?.();
 			this.invalidate();
@@ -1055,24 +1095,273 @@ export class ResumeTreeComponent implements Component {
 			);
 		} finally {
 			this.#busy = false;
-			this.onRequestRender?.();
+			this.#requestRender();
 		}
 	}
 
-	/** Focus the search field (the `/` key, and the initial state). */
+	/** Focus the search field. */
 	focusSearch(): void {
 		this.#searchFocused = true;
+		this.#requestRender();
 	}
 
-	#clearSearch(): void {
-		if (this.#search.getValue().length === 0) {
-			this.onCancel();
+	/** Replace the query; the view is rebuilt on the next read. */
+	setQuery(query: string): void {
+		this.#query = query;
+		this.#searchFocused = query.length > 0;
+		this.#rebuild();
+		this.#requestRender();
+	}
+
+	/** Escape: clear the query, else close the picker. */
+	cancel(): void {
+		if (this.#query.length === 0) {
+			this.#options.onCancel();
 			return;
 		}
-		this.#search.setValue("");
+		this.#query = "";
 		this.#searchFocused = false;
 		this.invalidate();
 		this.#rebuild();
+		this.#requestRender();
+	}
+
+	/** Leave the picker for the caller's exit path. */
+	exit(): void {
+		this.#options.onExit();
+	}
+
+	/** Move the selection by `delta` visible rows. */
+	move(delta: number): void {
+		this.#searchFocused = false;
+		const flat = this.#visibleRows();
+		if (flat.length === 0) return;
+		const index = this.#selectedIndex(flat);
+		this.#selectedKey = rowIdentity(flat[Math.max(0, Math.min(flat.length - 1, index + delta))]!.row);
+		this.#requestRender();
+	}
+
+	/** Page the selection by `size` rows. */
+	page(direction: 1 | -1, size: number): void {
+		this.move(direction * Math.max(2, Math.floor(size / 2)));
+	}
+
+	/** Select the row `delta` visible rows away without changing pane focus. */
+	selectIndex(index: number): void {
+		const flat = this.#visibleRows();
+		const entry = flat[Math.max(0, Math.min(flat.length - 1, index))];
+		if (entry) this.#selectedKey = rowIdentity(entry.row);
+		this.#requestRender();
+	}
+
+	/** Enter: resume the selected conversation; a header folds instead. */
+	activate(): void {
+		const row = this.selectedRow;
+		if (!row) return;
+		if (row.type === "conversation") {
+			if (row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
+				this.#state.expandedConversationGroups?.add(row.workspaceKey);
+				this.#rebuild();
+				this.#requestRender();
+				return;
+			}
+			this.#options.onSelect(row.conversation);
+			return;
+		}
+		this.toggleSelectedCollapse();
+	}
+
+	/** Space/right/left: fold or unfold the selected project or workspace. */
+	toggleSelectedCollapse(): void {
+		const row = this.selectedRow;
+		if (!row) return;
+		if (row.type === "conversation") {
+			if (row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
+				this.#state.expandedConversationGroups?.add(row.workspaceKey);
+				this.#rebuild();
+			}
+			this.#requestRender();
+			return;
+		}
+		if (row.type === "project") {
+			if (row.key === MORE_PROJECTS_KEY) {
+				this.#state.showAllProjects = true;
+				this.#rebuild();
+				this.#requestRender();
+				return;
+			}
+			if (projectCollapsed(row, this.#state)) {
+				this.#state.collapsedProjects.delete(row.key);
+				this.#state.expandedProjects.add(row.key);
+			} else {
+				this.#state.expandedProjects.delete(row.key);
+				this.#state.collapsedProjects.add(row.key);
+			}
+		} else {
+			if (this.#state.collapsedWorkspaces.has(row.key)) this.#state.collapsedWorkspaces.delete(row.key);
+			else this.#state.collapsedWorkspaces.add(row.key);
+		}
+		this.#rebuild();
+		this.#requestRender();
+	}
+
+	/** Left: collapse the selection, or jump to its parent group. */
+	collapseOrParent(): void {
+		const row = this.selectedRow;
+		if (!row) return;
+		if (row.type === "project" && !projectCollapsed(row, this.#state)) {
+			this.toggleSelectedCollapse();
+			return;
+		}
+		if (row.type === "workspace" && !this.#state.collapsedWorkspaces.has(row.key)) {
+			this.toggleSelectedCollapse();
+			return;
+		}
+		const parentKey =
+			row.type === "conversation" ? row.workspaceKey : row.type === "workspace" ? row.projectKey : undefined;
+		if (!parentKey) return;
+		const flat = this.#visibleRows();
+		const parent = flat.find(entry => entry.row.key === parentKey && entry.row.type !== "conversation");
+		if (parent) this.#selectedKey = rowIdentity(parent.row);
+		this.#requestRender();
+	}
+
+	/** Right: unfold the selection, or step into its first child. */
+	expandOrChild(): void {
+		const row = this.selectedRow;
+		if (!row) return;
+		if (row.type === "project" && projectCollapsed(row, this.#state)) {
+			this.toggleSelectedCollapse();
+			return;
+		}
+		if (row.type === "workspace" && this.#state.collapsedWorkspaces.has(row.key)) {
+			this.toggleSelectedCollapse();
+			return;
+		}
+		const flat = this.#visibleRows();
+		const index = this.#selectedIndex(flat);
+		const child = flat[index + 1];
+		if (child && (child.parentKey === row.key || child.row.type === "workspace")) {
+			this.#selectedKey = rowIdentity(child.row);
+			this.#requestRender();
+		}
+	}
+
+	/** `a`: pin or unpin the selected row (workspace or conversation). */
+	async pinSelected(): Promise<void> {
+		const row = this.selectedRow;
+		if (!row) return;
+		try {
+			if (row.type === "conversation") {
+				await this.#source.pinConversation?.(row.conversation, !row.pinned);
+			} else if (row.type === "workspace") {
+				await this.#source.pinWorkspace?.(row.workspace, !row.pinned);
+			} else if (row.type === "project") {
+				await this.#source.pinProject?.(row.project, !row.pinned);
+			}
+			await this.refresh();
+		} catch (error) {
+			this.#notice = error instanceof Error ? error.message : String(error);
+			this.#requestRender();
+		}
+	}
+
+	/** Hide/unhide the selected row via shared metadata. */
+	async hideSelected(): Promise<void> {
+		const row = this.selectedRow;
+		if (!row) return;
+		try {
+			if (row.type === "conversation") await this.#source.hideConversation?.(row.conversation, true);
+			else if (row.type === "workspace") await this.#source.hideWorkspace?.(row.workspace, true);
+			await this.refresh();
+		} catch (error) {
+			this.#notice = error instanceof Error ? error.message : String(error);
+			this.#requestRender();
+		}
+	}
+
+	/** Toggle shared-hidden rows. */
+	toggleShowHidden(): void {
+		this.#source.setShowHidden?.(!this.showHidden);
+		this.invalidate();
+		this.#rebuild();
+		this.#requestRender();
+	}
+
+	/** Start renaming the selected workspace or conversation. */
+	beginRename(value: string): boolean {
+		const row = this.selectedRow;
+		if (!row || row.type === "project") return false;
+		if (row.type === "conversation" && this.#source.canRenameConversation?.(row.conversation) === false) return false;
+		this.#rename = {
+			key: row.key,
+			kind: row.type,
+			value,
+		};
+		this.#requestRender();
+		return true;
+	}
+
+	/** Update the rename draft. */
+	setRenameValue(value: string): void {
+		if (this.#rename) this.#rename = { ...this.#rename, value };
+	}
+
+	cancelRename(): void {
+		this.#rename = undefined;
+		this.#requestRender();
+	}
+
+	/** Commit the rename through the source; closes on success. */
+	async commitRename(): Promise<boolean> {
+		const rename = this.#rename;
+		const row = this.selectedRow;
+		if (!rename || !row) return false;
+		try {
+			if (rename.kind === "conversation" && row.type === "conversation") {
+				await this.#source.renameConversation?.(row.conversation, rename.value);
+			} else if (rename.kind === "workspace" && row.type === "workspace") {
+				await this.#source.renameWorkspace?.(row.workspace, rename.value || null);
+			}
+			this.#rename = undefined;
+			await this.refresh();
+			return true;
+		} catch (error) {
+			this.#notice = error instanceof Error ? error.message : String(error);
+			this.#requestRender();
+			return false;
+		}
+	}
+
+	/** Ask for delete confirmation of the selected conversation. */
+	requestDelete(): boolean {
+		const row = this.selectedRow;
+		if (!row || row.type !== "conversation") return false;
+		this.#deleteTarget = row;
+		this.#requestRender();
+		return true;
+	}
+
+	cancelDelete(): void {
+		this.#deleteTarget = null;
+		this.#requestRender();
+	}
+
+	/** Delete the pending conversation (`trash` or `permanent` per the source). */
+	async confirmDelete(): Promise<boolean> {
+		const target = this.#deleteTarget;
+		if (!target) return false;
+		try {
+			const deleted = await this.#source.deleteConversation?.(target.conversation);
+			this.#deleteTarget = null;
+			if (deleted !== false) await this.refresh();
+			return deleted !== false;
+		} catch (error) {
+			this.#notice = error instanceof Error ? error.message : String(error);
+			this.#deleteTarget = null;
+			this.#requestRender();
+			return false;
+		}
 	}
 
 	#visibleRows(): FlatRow[] {
@@ -1083,23 +1372,19 @@ export class ResumeTreeComponent implements Component {
 	}
 
 	#viewFor(): ResumeTreeView | null {
-		const query = this.#search.getValue();
-		if (this.#view && this.#viewScope === this.#scope && this.#viewQuery === query) return this.#view;
+		if (this.#view && this.#viewScope === this.#scope && this.#viewQuery === this.#query) return this.#view;
 		this.#view = this.#source.buildView({
 			scope: this.#scope,
-			query,
+			query: this.#query,
 			currentSessionPath: this.#source.currentSessionPath?.(),
 		});
 		this.#viewScope = this.#scope;
-		this.#viewQuery = query;
+		this.#viewQuery = this.#query;
 		if (!this.#expandedOnce) {
 			// Seed local collapse state from the model so the first paint agrees
 			// with the persisted project flags.
-			const view = this.#view;
-			if (view) {
-				for (const row of view.rows) {
-					if (row.type === "project" && row.collapsed) this.#state.collapsedProjects.add(row.key);
-				}
+			for (const row of this.#view?.rows ?? []) {
+				if (row.type === "project" && row.collapsed) this.#state.collapsedProjects.add(row.key);
 			}
 			this.#expandedOnce = true;
 		}
@@ -1118,7 +1403,6 @@ export class ResumeTreeComponent implements Component {
 			const firstConversation = flat.find(entry => entry.row.type === "conversation") ?? flat[0]!;
 			this.#selectedKey = rowIdentity(firstConversation.row);
 		}
-		this.#clampScroll();
 	}
 
 	#selectedIndex(flat: readonly FlatRow[]): number {
@@ -1127,1049 +1411,19 @@ export class ResumeTreeComponent implements Component {
 		return index < 0 ? 0 : index;
 	}
 
-	#move(delta: number): void {
-		this.#searchFocused = false;
-		const flat = this.#visibleRows();
-		if (flat.length === 0) return;
-		const next = Math.max(0, Math.min(flat.length - 1, this.#selectedIndex(flat) + delta));
-		this.#selectedKey = rowIdentity(flat[next]!.row);
-		this.#clampScroll();
-	}
-
-	#pageSize(): number {
-		return Math.max(2, Math.floor(this.#listHeight() / 2));
-	}
-
-	#listHeight(): number {
-		return Math.max(3, this.#getTerminalRows() - 9);
-	}
-
-	/** Rendered line count for one row: a project header carries a rule under it. */
-	#rowLines(row: ResumeTreeRow): number {
-		return row.type === "project" && row.key !== MORE_PROJECTS_KEY ? 2 : 1;
-	}
-
-	/**
-	 * Rendered line count per flattened row, including the boundary rule that
-	 * precedes every project after the first. Separators are not rows, so
-	 * selection and scroll arithmetic count them here.
-	 */
-	#lineCounts(flat: readonly FlatRow[]): number[] {
-		let seenProject = false;
-		return flat.map(entry => {
-			const more = entry.row.key === MORE_PROJECTS_KEY;
-			const separator = entry.row.type === "project" && !more && seenProject ? 1 : 0;
-			if (entry.row.type === "project" && !more) seenProject = true;
-			return separator + this.#rowLines(entry.row);
-		});
-	}
-
-	#clampScroll(): void {
-		const flat = this.#visibleRows();
-		const height = this.#listHeight();
-		const index = this.#selectedIndex(flat);
-		const counts = this.#lineCounts(flat);
-		let start = Math.min(this.#scrollOffset, index);
-		const linesFrom = (from: number, to: number) => {
-			let total = 0;
-			for (let cursor = from; cursor < to; cursor++) total += counts[cursor]!;
-			return total;
+	#persistState(): void {
+		const state: ResumeTreePickerState = {
+			scope: this.#scope,
+			collapsedProjects: [...this.#state.collapsedProjects],
+			expandedProjects: [...this.#state.expandedProjects],
+			collapsedWorkspaces: [...this.#state.collapsedWorkspaces],
+			fullPaths: this.#fullPaths,
 		};
-		while (start < index && linesFrom(start, index) + counts[index]! > height) start++;
-		if (start > index) start = index;
-		this.#scrollOffset = Math.max(0, Math.min(start, Math.max(0, flat.length - 1)));
+		if (this.#source.persistPickerState) void this.#source.persistPickerState(state);
+		else void this.#source.persistScope?.(this.#scope);
 	}
 
-	#selectRow(row: ResumeTreeRow): void {
-		if (row.key === MORE_PROJECTS_KEY) {
-			this.#state.showAllProjects = true;
-			this.#clampScroll();
-			this.onRequestRender?.();
-			return;
-		}
-		if (row.type === "conversation" && row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
-			this.#state.expandedConversationGroups?.add(row.workspaceKey);
-			this.#clampScroll();
-			this.onRequestRender?.();
-			return;
-		}
-		if (row.type === "conversation") {
-			this.onSelect(row.conversation);
-			return;
-		}
-		this.#toggleCollapse(row);
-	}
-
-	#toggleCollapse(row: ResumeTreeProjectRow | ResumeTreeWorkspaceRow): void {
-		if (row.type === "project") {
-			const expanded = !projectCollapsed(row, this.#state);
-			this.#state.collapsedProjects.delete(row.key);
-			this.#state.expandedProjects.delete(row.key);
-			if (expanded) this.#state.collapsedProjects.add(row.key);
-			else this.#state.expandedProjects.add(row.key);
-		} else if (this.#state.collapsedWorkspaces.has(row.key)) {
-			this.#state.collapsedWorkspaces.delete(row.key);
-		} else {
-			this.#state.collapsedWorkspaces.add(row.key);
-		}
-		this.#persistState();
-		this.#clampScroll();
-		this.onRequestRender?.();
-	}
-
-	#collapseOrParent(): void {
-		this.#searchFocused = false;
-		const flat = this.#visibleRows();
-		const index = this.#selectedIndex(flat);
-		const entry = flat[index];
-		if (!entry) return;
-		const row = entry.row;
-		if (row.key === MORE_PROJECTS_KEY || row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
-			this.#selectRow(row);
-			return;
-		}
-		if (row.type === "conversation") {
-			this.#selectedKey = `workspace:${row.workspaceKey}`;
-			return;
-		}
-		if (row.type === "workspace") {
-			if (!this.#state.collapsedWorkspaces.has(row.key)) {
-				this.#state.collapsedWorkspaces.add(row.key);
-				return;
-			}
-			this.#selectedKey = `project:${row.projectKey}`;
-			return;
-		}
-		if (!projectCollapsed(row, this.#state)) {
-			this.#state.collapsedProjects.add(row.key);
-			this.#state.expandedProjects.delete(row.key);
-		}
-	}
-
-	#expandOrChild(): void {
-		this.#searchFocused = false;
-		const flat = this.#visibleRows();
-		const index = this.#selectedIndex(flat);
-		const entry = flat[index];
-		if (!entry) return;
-		const row = entry.row;
-		if (row.key === MORE_PROJECTS_KEY || row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
-			this.#selectRow(row);
-			return;
-		}
-		if (row.type === "project") {
-			if (projectCollapsed(row, this.#state)) {
-				this.#state.collapsedProjects.delete(row.key);
-				this.#state.expandedProjects.add(row.key);
-				return;
-			}
-			const child = flat[index + 1];
-			if (child && child.row.type !== "conversation") this.#selectedKey = rowIdentity(child.row);
-			return;
-		}
-		if (row.type === "workspace") {
-			if (this.#state.collapsedWorkspaces.has(row.key)) {
-				this.#state.collapsedWorkspaces.delete(row.key);
-				return;
-			}
-			const child = flat[index + 1];
-			if (child?.row.type === "conversation") this.#selectedKey = rowIdentity(child.row);
-		}
-	}
-
-	/** Open the small action menu for a workspace or conversation row. */
-	#openMenu(row: ResumeTreeWorkspaceRow | ResumeTreeConversationRow): void {
-		const isWorkspace = row.type === "workspace";
-		const items: ResumeTreeMenuItem[] = [];
-		if (isWorkspace) {
-			items.push({
-				id: "rename",
-				label: tuiText("resumeMenuRename", "rename"),
-				disabled: !this.#source.renameWorkspace,
-			});
-			items.push({
-				id: "toggle",
-				label: this.#state.collapsedWorkspaces.has(row.key)
-					? tuiText("resumeMenuExpand", "expand")
-					: tuiText("resumeMenuCollapse", "collapse"),
-			});
-			items.push({
-				id: "open",
-				label: tuiText("resumeMenuOpen", "open in file manager"),
-				disabled: !this.#source.openWorkspace,
-			});
-			items.push({
-				id: "pin",
-				label: row.workspace.pinned ? tuiText("resumeUnpinAction", "Unpin") : tuiText("resumePinAction", "Pin"),
-				disabled: !this.#source.pinWorkspace,
-			});
-			items.push({
-				id: "hide",
-				label: row.workspace.hidden
-					? tuiText("resumeUnhideAction", "Unhide")
-					: tuiText("resumeHideFolderAction", "Hide folder"),
-				disabled: !this.#source.hideWorkspace,
-			});
-		} else {
-			items.push({
-				id: "rename",
-				label: tuiText("resumeMenuRename", "rename"),
-				disabled:
-					!this.#source.renameConversation || this.#source.canRenameConversation?.(row.conversation) === false,
-			});
-			items.push({
-				id: "pin",
-				label: row.pinned ? tuiText("resumeUnpinAction", "Unpin") : tuiText("resumePinAction", "Pin"),
-				disabled: !this.#source.pinConversation,
-			});
-			items.push({
-				id: "hide",
-				label: row.conversation.hidden
-					? tuiText("resumeUnhideAction", "Unhide")
-					: tuiText("resumeHideAction", "Hide"),
-				disabled: !this.#source.hideConversation,
-			});
-			items.push({
-				id: "delete",
-				label:
-					this.#source.deleteMode === "trash"
-						? tuiText("resumeDeleteTrash", "Move to trash")
-						: tuiText("resumeDeletePermanent", "Delete"),
-				disabled: !this.#source.deleteConversation,
-			});
-		}
-		this.#menu = {
-			kind: isWorkspace ? "workspace" : "conversation",
-			rowKey: rowIdentity(row),
-			items,
-			index: Math.max(
-				0,
-				items.findIndex(item => !item.disabled),
-			),
-			...(isWorkspace ? { workspace: row.workspace } : { conversation: row.conversation }),
-		};
-		this.#searchFocused = false;
-		this.onRequestRender?.();
-	}
-
-	/** Open the menu for the selected row (`m`, or the right-edge affordance). */
-	#openSelectedMenu(): void {
-		const flat = this.#visibleRows();
-		const row = flat[this.#selectedIndex(flat)]?.row;
-		if (row?.type === "workspace" || row?.type === "conversation") this.#openMenu(row);
-	}
-
-	#moveMenuItem(delta: 1 | -1): void {
-		const menu = this.#menu;
-		if (!menu) return;
-		if (menu.items.every(item => item.disabled)) return;
-		let index = menu.index;
-		for (let attempt = 0; attempt < menu.items.length; attempt++) {
-			index = (index + delta + menu.items.length) % menu.items.length;
-			if (!menu.items[index]!.disabled) break;
-		}
-		menu.index = index;
-		this.onRequestRender?.();
-	}
-
-	async #runMenuItem(): Promise<void> {
-		const menu = this.#menu;
-		if (!menu) return;
-		const item = menu.items[menu.index];
-		if (!item || item.disabled) return;
-		this.#menu = undefined;
-		if (item.id === "rename") {
-			this.#beginRename(menu.kind, menu.rowKey, menu.workspace, menu.conversation);
-			return;
-		}
-		const flat = this.#visibleRows();
-		const entry = flat.find(candidate => rowIdentity(candidate.row) === menu.rowKey);
-		const row = entry?.row;
-		if (item.id === "toggle" && row?.type === "workspace") {
-			this.#toggleCollapse(row);
-			return;
-		}
-		if (item.id === "open" && menu.workspace) {
-			await this.#source.openWorkspace?.(menu.workspace);
-			this.onRequestRender?.();
-			return;
-		}
-		if (item.id === "pin") {
-			await this.#pinRow(menu);
-			return;
-		}
-		if (item.id === "hide") {
-			await this.#hideRow(menu);
-			return;
-		}
-		if (item.id === "delete" && row?.type === "conversation") {
-			this.#deleteTarget = row;
-			this.onRequestRender?.();
-		}
-	}
-
-	async #pinRow(menu: ResumeTreeMenu): Promise<void> {
-		if (menu.kind === "workspace" && menu.workspace) {
-			await this.#source.pinWorkspace?.(menu.workspace, !menu.workspace.pinned);
-		} else if (menu.conversation) {
-			await this.#source.pinConversation?.(menu.conversation, !menu.conversation.pinned);
-		}
-		await this.#refreshAfterMutation();
-	}
-
-	async #hideRow(menu: ResumeTreeMenu): Promise<void> {
-		if (menu.kind === "workspace" && menu.workspace) {
-			await this.#source.hideWorkspace?.(menu.workspace, menu.workspace.hidden !== true);
-		} else if (menu.conversation) {
-			await this.#source.hideConversation?.(menu.conversation, menu.conversation.hidden !== true);
-		}
-		await this.#refreshAfterMutation();
-	}
-
-	/** Open the rename sub-input for a workspace or conversation row. */
-	#beginRename(
-		kind: ResumeTreeMenuKind,
-		rowKey: string,
-		workspace?: ResumeTreeWorkspace,
-		conversation?: ResumeTreeConversation,
-	): void {
-		if (kind === "workspace") {
-			if (!workspace || !this.#source.renameWorkspace) return;
-		} else if (
-			!conversation ||
-			!this.#source.renameConversation ||
-			this.#source.canRenameConversation?.(conversation) === false
-		) {
-			return;
-		}
-		this.#rename = {
-			rowKey,
-			kind,
-			value: kind === "workspace" ? (workspace!.alias ?? workspace!.name) : conversation!.title || conversation!.id,
-			...(workspace ? { workspace } : {}),
-			...(conversation ? { conversation } : {}),
-		};
-		this.#menu = undefined;
-		this.#searchFocused = false;
-		this.#notice = undefined;
-		this.onRequestRender?.();
-	}
-
-	/** Ctrl+R: rename the selected workspace/conversation; project rows are inert. */
-	#renameSelected(): void {
-		const flat = this.#visibleRows();
-		const row = flat[this.#selectedIndex(flat)]?.row;
-		if (row?.type === "workspace") this.#beginRename("workspace", rowIdentity(row), row.workspace);
-		else if (row?.type === "conversation") {
-			this.#beginRename("conversation", rowIdentity(row), undefined, row.conversation);
-		}
-	}
-
-	async #commitRename(): Promise<void> {
-		const rename = this.#rename;
-		if (!rename || this.#busy) return;
-		const value = rename.value.trim();
-		if (!value) {
-			this.#notice = tuiText("resumeRenameEmpty", "A name is required.");
-			this.onRequestRender?.();
-			return;
-		}
-		let stored: string | null = null;
-		try {
-			stored =
-				rename.kind === "workspace"
-					? ((await this.#source.renameWorkspace?.(rename.workspace!, value)) ?? null)
-					: ((await this.#source.renameConversation?.(rename.conversation!, value)) ?? null);
-		} catch (error) {
-			this.#notice = tuiTextFmt(
-				"resumeRenameFailedFmt",
-				"Rename failed: %s",
-				error instanceof Error ? error.message : String(error),
-			);
-			this.onRequestRender?.();
-			return;
-		}
-		if (stored === null) {
-			this.#notice = tuiText("resumeRenameFailed", "The name was not changed.");
-			this.onRequestRender?.();
-			return;
-		}
-		this.#rename = undefined;
-		await this.#refreshAfterMutation();
-		this.#verifyRename(rename, stored);
-	}
-
-	/** Confirm the refreshed row shows what was stored; otherwise say so. */
-	#verifyRename(rename: ResumeTreeRename, stored: string): void {
-		const row = this.#view?.rows.find(candidate => rowIdentity(candidate) === rename.rowKey);
-		if (!row) return;
-		const shown =
-			row.type === "conversation"
-				? row.conversation.title
-				: row.type === "workspace"
-					? (row.workspace.displayName ?? row.workspace.name)
-					: row.project.displayName;
-		this.#notice =
-			shown !== stored
-				? tuiTextFmt("resumeRenameMismatchFmt", "Renamed, but the list still shows “%s”", shown)
-				: undefined;
-		this.onRequestRender?.();
-	}
-
-	async #refreshAfterMutation(): Promise<void> {
-		if (this.#busy) return;
-		this.#busy = true;
-		try {
-			await this.#source.refresh?.();
-			this.invalidate();
-			this.#rebuild();
-		} catch (error) {
-			this.#notice = tuiTextFmt(
-				"ssErrorPrefixFmt",
-				"Error: %s",
-				error instanceof Error ? error.message : String(error),
-			);
-		} finally {
-			this.#busy = false;
-			this.onRequestRender?.();
-		}
-	}
-
-	/** The rename box owns every key; the search text is never touched. */
-	#handleRenameKey(keyData: string): void {
-		const rename = this.#rename;
-		if (!rename) return;
-		if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
-			void this.#commitRename();
-			return;
-		}
-		if (matchesAppInterrupt(keyData) || matchesKey(keyData, "escape")) {
-			this.#rename = undefined;
-			this.onRequestRender?.();
-			return;
-		}
-		if (matchesKey(keyData, "backspace") || keyData === "\x7f") {
-			rename.value = [...rename.value].slice(0, -1).join("");
-			this.onRequestRender?.();
-			return;
-		}
-		// Printable characters (including a pasted run) are literal text: `/`,
-		// `m`, `p`, `f` and `r` keep their letter meaning only outside this box.
-		if (
-			keyData.length > 0 &&
-			!keyData.startsWith("\x1b") &&
-			[...keyData].every(char => char >= " " && char !== "\x7f")
-		) {
-			rename.value += keyData;
-			this.onRequestRender?.();
-		}
-	}
-
-	/** The delete modal owns every key except Ctrl+C (handled globally). */
-	#handleDeleteKey(keyData: string): void {
-		if (matchesAppInterrupt(keyData) || matchesKey(keyData, "escape") || keyData === "n") {
-			this.#deleteTarget = null;
-			this.onRequestRender?.();
-			return;
-		}
-		if (keyData === "y" || matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
-			void this.#confirmDelete();
-		}
-	}
-
-	#handleMenuKey(keyData: string): void {
-		const menu = this.#menu;
-		if (!menu) return;
-		if (matchesSelectUp(keyData)) {
-			this.#moveMenuItem(-1);
-			return;
-		}
-		if (matchesSelectDown(keyData)) {
-			this.#moveMenuItem(1);
-			return;
-		}
-		if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
-			void this.#runMenuItem();
-			return;
-		}
-		if (matchesAppInterrupt(keyData) || matchesKey(keyData, "escape") || keyData === "m") {
-			this.#menu = undefined;
-			this.onRequestRender?.();
-		}
-	}
-
-	#activate(): void {
-		const flat = this.#visibleRows();
-		const row = flat[this.#selectedIndex(flat)]?.row;
-		if (row) this.#selectRow(row);
-	}
-
-	#requestDelete(): void {
-		const flat = this.#visibleRows();
-		const row = flat[this.#selectedIndex(flat)]?.row;
-		if (row?.type !== "conversation") return;
-		this.#deleteTarget = row;
-		this.onRequestRender?.();
-	}
-
-	async #confirmDelete(): Promise<void> {
-		const target = this.#deleteTarget;
-		if (!target || this.#busy) return;
-		this.#deleteTarget = null;
-		this.#busy = true;
-		try {
-			await this.#source.deleteConversation?.(target.conversation);
-			await this.#source.refresh?.();
-			this.invalidate();
-			this.#rebuild();
-		} catch (error) {
-			this.#notice = tuiTextFmt(
-				"ssErrorPrefixFmt",
-				"Error: %s",
-				error instanceof Error ? error.message : String(error),
-			);
-		} finally {
-			this.#busy = false;
-			this.onRequestRender?.();
-		}
-	}
-
-	/** Pin the selected conversation (`p`) or its project (`P`). */
-	async pinSelected(project: boolean): Promise<void> {
-		const flat = this.#visibleRows();
-		const row = flat[this.#selectedIndex(flat)]?.row;
-		if (!row) return;
-		this.#busy = true;
-		try {
-			if (project) {
-				const projectKey = row.type === "project" ? row.key : row.projectKey;
-				const target = row.type === "project" ? row.project : this.#source.projectByKey?.(projectKey);
-				if (target && !target.isDefault) await this.#source.pinProject?.(target, !target.pinned);
-			} else if (row.type === "conversation") {
-				await this.#source.pinConversation?.(row.conversation, !row.pinned);
-			}
-			await this.#source.refresh?.();
-			this.invalidate();
-			this.#rebuild();
-		} finally {
-			this.#busy = false;
-			this.onRequestRender?.();
-		}
-	}
-
-	/** Hide/unhide the selected conversation or folder (never deletes files). */
-	async hideSelected(): Promise<void> {
-		const flat = this.#visibleRows();
-		const row = flat[this.#selectedIndex(flat)]?.row;
-		if (!row) return;
-		this.#busy = true;
-		try {
-			if (row.type === "workspace") {
-				await this.#source.hideWorkspace?.(row.workspace, row.workspace.hidden !== true);
-			} else if (row.type === "conversation") {
-				await this.#source.hideConversation?.(row.conversation, row.conversation.hidden !== true);
-			}
-			await this.#source.refresh?.();
-			this.invalidate();
-			this.#rebuild();
-		} finally {
-			this.#busy = false;
-			this.onRequestRender?.();
-		}
-	}
-
-	/** Reveal or hide shared-hidden rows without rescanning the directory. */
-	toggleShowHidden(): void {
-		const source = this.#source;
-		if (!source.setShowHidden) return;
-		source.setShowHidden(source.showHidden !== true);
-		this.invalidate();
-		this.#rebuild();
-		this.onRequestRender?.();
-	}
-
-	/**
-	 * Hit-test an SGR mouse report against the rows the last render recorded.
-	 * The fullscreen picker paints from screen row 0, so callers pass the
-	 * component's frame offset (`row` of the first rendered line, `col` of its
-	 * first content column). Keyboard handling never depends on this path.
-	 */
-	handleMouse(data: string, offset: { row?: number; col?: number } = {}): boolean {
-		return routeSgrMouseInput(data, event => this.#routeMouse(event, offset));
-	}
-
-	#routeMouse(event: SgrMouseEvent, offset: { row?: number; col?: number }): boolean {
-		const line = event.row - (offset.row ?? this.#lineOffset);
-		const column = event.col - (offset.col ?? this.#columnOffset);
-		if (this.#rename || this.#deleteTarget) {
-			if (!event.leftClick) return true;
-			const hits = this.#rename ? this.#renameButtonHits : this.#deleteButtonHits;
-			const hit = hits.get(line);
-			if (hit?.confirm && column >= hit.confirm.start && column <= hit.confirm.end) {
-				if (this.#rename) void this.#commitRename();
-				else void this.#confirmDelete();
-			} else if (hit?.cancel && column >= hit.cancel.start && column <= hit.cancel.end) {
-				if (this.#rename) this.#rename = undefined;
-				else this.#deleteTarget = null;
-				this.onRequestRender?.();
-			}
-			// Clicks elsewhere keep the modal open.
-			return true;
-		}
-		if (event.wheel !== null) {
-			this.#move(event.wheel * 3);
-			this.onRequestRender?.();
-			return true;
-		}
-		if (!event.leftClick) return true;
-		if (this.#menu) {
-			const itemIndex = this.#menuItemHits.get(line);
-			if (itemIndex !== undefined) {
-				this.#menu.index = itemIndex;
-				void this.#runMenuItem();
-				return true;
-			}
-			this.#menu = undefined;
-		}
-		if (line === 0) {
-			const segment = this.#scopeHits.find(hit => column >= hit.start && column <= hit.end);
-			if (segment) this.setScope(segment.kind);
-			return true;
-		}
-		const menuHit = this.#menuHits.get(line);
-		if (menuHit && column >= menuHit.start) {
-			const flat = this.#visibleRows();
-			const entry = flat.find(candidate => rowIdentity(candidate.row) === menuHit.key);
-			if (entry && (entry.row.type === "workspace" || entry.row.type === "conversation")) {
-				this.#selectedKey = menuHit.key;
-				this.#openMenu(entry.row);
-			}
-			return true;
-		}
-		const hit = this.#hitRows.get(line);
-		if (!hit) return true;
-		const flat = this.#visibleRows();
-		const entry = flat.find(candidate => rowIdentity(candidate.row) === hit.key);
-		if (!entry) return true;
-		this.#searchFocused = false;
-		this.#selectedKey = hit.key;
-		this.#clampScroll();
-		if (hit.kind === "toggle") {
-			const row = entry.row;
-			if (row.key === MORE_PROJECTS_KEY || row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
-				this.#selectRow(row);
-			} else if (row.type === "project" || row.type === "workspace") this.#toggleCollapse(row);
-			return true;
-		}
-		const now = Date.now();
-		const doubleClick =
-			this.#lastClick !== undefined && this.#lastClick.key === hit.key && now - this.#lastClick.time <= 400;
-		this.#lastClick = doubleClick ? undefined : { key: hit.key, time: now };
-		if (doubleClick && entry.row.type === "conversation") this.onSelect(entry.row.conversation);
-		else this.onRequestRender?.();
-		return true;
-	}
-
-	handleInput(keyData: string): void {
-		if (keyData.startsWith("\x1b[<")) {
-			this.handleMouse(keyData);
-			return;
-		}
-		if (matchesKey(keyData, "ctrl+c")) {
-			this.onExit();
-			return;
-		}
-		// The host's first scan may still be in flight: the skeleton has no rows,
-		// so acting on the key now would silently drop it. Hold keys until the
-		// load lands, then replay them against the loaded rows.
-		if (this.#pendingKeys) {
-			this.#pendingKeys.push(keyData);
-			return;
-		}
-		if (!this.#rename && !this.#deleteTarget && !this.#menu && this.#source.isLoading?.() && this.#source.refresh) {
-			const pending: string[] = [keyData];
-			this.#pendingKeys = pending;
-			void this.#source.refresh().then(() => {
-				// A later refresh may have replaced this queue; its own replay owns it.
-				if (this.#pendingKeys !== pending) return;
-				this.#pendingKeys = undefined;
-				this.invalidate();
-				this.#rebuild();
-				this.onRequestRender?.();
-				for (const key of pending) this.handleInput(key);
-			});
-			return;
-		}
-		if (this.#busy) return;
-		if (this.#rename) {
-			this.#handleRenameKey(keyData);
-			return;
-		}
-		if (this.#deleteTarget) {
-			this.#handleDeleteKey(keyData);
-			return;
-		}
-		if (matchesKey(keyData, "ctrl+r")) {
-			this.#renameSelected();
-			return;
-		}
-		if (this.#menu) {
-			this.#handleMenuKey(keyData);
-			return;
-		}
-		if (!this.#searchFocused && keyData === "m") {
-			this.#openSelectedMenu();
-			return;
-		}
-		if (matchesKey(keyData, "tab")) {
-			this.cycleScope(1);
-			return;
-		}
-		if (keyData === "\x1b[Z") {
-			this.cycleScope(-1);
-			return;
-		}
-		if (matchesSelectUp(keyData)) {
-			this.#move(-1);
-			return;
-		}
-		if (matchesSelectDown(keyData)) {
-			this.#move(1);
-			return;
-		}
-		if (matchesKey(keyData, "pageUp")) {
-			this.#move(-this.#pageSize());
-			return;
-		}
-		if (matchesKey(keyData, "pageDown")) {
-			this.#move(this.#pageSize());
-			return;
-		}
-		if (matchesKey(keyData, "left")) {
-			this.#collapseOrParent();
-			return;
-		}
-		if (matchesKey(keyData, "right")) {
-			this.#expandOrChild();
-			return;
-		}
-		if (matchesKey(keyData, "ctrl+enter") || matchesKey(keyData, "ctrl+return")) {
-			this.#requestDelete();
-			return;
-		}
-		if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
-			this.#activate();
-			return;
-		}
-		if (matchesKey(keyData, "delete")) {
-			this.#requestDelete();
-			return;
-		}
-		if (!this.#searchFocused && keyData === "/") {
-			this.focusSearch();
-			return;
-		}
-		if (!this.#searchFocused && keyData === "r") {
-			void this.refresh();
-			return;
-		}
-		if (matchesKey(keyData, "ctrl+f")) {
-			this.toggleFullPaths();
-			return;
-		}
-		if (!this.#searchFocused && (keyData === "p" || keyData === "P")) {
-			void this.pinSelected(keyData === "P");
-			return;
-		}
-		if (!this.#searchFocused && keyData === "h") {
-			void this.hideSelected();
-			return;
-		}
-		if (!this.#searchFocused && keyData === "v") {
-			this.toggleShowHidden();
-			return;
-		}
-		if (matchesAppInterrupt(keyData)) {
-			this.#clearSearch();
-			return;
-		}
-		if (this.#searchFocused) {
-			const before = this.#search.getValue();
-			this.#search.handleInput(keyData);
-			if (this.#search.getValue() !== before) {
-				this.invalidate();
-				this.#rebuild();
-			}
-		}
-	}
-
-	render(width: number): readonly string[] {
-		const lines: string[] = [];
-		const view = this.#viewFor();
-		const summary = this.#source.scopeSummary();
-		this.#search.placeholder =
-			this.#scope === "all"
-				? tuiText("resumeSearchAll", "Search all conversations…")
-				: tuiTextFmt(
-						this.#scope === "workspace" ? "resumeSearchInWorkspace" : "resumeSearchInProject",
-						"Search conversations in %s…",
-						this.#scope === "workspace" ? summary.workspaceName : summary.projectName,
-					);
-		this.#hitRows = new Map();
-		this.#menuHits = new Map();
-		this.#menuItemHits = new Map();
-		this.#renameButtonHits = new Map();
-		this.#deleteButtonHits = new Map();
-		const scopeHeader = renderScopeHeaderHits(this.#scope, summary, width);
-		this.#scopeHits = scopeHeader.hits;
-		this.#lineOffset = 0;
-		lines.push(scopeHeader.text);
-		if (this.#search.getValue().length === 0) {
-			lines.push(truncateToWidth(`/ ${theme.fg("dim", this.#search.placeholder)}`, width));
-		} else {
-			lines.push(...this.#search.render(width));
-		}
-		const warningNames = this.#source.scanWarningNames?.() ?? [];
-		const warning =
-			warningNames.length > 0
-				? tuiTextFmt(
-						"resumeScanWarningFmt",
-						"Some conversation folders could not be read: %s. Showing what was found.",
-						warningNames.join(", "),
-					)
-				: undefined;
-		const error = this.#source.loadError?.();
-		if (this.#notice || error || warning) {
-			const message = this.#notice ?? error ?? `${warning!} · ${tuiText("resumeRetryHint", "r retries")}`;
-			lines.push(truncateToWidth(theme.fg(error ? "error" : "warning", `  ${message}`), width));
-		}
-		if (this.#rename) {
-			const start = lines.length;
-			lines.push(...this.#renderRenameBox(width, start));
-		}
-		if (this.#deleteTarget) {
-			const start = lines.length;
-			lines.push(...this.#renderDeleteBox(width, start));
-		}
-		lines.push("");
-		const loading = !view || this.#source.isLoading?.();
-		if (loading && !view) {
-			lines.push(truncateToWidth(theme.fg("dim", `  ${tuiText("resumeLoading", "Loading conversations…")}`), width));
-			const skeletonWidth = Math.max(4, Math.min(width - 4, 36));
-			for (let index = 0; index < 3; index++) {
-				lines.push(theme.fg("dim", `  ${"░".repeat(skeletonWidth)}`));
-			}
-			return lines;
-		}
-		if (!view) return lines;
-		const searching = view.query.raw.trim().length > 0;
-		if (searching && view.counts.totalConversations > view.counts.conversations) {
-			const hidden = view.counts.totalConversations - view.counts.conversations;
-			lines.push(
-				truncateToWidth(
-					theme.fg(
-						"muted",
-						`  ${tuiTextFmt("resumeHiddenByFilterFmt", "%d conversations hidden by filter", hidden)}`,
-					),
-					width,
-				),
-			);
-		}
-		const hiddenTotal = this.#source.hiddenCount?.() ?? 0;
-		if (hiddenTotal > 0 || this.#source.showHidden === true) {
-			lines.push(
-				truncateToWidth(
-					theme.fg(
-						"muted",
-						`  ${
-							this.#source.showHidden === true
-								? tuiText("resumeHiddenRowsShown", "Hidden rows shown · v hides them")
-								: tuiTextFmt("resumeHiddenRowsHintFmt", "%d hidden · v shows them", hiddenTotal)
-						}`,
-					),
-					width,
-				),
-			);
-		}
-		const flat = flattenResumeRows(view.rows, this.#state, searching);
-		if (flat.length === 0) {
-			lines.push(...this.#emptyState(view, searching, width));
-			return lines;
-		}
-		const selectedIndex = this.#selectedIndex(flat);
-		const height = this.#listHeight();
-		this.#clampScroll();
-		const now = Date.now();
-		const conversationRows = flat
-			.map(entry => entry.row)
-			.filter((row): row is ResumeTreeConversationRow => row.type === "conversation");
-		const columns = conversationColumns(conversationRows, now);
-		const bodyStart = lines.length;
-		// Workspace scope shows one workspace, so absolute paths (and even the
-		// path tail) add nothing there; the persisted choice still applies once
-		// the user moves to project/all.
-		const fullPaths = this.#scope !== "workspace" && this.#fullPaths;
-		// A scrolled window that starts past a project still owns that group's
-		// boundary rule, so the first visible row matches the height arithmetic.
-		let seenProject = flat.slice(0, this.#scrollOffset).some(entry => entry.row.type === "project");
-		for (let index = this.#scrollOffset; index < flat.length; index++) {
-			if (lines.length - bodyStart >= height && index !== selectedIndex) break;
-			const row = flat[index]!.row;
-			const selected = index === selectedIndex;
-			const lineIndex = lines.length;
-			if (row.type === "project") {
-				if (seenProject) lines.push(renderProjectSeparator(width));
-				seenProject = true;
-				this.#hitRows.set(lines.length, { kind: "toggle", key: rowIdentity(row) });
-				lines.push(
-					renderProjectRow(row, {
-						width,
-						selected,
-						collapsed: projectCollapsed(row, this.#state) && !searching,
-						now,
-						fullPaths,
-					}),
-				);
-				const ruleIndex = lines.length;
-				this.#hitRows.set(ruleIndex, { kind: "toggle", key: rowIdentity(row) });
-				lines.push(renderProjectRule(width));
-			} else if (row.type === "workspace") {
-				this.#hitRows.set(lineIndex, { kind: "toggle", key: rowIdentity(row) });
-				this.#menuHits.set(lineIndex, { kind: "workspace", key: rowIdentity(row), start: Math.max(0, width - 1) });
-				lines.push(
-					renderWorkspaceRow(row, {
-						width,
-						selected,
-						collapsed: this.#state.collapsedWorkspaces.has(row.key) && !searching,
-						referenceBranch: view.referenceBranch,
-						current: view.currentWorkspaceKey === row.key,
-						fullPaths,
-						showPath: this.#scope !== "workspace",
-					}),
-				);
-			} else {
-				const moreConversations = row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX);
-				this.#hitRows.set(lineIndex, {
-					kind: moreConversations ? "toggle" : "conversation",
-					key: rowIdentity(row),
-				});
-				if (!moreConversations) {
-					this.#menuHits.set(lineIndex, {
-						kind: "conversation",
-						key: rowIdentity(row),
-						start: Math.max(0, width - 1),
-					});
-				}
-				lines.push(renderConversationRow(row, { width, selected, now, columns, fullPaths }));
-			}
-		}
-		if (this.#menu) {
-			const menu = this.#menu;
-			const kindLabel =
-				menu.kind === "workspace"
-					? tuiText("resumeMenuWorkspace", "workspace")
-					: tuiText("resumeMenuConversation", "conversation");
-			lines.push(truncateToWidth(`  ${theme.fg("accent", `┌ ${kindLabel}`)}`, width));
-			menu.items.forEach((item, itemIndex) => {
-				const itemLine = lines.length;
-				this.#menuItemHits.set(itemLine, itemIndex);
-				const cursor = itemIndex === menu.index ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
-				const label = item.disabled ? theme.fg("dim", item.label) : item.label;
-				const marker = itemIndex === menu.index ? theme.fg("accent", "›") : padding(1);
-				lines.push(truncateToWidth(`  │ ${cursor}${marker} ${label}`, width));
-			});
-			lines.push(truncateToWidth(`  ${theme.fg("dim", "└ Esc")}`, width));
-		}
-		return lines;
-	}
-
-	/**
-	 * A small modal box with clickable confirm/cancel buttons. `start` is the
-	 * line index in the current frame; button ranges are recorded for mouse
-	 * hit-testing. Every line is truncated, never wrapped.
-	 */
-	#renderModalBox(
-		title: string,
-		body: readonly string[],
-		width: number,
-		start: number,
-		hits: Map<number, { confirm?: ResumeButtonHit; cancel?: ResumeButtonHit }>,
-	): string[] {
-		const lines = [truncateToWidth(`  ${theme.fg("accent", `┌ ${title}`)}`, width)];
-		for (const line of body) lines.push(truncateToWidth(`  ${theme.fg("dim", "│")} ${line}`, width));
-		const prefix = `  ${theme.fg("dim", "└")} `;
-		const confirm = `[${tuiText("resumeConfirmButton", "Confirm")}]`;
-		const cancel = `[${tuiText("resumeCancelButton", "Cancel")}]`;
-		const confirmStart = visibleWidth(prefix);
-		const confirmEnd = confirmStart + visibleWidth(confirm) - 1;
-		const cancelStart = confirmEnd + 3;
-		const cancelEnd = cancelStart + visibleWidth(cancel) - 1;
-		hits.set(start + 1 + body.length, {
-			confirm: { start: confirmStart, end: confirmEnd },
-			cancel: { start: cancelStart, end: cancelEnd },
-		});
-		lines.push(truncateToWidth(`${prefix}${theme.fg("accent", confirm)}  ${theme.fg("muted", cancel)}`, width));
-		return lines;
-	}
-
-	#renderRenameBox(width: number, start: number): string[] {
-		const rename = this.#rename!;
-		const title =
-			rename.kind === "workspace"
-				? tuiText("resumeRenameWorkspaceTitle", "Rename workspace")
-				: tuiText("resumeRenameConversationTitle", "Rename conversation");
-		return this.#renderModalBox(
-			`✎ ${title}`,
-			[`${rename.value}${theme.fg("accent", "▌")}`, tuiText("resumeRenameHint", "Enter saves · Esc cancels")],
-			width,
-			start,
-			this.#renameButtonHits,
-		);
-	}
-
-	#renderDeleteBox(width: number, start: number): string[] {
-		const target = this.#deleteTarget!;
-		const title = target.conversation.title || target.conversation.id;
-		const permanent = this.#source.deleteMode === "permanent";
-		const question = permanent
-			? tuiTextFmt("resumeDeletePermanentFmt", "Permanently delete “%s”?", title)
-			: tuiTextFmt("resumeDeleteTrashFmt", "Move “%s” to trash?", title);
-		const hint = permanent
-			? tuiText("resumeDeletePermanentHint", "This cannot be undone.")
-			: tuiText("resumeDeleteTrashHint", "The conversation can be restored from the trash.");
-		return this.#renderModalBox(
-			tuiText("resumeDeleteTitle", "Delete conversation"),
-			[question, theme.fg("dim", hint), theme.fg("dim", tuiText("resumeConfirmKeys", "y confirm · n cancel"))],
-			width,
-			start,
-			this.#deleteButtonHits,
-		);
-	}
-
-	#emptyState(view: ResumeTreeView, searching: boolean, width: number): string[] {
-		const raw = view.query.raw.trim();
-		if (searching) {
-			return [
-				truncateToWidth(
-					theme.fg("muted", `  ${tuiTextFmt("resumeNoMatchFmt", "No conversations match “%s”", raw)}`),
-					width,
-				),
-				truncateToWidth(theme.fg("dim", `  ${tuiText("resumeClearSearchHint", "Esc clears the search")}`), width),
-			];
-		}
-		const empty =
-			this.#scope === "workspace"
-				? tuiText("resumeEmptyWorkspace", "No conversations in this workspace.")
-				: this.#scope === "project"
-					? tuiText("resumeEmptyProject", "No conversations in this repository.")
-					: tuiText("resumeEmptyAll", "No conversations yet.");
-		return [
-			truncateToWidth(theme.fg("muted", `  ${empty}`), width),
-			truncateToWidth(theme.fg("dim", `  ${tuiText("resumeSwitchScopeHint", "Tab switches scope")}`), width),
-		];
-	}
-
-	dispose(): void {
-		this.#deleteTarget = null;
+	#requestRender(): void {
+		if (!this.#disposed) this.#options.onRequestRender?.();
 	}
 }

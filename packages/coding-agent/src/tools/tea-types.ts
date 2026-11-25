@@ -5,7 +5,7 @@
  * snake_case (html_url, ssh_url, tag_name) and nests clone targets under
  * `head`/`base` repo objects.
  */
-import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import type { OutputMeta } from "./output-meta-format";
 
 export type TeaOp =
 	| "repo_view"

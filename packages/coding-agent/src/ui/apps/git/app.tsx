@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The `omp git` app (see {@link GitAppModel}): natively the diff pane under a
  * toolbar (file, `+a −d`, scope, change navigation, the view switch,
@@ -8,9 +8,9 @@
  * `omp.app.git` look. Mount it full size (`<overlay size="full">`), with
  * {@link GitHelpOverlay} above it for the `?` sheet.
  */
-import { type JSXNode, nativeRendering, type PasteEvent, type UiNode } from "@oh-my-pi/pi-tui";
+import { type JSXNode, nativeRendering, type PasteEvent, type UiNode } from "@linxiraos/pi-tui";
 import type { AssetFileContents, FileAssetSide, MediaRef } from "../../../cli/git-tui/model/state";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { formatTooltipKey } from "../../keys/hints";
 import "../../styles/apps/git/app";
 import { assetTitle } from "../../styles/apps/git/diff-pane";
@@ -32,7 +32,7 @@ function Bar(props: { readonly app: GitAppModel; readonly narrow: () => boolean 
 	const where = (): JSXNode => {
 		const file = app.currentFile();
 		if (!file) {
-			return <text spans={[{ s: "muted", t: app.model.branch ?? "detached" }]} role="omp.app.git.path" />;
+			return <text spans={[{ s: "muted", t: app.model.branch ?? "detached" }]} role="zeta.app.git.path" />;
 		}
 		const slash = file.path.lastIndexOf("/");
 		const doc = app.pane.doc;
@@ -49,13 +49,13 @@ function Bar(props: { readonly app: GitAppModel; readonly narrow: () => boolean 
 					{ s: "strong", t: file.path.slice(slash + 1) },
 				]}
 				truncate="start"
-				role="omp.app.git.path"
+				role="zeta.app.git.path"
 				title={file.origPath ? `${file.origPath} → ${file.path}` : file.path}
 			/>,
 			doc ? (
 				<text
 					spans={[{ s: "ins num", t: `+${doc.additions}` }, { t: " " }, { s: "del num", t: `−${doc.deletions}` }]}
-					role="omp.app.git.stat"
+					role="zeta.app.git.stat"
 				/>
 			) : null,
 			<badge text={scope.text} tone={scope.tone} />,
@@ -83,7 +83,7 @@ function Bar(props: { readonly app: GitAppModel; readonly narrow: () => boolean 
 				key="views"
 				items={VIEW_TABS}
 				active={() => app.pane.mode}
-				role="omp.app.seg"
+				role="zeta.app.seg"
 				variant={segmentedVariant}
 				onSelect={item => void app.runAction(`view:${item}`)}
 				onActivate={item => void app.runAction(`view:${item}`)}
@@ -129,11 +129,11 @@ function Bar(props: { readonly app: GitAppModel; readonly narrow: () => boolean 
 		return out;
 	};
 	return (
-		<row key="bar" justify="between" align="center" role="omp.app.git.bar">
-			<row gap="sm" align="center" role="omp.app.git.where">
+		<row key="bar" justify="between" align="center" role="zeta.app.git.bar">
+			<row gap="sm" align="center" role="zeta.app.git.where">
 				{where}
 			</row>
-			<row gap="sm" align="center" role="omp.app.git.tools">
+			<row gap="sm" align="center" role="zeta.app.git.tools">
 				{tools}
 			</row>
 		</row>
@@ -170,12 +170,12 @@ function MediaColumn(props: {
 }): JSXNode {
 	const { side, asset, mediaRef } = props;
 	return (
-		<col key={side} gap="xs" grow={1} basis={0} role="omp.app.git.media-side">
+		<col key={side} gap="xs" grow={1} basis={0} role="zeta.app.git.media-side">
 			<text
 				key="head"
 				spans={[{ s: "strong", t: assetTitle(side === "before" ? "Before" : "After", asset) }]}
 				truncate="end"
-				role="omp.app.git.media-head"
+				role="zeta.app.git.media-head"
 			/>
 			{mediaRef ? (
 				<media
@@ -183,7 +183,7 @@ function MediaColumn(props: {
 					{...mediaRef}
 					link={MEDIA_COMPARE_LINK}
 					grow={1}
-					role="omp.app.git.media"
+					role="zeta.app.git.media"
 				/>
 			) : (
 				<text
@@ -193,7 +193,7 @@ function MediaColumn(props: {
 							? [{ s: "muted", t: side === "before" ? "Did not exist" : "Deleted" }]
 							: assetText(asset).map(fact => ({ s: "muted", t: fact.t }))
 					}
-					role="omp.app.git.media-none"
+					role="zeta.app.git.media-none"
 				/>
 			)}
 		</col>
@@ -212,14 +212,14 @@ function Body(props: { readonly app: GitAppModel; readonly media: () => boolean 
 		if (state === "asset" && file && contents?.kind === "asset") {
 			if (props.media()) {
 				return (
-					<row key="compare" gap="sm" align="stretch" grow={1} role="omp.app.git.compare">
+					<row key="compare" gap="sm" align="stretch" grow={1} role="zeta.app.git.compare">
 						<MediaColumn side="before" asset={contents.old} mediaRef={contents.oldRef} />
 						<MediaColumn side="after" asset={contents.new} mediaRef={contents.newRef} />
 					</row>
 				);
 			}
 			return (
-				<col key="asset" gap="sm" role="omp.app.git.state">
+				<col key="asset" gap="sm" role="zeta.app.git.state">
 					<text spans={[{ s: "strong", t: "Binary or media file" }]} />
 					<kv
 						items={[
@@ -233,14 +233,14 @@ function Body(props: { readonly app: GitAppModel; readonly media: () => boolean 
 		}
 		if (state === "streaming" || state === "loading") {
 			return (
-				<row key="loading" gap="sm" align="center" role="omp.app.git.state">
+				<row key="loading" gap="sm" align="center" role="zeta.app.git.state">
 					<spinner style="dots" />
 					<text spans={[{ s: "muted", t: `Loading ${file?.path ?? "diff"}…` }]} />
 				</row>
 			);
 		}
 		return (
-			<col key="empty" gap="xs" role="omp.app.git.empty">
+			<col key="empty" gap="xs" role="zeta.app.git.empty">
 				<text spans={[{ s: "strong", t: pane.emptyMessage }]} />
 				<text
 					spans={[
@@ -269,7 +269,7 @@ export function GitApp(props: GitAppProps): JSXNode {
 	const media = props.media ?? (() => false);
 	// Keep the panes (including the keyboard focus target) when the responsive wrapper switches kind.
 	const children = [
-		<col key="main" role="omp.app.git.main">
+		<col key="main" role="zeta.app.git.main">
 			<Bar app={app} narrow={narrow} />
 			{() => {
 				const status = app.visibleStatus();
@@ -278,7 +278,7 @@ export function GitApp(props: GitAppProps): JSXNode {
 						key="status"
 						spans={[{ s: status.tone === "dim" ? "muted" : status.tone, t: status.text }]}
 						truncate="end"
-						role="omp.app.status"
+						role="zeta.app.status"
 					/>
 				) : null;
 			}}
@@ -297,11 +297,11 @@ export function GitApp(props: GitAppProps): JSXNode {
 	};
 	return () =>
 		narrow() ? (
-			<col role="omp.app.git-narrow" {...handlers}>
+			<col role="zeta.app.git-narrow" {...handlers}>
 				{children}
 			</col>
 		) : (
-			<row role="omp.app.git" {...handlers}>
+			<row role="zeta.app.git" {...handlers}>
 				{children}
 			</row>
 		);

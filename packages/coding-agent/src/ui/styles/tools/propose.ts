@@ -2,10 +2,10 @@
  * `propose`: `⏳ Propose: subject` (the mark stays still while working),
  * then the body's text rows.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { wrap } from "@linxiraos/pi-tui/text/width";
 import { nodeText, splitLabel, stillMark } from "./agent-common";
 import { defineToolLook, toolProps } from "./look";
 

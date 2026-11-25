@@ -15,13 +15,13 @@
  * native trees through the picker helpers ({@link ModelBrowserState.pickerItems},
  * {@link ModelBrowserState.pickerOrder}) or the row facts.
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { getFactoryDroidCreditRate } from "@oh-my-pi/pi-catalog/models";
-import { batch, type KeyEvent, type Signal, signal } from "@oh-my-pi/pi-tui";
-import { presetSymbols } from "@oh-my-pi/pi-tui/theme/symbols";
-import { sanitizeText, formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspPickerGroup, TspPickerItem, TspText } from "@oh-my-pi/pi-wire";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { getFactoryDroidCreditRate } from "@linxiraos/pi-catalog/models";
+import { batch, type KeyEvent, type Signal, signal } from "@linxiraos/pi-tui";
+import { presetSymbols } from "@linxiraos/pi-tui/theme/symbols";
+import { sanitizeText, formatNumber } from "@linxiraos/pi-utils";
+import type { TspPickerGroup, TspPickerItem, TspText } from "@linxiraos/pi-wire";
 import {
 	buildSearchAffinity,
 	formatCostDetail,

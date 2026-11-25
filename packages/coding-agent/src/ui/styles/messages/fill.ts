@@ -2,9 +2,9 @@
  * Shared row helpers of the transcript message looks: backgrounds that
  * survive nested resets, padded text blocks and hex foregrounds.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { padTo, replaceTabs, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { padTo, replaceTabs, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { terminalPaddingX } from "../terminal-padding";
 
 const BG_RESET = /\x1b\[(?:0|49)m/g;

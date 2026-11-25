@@ -4,9 +4,9 @@
  * the objective in quotes, the usage and the completion report, on the
  * status background; no goal is one warning line.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate, wrap } from "@linxiraos/pi-tui/text/width";
 import type { GoalTerm } from "../../tools/goal";
 import { type FrameSection, frameRows } from "./frame";
 import { defineToolLook, toolProps } from "./look";

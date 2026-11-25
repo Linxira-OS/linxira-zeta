@@ -12,10 +12,10 @@
  * `todoCompactLine` is the folded form the status row docks right on short
  * terminals: `TODO 2/5 · ☐ next task`.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { terminalPaddingX } from "../terminal-padding";
 import type { TodoItem } from "../../../tools/details/todo";
 import { moreStages, nextTodo, type TodoHudModel, type TodoWindow } from "../../dock/todo";

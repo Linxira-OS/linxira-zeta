@@ -1,4 +1,4 @@
-import type { SummaryResult } from "@oh-my-pi/pi-natives";
+import type { SummaryResult } from "@linxiraos/pi-natives";
 import { formatNumberedLine } from "../hashline-format";
 import { LINE_RANGE_CHUNK_SOURCE, parseLineRanges } from "../line-ranges";
 import type { OutputMeta } from "../output-meta-format";
@@ -161,7 +161,7 @@ export interface InternalUrlSelectorSpec {
  */
 export function splitInternalUrlSel(
 	rawPath: string,
-	specOf: (scheme: string) => InternalUrlSelectorSpec | undefined,
+	specOf: (scheme: string) => InternalUrlSelectorSpec | undefined = () => undefined,
 ): { path: string; sel?: string } {
 	const url = splitUrlScheme(rawPath);
 	if (!url) return { path: rawPath };

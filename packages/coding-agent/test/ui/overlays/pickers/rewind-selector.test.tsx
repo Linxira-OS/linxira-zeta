@@ -1,9 +1,9 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test } from "bun:test";
-import { createRoot, resolveChildren } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createRoot, resolveChildren } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import type { TranscriptEntryLike } from "../../../../src/session/transcript/transcript-entry";
 import { RewindSelector } from "../../../../src/ui/overlays/pickers/rewind-selector";
 import { pickerSuite } from "./harness";

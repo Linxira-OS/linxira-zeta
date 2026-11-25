@@ -4,8 +4,8 @@
  * four rows then a muted `… +N more lines` hint), the muted dismissal note,
  * and a closing rule.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { wrap } from "@linxiraos/pi-tui/text/width";
 import { terminalPaddingX } from "../terminal-padding";
 import { expandKeyLabel } from "../../keys/hints";
 

@@ -230,9 +230,9 @@ mkdir -p "$TARBALL_APP_DIR"
       exit 1
    }
    # SDK consumers import the package root from the published `src`; any import escaping the tarball fails here.
-   sdk_probe="$(bun -e 'import { z } from "@linxiraos/pi-coding-agent"; process.stdout.write(typeof z);')"
+   sdk_probe="$(bun -e 'import { z } from "@linxiraos/zeta"; process.stdout.write(typeof z);')"
    [ "$sdk_probe" = "object" ] || {
-      echo "Unexpected @linxiraos/pi-coding-agent root import probe result: $sdk_probe"
+      echo "Unexpected @linxiraos/zeta root import probe result: $sdk_probe"
       exit 1
    }
    smoke_cli ./node_modules/.bin/zetacode

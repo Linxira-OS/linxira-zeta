@@ -1,27 +1,27 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, setSystemTime, test, vi } from "bun:test";
-import * as compatAuth from "@oh-my-pi/pi-catalog/compat/auth";
+import * as compatAuth from "@linxiraos/pi-catalog/compat/auth";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl, Model } from "@oh-my-pi/pi-ai";
-import { createNativeJudge } from "@oh-my-pi/pi-ai/judgment";
-import type { OAuthCredentials } from "@oh-my-pi/pi-ai/oauth/types";
-import { resolveOpenAIRequestSetup } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort, THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { fingerprintStaticModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { getBundledModel, getBundledModels } from "@oh-my-pi/pi-catalog/models";
+import type { FetchImpl, Model } from "@linxiraos/pi-ai";
+import { createNativeJudge } from "@linxiraos/pi-ai/judgment";
+import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
+import { resolveOpenAIRequestSetup } from "@linxiraos/pi-ai/providers/openai-shared";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort, THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { fingerprintStaticModels } from "@linxiraos/pi-catalog/model-manager";
+import { getBundledModel, getBundledModels } from "@linxiraos/pi-catalog/models";
 import {
 	cursorModelManagerOptions,
 	resolveModelCacheProviderId,
 	resolveOllamaModelCacheProviderId,
-} from "@oh-my-pi/pi-catalog/provider-models";
-import type { ModelKind, ModelSpec, OpenAICompat } from "@oh-my-pi/pi-catalog/types";
-import { CODEX_CLIENT_VERSION } from "@oh-my-pi/pi-catalog/wire/codex";
+} from "@linxiraos/pi-catalog/provider-models";
+import type { ModelKind, ModelSpec, OpenAICompat } from "@linxiraos/pi-catalog/types";
+import { CODEX_CLIENT_VERSION } from "@linxiraos/pi-catalog/wire/codex";
 import {
 	DISCOVERY_DEFAULT_CONTEXT_WINDOW,
 	type DiscoveryProviderConfig,
@@ -31,13 +31,13 @@ import {
 	discoverOpenAIModelsList,
 	discoverProxyModels,
 	discoveryProbeTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/config/model-discovery";
-import { kNoAuth, ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resolveCliModel } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { ProviderDiscoverySchema } from "@oh-my-pi/pi-coding-agent/config/models-config-schema";
-import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/config/model-discovery";
+import { kNoAuth, ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resolveCliModel } from "@linxiraos/zeta/config/model-resolver";
+import { ProviderDiscoverySchema } from "@linxiraos/zeta/config/models-config-schema";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("ModelRegistry runtime discovery", () => {
 	let tempDir: string;

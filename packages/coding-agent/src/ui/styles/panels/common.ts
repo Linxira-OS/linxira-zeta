@@ -2,12 +2,12 @@
  * Helpers the panel looks share: reading a node's terminal facts, rules,
  * key glyphs and plain text of TSP spans.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { TspKbdProps, TspSpan, TspText, TspTextProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { TspKbdProps, TspSpan, TspText, TspTextProps } from "@linxiraos/pi-wire";
 import type { Keybinding } from "../../../config/keybindings/app-keybindings";
 import { canonicalKeyId } from "../../../config/keybindings/key-id";
 import { formatKeys, keyHintPlatform } from "../../keys/format";

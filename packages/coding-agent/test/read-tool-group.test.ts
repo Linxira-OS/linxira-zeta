@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 // Installs the scheme router that decides which reads collapse into the group.
-import "@oh-my-pi/pi-coding-agent/internal-urls/router";
+import "@linxiraos/zeta/internal-urls/router";
 
-import { readArgsCollapseIntoGroup } from "@oh-my-pi/pi-coding-agent/session/transcript/read-tool-group";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { readArgsCollapseIntoGroup } from "@linxiraos/zeta/session/transcript/read-tool-group";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import "../src/ui/styles/tools";
 import "../src/ui/styles/transcript/read-group";
-import { cfgTuiHyperlinks } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { cfgReadToolResultPreview } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { cfgTuiHyperlinks } from "@linxiraos/zeta/modes/settings";
+import { cfgReadToolResultPreview } from "@linxiraos/zeta/tools/settings";
 import { printRows } from "../src/ui/print-rows";
 import {
 	ReadGroup,

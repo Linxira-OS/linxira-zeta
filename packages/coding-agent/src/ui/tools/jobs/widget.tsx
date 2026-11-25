@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Background-job widgets and tiles as TSP nodes.
  *
@@ -15,9 +15,9 @@
  * The terminal draws both from the data the root nodes carry on `term`
  * (`widget`, `tile`); see `src/ui/styles/tools/jobs/widget.ts`.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspChartMark, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { TspChartMark, TspSpan, TspTone } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import type {
 	JobTileType,
 	JobWidgetBlock,
@@ -27,7 +27,7 @@ import type {
 	JobWidgetTrend,
 	JobWidgetView,
 } from "../../../tools/details/job-widget";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
+import { truncate } from "@linxiraos/pi-tui/text/width";
 
 export type {
 	JobWidgetBarsBlock,
@@ -205,20 +205,20 @@ function WidgetHead(props: { readonly view: JobWidgetView }): JSXNode {
 	const stage = view.stage ? plainLine(view.stage) : "";
 	const headline = headlineGlance(view);
 	return (
-		<row role="omp.job.widget.head" gap="sm" align="baseline">
+		<row role="zeta.job.widget.head" gap="sm" align="baseline">
 			<text
-				role="omp.job.widget.title"
+				role="zeta.job.widget.title"
 				spans={[{ s: "strong", t: plainLine(view.title) }]}
 				wrap="none"
 				truncate="end"
 				grow={stage ? undefined : 1}
 			/>
 			{stage ? (
-				<text role="omp.job.widget.stage" spans={[{ s: "muted", t: stage }]} wrap="none" truncate="end" grow={1} />
+				<text role="zeta.job.widget.stage" spans={[{ s: "muted", t: stage }]} wrap="none" truncate="end" grow={1} />
 			) : undefined}
 			{headline ? (
 				<text
-					role="omp.job.widget.headline"
+					role="zeta.job.widget.headline"
 					spans={[
 						...(headline.label ? [{ s: "muted", t: `${headline.label} ` }] : []),
 						{ s: "num strong", t: headline.text },
@@ -239,16 +239,16 @@ function WidgetBlock(props: { readonly block: JobWidgetBlock; readonly nodeKey?:
 		case "spark": {
 			if (block.values.length === 0)
 				return (
-					<Labelled nodeKey={nodeKey} label={block.label} role="omp.job.widget.spark">
+					<Labelled nodeKey={nodeKey} label={block.label} role="zeta.job.widget.spark">
 						<Waiting />
 					</Labelled>
 				);
 			const label = plainLine(block.label);
 			const last = plainLine(block.last);
 			return (
-				<row key={nodeKey} role="omp.job.widget.spark" gap="sm" align="center">
+				<row key={nodeKey} role="zeta.job.widget.spark" gap="sm" align="center">
 					<chart key="chart" {...sparkChart(block)} size="md" grow={1} />
-					<col key="side" role="omp.job.widget.side" gap="none">
+					<col key="side" role="zeta.job.widget.side" gap="none">
 						<text spans={[{ s: "num strong", t: last }]} wrap="none" />
 						{label && !last.endsWith(label) ? (
 							<text spans={[{ s: "muted", t: label }]} wrap="none" truncate="end" />
@@ -269,16 +269,16 @@ function WidgetBlock(props: { readonly block: JobWidgetBlock; readonly nodeKey?:
 		}
 		case "bars":
 			return (
-				<col key={nodeKey} role="omp.job.widget.bars" gap="xs">
+				<col key={nodeKey} role="zeta.job.widget.bars" gap="xs">
 					<text
-						role="omp.job.widget.caption"
+						role="zeta.job.widget.caption"
 						spans={[{ s: "dim", t: plainLine(block.label) }]}
 						wrap="none"
 						truncate="end"
 					/>
 					{block.items.length > 0 ? (
 						block.items.map((item, index) => (
-							<Labelled nodeKey={`${index}`} label={item.label} role="omp.job.widget.bar">
+							<Labelled nodeKey={`${index}`} label={item.label} role="zeta.job.widget.bar">
 								<meter
 									value={fraction(item.value, block.max)}
 									label={plainLine(item.text)}
@@ -295,7 +295,7 @@ function WidgetBlock(props: { readonly block: JobWidgetBlock; readonly nodeKey?:
 			);
 		case "meter":
 			return (
-				<Labelled nodeKey={nodeKey} label={block.label} role="omp.job.widget.meter">
+				<Labelled nodeKey={nodeKey} label={block.label} role="zeta.job.widget.meter">
 					<meter
 						value={fraction(block.value, 1)}
 						label={plainLine(block.text)}
@@ -306,18 +306,18 @@ function WidgetBlock(props: { readonly block: JobWidgetBlock; readonly nodeKey?:
 				</Labelled>
 			);
 		case "stat":
-			return <text key={nodeKey} role="omp.job.widget.stat" spans={statSpans(block)} wrap="none" truncate="end" />;
+			return <text key={nodeKey} role="zeta.job.widget.stat" spans={statSpans(block)} wrap="none" truncate="end" />;
 		case "grid":
 			return (
-				<col key={nodeKey} role="omp.job.widget.grid" gap="xs">
+				<col key={nodeKey} role="zeta.job.widget.grid" gap="xs">
 					<text
-						role="omp.job.widget.caption"
+						role="zeta.job.widget.caption"
 						spans={[{ s: "dim", t: plainLine(block.label) }]}
 						wrap="none"
 						truncate="end"
 					/>
 					{block.items.length > 0 ? (
-						<row role="omp.job.widget.cells" gap="xs" wrap>
+						<row role="zeta.job.widget.cells" gap="xs" wrap>
 							{block.items.map((item, index) => (
 								<badge
 									key={`${index}`}
@@ -336,7 +336,7 @@ function WidgetBlock(props: { readonly block: JobWidgetBlock; readonly nodeKey?:
 			return (
 				<text
 					key={nodeKey}
-					role="omp.job.widget.text"
+					role="zeta.job.widget.text"
 					spans={[{ s: "muted", t: plainLine(block.text) }]}
 					wrap="none"
 					truncate="end"
@@ -353,7 +353,7 @@ function WidgetBlock(props: { readonly block: JobWidgetBlock; readonly nodeKey?:
 export function JobWidget(props: { readonly view: JobWidgetView; readonly nodeKey?: string }): JSXNode {
 	const view = props.view;
 	return (
-		<col key={props.nodeKey} role="omp.job.widget" gap="xs" term={{ widget: view }}>
+		<col key={props.nodeKey} role="zeta.job.widget" gap="xs" term={{ widget: view }}>
 			<WidgetHead view={view} />
 			{view.blocks.map((block, index) => (
 				<WidgetBlock nodeKey={`${index}-${block.kind}`} block={block} />
@@ -387,7 +387,7 @@ function figureSpans(glance: JobWidgetGlance): TspSpan[] {
 function TileMeter(props: { readonly value: number; readonly tone?: TspTone }): JSXNode {
 	return (
 		<meter
-			role="omp.job.tile.meter"
+			role="zeta.job.tile.meter"
 			value={fraction(props.value, 1)}
 			size="sm"
 			tone={props.tone ?? DEFAULT_TONE}
@@ -401,13 +401,13 @@ function tileVisual(block: JobWidgetBlock | undefined): JSXNode {
 	switch (block?.kind) {
 		case "spark":
 			return block.values.length > 0 ? (
-				<chart key="visual" {...sparkChart(block)} role="omp.job.tile.chart" size="sm" />
+				<chart key="visual" {...sparkChart(block)} role="zeta.job.tile.chart" size="sm" />
 			) : undefined;
 		case "meter":
 			return (
 				<meter
 					key="visual"
-					role="omp.job.tile.meter"
+					role="zeta.job.tile.meter"
 					value={fraction(block.value, 1)}
 					size="sm"
 					tone={block.tone ?? DEFAULT_TONE}
@@ -419,21 +419,21 @@ function tileVisual(block: JobWidgetBlock | undefined): JSXNode {
 			if (shown.length === 0) return undefined;
 			const rest = block.items.length - shown.length;
 			return (
-				<col key="visual" role="omp.job.tile.bars" gap="xs">
+				<col key="visual" role="zeta.job.tile.bars" gap="xs">
 					{shown.map((item, index) => (
-						<row key={`${index}`} role="omp.job.tile.bar" gap="sm" align="center">
+						<row key={`${index}`} role="zeta.job.tile.bar" gap="sm" align="center">
 							<text
-								role="omp.job.tile.key"
+								role="zeta.job.tile.key"
 								spans={[{ s: "dim", t: plainLine(item.label) }]}
 								wrap="none"
 								truncate="end"
 							/>
 							<TileMeter value={fraction(item.value, block.max)} tone={item.tone} />
-							<text role="omp.job.tile.num" spans={[{ t: plainLine(item.text) }]} wrap="none" />
+							<text role="zeta.job.tile.num" spans={[{ t: plainLine(item.text) }]} wrap="none" />
 						</row>
 					))}
 					{rest > 0 ? (
-						<text role="omp.job.tile.more" spans={[{ s: "dim", t: `+${rest} more` }]} wrap="none" />
+						<text role="zeta.job.tile.more" spans={[{ s: "dim", t: `+${rest} more` }]} wrap="none" />
 					) : undefined}
 				</col>
 			);
@@ -449,7 +449,7 @@ function tileVisual(block: JobWidgetBlock | undefined): JSXNode {
 					{ s: "dim", t: plainLine(item.label).replaceAll(" ", "\u00a0") },
 				);
 			}
-			return <text key="visual" role="omp.job.tile.grid" spans={spans} wrap="word" />;
+			return <text key="visual" role="zeta.job.tile.grid" spans={spans} wrap="word" />;
 		}
 		default:
 			return undefined;
@@ -500,10 +500,10 @@ export function JobTileNode(props: { readonly tile: JobTile; readonly nodeKey?: 
 	const visual = tileVisual(view?.blocks[0]);
 	const clock = tile.durationMs === undefined ? undefined : Math.max(0, Math.round(tile.durationMs));
 	return (
-		<col key={props.nodeKey} role="omp.job.tile" tone={TILE_TONE[tile.status]} gap="xs" term={{ tile }}>
-			<row key="head" role="omp.job.tile.head" gap="xs" align="center">
+		<col key={props.nodeKey} role="zeta.job.tile" tone={TILE_TONE[tile.status]} gap="xs" term={{ tile }}>
+			<row key="head" role="zeta.job.tile.head" gap="xs" align="center">
 				<text
-					role="omp.job.tile.dot"
+					role="zeta.job.tile.dot"
 					spans={[
 						{
 							s: toneColor(TILE_TONE[tile.status]),
@@ -513,12 +513,12 @@ export function JobTileNode(props: { readonly tile: JobTile; readonly nodeKey?: 
 					]}
 					wrap="none"
 				/>
-				<text role="omp.job.tile.title" spans={[{ t: title }]} wrap="none" truncate="end" grow={1} />
-				{id === title ? undefined : <text role="omp.job.tile.id" spans={[{ s: "dim", t: id }]} wrap="none" />}
+				<text role="zeta.job.tile.title" spans={[{ t: title }]} wrap="none" truncate="end" grow={1} />
+				{id === title ? undefined : <text role="zeta.job.tile.id" spans={[{ s: "dim", t: id }]} wrap="none" />}
 				{percent === undefined ? undefined : (
 					<meter
 						key="ring"
-						role="omp.job.tile.ring"
+						role="zeta.job.tile.ring"
 						style="ring"
 						size="sm"
 						value={fraction(percent, 100)}
@@ -533,7 +533,7 @@ export function JobTileNode(props: { readonly tile: JobTile; readonly nodeKey?: 
 				)}
 			</row>
 			{glance ? (
-				<text key="figure" role="omp.job.tile.figure" spans={figureSpans(glance)} wrap="none" truncate="end" />
+				<text key="figure" role="zeta.job.tile.figure" spans={figureSpans(glance)} wrap="none" truncate="end" />
 			) : undefined}
 			{visual}
 			{tileNotes(tile, view, !glance && visual === undefined)}
@@ -544,7 +544,7 @@ export function JobTileNode(props: { readonly tile: JobTile; readonly nodeKey?: 
 /** Jobs as one wrapping row of equal tiles (role `omp.job.tiles`), keyed by job id. */
 export function JobTiles(props: { readonly tiles: readonly JobTile[]; readonly nodeKey?: string }): JSXNode {
 	return (
-		<row key={props.nodeKey} role="omp.job.tiles" gap="none" wrap>
+		<row key={props.nodeKey} role="zeta.job.tiles" gap="none" wrap>
 			{props.tiles.map(tile => (
 				<JobTileNode nodeKey={Bun.hash(tile.id).toString(36)} tile={tile} />
 			))}

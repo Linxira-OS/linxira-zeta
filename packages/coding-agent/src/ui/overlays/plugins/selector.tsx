@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The marketplace plugin selector: every plugin the configured marketplaces
  * offer (version, install state and scope as badges), picking one installs
  * it. A Tern terminal draws the picker sheet; the terminal draws the
  * `plugins` look.
  */
-import { type JSXNode, signal, type UiEvent } from "@oh-my-pi/pi-tui";
-import type { TspPickerItem } from "@oh-my-pi/pi-wire";
+import { type JSXNode, signal, type UiEvent } from "@linxiraos/pi-tui";
+import type { TspPickerItem } from "@linxiraos/pi-wire";
 import "../../styles/settings/plugin-selector";
 import { closeAction, pickerAction } from "../pickers/select-sheet";
 import { confirmKbd } from "../../keys/hints";

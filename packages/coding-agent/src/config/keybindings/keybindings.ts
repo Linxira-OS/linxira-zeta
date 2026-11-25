@@ -2,9 +2,9 @@
  * The resolved keymap: every action's default chords, overridden action by
  * action by the user's `keybindings.yml`, matched against pi-tui key events.
  */
-import type { KeyEvent } from "@oh-my-pi/pi-tui";
-import { setWidgetKeymap, type WidgetAction, type WidgetKeymap } from "@oh-my-pi/pi-tui/term/keymap";
-import { getAgentDir } from "@oh-my-pi/pi-utils/dirs";
+import type { KeyEvent } from "@linxiraos/pi-tui";
+import { setWidgetKeymap, type WidgetAction, type WidgetKeymap } from "@linxiraos/pi-tui/term/keymap";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { KEYBINDINGS, type Keybinding } from "./app-keybindings";
 import {
 	type KeybindingsConfig,

@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { resolveAgentModelSelection } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { cfgEditMode } from "@oh-my-pi/pi-coding-agent/edit/settings";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { createAuthStorageSettingsSync } from "@oh-my-pi/pi-coding-agent/session/auth-broker-config";
-import { getRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/retry-fallback-chains";
-import { cfgRetryUsageReservePct } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { cfgTaskAgentModelOverrides } from "@oh-my-pi/pi-coding-agent/task/settings";
-import { logger, TempDir } from "@oh-my-pi/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { resolveAgentModelSelection } from "@linxiraos/zeta/config/model-resolver";
+import { cfgEditMode } from "@linxiraos/zeta/edit/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { createAuthStorageSettingsSync } from "@linxiraos/zeta/session/auth-broker-config";
+import { getRetryFallbackChains } from "@linxiraos/zeta/session/retry-fallback-chains";
+import { cfgRetryUsageReservePct } from "@linxiraos/zeta/session/settings";
+import { cfgTaskAgentModelOverrides } from "@linxiraos/zeta/task/settings";
+import { logger, TempDir } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

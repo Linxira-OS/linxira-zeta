@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { afterEach, expect, test } from "bun:test";
-import { signal } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { ResolvedTheme } from "@oh-my-pi/pi-tui/theme/theme";
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import { signal } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { ResolvedTheme } from "@linxiraos/pi-tui/theme/theme";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import type { NotificationRule } from "../../../../src/session/transcript/ttsr-notification";
 import {
 	MessageNotice,

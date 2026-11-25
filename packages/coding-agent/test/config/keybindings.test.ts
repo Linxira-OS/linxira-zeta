@@ -2,24 +2,20 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getDefaultPasteImageKeys } from "@oh-my-pi/pi-coding-agent/config/keybindings/app-keybindings";
-import type { KeybindingsConfig } from "@oh-my-pi/pi-coding-agent/config/keybindings/config-file";
-import { canonicalKeyId, type KeyId } from "@oh-my-pi/pi-coding-agent/config/keybindings/key-id";
-import {
-	getKeybindings,
-	KeybindingsManager,
-	setKeybindings,
-} from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import { appFollowUpKeys, matchesAnyKey } from "@oh-my-pi/pi-coding-agent/config/keybindings/matchers";
-import type { KeyEvent } from "@oh-my-pi/pi-tui";
-import { decodeKey } from "@oh-my-pi/pi-tui/driver/input/keys";
+import { getDefaultPasteImageKeys } from "@linxiraos/zeta/config/keybindings/app-keybindings";
+import type { KeybindingsConfig } from "@linxiraos/zeta/config/keybindings/config-file";
+import { canonicalKeyId, type KeyId } from "@linxiraos/zeta/config/keybindings/key-id";
+import { getKeybindings, KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import { appFollowUpKeys, matchesAnyKey } from "@linxiraos/zeta/config/keybindings/matchers";
+import type { KeyEvent } from "@linxiraos/pi-tui";
+import { decodeKey } from "@linxiraos/pi-tui/driver/input/keys";
 import {
 	__resetDirsFromEnvForTests,
 	getAgentDir,
 	getProfileRootDir,
 	removeWithRetries,
 	setProfile,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 
 /** The key event a terminal sends for `raw`, as the pi-tui driver decodes it. */

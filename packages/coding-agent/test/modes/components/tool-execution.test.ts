@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { MCPToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/mcp";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { MCPToolDetails } from "@linxiraos/zeta/tools/details/mcp";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { Settings } from "../../../src/config/settings";
 import type { InteractiveModeContext } from "../../../src/modes/types";
 import { ToolCall } from "../../../src/ui/transcript/tool-block";

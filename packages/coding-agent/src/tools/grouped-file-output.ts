@@ -1,4 +1,4 @@
-import { buildPathTree, type PathTreeInput, walkPathTree } from "@oh-my-pi/pi-utils";
+import { buildPathTree, type PathTreeInput, walkPathTree } from "@linxiraos/pi-utils";
 import { formatHashlineHeader } from "./hashline-format";
 
 // =============================================================================

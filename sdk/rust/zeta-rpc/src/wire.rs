@@ -2664,27 +2664,6 @@ impl QueueMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SessionModeId {
-	#[serde(rename = "plan")]
-	Plan,
-	#[serde(rename = "goal")]
-	Goal,
-	#[serde(rename = "vibe")]
-	Vibe,
-}
-
-impl SessionModeId {
-	/// Wire value.
-	pub fn as_str(self) -> &'static str {
-		match self {
-			Self::Plan => "plan",
-			Self::Goal => "goal",
-			Self::Vibe => "vibe",
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InterruptMode {
 	#[serde(rename = "immediate")]
 	Immediate,
@@ -2788,8 +2767,6 @@ pub enum TodoStatus {
 	Completed,
 	#[serde(rename = "abandoned")]
 	Abandoned,
-	#[serde(rename = "blocked")]
-	Blocked,
 }
 
 impl TodoStatus {
@@ -2800,7 +2777,6 @@ impl TodoStatus {
 			Self::InProgress => "in_progress",
 			Self::Completed => "completed",
 			Self::Abandoned => "abandoned",
-			Self::Blocked => "blocked",
 		}
 	}
 }
@@ -2817,8 +2793,6 @@ pub enum GoalOp {
 	Pause,
 	#[serde(rename = "drop")]
 	Drop,
-	#[serde(rename = "budget")]
-	Budget,
 }
 
 impl GoalOp {
@@ -2830,7 +2804,6 @@ impl GoalOp {
 			Self::Resume => "resume",
 			Self::Pause => "pause",
 			Self::Drop => "drop",
-			Self::Budget => "budget",
 		}
 	}
 }
@@ -2915,44 +2888,6 @@ impl SubagentSubscriptionLevel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ComponentId {
-	#[serde(rename = "zetacode")]
-	Zetacode,
-	#[serde(rename = "zetawork")]
-	Zetawork,
-	#[serde(rename = "zetawork-gui")]
-	ZetaworkGui,
-	#[serde(rename = "zetaide")]
-	Zetaide,
-}
-
-impl ComponentId {
-	/// Wire value.
-	pub fn as_str(self) -> &'static str {
-		match self {
-			Self::Zetacode => "zetacode",
-			Self::Zetawork => "zetawork",
-			Self::ZetaworkGui => "zetawork-gui",
-			Self::Zetaide => "zetaide",
-		}
-	}
-}
-
-/// A companion binary shipped with the product (desktop app, IDE, workbench, runtime).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ComponentInfo {
-	pub id: ComponentId,
-	pub command: String,
-	pub openable: bool,
-	/// Resolved absolute executable; absent when not installed.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub path: Option<String>,
-	/// Why `component_open` refuses this component.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub reason: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AgentSource {
 	#[serde(rename = "bundled")]
 	Bundled,
@@ -3004,9 +2939,6 @@ impl SubagentStatus {
 pub struct TodoItem {
 	pub content: String,
 	pub status: TodoStatus,
-	/// What a `blocked` task is waiting on.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub blocker: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub details: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3064,39 +2996,6 @@ pub struct Goal {
 	pub updated_at: i64,
 	#[serde(rename = "tokenBudget", default, skip_serializing_if = "Option::is_none")]
 	pub token_budget: Option<i64>,
-}
-
-/// Session plan mode: enabled, where its plan lives, and who armed it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PlanModeState {
-	pub enabled: bool,
-	#[serde(rename = "planFilePath")]
-	pub plan_file_path: String,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub workflow: Option<PlanModeStateWorkflow>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub reentry: Option<bool>,
-	#[serde(rename = "enteredBy", default, skip_serializing_if = "Option::is_none")]
-	pub entered_by: Option<PlanModeStateEnteredBy>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub objective: Option<String>,
-}
-
-/// Session vibe mode.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct VibeModeState {
-	pub enabled: bool,
-}
-
-/// Every mode's state, the snapshot a client renders its mode banners from.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ModeStates {
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub plan: Option<PlanModeState>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub goal: Option<GoalModeState>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub vibe: Option<VibeModeState>,
 }
 
 /// Session goal mode; `mode` is `"exiting"` while a completed goal unwinds.
@@ -3208,7 +3107,7 @@ pub struct SessionState {
 	/// The user's thinking selector: `auto` while auto mode picks the effort, else `thinkingLevel`.
 	#[serde(rename = "configuredThinkingLevel", default, skip_serializing_if = "Option::is_none")]
 	pub configured_thinking_level: Option<ConfiguredThinkingLevel>,
-	/// Selectors the active model accepts, as omp's thinking selector lists them: `off`, `auto`, then its efforts.
+	/// Selectors the active model accepts, as zeta's thinking selector lists them: `off`, `auto`, then its efforts.
 	#[serde(rename = "thinkingLevels", default, skip_serializing_if = "Option::is_none")]
 	pub thinking_levels: Option<Vec<ConfiguredThinkingLevel>>,
 	#[serde(rename = "isStreaming", default = "default_session_state_is_streaming")]
@@ -3269,38 +3168,9 @@ pub struct SessionState {
 	/// Current goal mode; null when the session has no goal.
 	#[serde(default = "default_session_state_goal")]
 	pub goal: Option<GoalModeState>,
-	/// `/guided-goal` interview is active; the client must treat bare "c" as text.
+	/// True while the guided-goal interview is open.
 	#[serde(rename = "guidedGoalInterview", default = "default_session_state_guided_goal_interview")]
 	pub guided_goal_interview: bool,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub modes: Option<ModeStates>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PythonResult {
-	pub output: String,
-	pub cancelled: bool,
-	pub truncated: bool,
-	#[serde(rename = "totalLines")]
-	pub total_lines: i64,
-	#[serde(rename = "totalBytes")]
-	pub total_bytes: i64,
-	#[serde(rename = "outputLines")]
-	pub output_lines: i64,
-	#[serde(rename = "outputBytes")]
-	pub output_bytes: i64,
-	#[serde(rename = "exitCode", default, skip_serializing_if = "Option::is_none")]
-	pub exit_code: Option<i64>,
-	#[serde(rename = "artifactId", default, skip_serializing_if = "Option::is_none")]
-	pub artifact_id: Option<String>,
-	#[serde(rename = "artifactElidedBytes", default, skip_serializing_if = "Option::is_none")]
-	pub artifact_elided_bytes: Option<i64>,
-	#[serde(rename = "artifactError", default, skip_serializing_if = "Option::is_none")]
-	pub artifact_error: Option<Map<String, Value>>,
-	#[serde(rename = "displayOutputs", default, skip_serializing_if = "Option::is_none")]
-	pub display_outputs: Option<Vec<Map<String, Value>>>,
-	#[serde(rename = "stdinRequested", default, skip_serializing_if = "Option::is_none")]
-	pub stdin_requested: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3412,7 +3282,7 @@ pub struct ModelPickerRole {
 	pub auto: Option<bool>,
 }
 
-/// One row of omp's session model picker.
+/// One row of zeta's session model picker.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModelPickerRow {
 	pub provider: String,
@@ -3813,117 +3683,6 @@ impl AutoCompactionReason {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CompactionTriggerType {
-	#[serde(rename = "manual")]
-	Manual,
-	#[serde(rename = "auto")]
-	Auto,
-	#[serde(rename = "speculation")]
-	Speculation,
-}
-
-impl CompactionTriggerType {
-	/// Wire value.
-	pub fn as_str(self) -> &'static str {
-		match self {
-			Self::Manual => "manual",
-			Self::Auto => "auto",
-			Self::Speculation => "speculation",
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CompactionPhaseName {
-	#[serde(rename = "plan")]
-	Plan,
-	#[serde(rename = "summarize")]
-	Summarize,
-	#[serde(rename = "archive")]
-	Archive,
-	#[serde(rename = "commit")]
-	Commit,
-	#[serde(rename = "failed")]
-	Failed,
-	#[serde(rename = "aborted")]
-	Aborted,
-}
-
-impl CompactionPhaseName {
-	/// Wire value.
-	pub fn as_str(self) -> &'static str {
-		match self {
-			Self::Plan => "plan",
-			Self::Summarize => "summarize",
-			Self::Archive => "archive",
-			Self::Commit => "commit",
-			Self::Failed => "failed",
-			Self::Aborted => "aborted",
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CompactionPhaseMethod {
-	#[serde(rename = "remote")]
-	Remote,
-	#[serde(rename = "snapcompact")]
-	Snapcompact,
-	#[serde(rename = "handoff")]
-	Handoff,
-	#[serde(rename = "shake")]
-	Shake,
-	#[serde(rename = "soft")]
-	Soft,
-	#[serde(rename = "experimental")]
-	Experimental,
-	#[serde(rename = "extension")]
-	Extension,
-}
-
-impl CompactionPhaseMethod {
-	/// Wire value.
-	pub fn as_str(self) -> &'static str {
-		match self {
-			Self::Remote => "remote",
-			Self::Snapcompact => "snapcompact",
-			Self::Handoff => "handoff",
-			Self::Shake => "shake",
-			Self::Soft => "soft",
-			Self::Experimental => "experimental",
-			Self::Extension => "extension",
-		}
-	}
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CompactionFidelityCounts {
-	pub qa: i64,
-	pub paths: i64,
-	pub ids: i64,
-	pub constraints: i64,
-	pub unfinished: i64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CompactionPhaseDetail {
-	#[serde(rename = "tokensBefore", default, skip_serializing_if = "Option::is_none")]
-	pub tokens_before: Option<i64>,
-	#[serde(rename = "tokensAfter", default, skip_serializing_if = "Option::is_none")]
-	pub tokens_after: Option<i64>,
-	#[serde(rename = "entryId", default, skip_serializing_if = "Option::is_none")]
-	pub entry_id: Option<String>,
-	#[serde(rename = "durationMs", default, skip_serializing_if = "Option::is_none")]
-	pub duration_ms: Option<i64>,
-	#[serde(rename = "summaryChars", default, skip_serializing_if = "Option::is_none")]
-	pub summary_chars: Option<i64>,
-	#[serde(rename = "errorMessage", default, skip_serializing_if = "Option::is_none")]
-	pub error_message: Option<String>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub fidelity: Option<CompactionFidelityCounts>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AutoCompactionAction {
 	#[serde(rename = "context-full")]
 	ContextFull,
@@ -4029,6 +3788,138 @@ impl NotifyType {
 			Self::Error => "error",
 		}
 	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionTrigger {
+	#[serde(rename = "manual")]
+	Manual,
+	#[serde(rename = "auto")]
+	Auto,
+	#[serde(rename = "speculation")]
+	Speculation,
+}
+
+impl CompactionTrigger {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Manual => "manual",
+			Self::Auto => "auto",
+			Self::Speculation => "speculation",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionPhase {
+	#[serde(rename = "plan")]
+	Plan,
+	#[serde(rename = "summarize")]
+	Summarize,
+	#[serde(rename = "archive")]
+	Archive,
+	#[serde(rename = "commit")]
+	Commit,
+	#[serde(rename = "failed")]
+	Failed,
+	#[serde(rename = "aborted")]
+	Aborted,
+}
+
+impl CompactionPhase {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Plan => "plan",
+			Self::Summarize => "summarize",
+			Self::Archive => "archive",
+			Self::Commit => "commit",
+			Self::Failed => "failed",
+			Self::Aborted => "aborted",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionPhaseMethod {
+	#[serde(rename = "remote")]
+	Remote,
+	#[serde(rename = "snapcompact")]
+	Snapcompact,
+	#[serde(rename = "handoff")]
+	Handoff,
+	#[serde(rename = "shake")]
+	Shake,
+	#[serde(rename = "soft")]
+	Soft,
+	#[serde(rename = "experimental")]
+	Experimental,
+	#[serde(rename = "extension")]
+	Extension,
+}
+
+impl CompactionPhaseMethod {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Remote => "remote",
+			Self::Snapcompact => "snapcompact",
+			Self::Handoff => "handoff",
+			Self::Shake => "shake",
+			Self::Soft => "soft",
+			Self::Experimental => "experimental",
+			Self::Extension => "extension",
+		}
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionFidelity {
+	pub qa: f64,
+	pub paths: f64,
+	pub ids: f64,
+	pub constraints: f64,
+	pub unfinished: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionPhaseDetail {
+	#[serde(rename = "tokensBefore", default, skip_serializing_if = "Option::is_none")]
+	pub tokens_before: Option<f64>,
+	#[serde(rename = "tokensAfter", default, skip_serializing_if = "Option::is_none")]
+	pub tokens_after: Option<f64>,
+	#[serde(rename = "entryId", default, skip_serializing_if = "Option::is_none")]
+	pub entry_id: Option<String>,
+	#[serde(rename = "durationMs", default, skip_serializing_if = "Option::is_none")]
+	pub duration_ms: Option<f64>,
+	#[serde(rename = "summaryChars", default, skip_serializing_if = "Option::is_none")]
+	pub summary_chars: Option<f64>,
+	#[serde(rename = "errorMessage", default, skip_serializing_if = "Option::is_none")]
+	pub error_message: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub fidelity: Option<CompactionFidelity>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionPhaseEvent {
+	#[serde(rename = "passId")]
+	pub pass_id: String,
+	pub trigger: CompactionTrigger,
+	pub phase: CompactionPhase,
+	pub at: f64,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub method: Option<CompactionPhaseMethod>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub reason: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub detail: Option<CompactionPhaseDetail>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StateVersionChangedEvent {
+	#[serde(rename = "stateVersion")]
+	pub state_version: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4146,25 +4037,6 @@ pub struct ToolExecutionEndEvent {
 pub struct AutoCompactionStartEvent {
 	pub reason: AutoCompactionReason,
 	pub action: AutoCompactionAction,
-}
-
-/// Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CompactionPhaseEvent {
-	/// Stable per compaction pass; constant across method fallbacks.
-	#[serde(rename = "passId")]
-	pub pass_id: String,
-	pub trigger: CompactionTriggerType,
-	/// `plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only.
-	pub phase: CompactionPhaseName,
-	/// Emission time (epoch ms).
-	pub at: i64,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub method: Option<CompactionPhaseMethod>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub reason: Option<String>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub detail: Option<CompactionPhaseDetail>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4344,13 +4216,6 @@ pub struct QueueUpdateEvent {
 	pub live_steered: i64,
 }
 
-/// Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct StateVersionChangedEvent {
-	#[serde(rename = "stateVersion")]
-	pub state_version: f64,
-}
-
 /// A session event, discriminated by `type`; `set_event_filter` selects which are sent.
 #[derive(Debug, Clone, PartialEq)]
 pub enum RpcAgentEvent {
@@ -4366,13 +4231,13 @@ pub enum RpcAgentEvent {
 	ToolStreamUpdate(ToolStreamUpdateEvent),
 	ToolExecutionEnd(ToolExecutionEndEvent),
 	AutoCompactionStart(AutoCompactionStartEvent),
-	/// Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`.
-	CompactionPhase(CompactionPhaseEvent),
 	AutoCompactionEnd(AutoCompactionEndEvent),
 	/// A manual compaction began. Handoff mode leaves live turns running and applies between turns or when idle.
 	ManualCompactionStart(ManualCompactionStartEvent),
 	/// Outcome of the compaction announced by the matching `manual_compaction_start`.
 	ManualCompactionEnd(ManualCompactionEndEvent),
+	CompactionPhase(CompactionPhaseEvent),
+	StateVersionChanged(StateVersionChangedEvent),
 	AutoRetryStart(AutoRetryStartEvent),
 	AutoRetryEnd(AutoRetryEndEvent),
 	/// A prompt-cache refresh was handed to the provider.
@@ -4397,8 +4262,6 @@ pub enum RpcAgentEvent {
 	GoalUpdated(GoalUpdatedEvent),
 	/// Coalesced snapshot of the displayable steering/follow-up queue, sent whenever it changes.
 	QueueUpdate(QueueUpdateEvent),
-	/// Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`).
-	StateVersionChanged(StateVersionChangedEvent),
 }
 
 impl RpcAgentEvent {
@@ -4417,10 +4280,11 @@ impl RpcAgentEvent {
 			Some("tool_stream_update") => |value| serde_json::from_value(value).map(Self::ToolStreamUpdate),
 			Some("tool_execution_end") => |value| serde_json::from_value(value).map(Self::ToolExecutionEnd),
 			Some("auto_compaction_start") => |value| serde_json::from_value(value).map(Self::AutoCompactionStart),
-			Some("compaction_phase") => |value| serde_json::from_value(value).map(Self::CompactionPhase),
 			Some("auto_compaction_end") => |value| serde_json::from_value(value).map(Self::AutoCompactionEnd),
 			Some("manual_compaction_start") => |value| serde_json::from_value(value).map(Self::ManualCompactionStart),
 			Some("manual_compaction_end") => |value| serde_json::from_value(value).map(Self::ManualCompactionEnd),
+			Some("compaction_phase") => |value| serde_json::from_value(value).map(Self::CompactionPhase),
+			Some("state_version_changed") => |value| serde_json::from_value(value).map(Self::StateVersionChanged),
 			Some("auto_retry_start") => |value| serde_json::from_value(value).map(Self::AutoRetryStart),
 			Some("auto_retry_end") => |value| serde_json::from_value(value).map(Self::AutoRetryEnd),
 			Some("cache_warming_start") => |value| serde_json::from_value(value).map(Self::CacheWarmingStart),
@@ -4439,7 +4303,6 @@ impl RpcAgentEvent {
 			Some("thinking_level_changed") => |value| serde_json::from_value(value).map(Self::ThinkingLevelChanged),
 			Some("goal_updated") => |value| serde_json::from_value(value).map(Self::GoalUpdated),
 			Some("queue_update") => |value| serde_json::from_value(value).map(Self::QueueUpdate),
-			Some("state_version_changed") => |value| serde_json::from_value(value).map(Self::StateVersionChanged),
 			other => {
 				return Err(serde_json::Error::custom(format!("unknown RpcAgentEvent type {other:?}")));
 			}
@@ -4463,10 +4326,11 @@ impl Serialize for RpcAgentEvent {
 			Self::ToolStreamUpdate(member) => serialize_tagged(member, &[("type", "tool_stream_update")], serializer),
 			Self::ToolExecutionEnd(member) => serialize_tagged(member, &[("type", "tool_execution_end")], serializer),
 			Self::AutoCompactionStart(member) => serialize_tagged(member, &[("type", "auto_compaction_start")], serializer),
-			Self::CompactionPhase(member) => serialize_tagged(member, &[("type", "compaction_phase")], serializer),
 			Self::AutoCompactionEnd(member) => serialize_tagged(member, &[("type", "auto_compaction_end")], serializer),
 			Self::ManualCompactionStart(member) => serialize_tagged(member, &[("type", "manual_compaction_start")], serializer),
 			Self::ManualCompactionEnd(member) => serialize_tagged(member, &[("type", "manual_compaction_end")], serializer),
+			Self::CompactionPhase(member) => serialize_tagged(member, &[("type", "compaction_phase")], serializer),
+			Self::StateVersionChanged(member) => serialize_tagged(member, &[("type", "state_version_changed")], serializer),
 			Self::AutoRetryStart(member) => serialize_tagged(member, &[("type", "auto_retry_start")], serializer),
 			Self::AutoRetryEnd(member) => serialize_tagged(member, &[("type", "auto_retry_end")], serializer),
 			Self::CacheWarmingStart(member) => serialize_tagged(member, &[("type", "cache_warming_start")], serializer),
@@ -4485,7 +4349,6 @@ impl Serialize for RpcAgentEvent {
 			Self::ThinkingLevelChanged(member) => serialize_tagged(member, &[("type", "thinking_level_changed")], serializer),
 			Self::GoalUpdated(member) => serialize_tagged(member, &[("type", "goal_updated")], serializer),
 			Self::QueueUpdate(member) => serialize_tagged(member, &[("type", "queue_update")], serializer),
-			Self::StateVersionChanged(member) => serialize_tagged(member, &[("type", "state_version_changed")], serializer),
 		}
 	}
 }
@@ -4537,7 +4400,7 @@ impl PromptStatus {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PromptError {
 	pub message: String,
-	/// Transient: resubmitting later may succeed (Zeta's own retries are exhausted).
+	/// Transient: resubmitting later may succeed (omp's own retries are exhausted).
 	pub retryable: bool,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub provider: Option<String>,
@@ -4545,7 +4408,7 @@ pub struct PromptError {
 	pub model: Option<String>,
 	#[serde(rename = "httpStatus", default, skip_serializing_if = "Option::is_none")]
 	pub http_status: Option<i64>,
-	/// `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and Zeta did not send the next request.
+	/// `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and omp did not send the next request.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub code: Option<LitCostCap>,
 }
@@ -5533,7 +5396,7 @@ impl RpcNotification {
 			Some("session_info_update") => |value| serde_json::from_value(value).map(Self::SessionInfoUpdate),
 			Some("config_update") => |value| serde_json::from_value(value).map(Self::ConfigUpdate),
 			Some("rpc_frame_error") => |value| serde_json::from_value(value).map(Self::RpcFrameError),
-			Some("agent_start" | "agent_end" | "turn_start" | "turn_end" | "message_start" | "message_update" | "message_end" | "tool_execution_start" | "tool_execution_update" | "tool_stream_update" | "tool_execution_end" | "auto_compaction_start" | "compaction_phase" | "auto_compaction_end" | "manual_compaction_start" | "manual_compaction_end" | "auto_retry_start" | "auto_retry_end" | "cache_warming_start" | "cache_warming_end" | "retry_fallback_applied" | "retry_fallback_succeeded" | "model_changed" | "config_warnings_changed" | "advisor_cost_changed" | "advisor_yielded" | "ttsr_triggered" | "todo_reminder" | "todo_auto_clear" | "irc_message" | "notice" | "thinking_level_changed" | "goal_updated" | "queue_update" | "state_version_changed") => |value| serde_json::from_value(value).map(Self::RpcAgentEvent),
+			Some("agent_start" | "agent_end" | "turn_start" | "turn_end" | "message_start" | "message_update" | "message_end" | "tool_execution_start" | "tool_execution_update" | "tool_stream_update" | "tool_execution_end" | "auto_compaction_start" | "auto_compaction_end" | "manual_compaction_start" | "manual_compaction_end" | "compaction_phase" | "state_version_changed" | "auto_retry_start" | "auto_retry_end" | "cache_warming_start" | "cache_warming_end" | "retry_fallback_applied" | "retry_fallback_succeeded" | "model_changed" | "config_warnings_changed" | "advisor_cost_changed" | "advisor_yielded" | "ttsr_triggered" | "todo_reminder" | "todo_auto_clear" | "irc_message" | "notice" | "thinking_level_changed" | "goal_updated" | "queue_update") => |value| serde_json::from_value(value).map(Self::RpcAgentEvent),
 			_ => |value| Ok(Self::Unknown(value)),
 		};
 		decode(value)
@@ -5596,7 +5459,7 @@ impl RpcServerFrame {
 		let decode: fn(Value) -> Result<Self, serde_json::Error> = match value.get("type").and_then(Value::as_str) {
 			Some("response") => |value| serde_json::from_value(value).map(Self::Response),
 			Some("host_tool_call" | "host_tool_cancel" | "host_uri_request" | "host_uri_cancel") => |value| serde_json::from_value(value).map(Self::RpcHostRequest),
-			Some("ready" | "prompt_result" | "session_settled" | "extension_error" | "extension_ui_request" | "available_commands_update" | "subagent_lifecycle" | "subagent_progress" | "subagent_event" | "live_phase" | "live_levels" | "live_transcript" | "live_end" | "dictation_state" | "dictation_transcript" | "dictation_end" | "btw_delta" | "btw_record" | "command_output" | "session_info_update" | "config_update" | "rpc_frame_error" | "agent_start" | "agent_end" | "turn_start" | "turn_end" | "message_start" | "message_update" | "message_end" | "tool_execution_start" | "tool_execution_update" | "tool_stream_update" | "tool_execution_end" | "auto_compaction_start" | "compaction_phase" | "auto_compaction_end" | "manual_compaction_start" | "manual_compaction_end" | "auto_retry_start" | "auto_retry_end" | "cache_warming_start" | "cache_warming_end" | "retry_fallback_applied" | "retry_fallback_succeeded" | "model_changed" | "config_warnings_changed" | "advisor_cost_changed" | "advisor_yielded" | "ttsr_triggered" | "todo_reminder" | "todo_auto_clear" | "irc_message" | "notice" | "thinking_level_changed" | "goal_updated" | "queue_update" | "state_version_changed") => |value| serde_json::from_value(value).map(Self::RpcNotification),
+			Some("ready" | "prompt_result" | "session_settled" | "extension_error" | "extension_ui_request" | "available_commands_update" | "subagent_lifecycle" | "subagent_progress" | "subagent_event" | "live_phase" | "live_levels" | "live_transcript" | "live_end" | "dictation_state" | "dictation_transcript" | "dictation_end" | "btw_delta" | "btw_record" | "command_output" | "session_info_update" | "config_update" | "rpc_frame_error" | "agent_start" | "agent_end" | "turn_start" | "turn_end" | "message_start" | "message_update" | "message_end" | "tool_execution_start" | "tool_execution_update" | "tool_stream_update" | "tool_execution_end" | "auto_compaction_start" | "auto_compaction_end" | "manual_compaction_start" | "manual_compaction_end" | "compaction_phase" | "state_version_changed" | "auto_retry_start" | "auto_retry_end" | "cache_warming_start" | "cache_warming_end" | "retry_fallback_applied" | "retry_fallback_succeeded" | "model_changed" | "config_warnings_changed" | "advisor_cost_changed" | "advisor_yielded" | "ttsr_triggered" | "todo_reminder" | "todo_auto_clear" | "irc_message" | "notice" | "thinking_level_changed" | "goal_updated" | "queue_update") => |value| serde_json::from_value(value).map(Self::RpcNotification),
 			_ => |value| Ok(Self::Unknown(value)),
 		};
 		decode(value)
@@ -5640,8 +5503,6 @@ pub struct PromptParams {
 	pub images: Option<Vec<ImageContent>>,
 	#[serde(rename = "streamingBehavior", default, skip_serializing_if = "Option::is_none")]
 	pub streaming_behavior: Option<StreamingBehavior>,
-	#[serde(rename = "loopBody", default, skip_serializing_if = "Option::is_none")]
-	pub loop_body: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5701,16 +5562,6 @@ pub struct OpenSessionParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ChangeCwdParams {
-	pub cwd: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ChangeCwdResult {
-	pub cwd: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetFastModeParams {
 	pub enabled: bool,
 }
@@ -5735,7 +5586,8 @@ pub struct GuidedGoalParams {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GuidedGoalResult {
-	pub started: bool,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub started: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5977,85 +5829,6 @@ pub struct SetAutoCompactionParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ModeEnterParams {
-	pub mode: SessionModeId,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub options: Option<Value>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ModeExitParams {
-	pub mode: SessionModeId,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub options: Option<Value>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LoopStartParams {
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub args: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LoopStartResult {
-	#[serde(deserialize_with = "Deserialize::deserialize")]
-	pub state: Value,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LoopStopResult {
-	#[serde(deserialize_with = "Deserialize::deserialize")]
-	pub state: Value,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LoopPauseResult {
-	#[serde(deserialize_with = "Deserialize::deserialize")]
-	pub state: Value,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LoopResumeResult {
-	#[serde(deserialize_with = "Deserialize::deserialize")]
-	pub state: Value,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LoopStatusResult {
-	#[serde(deserialize_with = "Deserialize::deserialize")]
-	pub state: Value,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GetToolsResult {
-	pub all: Vec<String>,
-	pub active: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SetToolsParams {
-	#[serde(rename = "toolNames")]
-	pub tool_names: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ComponentListResult {
-	pub components: Vec<ComponentInfo>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ComponentOpenParams {
-	pub component: ComponentId,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub args: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ComponentOpenResult {
-	pub pid: i64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetCacheWarmingParams {
 	pub mode: CacheWarmingMode,
 }
@@ -6073,13 +5846,6 @@ pub struct SetAutoRetryParams {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BashParams {
 	pub command: String,
-	#[serde(rename = "excludeFromContext", default, skip_serializing_if = "Option::is_none")]
-	pub exclude_from_context: Option<bool>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PythonParams {
-	pub code: String,
 	#[serde(rename = "excludeFromContext", default, skip_serializing_if = "Option::is_none")]
 	pub exclude_from_context: Option<bool>,
 }
@@ -6461,45 +6227,6 @@ impl AssistantErrorEventReason {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PlanModeStateWorkflow {
-	#[serde(rename = "parallel")]
-	Parallel,
-	#[serde(rename = "iterative")]
-	Iterative,
-	#[serde(rename = "ultra")]
-	Ultra,
-}
-
-impl PlanModeStateWorkflow {
-	/// Wire value.
-	pub fn as_str(self) -> &'static str {
-		match self {
-			Self::Parallel => "parallel",
-			Self::Iterative => "iterative",
-			Self::Ultra => "ultra",
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PlanModeStateEnteredBy {
-	#[serde(rename = "user")]
-	User,
-	#[serde(rename = "agent")]
-	Agent,
-}
-
-impl PlanModeStateEnteredBy {
-	/// Wire value.
-	pub fn as_str(self) -> &'static str {
-		match self {
-			Self::User => "user",
-			Self::Agent => "agent",
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GoalModeStateMode {
 	#[serde(rename = "active")]
 	Active,
@@ -6791,8 +6518,6 @@ pub struct PromptCommand {
 	pub images: Option<Vec<ImageContent>>,
 	#[serde(rename = "streamingBehavior", default, skip_serializing_if = "Option::is_none")]
 	pub streaming_behavior: Option<StreamingBehavior>,
-	#[serde(rename = "loopBody", default, skip_serializing_if = "Option::is_none")]
-	pub loop_body: Option<bool>,
 }
 
 impl Command for PromptCommand {
@@ -6997,22 +6722,6 @@ impl Command for OpenSessionCommand {
 	}
 }
 
-/// Move the session working directory.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ChangeCwdCommand {
-	pub cwd: String,
-}
-
-impl Command for ChangeCwdCommand {
-	const NAME: &'static str = "change_cwd";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = ChangeCwdResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<ChangeCwdResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
 /// Snapshot the session state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct GetStateCommand {}
@@ -7059,7 +6768,7 @@ impl Command for SetSlowModeCommand {
 	}
 }
 
-/// Start the /guided-goal interview in this backend session (same kickoff as the TUI command).
+/// Start the guided-goal interview, optionally with an initial message and images.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct GuidedGoalCommand {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -7071,10 +6780,10 @@ pub struct GuidedGoalCommand {
 impl Command for GuidedGoalCommand {
 	const NAME: &'static str = "guided_goal";
 	const TIMEOUT_MS: Option<u64> = None;
-	type Output = bool;
+	type Output = GuidedGoalResult;
 
 	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<GuidedGoalResult>(data.unwrap_or_else(|| Value::Object(Map::new()))).map(|result| result.started)
+		serde_json::from_value::<GuidedGoalResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
 	}
 }
 
@@ -7625,196 +7334,6 @@ impl Command for SetAutoCompactionCommand {
 	}
 }
 
-/// Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ModeEnterCommand {
-	pub mode: SessionModeId,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub options: Option<Value>,
-}
-
-impl Command for ModeEnterCommand {
-	const NAME: &'static str = "mode_enter";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = ();
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		let _ = data;
-		Ok(())
-	}
-}
-
-/// Leave a session mode.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ModeExitCommand {
-	pub mode: SessionModeId,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub options: Option<Value>,
-}
-
-impl Command for ModeExitCommand {
-	const NAME: &'static str = "mode_exit";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = ();
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		let _ = data;
-		Ok(())
-	}
-}
-
-/// Start or replace the backend session's `/loop` (args use the TUI's `/loop` grammar).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct LoopStartCommand {
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub args: Option<String>,
-}
-
-impl Command for LoopStartCommand {
-	const NAME: &'static str = "loop_start";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = LoopStartResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<LoopStartResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
-/// Disable the backend session's loop.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct LoopStopCommand {}
-
-impl Command for LoopStopCommand {
-	const NAME: &'static str = "loop_stop";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = LoopStopResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<LoopStopResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
-/// Pause a backend loop and drop its captured prompt.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct LoopPauseCommand {}
-
-impl Command for LoopPauseCommand {
-	const NAME: &'static str = "loop_pause";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = LoopPauseResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<LoopPauseResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
-/// Resume a paused backend loop with its captured prompt.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct LoopResumeCommand {}
-
-impl Command for LoopResumeCommand {
-	const NAME: &'static str = "loop_resume";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = LoopResumeResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<LoopResumeResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
-/// Read the backend session's loop state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct LoopStatusCommand {}
-
-impl Command for LoopStatusCommand {
-	const NAME: &'static str = "loop_status";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = LoopStatusResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<LoopStatusResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
-/// List every tool the session knows and the subset that is active.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct GetToolsCommand {}
-
-impl Command for GetToolsCommand {
-	const NAME: &'static str = "get_tools";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = GetToolsResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<GetToolsResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
-/// Replace the active tool set by name.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SetToolsCommand {
-	#[serde(rename = "toolNames")]
-	pub tool_names: Vec<String>,
-}
-
-impl Command for SetToolsCommand {
-	const NAME: &'static str = "set_tools";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = ();
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		let _ = data;
-		Ok(())
-	}
-}
-
-/// Reload the session's agent, tools and settings.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ReloadCommand {}
-
-impl Command for ReloadCommand {
-	const NAME: &'static str = "reload";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = ();
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		let _ = data;
-		Ok(())
-	}
-}
-
-/// List the companion components and whether each is installed on this host.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct ComponentListCommand {}
-
-impl Command for ComponentListCommand {
-	const NAME: &'static str = "component_list";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = ComponentListResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<ComponentListResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
-/// Launch a GUI companion (desktop app or IDE) as a detached process; returns its pid.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ComponentOpenCommand {
-	pub component: ComponentId,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub args: Option<Vec<String>>,
-}
-
-impl Command for ComponentOpenCommand {
-	const NAME: &'static str = "component_open";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = ComponentOpenResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<ComponentOpenResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
 /// Override cache warming for this session only; returns the effective mode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetCacheWarmingCommand {
@@ -7878,24 +7397,6 @@ impl Command for BashCommand {
 
 	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
 		serde_json::from_value::<BashResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
-	}
-}
-
-/// Run Python code in the session kernel.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PythonCommand {
-	pub code: String,
-	#[serde(rename = "excludeFromContext", default, skip_serializing_if = "Option::is_none")]
-	pub exclude_from_context: Option<bool>,
-}
-
-impl Command for PythonCommand {
-	const NAME: &'static str = "python";
-	const TIMEOUT_MS: Option<u64> = None;
-	type Output = PythonResult;
-
-	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
-		serde_json::from_value::<PythonResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
 	}
 }
 

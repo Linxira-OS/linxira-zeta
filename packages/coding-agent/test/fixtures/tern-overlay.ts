@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import type { ExtensionAPI } from "@linxiraos/zeta/extensibility/extensions/types";
 
 /** The released build's spelling of a fullscreen overlay. */
 const RELEASED_FULLSCREEN = { overlayOptions: { width: "100%", maxHeight: "100%", margin: 0, fullscreen: true } };

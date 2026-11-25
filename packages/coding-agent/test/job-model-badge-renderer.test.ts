@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatDuration } from "@linxiraos/pi-utils";
 import { snapshotJobs } from "../src/async/job-control";
 import { AsyncJobManager } from "../src/async/job-manager";
 import { resetSettingsForTest, Settings, settings } from "../src/config/settings";

@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Charts under the tables of a reply, as Tern is sent them: the prose splits after a charted table
  * and the chart follows as an ```svg figure; a table still being written is not charted, and its
  * finished rows are sent while the row in progress is held.
  */
 import { afterEach, describe, expect, test } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { signal } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { signal } from "@linxiraos/pi-tui";
 import {
 	chartFence,
 	lookupTableChart,

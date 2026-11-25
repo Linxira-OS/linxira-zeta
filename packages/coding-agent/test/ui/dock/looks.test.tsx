@@ -1,15 +1,15 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Dock HUD looks and behaviour the app corpus does not reach: overflowing
  * lists, click targets, maintenance rows, the folded todo, widget limits,
  * the editor gap, progress rows and the deferred preview.
  */
 import { describe, expect, test } from "bun:test";
-import { createRoot, type JSXNode, resolveChildren, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createRoot, type JSXNode, resolveChildren, signal, type UiNode } from "@linxiraos/pi-tui";
+import { type Block, paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import type { DownloadActivity } from "../../../src/downloads/activity";
 import type { ObservableSession } from "../../../src/task/session-observer-registry";
 import {

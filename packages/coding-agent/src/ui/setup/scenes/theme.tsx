@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Theme: curated looks (follow the terminal, the default dark and light
  * themes, colorblind colors, ANSI-safe), or every installed theme. Moving the
@@ -16,11 +16,11 @@ import {
 	type Signal,
 	signal,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { loadTheme } from "@oh-my-pi/pi-tui/theme/loader";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { loadTheme } from "@linxiraos/pi-tui/theme/loader";
+import { wrap } from "@linxiraos/pi-tui/text/width";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { fuzzyFilter } from "../../../utils/fuzzy";
 import "../../styles/setup";
 import { fittedListMax } from "../../styles/setup/scenes";
@@ -255,7 +255,7 @@ function ThemePreview(): JSXNode {
 		{ s: "accent", t: "accent" },
 	];
 	return (
-		<col role="omp.setup.theme.preview">
+		<col role="zeta.setup.theme.preview">
 			<text spans={[{ s: "strong", t: "Preview" }]} />
 			<text spans={samples} />
 			<text spans={[{ s: "muted", t: "Status line" }]} />
@@ -296,7 +296,7 @@ export const themeScene: SetupScene = {
 		return {
 			body: (
 				<col
-					role="omp.setup.theme"
+					role="zeta.setup.theme"
 					gap="sm"
 					term={() => ({ maxLines: context.maxLines() })}
 					onKey={key => model.key(key)}
@@ -309,7 +309,7 @@ export const themeScene: SetupScene = {
 					<Show
 						when={model.loading}
 						fallback={
-							<col role="omp.select" term={{ pointer: pointer }}>
+							<col role="zeta.select" term={{ pointer: pointer }}>
 								<list
 									key="list"
 									empty={() => (model.query() ? "No matching items" : "No items")}

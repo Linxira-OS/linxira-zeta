@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The tool-approval prompt: the call (its first prompt line as title, the
  * rest as scrolling details, command segments tinted by whether a rule
@@ -20,11 +20,11 @@ import {
 	type ScrollRequest,
 	signal,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { APPROVE_ARM_MS } from "../../../modes/view-model/overlays/approval-dialog";
 import "../../styles/panels/approval-dialog";
 import { getKeybindings } from "../../../config/keybindings/keybindings";
@@ -199,7 +199,7 @@ export function ApprovalDialog(props: ApprovalDialogProps): JSXNode {
 	}
 	return (
 		<col
-			role="omp.editor.ask.approval"
+			role="zeta.editor.ask.approval"
 			gap="md"
 			term={() => ({
 				title: `${title}${options.timeout !== undefined ? ` (${Math.round(options.timeout / 1000)}s)` : ""}`,
@@ -268,11 +268,11 @@ export function ApprovalDialog(props: ApprovalDialogProps): JSXNode {
 				else if (act === "expand") toggle();
 			}}
 		>
-			<text key="title" role="omp.approval.title" tone="accent" text={title} />
+			<text key="title" role="zeta.approval.title" tone="accent" text={title} />
 			{() =>
 				details().length > 0 && (
 					<list key="details-scroll" max={{ lines: DETAIL_ROWS }}>
-						<col key="details" role="omp.approval.details" scroll={scroll}>
+						<col key="details" role="zeta.approval.details" scroll={scroll}>
 							{() => {
 								const cut = !(expanded() && full);
 								return details().map((line, i) => {
@@ -288,17 +288,17 @@ export function ApprovalDialog(props: ApprovalDialogProps): JSXNode {
 					</list>
 				)
 			}
-			<list key="choices" role="omp.approval.choices" selected={current} onSelect={choose} onActivate={choose}>
+			<list key="choices" role="zeta.approval.choices" selected={current} onSelect={choose} onActivate={choose}>
 				{ids.map(id => (
 					<item
 						key={id}
-						role="omp.approval.choice"
+						role="zeta.approval.choice"
 						tone={id === "deny" ? "error" : "accent"}
 						label={() => labelOf(id)}
 					/>
 				))}
 			</list>
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				{options.timeout !== undefined && <elapsed format="short" age={-options.timeout} />}
 				<spacer grow={1} />
 				{full && (

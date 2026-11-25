@@ -1,7 +1,7 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { describe, expect, it } from "bun:test";
-import { createRoot, isSettled, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { Overlays, Transcript, type TranscriptBlock } from "@oh-my-pi/pi-coding-agent/ui/shell/index";
+import { createRoot, isSettled, signal, type UiNode } from "@linxiraos/pi-tui";
+import { Overlays, Transcript, type TranscriptBlock } from "@linxiraos/zeta/ui/shell/index";
 
 /** The node Tern receives for a single-node block. */
 const content = (block: TranscriptBlock): UiNode => block.native()[0]!;

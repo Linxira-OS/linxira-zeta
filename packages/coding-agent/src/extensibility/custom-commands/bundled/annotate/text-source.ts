@@ -1,5 +1,5 @@
 import { transcriptEntryMessage } from "../../../../session/transcript/transcript-entry";
-import { jsx } from "@oh-my-pi/pi-tui";
+import { jsx } from "@linxiraos/pi-tui";
 import { CopySelector } from "../../../../ui/overlays/pickers/copy-selector";
 import { type CopyPickSource } from "../../../../modes/view-model/overlays/copy-selector";
 import { assistantText } from "../../../../modes/view-model/overlays/copy-targets";

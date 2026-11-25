@@ -1,4 +1,4 @@
-import type { KeysApi, Model } from "@oh-my-pi/pi-ai";
+import type { KeysApi, Model } from "@linxiraos/pi-ai";
 import { type ConfiguredThinkingLevel } from "../../../utils/render-utils";
 import type { ModelBrowserRegistry, ModelBrowserSource } from "./model-browser";
 

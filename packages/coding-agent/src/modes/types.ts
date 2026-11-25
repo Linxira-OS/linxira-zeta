@@ -14,6 +14,8 @@ import type { SpaceHoldHandler } from "../config/keybindings/space-hold";
 import type { Settings } from "../config/settings";
 import type {
 	AutocompleteProviderFactory,
+	ExtensionAskDialogQuestion,
+	ExtensionAskDialogResult,
 	ExtensionCustomFactory,
 	ExtensionCustomOptions,
 	ExtensionUIContext,
@@ -969,6 +971,40 @@ export interface InteractiveModeContext {
 	): Promise<CompactionOutcome>;
 	handleShakeCommand(mode: ShakeMode): Promise<void>;
 	handleMoveCommand(targetPath?: string): Promise<void>;
+	/** Live link to an attached backend while this client is attached (`/restart backend`). */
+	backendAttach?: { restartBackend(): Promise<void> };
+	/** Loop snapshot mirrored from the attached backend onto the status line. */
+	setBackendLoopStatus?(
+		status: { state: "paused" | "running" | "waiting"; limit?: unknown; condition?: unknown } | undefined,
+	): void;
+	/** Queue mirrored from the attached backend, rendered as composer chips. */
+	backendQueue?: { steering: string[]; followUp: string[]; liveSteered: number };
+	/** Toggle the guided goal interview while a backend drives it. */
+	setGuidedGoalInterviewActive?(active: boolean): void;
+	/** Present an extension ask dialog; hosts without the surface report it unavailable. */
+	showAskDialog?(
+		questions: ExtensionAskDialogQuestion[],
+		dialogOptions?: ExtensionUIDialogOptions,
+	): Promise<ExtensionAskDialogResult | undefined>;
+	/** Present the plan review overlay and resolve with the chosen option id. */
+	showPlanReview?(
+		planContent: string,
+		title: string,
+		options: readonly { id: string; label: string }[],
+		dialogOptions?: { helpText?: string },
+	): Promise<string | undefined>;
+	/**
+	 * Zeta Team mode toggle (`/team on|off`) and its two overlays. Optional while
+	 * a host runs without the Team surface; callers report unavailability.
+	 */
+	handleTeamModeCommand?(enabled?: boolean): Promise<boolean>;
+	showTeamHub?(): void;
+	showTeamWorkspace?(): void;
+	/**
+	 * `/cd` with no path: open the directory picker and move to the chosen folder.
+	 * Optional: a host without the picker overlay omits it and the caller says so.
+	 */
+	showDirectoryPicker?(): Promise<void>;
 	/** `/wt`: fork the checkout into a new worktree (keeping changes unless `keepChanges` is false) and move there. */
 	handleWorktreeCommand(branch?: string, options?: { keepChanges?: boolean }): Promise<void>;
 	withBtwSessionMove(operation: () => Promise<boolean>): Promise<boolean>;

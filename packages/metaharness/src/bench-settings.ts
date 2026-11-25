@@ -7,7 +7,7 @@
  * write them into `config.yml`, and the edit/scope adapters pass them as
  * in-process Settings overrides (a `config.yml` overlay for RPC runs).
  */
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 
 /** Benchmark-neutral values keyed by setting id. */

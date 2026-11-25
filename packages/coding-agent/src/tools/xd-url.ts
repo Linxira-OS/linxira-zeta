@@ -52,3 +52,24 @@ export function couldBecomeXdUrl(partialPath: string): boolean {
 	}
 	return partialPath.toLowerCase().startsWith(XD_URL_PREFIX);
 }
+
+// Virtual tool-device names for the staged-action tools (resolve/reject/propose)
+// and the automated-QA report sink. Their `xd://` spelling is what the write
+// tool dispatches to, so they live with the URL prefix above.
+
+/** Device name of the staged-preview apply tool. */
+export const RESOLVE_DEVICE_NAME = "resolve";
+/** Device name of the staged-preview discard tool. */
+export const REJECT_DEVICE_NAME = "reject";
+/** Device name of the plan-approval proposal tool. */
+export const PROPOSE_DEVICE_NAME = "propose";
+/** Device name of the automated-QA report sink. */
+export const REPORT_ISSUE_DEVICE_NAME = "report_issue";
+
+/** Device name accepted by the staged-action dispatch. */
+export type ResolutionDeviceName = typeof RESOLVE_DEVICE_NAME | typeof REJECT_DEVICE_NAME | typeof PROPOSE_DEVICE_NAME;
+
+export const RESOLVE_DEVICE_PATH = `${XD_URL_PREFIX}${RESOLVE_DEVICE_NAME}`;
+export const REJECT_DEVICE_PATH = `${XD_URL_PREFIX}${REJECT_DEVICE_NAME}`;
+export const PROPOSE_DEVICE_PATH = `${XD_URL_PREFIX}${PROPOSE_DEVICE_NAME}`;
+export const REPORT_ISSUE_DEVICE_PATH = `${XD_URL_PREFIX}${REPORT_ISSUE_DEVICE_NAME}`;

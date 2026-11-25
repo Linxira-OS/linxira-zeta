@@ -20,7 +20,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { $which, TempDir } from "@oh-my-pi/pi-utils";
+import { $which, TempDir } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 import {
 	type InstalledVersionVerification,
@@ -85,7 +85,7 @@ async function verifyLauncher(binDir: string, expectedVersion: string): Promise<
 const RELEASE: ReleaseInfo = {
 	tag: `v${NEW_VERSION}`,
 	version: NEW_VERSION,
-	packages: { pkg: NEW_PKG, natives: "@oh-my-pi/pi-natives" },
+	packages: { pkg: NEW_PKG, natives: "@linxiraos/pi-natives" },
 	registry: "https://registry.npmjs.org/",
 };
 

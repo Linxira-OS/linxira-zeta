@@ -16,7 +16,7 @@
  * the turn's text, reasoning and arguments and is cleaned the same way.
  */
 
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import {
 	DEEPSEEK_TOOL_CALL_END,
 	DEEPSEEK_TOOL_CALL_TOKENS,

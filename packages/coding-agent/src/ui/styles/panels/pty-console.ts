@@ -4,8 +4,8 @@
  * the run's state; the PTY screen on the tool-output color; then what Escape
  * does while the program runs, or that the session finished.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { padTo, replaceTabs, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { padTo, replaceTabs, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { keyLabel } from "../../keys/hints";
 import type { PtyConsoleState } from "../../overlays/panels/pty-console";
 import { styleReplayedRow } from "../../transcript/pty-replay";

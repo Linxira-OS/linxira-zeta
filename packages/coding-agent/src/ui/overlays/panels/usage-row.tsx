@@ -1,13 +1,13 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A request's usage under its answer: natively one quiet line (`18:02 ·
  * Δ 6.2s · in 18K · out 640 · cache 12K · ttft 0.9s`) with throughput as a
  * `rate` and the full timestamp in the tooltip; in the terminal a dim metric
  * strip with icons (`⤵ 18K  ⤴ 640  💾 12K`) under a blank row.
  */
-import type { Usage } from "@oh-my-pi/pi-ai";
-import { type JSXNode, type Reactive, read } from "@oh-my-pi/pi-tui";
-import { formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
+import type { Usage } from "@linxiraos/pi-ai";
+import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
+import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
 import "../../styles/panels/usage-row";
 
 /** Below this a rate means nothing (cached or instant responses). */
@@ -97,7 +97,7 @@ export function UsageRow(props: UsageRowProps): JSXNode {
 		if (props.ttftMs && props.ttftMs > 0) parts.push(`ttft ${(props.ttftMs / 1000).toFixed(1)}s`);
 		return (
 			<row
-				role="omp.usage.turn"
+				role="zeta.usage.turn"
 				gap="none"
 				align="baseline"
 				title={stamped(props) ? stamp(props.timestamp, hour12) : undefined}

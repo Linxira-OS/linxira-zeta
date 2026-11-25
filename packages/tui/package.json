@@ -1,89 +1,89 @@
 {
-  "type": "module",
-  "name": "@linxiraos/pi-tui",
-  "version": "1.5.14",
-  "description": "TSP-first terminal UI: one component tree, rendered natively over the Tern Surface Protocol or as terminal rows",
-  "homepage": "https://linxira-os.github.io/zeta/",
-  "author": "Linxira-OS",
-  "contributors": [
-    "Mario Zechner"
-  ],
-  "license": "MIT",
-  "repository": {
-    "directory": "packages/tui",
-    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-    "type": "git"
-  },
-  "bugs": {
-    "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
-  },
-  "keywords": [
-    "tui",
-    "terminal",
-    "ui",
-    "text-editor",
-    "differential-rendering",
-    "typescript",
-    "cli"
-  ],
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "scripts": {
-    "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.{ts,tsx}' '*.ts' && bun run check:types",
-    "check:types": "bun check --no-script -p tsconfig.json",
-    "lint": "oxlint .",
-    "test": "bun test --parallel test/",
-    "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
-    "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.{ts,tsx}' '*.ts'",
-    "gen:glyphs": "bun scripts/gen-glyphs.ts",
-    "bench": "bun bench/engine.tsx"
-  },
-  "dependencies": {
-    "@linxiraos/zeta-schema": "catalog:",
-    "@linxiraos/pi-agent-core": "catalog:",
-    "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-catalog": "catalog:",
-    "@linxiraos/pi-natives": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/zeta-compact": "catalog:"
-  },
-  "devDependencies": {
-    "kitty-vt-wasm": "catalog:"
-  },
-  "engines": {
-    "bun": ">=1.4.4"
-  },
-  "files": [
-    "src",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
-    },
-    "./theme": {
-      "types": "./src/theme/index.ts",
-      "import": "./src/theme/index.ts"
-    },
-    "./driver": {
-      "types": "./src/driver/index.ts",
-      "import": "./src/driver/index.ts"
-    },
-    "./native": {
-      "types": "./src/native/index.ts",
-      "import": "./src/native/index.ts"
-    },
-    "./term": {
-      "types": "./src/term/index.ts",
-      "import": "./src/term/index.ts"
-    },
-    "./*": {
-      "types": "./src/*.ts",
-      "import": "./src/*.ts"
-    },
-    "./*.js": "./src/*.ts"
-  }
+	"name": "@linxiraos/pi-tui",
+	"version": "1.5.14",
+	"description": "TSP-first terminal UI: one component tree, rendered natively over the Tern Surface Protocol or as terminal rows",
+	"keywords": [
+		"cli",
+		"differential-rendering",
+		"terminal",
+		"text-editor",
+		"tui",
+		"typescript",
+		"ui"
+	],
+	"homepage": "https://linxira-os.github.io/zeta/",
+	"bugs": {
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
+	},
+	"license": "MIT",
+	"author": "Linxira-OS",
+	"contributors": [
+		"Mario Zechner"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"directory": "packages/tui"
+	},
+	"files": [
+		"src",
+		"README.md",
+		"CHANGELOG.md"
+	],
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"import": "./src/index.ts"
+		},
+		"./theme": {
+			"types": "./src/theme/index.ts",
+			"import": "./src/theme/index.ts"
+		},
+		"./driver": {
+			"types": "./src/driver/index.ts",
+			"import": "./src/driver/index.ts"
+		},
+		"./native": {
+			"types": "./src/native/index.ts",
+			"import": "./src/native/index.ts"
+		},
+		"./term": {
+			"types": "./src/term/index.ts",
+			"import": "./src/term/index.ts"
+		},
+		"./*": {
+			"types": "./src/*.ts",
+			"import": "./src/*.ts"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"scripts": {
+		"check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.{ts,tsx}' '*.ts' && bun run check:types",
+		"check:types": "bun check --no-script -p tsconfig.json",
+		"lint": "oxlint .",
+		"test": "bun test --parallel test/",
+		"fix": "oxlint --fix --fix-suggestions . && bun run fmt",
+		"fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.{ts,tsx}' '*.ts'",
+		"gen:glyphs": "bun scripts/gen-glyphs.ts",
+		"bench": "bun bench/engine.tsx"
+	},
+	"dependencies": {
+		"@linxiraos/pi-agent-core": "catalog:",
+		"@linxiraos/pi-ai": "catalog:",
+		"@linxiraos/pi-catalog": "catalog:",
+		"@linxiraos/pi-natives": "catalog:",
+		"@linxiraos/pi-utils": "catalog:",
+		"@linxiraos/pi-wire": "catalog:",
+		"@linxiraos/zeta-compact": "catalog:",
+		"@linxiraos/zeta-schema": "catalog:"
+	},
+	"devDependencies": {
+		"kitty-vt-wasm": "catalog:"
+	},
+	"engines": {
+		"bun": ">=1.4.4"
+	}
 }

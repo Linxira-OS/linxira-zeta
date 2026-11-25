@@ -4,8 +4,8 @@
  * the selected job's caption or command, its facts on one line, its widget
  * and the tail of the output it shows.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, truncate, wrap } from "@linxiraos/pi-tui/text/width";
 import { jobTreeGuide, type JobTreePlace } from "../../../modes/view-model/overlays/job-tree";
 import type { JobWidgetView } from "../../../tools/details/job-widget";
 import { jobWidgetRows } from "../tools/jobs/widget";

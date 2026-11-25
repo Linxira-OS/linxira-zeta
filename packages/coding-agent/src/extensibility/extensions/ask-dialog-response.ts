@@ -13,7 +13,7 @@
  * unanswered/malformed dialog can never be silently read as an answer.
  */
 import { isRecord } from "@linxiraos/pi-utils";
-import type { ExtensionAskDialogSubmitResult } from "@linxiraos/pi-tui/overlays/ask-dialog";
+import type { ExtensionAskDialogSubmitResult } from "../../modes/view-model/overlays/ask-dialog";
 import type { ExtensionAskDialogQuestion, ExtensionUIDialogOptions } from "./types";
 
 /** One question's answer, as sent by the host. */

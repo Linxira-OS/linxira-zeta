@@ -62,7 +62,7 @@ function getReceiveMessageOnPort(): typeof WorkerThreads.receiveMessageOnPort {
 	if (!workerThreadsCache) workerThreadsCache = require("node:worker_threads") as typeof WorkerThreads;
 	return workerThreadsCache.receiveMessageOnPort;
 }
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 
 /** One RPC method: argument tuple and result. */
 export interface RpcMethod<A extends unknown[], R> {

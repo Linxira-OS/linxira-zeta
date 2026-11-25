@@ -1,10 +1,10 @@
 import type { AstGrepToolDetails } from "./details/ast-grep";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
-import { type AstFindMatch, astGrep, type ShellFilesystem } from "@oh-my-pi/pi-natives";
+import { type } from "@linxiraos/zeta-schema";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ToolExample } from "@linxiraos/pi-ai";
+import { type AstFindMatch, astGrep, type ShellFilesystem } from "@linxiraos/pi-natives";
 
-import { prompt, untilAborted } from "@oh-my-pi/pi-utils";
+import { prompt, untilAborted } from "@linxiraos/pi-utils";
 import { getEditStore } from "../edit/store";
 
 import { sessionResolveContext } from "../internal-urls/context";

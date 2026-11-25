@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Memory tools: `retain` (the memories being stored, as a list), `recall`
  * (the query and what was found) and `reflect` (the query and the answer as
@@ -6,8 +6,8 @@
  *
  * Terminal look: `memory` (`src/ui/styles/tools/memory.ts`).
  */
-import type { TspSpan } from "@oh-my-pi/pi-wire";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { TspSpan } from "@linxiraos/pi-wire";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { ToolPresenter, ToolResult, ToolView } from "./contract";
 import { resultText } from "./default";
 import { registerToolPresenter } from "./registry";
@@ -65,7 +65,7 @@ function errorView(title: string, result: ToolResult, query: string | undefined)
 	return {
 		label: label(title, query),
 		tone: "error",
-		body: <text role="omp.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
+		body: <text role="zeta.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
 		term: {
 			look: "memory",
 			result: true,
@@ -205,7 +205,7 @@ export const reflectPresenter: ToolPresenter<QueryArgs> = {
 		return {
 			label: label("Reflect", query),
 			preview: { lines: REFLECT_PREVIEW },
-			body: text ? <md role="omp.memory.reflect" text={firstLines(text, REFLECT_NATIVE_LINES)} /> : undefined,
+			body: text ? <md role="zeta.memory.reflect" text={firstLines(text, REFLECT_NATIVE_LINES)} /> : undefined,
 			term: {
 				look: "memory",
 				result: true,

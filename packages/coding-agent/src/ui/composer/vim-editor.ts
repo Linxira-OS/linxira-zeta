@@ -5,8 +5,8 @@
  * session `.` replays, the `"+`/`"*` clipboard registers. Prompt history, its search and slash
  * commands are the host's ({@link VimEditorHost}). The composer and dialog text boxes share it.
  */
-import { type Accessor, batch, type KeyEvent, type Signal, signal } from "@oh-my-pi/pi-tui";
-import { columnOf, type EditorRow, offsetAt, rowOf } from "@oh-my-pi/pi-tui/term/painters/editor";
+import { type Accessor, batch, type KeyEvent, type Signal, signal } from "@linxiraos/pi-tui";
+import { columnOf, type EditorRow, offsetAt, rowOf } from "@linxiraos/pi-tui/term/painters/editor";
 import {
 	countGraphemes,
 	diffInsertSession,

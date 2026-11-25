@@ -5,11 +5,11 @@
  * rows. Header and footer rows are cut with an ellipsis at the inner width;
  * body rows one cell shorter when the scrollbar shows.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { boxBottom, boxRow, boxRule, boxTop, scrollbar } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { padTo, truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { boxBottom, boxRow, boxRule, boxTop, scrollbar } from "@linxiraos/pi-tui/term/painters/picker";
+import { padTo, truncate } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 /** The terminal role of a viewer frame's `canvas`. */
 export const FRAME_ROLE = "omp.viewer.frame";

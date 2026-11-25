@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-	skillPromptTitleInput,
-	titleTextFromSkillPrompt,
-} from "@oh-my-pi/pi-coding-agent/session/transcript/skill-title-input";
+import { skillPromptTitleInput, titleTextFromSkillPrompt } from "@linxiraos/zeta/session/transcript/skill-title-input";
 import { formatTitleConversationContext } from "../../src/tiny/message-preproc";
 
 describe("skillPromptTitleInput", () => {

@@ -3,10 +3,10 @@
  * holding the step: its title (with the phase count), what it asks or shows,
  * the field or the choices, and its key hint, one blank row between parts.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { inputLine } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { inputLine } from "@linxiraos/pi-tui/term/painters/prefs";
+import { wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import {
 	type AsyncLine,
 	displayText,

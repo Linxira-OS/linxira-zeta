@@ -7,9 +7,9 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:t
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AgentMessage, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/details/todo";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { type AgentMessage, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { TodoPhase } from "@linxiraos/zeta/tools/details/todo";
+import { isRecord } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";
 import { IrcBus } from "../../src/irc/bus";
@@ -36,7 +36,7 @@ import { Composer } from "../../src/ui/composer/composer";
 import { statusSegs } from "../../src/ui/status/status-line";
 import type { FocusProbe, FocusProbeGlobals } from "../fixtures/focus-view-worker";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../helpers/settings-test-state";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

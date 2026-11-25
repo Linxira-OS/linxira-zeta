@@ -9,7 +9,7 @@
  * - `[label](url)`: a link.
  */
 import { formatKey, formatKeys, formatKeyTwice, type KeyStyle } from "../keys/format";
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import tipsText from "./tips.txt" with { type: "text" };
 
 const NO_TERN = /^\[NO-TERN\]\s*/;

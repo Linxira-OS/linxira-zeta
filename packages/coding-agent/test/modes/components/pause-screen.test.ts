@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { agentPauseGate } from "@oh-my-pi/pi-agent-core";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { BUILTIN_CONTROL_SLASH_COMMANDS } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-control";
-import type { TuiSlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/types";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import { agentPauseGate } from "@linxiraos/pi-agent-core";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { BUILTIN_CONTROL_SLASH_COMMANDS } from "@linxiraos/zeta/slash-commands/builtin-control";
+import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { Settings } from "../../../src/config/settings";
 import { attachTerminal, createInteractiveModeContext } from "../../helpers/interactive-mode-context";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

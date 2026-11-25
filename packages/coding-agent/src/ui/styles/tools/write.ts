@@ -11,14 +11,14 @@
  * path ⟦persist⟧`), the message quoted behind a rail, receipts on branches,
  * a setting's `previous → value`.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { highlightCode } from "@oh-my-pi/pi-tui/text/highlight";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
-import { replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { highlightCode } from "@linxiraos/pi-tui/text/highlight";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
+import { replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspSpan } from "@linxiraos/pi-wire";
+import { formatDuration } from "@linxiraos/pi-utils";
 import { nodePlain, nodeStyle } from "./agent-common";
 import { diagnosticsRows, fileLink, sectionDiagnostics, wrapGutterRow } from "./file-common";
 import { bracketed, expandHint, frameInner, frameRows, isActive, spinnerGlyph, statusIcon } from "./frame";

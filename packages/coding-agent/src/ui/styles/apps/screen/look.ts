@@ -3,7 +3,7 @@
  * every cell, so the overlay draws no frame: its children stack at the full
  * width, padded to the screen's height.
  */
-import { type Block, defineRolePainter, type Hit } from "@oh-my-pi/pi-tui/term/paint";
+import { type Block, defineRolePainter, type Hit } from "@linxiraos/pi-tui/term/paint";
 
 defineRolePainter("overlay", "omp.app.screen", (node, cx): Block => {
 	const rows: string[] = [];

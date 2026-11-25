@@ -10,10 +10,10 @@
  * terminal shows them in the status line. `term.faint` dims every cell (the
  * keys are away at an ask above).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, type Cell, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { fgSgr } from "@oh-my-pi/pi-tui/theme/color";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, type Cell, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { fgSgr } from "@linxiraos/pi-tui/theme/color";
 import { type ComposerChromeContext, type ComposerStatus, caretOverflow, composerShape } from "./shapes";
 
 /** Terminal-only facts of the composer node (its `term` prop). */

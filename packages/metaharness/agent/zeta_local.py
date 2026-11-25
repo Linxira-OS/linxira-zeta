@@ -453,7 +453,7 @@ class OmpLocal(BaseInstalledAgent):
 
     async def _install_published(self, environment: BaseEnvironment) -> str:
         app = f"{self._home}/.omp-bench/app"
-        spec = f"@linxiraos/pi-coding-agent@{self._pkg_version}"
+        spec = f"@linxiraos/zeta@{self._pkg_version}"
         await self.exec_as_agent(
             environment,
             command=self._wrap(

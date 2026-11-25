@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import "../../../src/ui/styles/tools/memory";
 import { recallPresenter, reflectPresenter, retainPresenter } from "../../../src/ui/tools/memory";
 import { ToolCall } from "../../../src/ui/transcript/tool-block";

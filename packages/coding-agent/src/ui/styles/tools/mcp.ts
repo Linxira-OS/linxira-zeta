@@ -5,16 +5,16 @@
  * `… N more lines`), the args listed above it when expanded, an expand hint
  * while collapsed.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
 import { argsSummaryCells } from "../../tools/args";
 import type { McpTerm } from "../../tools/mcp";
 import { expandHint, moreLinesHint, spinnerGlyph } from "./frame";
 import { COLLAPSED_TREE, EXPANDED_TREE, jsonTreeRows } from "./json-tree";
 import { defineToolLook, toolProps } from "./look";
-import { renderMarkdownFrame } from "@oh-my-pi/pi-tui/text/markdown/index";
+import { renderMarkdownFrame } from "@linxiraos/pi-tui/text/markdown/index";
 
 /** Fewest cells a pending call's args summary gets. */
 const SUMMARY_MIN = 20;

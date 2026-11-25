@@ -14,22 +14,22 @@
  *    runtime for internal callers.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentTool, validateAgentToolArguments } from "@oh-my-pi/pi-agent-core";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
-import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { SingleResult, TaskParams } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentTool, validateAgentToolArguments } from "@linxiraos/pi-agent-core";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { SingleResult, TaskParams } from "@linxiraos/zeta/task/task-details";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { isRecord } from "@linxiraos/pi-utils";
 
-import { cfgTaskDisabledAgents, cfgTaskEnableEffort, cfgTaskStructured } from "@oh-my-pi/pi-coding-agent/task/settings";
+import { cfgTaskDisabledAgents, cfgTaskEnableEffort, cfgTaskStructured } from "@linxiraos/zeta/task/settings";
 
 const taskAgent: AgentDefinition = {
 	name: "task",

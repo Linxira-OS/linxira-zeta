@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { fetchReadUrl } from "@oh-my-pi/pi-coding-agent/tools/fetch";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import * as toolsManager from "@oh-my-pi/pi-coding-agent/utils/tools-manager";
-import * as parallelModule from "@oh-my-pi/pi-coding-agent/web/parallel";
-import { handleTwitter } from "@oh-my-pi/pi-coding-agent/web/scrapers/twitter";
-import { handleYouTube } from "@oh-my-pi/pi-coding-agent/web/scrapers/youtube";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+import { fetchReadUrl } from "@linxiraos/zeta/tools/fetch";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import * as toolsManager from "@linxiraos/zeta/utils/tools-manager";
+import * as parallelModule from "@linxiraos/zeta/web/parallel";
+import { handleTwitter } from "@linxiraos/zeta/web/scrapers/twitter";
+import { handleYouTube } from "@linxiraos/zeta/web/scrapers/youtube";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { asGlobalFetch } from "../helpers/fetch-mock";
 

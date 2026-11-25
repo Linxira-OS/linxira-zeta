@@ -1,9 +1,9 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** A tree row's text as Tern is sent it: one line, each line break of the entry a space (a blank line: two). */
 import { expect, test } from "bun:test";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import type { TspPickerItem } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import type { TspPickerItem } from "@linxiraos/pi-wire";
 import { TreeSelector, type TreeSelectorNode } from "../../../../src/ui/overlays/pickers/tree-selector";
 
 test("a tree row keeps the entry's blank line as two spaces and expands its tabs", () => {

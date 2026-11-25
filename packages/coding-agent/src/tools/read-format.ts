@@ -33,7 +33,6 @@ import { resolveArtifactSpillThreshold, resolveInlineByteCapBudget, type Truncat
 import { toolResult } from "./tool-result";
 
 import { cfgReadRenderMarkdown } from "./settings";
-import type { TruncationMetaInput } from "./output-meta";
 
 export function toReadTruncationStats(result: TruncationResult): ReadTruncationStats {
 	const { content: _content, ...stats } = result;

@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The git app's keyboard-shortcuts sheet (`?`): one `section` per group with
  * a two-column hotkeys `table` (key cells carry the `key` span token so a Tern
  * terminal draws keycaps), then a `Close esc` action. The terminal draws it
  * as a titled list of `keys  description` rows (`omp.app.git.help` look).
  */
-import type { Accessor, JSXNode, KeyEvent } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { Accessor, JSXNode, KeyEvent } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import "../../styles/apps/git/help";
 import "../../styles/overlays/bare-sheet";
 import { ActionButton } from "../../overlays/panels/common";
@@ -105,7 +105,7 @@ const keySpans = (keys: readonly string[]): TspSpan[] => keys.map(key => ({ s: "
 export function GitHelp(props: GitHelpProps): JSXNode {
 	return (
 		<col
-			role="omp.app.git.help"
+			role="zeta.app.git.help"
 			gap="lg"
 			term={{ groups: GIT_SHORTCUTS }}
 			onAction={act => {
@@ -118,9 +118,9 @@ export function GitHelp(props: GitHelpProps): JSXNode {
 			}}
 		>
 			{GIT_SHORTCUTS.map(group => (
-				<section key={group.title} head={group.title} role="omp.hotkeys.group">
+				<section key={group.title} head={group.title} role="zeta.hotkeys.group">
 					<table
-						role="omp.hotkeys.table"
+						role="zeta.hotkeys.table"
 						cols={[
 							{ id: "keys", head: "Keys" },
 							{ id: "does", head: "Action", grow: 1 },
@@ -132,7 +132,7 @@ export function GitHelp(props: GitHelpProps): JSXNode {
 					/>
 				</section>
 			))}
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<ActionButton id="close" label="Close" title="Close  esc" keys={["escape"]} />
 			</row>

@@ -1,16 +1,16 @@
 import { afterAll, afterEach, describe, expect, it } from "bun:test";
-import type { Agent, AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { corpusEnvironment, describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { IrcBridge, type IrcBridgeHost } from "@oh-my-pi/pi-coding-agent/session/irc-bridge";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session-events";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
+import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
+import { corpusEnvironment, describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session-events";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import type { TranscriptBlock } from "../../src/ui/shell";
 import { createInteractiveModeContext } from "../helpers/interactive-mode-context";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

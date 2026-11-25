@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test } from "bun:test";
-import { createRoot, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { TerminalImages } from "@oh-my-pi/pi-tui/driver/images/store";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import { driverImages } from "@oh-my-pi/pi-tui/term/backend";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createRoot, signal, type UiNode } from "@linxiraos/pi-tui";
+import { TerminalImages } from "@linxiraos/pi-tui/driver/images/store";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
+import { driverImages } from "@linxiraos/pi-tui/term/backend";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import "../../../../src/ui/styles/messages";
 import { KITTY } from "./harness";
 

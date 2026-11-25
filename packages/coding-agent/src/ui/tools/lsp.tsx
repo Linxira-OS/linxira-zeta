@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * LSP: the action as the title (`Diagnostics`, `Hover`, `References`), the
  * file (and line) as the target, the symbol as meta. Results: diagnostics as
@@ -7,7 +7,7 @@
  * Terminal look: `lsp` (`src/ui/styles/tools/lsp.ts`): `💡 LSP: hover a.ts:3
  * (retry)` then a per-action body.
  */
-import type { TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import type { TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import type { ToolHead, ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
 import { registerToolPresenter } from "./registry";
@@ -215,7 +215,7 @@ export const lspPresenter: ToolPresenter<LspArgs> = {
 				body: diagnostics.map((diagnostic, i) => {
 					const icon = SEVERITY_ICON[diagnostic.severity] ?? SEVERITY_ICON.info!;
 					return (
-						<row key={`d${i}`} role="omp.tool.diagnostic">
+						<row key={`d${i}`} role="zeta.tool.diagnostic">
 							<icon name={icon.name} tone={icon.tone} aria={diagnostic.severity} />
 							<text spans={[{ s: "mono muted", t: diagnostic.location }]} wrap="none" />
 							<text spans={[{ t: diagnostic.message }]} wrap="word" grow={1} />

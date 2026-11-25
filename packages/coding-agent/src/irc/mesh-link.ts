@@ -8,7 +8,7 @@
  * and every remote send fails with a clear receipt.
  */
 import type { IrcDeliveryReceipt } from "./irc-types";
-import { isRecord, logger, toError } from "@oh-my-pi/pi-utils";
+import { isRecord, logger, toError } from "@linxiraos/pi-utils";
 import type { AgentSession } from "../session/agent-session";
 import { canonicalProjectDir, daemonClient } from "../daemon/client";
 import { type DaemonClient, type DaemonTunnel, projectScope } from "../daemon/protocol";

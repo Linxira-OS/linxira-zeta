@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The bash visualizer's focused inspector over the presentation the
  * transcript shows: natively a `shell` node in inspector mode; without a
@@ -8,8 +8,8 @@
  * key help and layer states, the presentation rows, and the selected node's
  * details in a pane under them.
  */
-import { computed, type JSXNode, untrack } from "@oh-my-pi/pi-tui";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
+import { computed, type JSXNode, untrack } from "@linxiraos/pi-tui";
+import { truncate } from "@linxiraos/pi-tui/text/width";
 import { INSPECTOR_ROLE, NO_PRESENTATION } from "../../styles/apps/shell-visualizer/look";
 import type { Shell } from "../../shell/shell";
 import "../../styles/apps/screen/look";
@@ -26,7 +26,7 @@ export function presentShellInspector(
 	const model = new ShellVisualizerModel({ ...source, height: () => shell.size().rows });
 	return shell.overlays.show(
 		() => (
-			<overlay key="fullscreen" size="full" role="omp.app.screen" page={{}}>
+			<overlay key="fullscreen" size="full" role="zeta.app.screen" page={{}}>
 				<ShellVisualizer model={model} />
 			</overlay>
 		),

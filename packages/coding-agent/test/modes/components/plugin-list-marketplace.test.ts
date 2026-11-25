@@ -1,22 +1,19 @@
 import { afterAll, afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as os from "node:os";
-import { PluginManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins";
-import {
-	type InstalledPluginSummary,
-	MarketplaceManager,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import { createPluginSettingsHost } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/settings-host";
-import type { InstalledPlugin } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/types";
-import type { PluginSettingsHost } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/plugin-settings";
-import type { KeyEvent } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins";
+import { type InstalledPluginSummary, MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/settings-host";
+import type { InstalledPlugin } from "@linxiraos/zeta/extensibility/plugins/types";
+import type { PluginSettingsHost } from "@linxiraos/zeta/modes/view-model/overlays/plugin-settings";
+import type { KeyEvent } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import {
 	createPluginSettings,
 	type PluginSettingsCallbacks,
 	type PluginStart,
 } from "../../../src/ui/overlays/plugins/settings";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));
@@ -28,6 +25,11 @@ const npm = (name: string, opts: Partial<InstalledPlugin> = {}): InstalledPlugin
 	manifest: { version: "1.2.3", description: `desc ${name}` },
 	enabledFeatures: null,
 	enabled: true,
+	storage: {
+		dataDir: `/cache/npm/${name}/data`,
+		cacheDir: `/cache/npm/${name}/cache`,
+		stateDir: `/cache/npm/${name}/state`,
+	},
 	...opts,
 });
 

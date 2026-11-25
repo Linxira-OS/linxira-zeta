@@ -4,12 +4,12 @@ import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { VcsWorktreeEntry } from "@linxiraos/pi-natives";
 import { isEnoent, untilAborted } from "@linxiraos/pi-utils";
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { pushLine } from "@linxiraos/pi-tui/tools/gh-format";
+import { pushLine } from "./gh-format";
 import { M } from "../i18n";
 import { gitea } from "../utils/gitea";
 import type { ToolSession } from ".";
 import type { TeaInput, TeaLogin, TeaLabel, TeaPullRequest, TeaRepo, TeaToolDetails, TeaUser } from "./tea-types";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { toolResult } from "./tool-result";
 
 export function normalizeText(value: string | null | undefined): string {

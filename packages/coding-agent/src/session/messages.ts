@@ -5,6 +5,7 @@
  * and provides a transformer to convert them to LLM-compatible messages.
  */
 import { type AgentMessage, isProviderRefusalMessage } from "@linxiraos/pi-agent-core";
+import { toProviderReplayMessage } from "@linxiraos/pi-agent-core/replay-policy";
 import {
 	isUserInterruptAbort,
 	isCustomMessageContent,

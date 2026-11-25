@@ -1,11 +1,11 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Turns of a transcript selector (`/rewind`, `/copy`) drawn by the
  * transcript's own blocks: a prompt's bubble, a reply then a card per tool
  * call with its result (consecutive reads as one read group). The terminal
  * looks paint these nodes; they never join the screen's native tree.
  */
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	type Accessor,
 	getOwner,
@@ -16,7 +16,7 @@ import {
 	signal,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import { readArgsCollapseIntoGroup } from "../../../session/transcript/read-tool-group";
 import { textContent } from "../../../session/transcript/transcript-entry";
 import "../../tools";

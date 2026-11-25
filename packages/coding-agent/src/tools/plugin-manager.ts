@@ -2,7 +2,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/zeta-schema";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { isLocalPathSpec } from "../cli/classify-install-target";
 import { PluginManager } from "../extensibility/plugins/manager";
 import type { InstalledPlugin } from "../extensibility/plugins/types";

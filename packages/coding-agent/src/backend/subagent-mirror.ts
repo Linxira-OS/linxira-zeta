@@ -12,12 +12,9 @@
  * has seen start, so a terminal row is emitted once and then left alone.
  */
 
-import type { AgentStatus } from "@linxiraos/pi-tui/overlays/agent-hub-types";
-import {
-	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
-	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@linxiraos/pi-tui/overlays/session-observer-registry";
-import type { AgentProgress, AgentSource } from "@linxiraos/pi-tui/tools/task";
+import type { AgentStatus } from "../registry/agent-hub-types";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL, TASK_SUBAGENT_PROGRESS_CHANNEL } from "../task/session-observer-registry";
+import type { AgentProgress, AgentSource } from "../task/task-details";
 import { logger } from "@linxiraos/pi-utils";
 import type { SubagentLifecyclePayload, SubagentProgressPayload } from "../task";
 import { emitSubagentFrame, type EventBus } from "../utils/event-bus";

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { type AgentMessage, filterProviderReplayMessages } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
+import { type AgentMessage, filterProviderReplayMessages } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
 import {
 	buildReplanTitleContext,
 	buildTitleDriftTurns,

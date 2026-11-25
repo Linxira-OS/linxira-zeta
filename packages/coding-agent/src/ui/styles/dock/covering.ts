@@ -5,8 +5,8 @@
  * still fit above stay on screen; the ones covered come back when the slot
  * empties, never moved into history.
  */
-import { defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { stack } from "@oh-my-pi/pi-tui/term/painters/layout";
+import { defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { stack } from "@linxiraos/pi-tui/term/painters/layout";
 
 defineRolePainter("col", "omp.dock.covering", (node, cx) => {
 	const block = stack(

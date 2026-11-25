@@ -11,13 +11,13 @@
  * widgets drawn whole). Agents outside job control follow as their own tree.
  * Spinners turn while the result streams (`term.spinning`).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { shimmerTiers } from "@oh-my-pi/pi-tui/term/painters/shimmer";
-import { shimmerText } from "@oh-my-pi/pi-tui/text/shimmer";
-import { replaceTabs, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { shimmerTiers } from "@linxiraos/pi-tui/term/painters/shimmer";
+import { shimmerText } from "@linxiraos/pi-tui/text/shimmer";
+import { replaceTabs, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatDuration } from "@linxiraos/pi-utils";
 import { jobDisplayLabel } from "../../../async/job-label";
 import type { AgentActivitySnapshot, JobSnapshot } from "../../../tools/details/wait";
 import { formatArtifactErrorNotice, stripOutputNotice } from "../../../tools/output-meta-format";

@@ -7,7 +7,9 @@ After EACH item, call `yield` once as `{ key, data }` or `{ key, error }`:
 The tool tells you which keys remain; the final key ends the turn automatically.
 NEVER combine several items into one yield.
 {{#each items}}
+
 ## Item {{index}}
+
 {{text}}
 {{/each}}
 </workpool>

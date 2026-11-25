@@ -32,7 +32,6 @@ import { ToolError } from "./tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgTaskDisabledAgents } from "../task/settings";
-import { searchApprovalCacheTargets } from "./search-approval-targets";
 
 const findSchema = type({
 	"path?": "string",

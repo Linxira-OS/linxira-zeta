@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { PlanSaveOverlayResult } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/plan-save-overlay";
-import { signal } from "@oh-my-pi/pi-tui";
+import type { PlanSaveOverlayResult } from "@linxiraos/zeta/modes/view-model/overlays/plan-save-overlay";
+import { signal } from "@linxiraos/pi-tui";
 import { Settings } from "../../../src/config/settings";
 import { PlanSave } from "../../../src/ui/overlays/panels/plan-save";
 import { mountOverlay } from "../../helpers/overlay-terminal";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

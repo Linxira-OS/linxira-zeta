@@ -32,14 +32,14 @@
  * publisher reports. A closed mirror keeps its last state, rejects commands
  * with an error naming the worker, and treats `dispose` as already done.
  */
-import { type AgentMessage, type AgentTool, ThinkingLevel, Tokenizer } from "@oh-my-pi/pi-agent-core";
-import type { Effort, ImageContent, Model, ServiceTier, ToolResultMessage, UsageReport } from "@oh-my-pi/pi-ai";
+import { type AgentMessage, type AgentTool, ThinkingLevel, Tokenizer } from "@linxiraos/pi-agent-core";
+import type { Effort, ImageContent, Model, ServiceTier, ToolResultMessage, UsageReport } from "@linxiraos/pi-ai";
 import { AUTO_THINKING } from "../thinking/levels";
 import { type ConfiguredThinkingLevel } from "../utils/render-utils";
 import type { IrcMessage } from "../irc/irc-types";
 import type { JobWidgetEntry } from "../tools/details/job-widget";
 import type { TodoPhase } from "../tools/details/todo";
-import { getBlobsDir, logger } from "@oh-my-pi/pi-utils";
+import { getBlobsDir, logger } from "@linxiraos/pi-utils";
 import type { AsyncJobManagerApi } from "../async";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { ModelRegistry } from "../config/model-registry";
@@ -175,6 +175,7 @@ export function emptyMirrorState(): SessionMirrorState {
 function emptyViewState(): SessionViewState {
 	return {
 		providerSessionId: "",
+		studioLinkSchemes: [],
 		sessionName: undefined,
 		leafId: null,
 		agentEffort: undefined,
@@ -750,8 +751,16 @@ export class RemoteAgentSession implements AgentViewSession {
 		return restored;
 	}
 
-	resume(): Promise<void> {
+	resume(): Promise<"restored" | "continue"> {
 		return this.#command("resume");
+	}
+
+	getStudioLinkSchemes(): string[] {
+		return this.#view.studioLinkSchemes;
+	}
+
+	activateStudioLink(url: string): Promise<boolean> {
+		return this.#command("activateStudioLink", url);
 	}
 
 	retry(): Promise<boolean> {

@@ -11,7 +11,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type IpcConnection, ipcEndpoint } from "@linxiraos/pi-natives";
 import { logger, postmortem, ptree, untilAborted } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { daemonClient } from "../daemon/client";
 import { type DaemonTunnel, GLOBAL_SCOPE, type UnitSnapshot } from "../daemon/protocol";
 import { resolveWorkerSpawnCmd, SMOKE_TEST_TIMEOUT_MS, workerEnvFromParent } from "../subprocess/worker-client";

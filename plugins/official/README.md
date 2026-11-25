@@ -123,7 +123,7 @@ export default function (pi: ExtensionAPI) {
 
 | 上游 | Zeta |
 |---|---|
-| `@earendil-works/pi-coding-agent` | `@linxiraos/pi-coding-agent`（zeta） |
+| `@earendil-works/pi-coding-agent` | `@linxiraos/zeta`（zeta） |
 | `@earendil-works/pi-ai` | `@linxiraos/pi-ai` |
 | `@earendil-works/pi-agent-core` | `@linxiraos/pi-agent-core` |
 | `@earendil-works/pi-tui` | `@linxiraos/pi-tui` |

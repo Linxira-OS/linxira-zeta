@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The pause screen: the session is held (every agent stops at its next
  * step) until the user resumes. Shows how long it has been paused, whether
@@ -8,8 +8,8 @@
  * The native tree is written once when the screen opens; the clock counts
  * on from there and the terminal redraws its own look from the live state.
  */
-import { type Accessor, type JSXNode, untrack } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type Accessor, type JSXNode, untrack } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { PauseWorkStatus } from "../../../modes/view-model/overlays/pause-screen";
 import "../../styles/panels/pause-screen";
 import { appInterruptKeys, matchesAppInterrupt } from "../../../config/keybindings/matchers";
@@ -72,39 +72,39 @@ export function PauseScreen(props: PauseScreenProps): JSXNode {
 				if (act === "resume") props.onResume();
 			}}
 		>
-			<row key="hero" role="omp.pause.hero" align="center" gap="md">
-				<icon key="glyph" role="omp.pause.glyph" name="pause" />
+			<row key="hero" role="zeta.pause.hero" align="center" gap="md">
+				<icon key="glyph" role="zeta.pause.glyph" name="pause" />
 				<col gap="none" grow={1} shrink={1}>
-					<elapsed key="clock" role="omp.pause.clock" age={0} format="clock" title="Paused for" />
+					<elapsed key="clock" role="zeta.pause.clock" age={0} format="clock" title="Paused for" />
 					<text
 						key="session"
-						role="omp.pause.session"
+						role="zeta.pause.session"
 						wrap="none"
 						truncate="end"
 						spans={[{ s: "muted", t: props.sessionName ?? "Every agent in this session" }]}
 					/>
 				</col>
 			</row>
-			<col key="settlement-status" role="omp.pause.settlement-status" gap="sm">
-				<text key="settlement" role="omp.pause.settlement" spans={[settlement]} />
+			<col key="settlement-status" role="zeta.pause.settlement-status" gap="sm">
+				<text key="settlement" role="zeta.pause.settlement" spans={[settlement]} />
 				{!settled && (
 					<text
 						key="unsettled-turns"
-						role="omp.pause.unsettled-turn-count"
+						role="zeta.pause.unsettled-turn-count"
 						spans={[{ s: "muted", t: `Unsettled turns: ${work.unsettledTurns}` }]}
 					/>
 				)}
 				{!settled && (
 					<text
 						key="unfinished-jobs"
-						role="omp.pause.unfinished-job-count"
+						role="zeta.pause.unfinished-job-count"
 						spans={[{ s: "muted", t: `Unfinished jobs: ${work.unfinishedJobs}` }]}
 					/>
 				)}
 			</col>
-			<col key="facts" role="omp.pause.facts" gap="md">
+			<col key="facts" role="zeta.pause.facts" gap="md">
 				{FACTS.map(([icon, head, body], index) => (
-					<row key={`fact-${index}`} role="omp.pause.fact" align="start" gap="md">
+					<row key={`fact-${index}`} role="zeta.pause.fact" align="start" gap="md">
 						<icon name={icon} />
 						<col gap="none" grow={1} shrink={1}>
 							<text spans={[{ s: "strong", t: head }]} />
@@ -113,7 +113,7 @@ export function PauseScreen(props: PauseScreenProps): JSXNode {
 					</row>
 				))}
 			</col>
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<ActionButton
 					id="resume"

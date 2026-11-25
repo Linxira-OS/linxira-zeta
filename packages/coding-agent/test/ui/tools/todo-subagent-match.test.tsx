@@ -1,11 +1,11 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A collapsed todo card lights a pending task a running subagent's description matches (as the
  * dock's todo HUD does), follows the descriptions as they change, and shows plain statuses expanded.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { createRoot, isUiNode } from "@oh-my-pi/pi-tui";
-import type { TspChecklistPhase } from "@oh-my-pi/pi-wire";
+import { createRoot, isUiNode } from "@linxiraos/pi-tui";
+import type { TspChecklistPhase } from "@linxiraos/pi-wire";
 import type { ToolViewState } from "../../../src/ui/tools/contract";
 import { setActiveTodoDescriptions, todoPresenter } from "../../../src/ui/tools/todo";
 

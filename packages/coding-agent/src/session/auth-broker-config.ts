@@ -34,8 +34,10 @@ import {
 	resolveAuthBrokerConfig as resolveAuthBrokerConfigShared,
 } from "@linxiraos/pi-ai/auth-broker/discover";
 import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
+import type { AuthBrokerStartupRetry } from "@linxiraos/pi-ai/auth-broker/discover";
 import { setUnpausedProviders } from "@linxiraos/pi-ai/oauth";
-import { getAgentDir, logger } from "@linxiraos/pi-utils";
+import { SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import { getAgentDbPath, getAgentDir, logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { combine, effectsSettings, type ScopeLike } from "../config/registry";
 import { resolveConfigValue } from "../config/resolve-config-value";
@@ -129,6 +131,21 @@ export function resolveAuthBrokerConfig(): Promise<AuthBrokerClientConfig | null
 		}
 	});
 	return promise;
+}
+
+/**
+ * Human-readable store holding `provider`'s credentials: the local agent
+ * database, or the auth broker URL when the broker serves that provider.
+ */
+export async function credentialStoreLabel(provider: string): Promise<string> {
+	const broker = await resolveAuthBrokerConfig();
+	if (!broker) return getAgentDbPath();
+	const local = await SqliteAuthCredentialStore.open(getAgentDbPath());
+	try {
+		return local.listBrokerLocalProviders().includes(provider) ? getAgentDbPath() : `auth broker ${broker.url}`;
+	} finally {
+		local.close();
+	}
 }
 
 /** Settings a long-lived auth storage follows (see {@link createAuthStorageSettingsSync}). */

@@ -458,6 +458,10 @@ export class TurnRecovery {
 	 * with how the previous one was routed.
 	 */
 	#fallbackRoutedFor: string | undefined;
+	/** Session whose requests already dropped replayed demoted reasoning after a classifier refusal. */
+	#demotedReasoningOmittedFor: string | undefined;
+	/** True once this turn resampled a mid-stream `reasoning_extraction` refusal on the same model. */
+	#midStreamRefusalResampled = false;
 	/** Memoized bootstrap answer, for the window before anything has served. */
 	#bootstrapCache:
 		| { model: Model; level: ThinkingLevel | undefined; routed: boolean; value: ServingModel }
@@ -593,6 +597,18 @@ export class TurnRecovery {
 			return undefined;
 		}
 		return active.handle;
+	}
+
+	/**
+	 * Whether a request to `model` leaves other models' reasoning out of its
+	 * input: this session turned it off after a refusal, and `model`'s
+	 * classifier refuses reasoning replayed as text.
+	 */
+	omitsDemotedReasoning(model: Model): boolean {
+		return (
+			this.#demotedReasoningOmittedFor === this.#host.sessionManager.getSessionId() &&
+			resolveCatalogPolicy(model).classifierCotExtraction === true
+		);
 	}
 
 	/**
@@ -3183,6 +3199,52 @@ export class TurnRecovery {
 				this.#genericAbortStreak = 0;
 			}
 		}
+		// A `reasoning_extraction` refusal of a request that replayed other models'
+		// reasoning as text: resend it once on this model without that reasoning,
+		// and leave it out for the rest of the session, before walking the chain.
+		// A refusal of a request that carried none would only be refused again.
+		const sessionId = this.#host.sessionManager.getSessionId();
+		const stripDemotedReasoning =
+			classifierRefusal &&
+			!retryBudgetExhausted &&
+			message.stopDetails?.category === "reasoning_extraction" &&
+			(message.demotedReasoningBlocks ?? 0) > 0 &&
+			currentModel !== undefined &&
+			resolveCatalogPolicy(currentModel).classifierCotExtraction === true &&
+			this.#demotedReasoningOmittedFor !== sessionId;
+		if (stripDemotedReasoning) {
+			this.#demotedReasoningOmittedFor = sessionId;
+			delayMs = 0;
+			logger.info("Classifier refused other models' reasoning replayed as text; retrying without it", {
+				model: `${currentModel.provider}/${currentModel.id}`,
+				demotedReasoningBlocks: message.demotedReasoningBlocks,
+			});
+		}
+
+		// A `reasoning_extraction` refusal that stopped output already streaming judged
+		// that sample, not the request: the same request on this model answers on the
+		// next try. Resample once per turn before walking the chain; a second refusal
+		// takes the existing path.
+		const resampleMidStreamRefusal =
+			classifierRefusal &&
+			!retryBudgetExhausted &&
+			!stripDemotedReasoning &&
+			!this.#midStreamRefusalResampled &&
+			message.stopDetails?.category === "reasoning_extraction" &&
+			message.content.some(
+				block =>
+					block.type === "toolCall" ||
+					(block.type === "thinking" && hasNonWhitespace(block.thinking)) ||
+					(block.type === "text" && hasNonWhitespace(block.text)),
+			);
+		if (resampleMidStreamRefusal) {
+			this.#midStreamRefusalResampled = true;
+			delayMs = 0;
+			logger.info("Classifier refused a turn mid-stream; resampling it on the same model", {
+				model: currentModel ? `${currentModel.provider}/${currentModel.id}` : undefined,
+			});
+		}
+
 		if (
 			(classifierRefusal || accountPolicyDenial) &&
 			!switchedCredential &&

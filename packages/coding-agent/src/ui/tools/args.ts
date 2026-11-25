@@ -5,8 +5,8 @@
  * layout; the terminal truncates it again), and a cell budget for terminal
  * rows, which shrinks long values first so later keys still show.
  */
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 
 /** Arg keys that are call metadata, never shown. */
 const HIDDEN_KEYS: ReadonlySet<string> = new Set([INTENT_FIELD, "__partialJson"]);

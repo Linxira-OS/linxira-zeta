@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/debug logs`: recent log entries as a picker sheet. The filter is its
  * query, one row per entry (message, fields, time, pid, level dot) with the
@@ -9,9 +9,9 @@
  * look): raw lines with fold markers, a summary and filter line above, the
  * status and key hints below. Keys behave the same on both.
  */
-import { computed, type JSXNode } from "@oh-my-pi/pi-tui";
-import type { TspPickerGroup, TspPickerItem, TspPickerProps, TspTone } from "@oh-my-pi/pi-wire";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { computed, type JSXNode } from "@linxiraos/pi-tui";
+import type { TspPickerGroup, TspPickerItem, TspPickerProps, TspTone } from "@linxiraos/pi-wire";
+import { isRecord } from "@linxiraos/pi-utils";
 import "../../styles/apps/log-viewer/look";
 import { displayLine, type LogViewerModel } from "./model";
 

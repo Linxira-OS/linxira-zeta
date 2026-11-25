@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { callTool } from "@oh-my-pi/pi-coding-agent/mcp/client";
-import { disposeLocalMcpHost } from "@oh-my-pi/pi-coding-agent/mcp/host/local";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPStdioServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
+import { callTool } from "@linxiraos/zeta/mcp/client";
+import { disposeLocalMcpHost } from "@linxiraos/zeta/mcp/host/local";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 import { TOOL_NAME, TOOL_RESULT } from "./fixtures/delayed-tool-mcp";
 import { initTheme } from "../src/ui/theme/service";

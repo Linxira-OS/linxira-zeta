@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/context`: a read-only snapshot of what fills the context window, in three
  * states — the Overview (usage summary and stacked meter, the category legend
@@ -8,10 +8,10 @@
  * {@link ContextViewerModel} holds the navigation; the native tree and the
  * terminal look (a box with an occupancy map beside the legend) both read it.
  */
-import { type Accessor, type JSXNode, type ScrollRequest, signal, untrack } from "@oh-my-pi/pi-tui";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
-import { formatNumber, sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type Accessor, type JSXNode, type ScrollRequest, signal, untrack } from "@linxiraos/pi-tui";
+import { wrap } from "@linxiraos/pi-tui/text/width";
+import { formatNumber, sanitizeText } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type {
 	ContextCategoryId,
 	ContextThinkingGroup,
@@ -600,9 +600,9 @@ function Overview(props: { readonly model: ContextViewerModel }): JSXNode {
 		}
 		const threshold = breakdown.thresholdTokens;
 		head.push(
-			<row key="summary" role="omp.context.summary" align="baseline" wrap>
+			<row key="summary" role="zeta.context.summary" align="baseline" wrap>
 				<text
-					role="omp.context.used"
+					role="zeta.context.used"
 					grow={1}
 					wrap="none"
 					spans={[
@@ -610,7 +610,7 @@ function Overview(props: { readonly model: ContextViewerModel }): JSXNode {
 						{ s: "dim", t: labels.detail },
 					]}
 				/>
-				<text role="omp.context.room" wrap="none" text={labels.room} />
+				<text role="zeta.context.room" wrap="none" text={labels.room} />
 			</row>,
 			<meter
 				key="bar"
@@ -829,7 +829,7 @@ export function ContextViewer(props: ContextViewerProps): JSXNode {
 				);
 			return (
 				<col
-					role="omp.context"
+					role="zeta.context"
 					grow={state === "entry" ? undefined : 1}
 					min={state === "entry" ? undefined : { h: 0 }}
 					term={{ model, rev: untrack(model.rev) }}
@@ -841,7 +841,7 @@ export function ContextViewer(props: ContextViewerProps): JSXNode {
 					}}
 				>
 					{children}
-					<row key="actions" role="omp.actions" align="center" gap="sm">
+					<row key="actions" role="zeta.actions" align="center" gap="sm">
 						<spacer grow={1} />
 						{state !== "overview" && <ActionButton id="back" label="Back" title="Back" />}
 						<ActionButton id="close" label="Close" title="Close" />

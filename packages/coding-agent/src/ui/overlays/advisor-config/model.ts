@@ -3,9 +3,9 @@
  * (deps, callbacks, live stats), the one-line summaries every view shares,
  * and the model catalogue the model picker browses.
  */
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model, UsageLimit, UsageReport } from "@oh-my-pi/pi-ai";
-import type { Accessor } from "@oh-my-pi/pi-tui";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model, UsageLimit, UsageReport } from "@linxiraos/pi-ai";
+import type { Accessor } from "@linxiraos/pi-tui";
 import type {
 	AdvisorConfig,
 	AdvisorConfigScope,

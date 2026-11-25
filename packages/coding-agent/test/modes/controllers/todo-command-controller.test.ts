@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { TodoCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/todo-command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { type TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/details/todo";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { TodoCommandController } from "@linxiraos/zeta/modes/controllers/todo-command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { type TodoPhase } from "@linxiraos/zeta/tools/details/todo";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function createContext(cwd: string, phases: TodoPhase[]): InteractiveModeContext {
 	return {

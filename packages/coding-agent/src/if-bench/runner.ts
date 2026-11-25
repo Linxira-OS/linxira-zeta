@@ -16,8 +16,8 @@ import type {
 	Message,
 	Model,
 	ProviderSessionState,
-} from "@oh-my-pi/pi-ai";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import type { BenchRuntime, BenchTarget, StreamSimpleFn } from "../cli/bench-runtime";
 import { formatModelSelectorValue } from "../config/model-selector";
 import { formatModelString } from "../config/model-resolver";
@@ -88,6 +88,8 @@ export interface IfBenchRunOptions {
 	observer?: IfBenchObserver<IfBenchTurnRecord, IfBenchModelReport>;
 	/** Sleep between refusal-retry attempts; tests inject a no-op. Defaults to `Bun.sleep`. */
 	sleep?: (ms: number) => Promise<void>;
+	/** Cancellation for a studio evaluation run; checked between models and turns. */
+	signal?: AbortSignal;
 }
 
 interface TurnOutcome {
@@ -137,6 +139,7 @@ export async function runIfBench(options: IfBenchRunOptions): Promise<IfBenchSum
 
 	const worker = async (): Promise<void> => {
 		for (;;) {
+			options.signal?.throwIfAborted();
 			const next = queue.shift();
 			if (!next) return;
 			ordered[next.index] = await runTarget(next.target, options);
@@ -196,6 +199,7 @@ async function runTarget(target: BenchTarget, options: IfBenchRunOptions): Promi
 
 	try {
 		for (let turn = 1; turn <= options.maxTurns; turn += 1) {
+			options.signal?.throwIfAborted();
 			const actions: Action[] = makeActions(options.arrayLength, cumulativeActions, turn);
 			const turnPrompt = buildTurnPrompt({
 				turn,

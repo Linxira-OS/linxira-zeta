@@ -26,8 +26,8 @@ import {
 import { PsTop, PsTopModel } from "../ui/apps/ps-top";
 import { runStandalone } from "../ui/apps/fullscreen";
 import { type PsTopHost } from "../modes/view-model/apps/ps-top";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatDuration } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { closeDaemonClient, daemonClient, probeDaemon } from "../daemon/client";
 import type { DaemonClient, DaemonSignal, UnitSnapshot } from "../daemon/protocol";
 import { isSharedBrowserUnit, restartSharedBrowser } from "../tools/browser/shared-daemon";
@@ -52,6 +52,8 @@ export interface PsCommandArgs {
 		plain: boolean;
 		/** Target another project directory instead of the current one. */
 		dir?: string;
+		/** Target a machine-global service scope (e.g. `browser-relay`) instead of a project unit. */
+		global?: string;
 		/** logs: keep streaming new output. */
 		follow: boolean;
 		/** logs: read from the beginning instead of the tail. */

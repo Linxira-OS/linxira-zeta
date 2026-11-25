@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test } from "bun:test";
-import type { UiEvent } from "@oh-my-pi/pi-tui";
+import type { UiEvent } from "@linxiraos/pi-tui";
 import { fullscreenMenuView } from "../../../../src/modes/controllers/selector-views";
 import { nativeShell } from "../../../helpers/native-shell";
 import type { TranscriptEntryLike } from "../../../../src/session/transcript/transcript-entry";

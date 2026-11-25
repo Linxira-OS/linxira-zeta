@@ -1,10 +1,10 @@
-import type { ResolvedThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
+import type { ResolvedThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import type { ConfiguredThinkingLevel } from "../utils/render-utils";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
-import { Effort, THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
-import { clampThinkingLevelForModel, getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { routedModelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import type { Model } from "@oh-my-pi/pi-catalog/types";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
+import { Effort, THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { routedModelsAreEqual } from "@linxiraos/pi-catalog/models";
+import type { Model } from "@linxiraos/pi-catalog/types";
 
 /** Thinking selectors accepted by CLI inputs, in display order. */
 export const CLI_THINKING_LEVELS: readonly ConfiguredThinkingLevel[] = ["off", ...THINKING_EFFORTS, "auto"];

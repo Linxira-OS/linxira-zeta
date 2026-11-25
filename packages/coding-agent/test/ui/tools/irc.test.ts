@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
-import { createRoot, isUiNode, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
-import { corpusEnvironment, describeTree, firstDiff, stageNative } from "@oh-my-pi/pi-tui/testing/corpus";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot, isUiNode, signal, type UiNode } from "@linxiraos/pi-tui";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
+import { corpusEnvironment, describeTree, firstDiff, stageNative } from "@linxiraos/pi-tui/testing/corpus";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import "../../../src/ui/styles/tools/irc";
 import { type IrcMessage, IrcMessageCard } from "../../../src/ui/tools/irc";
 import { loadScreenCase, screenCaseFiles } from "./screens";

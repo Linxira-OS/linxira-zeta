@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Extension renderer output as pi-tui nodes.
  *
@@ -28,10 +28,10 @@ import {
 	signal,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { bold, inverse, italic, strikethrough, underline } from "@oh-my-pi/pi-tui/theme/theme";
+} from "@linxiraos/pi-tui";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { bold, inverse, italic, strikethrough, underline } from "@linxiraos/pi-tui/theme/theme";
 import type { ExtensionRows, ExtensionTheme } from "../../extensibility/extensions/render-types";
 
 /** How a mount point adapts extension output. */

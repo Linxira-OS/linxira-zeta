@@ -11,16 +11,16 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, spyOn, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, Usage } from "@oh-my-pi/pi-ai";
-import { kStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext, StrippedToolCallsMarker } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, Usage } from "@linxiraos/pi-ai";
+import { kStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { SessionContext, StrippedToolCallsMarker } from "@linxiraos/zeta/session/session-context";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { TempDir } from "@linxiraos/pi-utils";
 import { contextDisplay, createInteractiveModeContext, renderTranscript } from "../../helpers/interactive-mode-context";
 
 const restoreTheme = currentTheme();

@@ -22,9 +22,9 @@ import type {
 	Question,
 	Questions,
 	ScoreQuestion,
-} from "@oh-my-pi/pi-ai";
-import { isRecord } from "@oh-my-pi/pi-utils";
-import { isEmbeddedImageContent } from "@oh-my-pi/pi-ai/images/shared";
+} from "@linxiraos/pi-ai";
+import { isRecord } from "@linxiraos/pi-utils";
+import { isEmbeddedImageContent } from "@linxiraos/pi-ai/images/shared";
 import type { LoadedImageInput } from "../utils/image-loading";
 import { loadImageAttachmentInput, loadImageInput, loadSvgImageInput } from "../utils/image-loading";
 import {

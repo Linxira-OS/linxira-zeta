@@ -37,8 +37,8 @@ import {
 	type ChatUsageEvent,
 	DEFAULT_TRACER_NAME,
 	type TelemetryContentSerializer,
-} from "@oh-my-pi/pi-agent-core";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { logger } from "@linxiraos/pi-utils";
 import type * as OtelApi from "@opentelemetry/api";
 import type { Context, Span, SpanOptions, SpanStatusCode, Tracer } from "@opentelemetry/api";
 

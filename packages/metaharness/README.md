@@ -45,22 +45,23 @@ bun run serve --port 4700
   benchmark, score, progress, spend, and tokens.
 - `POST /api/runs` — launch through a benchmark adapter. Body:
 
-  ```json
-  {
-    "benchmark": "edit",
-    "model": "anthropic/claude-opus-4-8",
-    "tasks": 20,
-    "concurrency": 4,
-    "attempts": 2,
-    "jobName": "edit-baseline",
-    "role": "baseline",
-    "goal": "compare edit strategies"
-  }
-  ```
+   ```json
+   {
+   	"benchmark": "edit",
+   	"model": "anthropic/claude-opus-4-8",
+   	"tasks": 20,
+   	"concurrency": 4,
+   	"attempts": 2,
+   	"jobName": "edit-baseline",
+   	"role": "baseline",
+   	"goal": "compare edit strategies"
+   }
+   ```
 
-  `benchmark` is `harbor`, `edit`, or `snapcompact`. Harbor uses `dataset`,
-  `include`, `timeoutMultiplier`, and `prewalk`; edit uses `include` as task IDs;
-  SnapCompact uses `conditions` and treats `tasks` as the passage limit.
+   `benchmark` is `harbor`, `edit`, or `snapcompact`. Harbor uses `dataset`,
+   `include`, `timeoutMultiplier`, and `prewalk`; edit uses `include` as task IDs;
+   SnapCompact uses `conditions` and treats `tasks` as the passage limit.
+
 - `GET /api/runs/:name` — `{ run, traces }` (syncs native artifacts on read).
 - `POST /api/runs/:name/cancel` — cancel a manager-launched run.
 - `DELETE /api/runs/:name` — permanently delete a finished run (DB row **and**
@@ -211,12 +212,12 @@ bun run bench:scope rescore ../../runs/scope/*/result.json   # after changing ta
   bash commands and `eval` cells: tests, typechecks, linters, builds,
   program runs, installs, and filesystem-wide searches (`find /`, `find ~`).
   Each check is placed against the run's last edit. One that starts after it
-  is the *final* verification; the run is then *verified*. Everything else
-  ran *while working*: before or between edits, in a run that changed
+  is the _final_ verification; the run is then _verified_. Everything else
+  ran _while working_: before or between edits, in a run that changed
   nothing, or an install or scan, which verify nothing. Edits are the edit
   tools plus shell commands that write files the run left changed; throwaway
-  check scripts and scratch files are not edits. *Slow checks* took 5s or
-  longer: a whole suite, a full benchmark, an end-to-end case. Also *post-edit reads* of
+  check scripts and scratch files are not edits. _Slow checks_ took 5s or
+  longer: a whole suite, a full benchmark, an end-to-end case. Also _post-edit reads_ of
   files the agent already edited, and files changed outside `scope`. A run
   passes when `verify` holds and nothing outside `scope` changed.
 - **What good looks like:** every run that changed files is verified, checks
@@ -231,26 +232,26 @@ bun run bench:scope rescore ../../runs/scope/*/result.json   # after changing ta
 
 ## Harbor runner options (excerpt)
 
-| Option | Default | Notes |
-|---|---|---|
-| `-m, --model <provider/model>` | `anthropic/claude-sonnet-4-6` | Repeatable |
-| `-l, --tasks <N>` | `20` | Max tasks |
-| `-n, --concurrency <N>` | `4` | Concurrent trials |
-| `-k, --attempts <N>` | `1` | Attempts per task (pass@k) |
-| `-d, --dataset <name>` | `terminal-bench@2.0` | Any Harbor dataset id |
-| `-i/-x, --include/--exclude <glob>` | — | Task filters (repeatable) |
-| `--timeout-multiplier <x>` | — | Scales task agent/verifier timeouts |
-| `--agent-arg <arg>` | — | Extra arg forwarded verbatim to the in-container zeta CLI (repeatable) |
-| `--env <KEY[=VALUE]>` | — | Forward env into the zeta container (repeatable); `KEY` alone forwards the host value |
-| `--binary <path>` | — | Prebuilt zeta binary (repeat for arm64+x64) |
-| `--install <source\|local\|published>` | `source` | `source` = repo bind-mount, `local` = tarball pack, `published` = npm `@linxiraos/zeta` |
-| `--environment <docker\|apple-container>` | `docker` | `apple-container` runs trials via Apple's `container` CLI (no Docker); source/deps mounts go through `harbor --mounts` and the gateway is auto-forwarded from `192.168.64.1:4000` to the loopback-bound gateway |
-| `--gateway-url <url>` | `http://host.docker.internal:4000` | `http://192.168.64.1:4000` under `--environment apple-container` |
-| `--no-gateway` | off | Pass host provider keys into containers instead |
-| `-o, --jobs-dir <path>` | `<repo>/runs/harbor` | Shared with the server |
-| `--resume <name\|path>` | — | Resume that job dir via `harbor job resume`; original flags recovered automatically |
-| `--filter-error-type <T>` | `CancelledError` | With `--resume`: also re-run completed trials that errored with exception type `T` (repeatable) |
-| `--dry-run` | off | Print the harbor command + models.yml and exit |
+| Option                                    | Default                            | Notes                                                                                                                                                                                                           |
+| ----------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-m, --model <provider/model>`            | `anthropic/claude-sonnet-4-6`      | Repeatable                                                                                                                                                                                                      |
+| `-l, --tasks <N>`                         | `20`                               | Max tasks                                                                                                                                                                                                       |
+| `-n, --concurrency <N>`                   | `4`                                | Concurrent trials                                                                                                                                                                                               |
+| `-k, --attempts <N>`                      | `1`                                | Attempts per task (pass@k)                                                                                                                                                                                      |
+| `-d, --dataset <name>`                    | `terminal-bench@2.0`               | Any Harbor dataset id                                                                                                                                                                                           |
+| `-i/-x, --include/--exclude <glob>`       | —                                  | Task filters (repeatable)                                                                                                                                                                                       |
+| `--timeout-multiplier <x>`                | —                                  | Scales task agent/verifier timeouts                                                                                                                                                                             |
+| `--agent-arg <arg>`                       | —                                  | Extra arg forwarded verbatim to the in-container zeta CLI (repeatable)                                                                                                                                          |
+| `--env <KEY[=VALUE]>`                     | —                                  | Forward env into the zeta container (repeatable); `KEY` alone forwards the host value                                                                                                                           |
+| `--binary <path>`                         | —                                  | Prebuilt zeta binary (repeat for arm64+x64)                                                                                                                                                                     |
+| `--install <source\|local\|published>`    | `source`                           | `source` = repo bind-mount, `local` = tarball pack, `published` = npm `@linxiraos/zeta`                                                                                                                         |
+| `--environment <docker\|apple-container>` | `docker`                           | `apple-container` runs trials via Apple's `container` CLI (no Docker); source/deps mounts go through `harbor --mounts` and the gateway is auto-forwarded from `192.168.64.1:4000` to the loopback-bound gateway |
+| `--gateway-url <url>`                     | `http://host.docker.internal:4000` | `http://192.168.64.1:4000` under `--environment apple-container`                                                                                                                                                |
+| `--no-gateway`                            | off                                | Pass host provider keys into containers instead                                                                                                                                                                 |
+| `-o, --jobs-dir <path>`                   | `<repo>/runs/harbor`               | Shared with the server                                                                                                                                                                                          |
+| `--resume <name\|path>`                   | —                                  | Resume that job dir via `harbor job resume`; original flags recovered automatically                                                                                                                             |
+| `--filter-error-type <T>`                 | `CancelledError`                   | With `--resume`: also re-run completed trials that errored with exception type `T` (repeatable)                                                                                                                 |
+| `--dry-run`                               | off                                | Print the harbor command + models.yml and exit                                                                                                                                                                  |
 
 ## Outputs
 

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamAppleFoundationModels } from "@oh-my-pi/pi-ai/providers/apple-foundation-models";
-import type { Context } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import * as natives from "@oh-my-pi/pi-natives";
+import { streamAppleFoundationModels } from "@linxiraos/pi-ai/providers/apple-foundation-models";
+import type { Context } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import * as natives from "@linxiraos/pi-natives";
 
 const model = buildModel({
 	id: "on-device",

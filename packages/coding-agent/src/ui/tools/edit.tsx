@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Edit (and apply_patch): a file change as its diff.
  *
@@ -14,11 +14,11 @@
  * one framed card (or inline row for a delete or a plain move) per file,
  * with the raw diff text the old renderer drew.
  */
-import { editInspect } from "@oh-my-pi/pi-natives";
-import { parseCompactDiff } from "@oh-my-pi/pi-tui/text/diff";
-import { isRecord, sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import { editInspect } from "@linxiraos/pi-natives";
+import { parseCompactDiff } from "@linxiraos/pi-tui/text/diff";
+import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import { splitMagicSections } from "../../edit/magic-sections";
 import { normalizeEditMode } from "../../edit/settings";
 import {
@@ -384,7 +384,7 @@ function FileSection(props: {
 	if (props.added) head.push({ s: "ins", t: ` +${props.added}` });
 	if (props.removed) head.push({ s: "del", t: ` −${props.removed}` });
 	return (
-		<section key={props.path} head={head} role="omp.tool.edit.file" tone={props.error ? "error" : undefined}>
+		<section key={props.path} head={head} role="zeta.tool.edit.file" tone={props.error ? "error" : undefined}>
 			{props.children}
 		</section>
 	);
@@ -422,7 +422,7 @@ function hasPayload(args: EditArgs, context: EditContext): boolean {
 function magicCallView(input: string, state: ToolViewState, card: EditCard): ToolView {
 	const files = magicChanges(input);
 	const view = (file: MagicChange): JSXNode => (
-		<md role="omp.tool.edit.change" text={file.change} stream={state.isPartial && file.open} />
+		<md role="zeta.tool.edit.change" text={file.change} stream={state.isPartial && file.open} />
 	);
 	const head = editHead({ path: files[0]?.path, files: files.length, added: 0, removed: 0 });
 	const body =

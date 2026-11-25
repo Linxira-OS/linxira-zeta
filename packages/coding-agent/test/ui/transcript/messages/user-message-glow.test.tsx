@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A sent prompt's magic keywords glow: their gradient sweeps on the terminal clock, stays still
  * under reduced motion, and natively they are accent marks with the shimmer effect.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createRoot } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { MAGIC_KEYWORDS } from "../../../../src/modes/magic-keywords";
 import "../../../../src/ui/styles/messages";
 import { UserMessage } from "../../../../src/ui/transcript/messages/user-message";

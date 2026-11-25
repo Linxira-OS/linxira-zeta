@@ -6,13 +6,13 @@
  * providers on one line, then draws the activity calendar to the width;
  * Details shows the classic report. The wheel scrolls two rows a notch.
  */
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import { fgSgr } from "@oh-my-pi/pi-tui/theme/color";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { sliceCells, truncate, truncateMiddle, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import { colorLuma, hexToRgb, rgbToHex } from "@oh-my-pi/pi-utils/color";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import { fgSgr } from "@linxiraos/pi-tui/theme/color";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { sliceCells, truncate, truncateMiddle, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import { formatDuration } from "@linxiraos/pi-utils";
+import { colorLuma, hexToRgb, rgbToHex } from "@linxiraos/pi-utils/color";
 import { sanitizeDisplayLine } from "../../../extensibility/inventory/display-text";
 import {
 	activityErrorDetail,

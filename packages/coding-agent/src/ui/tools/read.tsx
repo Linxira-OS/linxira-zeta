@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `read`: a file (or directory, image, URL, internal resource) read.
  *
@@ -11,10 +11,10 @@
  *
  * Terminal look: `read` (`src/ui/styles/tools/read.ts`), fed by {@link ReadTerm}.
  */
-import { formatBytes, sanitizeText } from "@oh-my-pi/pi-utils";
-import { type JSXNode, nativeSupports } from "@oh-my-pi/pi-tui";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
+import { formatBytes, sanitizeText } from "@linxiraos/pi-utils";
+import { type JSXNode, nativeSupports } from "@linxiraos/pi-tui";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
 import { splitUrlScheme } from "../../internal-urls/url-scheme";
 import { type ReadToolDetails, readSelectorRangeStart, splitPathAndSel } from "../../tools/details/read";
 import {
@@ -205,8 +205,8 @@ const ERROR_GIST_CHARS = 120;
 function ErrorText(props: { readonly message: string }): JSXNode {
 	const body = props.message;
 	if (body.includes("\n") && /^[{[]/.test(body))
-		return <code text={body} lang="json" tone="error" role="omp.tool.error" />;
-	return <text spans={[{ t: body, s: "error" }]} wrap="word" role="omp.tool.error" />;
+		return <code text={body} lang="json" tone="error" role="zeta.tool.error" />;
+	return <text spans={[{ t: body, s: "error" }]} wrap="word" role="zeta.tool.error" />;
 }
 
 /** One numbered code block of read content (gaps where numbers jump; `null` numbers dropped). */

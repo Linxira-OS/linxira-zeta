@@ -8,11 +8,11 @@
  * PgUp/PgDn page the inspector (when it overflows), the expand key expands
  * it, typing searches, Esc clears the search then closes, Ctrl+C closes.
  */
-import type { Accessor } from "@oh-my-pi/pi-tui";
-import { signal } from "@oh-my-pi/pi-tui";
-import type { MouseEvent } from "@oh-my-pi/pi-tui/driver/contract";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { Accessor } from "@linxiraos/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
+import type { MouseEvent } from "@linxiraos/pi-tui/driver/contract";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { logger } from "@linxiraos/pi-utils";
 import type { ExtensionDashboardRuntime } from "../../../extensibility/inventory/extension-dashboard";
 import { applyFilter } from "../../../extensibility/inventory/state-manager";
 import { type Extension, isShadowedExtension } from "../../../extensibility/inventory/types";

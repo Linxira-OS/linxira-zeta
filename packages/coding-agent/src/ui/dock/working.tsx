@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The working row: what the agent is doing while a turn runs, in the dock's
  * `status` slot.
@@ -25,9 +25,9 @@ import {
 	read,
 	signal,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { formatDuration } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import "../styles/dock";
 import type { WorkingTerm } from "../styles/dock/working";
 import { kbdKeys } from "../keys/format";
@@ -160,7 +160,7 @@ export function WorkingRow(props: WorkingRowProps): JSXNode {
 	return (
 		<row
 			key={props.nodeKey}
-			role="omp.working"
+			role="zeta.working"
 			align="center"
 			gap="sm"
 			term={term}
@@ -174,18 +174,18 @@ export function WorkingRow(props: WorkingRowProps): JSXNode {
 				<spinner key="spinner" style="starburst" tone="accent" />
 			)}
 			<elapsed key="elapsed" age={age} format="short" />
-			<text key="sep" text="·" role="omp.working.sep" />
+			<text key="sep" text="·" role="zeta.working.sep" />
 			{shimmer === "disabled" ? (
-				<text key="label" spans={spans} role="omp.working.label" />
+				<text key="label" spans={spans} role="zeta.working.label" />
 			) : (
-				<shimmer key="label" spans={spans} mode={shimmer} palette={palette} role="omp.working.label" />
+				<shimmer key="label" spans={spans} mode={shimmer} palette={palette} role="zeta.working.label" />
 			)}
 			<row key="fill" grow={1} />
 			{variant?.kind === "compaction" && <progress key="progress" value={null} />}
 			{spec.interruptKey !== undefined && (
 				<row
 					key="stop"
-					role="omp.working.stop"
+					role="zeta.working.stop"
 					gap="xs"
 					align="center"
 					title={`${verb}  ${formatTooltipKey(spec.interruptKey)}`}
@@ -202,7 +202,7 @@ export function WorkingRow(props: WorkingRowProps): JSXNode {
 /** The idle row offering to retry a turn that died on a tool call (`F5 to retry`). */
 export function RetryHint(props: { readonly retryKey: string; readonly nodeKey?: string }): JSXNode {
 	return (
-		<row key={props.nodeKey} role="omp.hint.retry" gap="sm" align="center" term={{ key: props.retryKey }}>
+		<row key={props.nodeKey} role="zeta.hint.retry" gap="sm" align="center" term={{ key: props.retryKey }}>
 			<icon name="loop" tone="muted" />
 			<kbd key="key" keys={kbdKeys(props.retryKey)} />
 			<text spans={[{ t: "to retry", s: "muted" }]} />

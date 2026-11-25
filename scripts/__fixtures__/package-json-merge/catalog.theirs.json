@@ -2,13 +2,7 @@
 	"name": "@linxiraos/pi-catalog",
 	"version": "18.10.0",
 	"description": "Model catalog for omp: bundled model database, provider discovery descriptors, model identity, classification, and equivalence",
-	"keywords": [
-		"ai",
-		"catalog",
-		"discovery",
-		"llm",
-		"models"
-	],
+	"keywords": ["ai", "catalog", "discovery", "llm", "models"],
 	"homepage": "https://omp.sh",
 	"bugs": {
 		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
@@ -20,11 +14,7 @@
 		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/catalog"
 	},
-	"files": [
-		"src",
-		"README.md",
-		"CHANGELOG.md"
-	],
+	"files": ["src", "README.md", "CHANGELOG.md"],
 	"type": "module",
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",

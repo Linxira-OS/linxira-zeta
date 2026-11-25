@@ -1,6 +1,6 @@
 /** A bash run's presented output as Tern is sent it: what the command printed, its closing newline included. */
 import { expect, test } from "bun:test";
-import { createRoot, isUiNode, type UiNode } from "@oh-my-pi/pi-tui";
+import { createRoot, isUiNode, type UiNode } from "@linxiraos/pi-tui";
 import { bashPresenter } from "../../../src/ui/tools/bash";
 import { ToolBlock, ToolCall } from "../../../src/ui/transcript/tool-block";
 

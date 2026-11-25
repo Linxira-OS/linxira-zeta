@@ -3,18 +3,18 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "bun:test"
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@oh-my-pi/pi-coding-agent/tools/streaming-output";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import type { ReadToolDetails, ReadTruncationStats } from "@oh-my-pi/pi-coding-agent/tools/details/read";
-import { formatTruncationMetaNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@linxiraos/zeta/tools/streaming-output";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import type { ReadToolDetails, ReadTruncationStats } from "@linxiraos/zeta/tools/details/read";
+import { formatTruncationMetaNotice } from "@linxiraos/zeta/tools/output-meta-format";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { printRows } from "../../src/ui/print-rows";
 import { ToolBlock } from "../../src/ui/transcript/tool-block";
 import { toolCall, toolText } from "../helpers/tool-text";
-import { writeArchive } from "@oh-my-pi/pi-utils/ar";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { writeArchive } from "@linxiraos/pi-utils/ar";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

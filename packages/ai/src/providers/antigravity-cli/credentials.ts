@@ -6,7 +6,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { withFileLock } from "@oh-my-pi/pi-utils";
+import { withFileLock } from "@linxiraos/pi-utils";
 import { REMOTE_REFRESH_SENTINEL } from "../../auth/types";
 import * as AIError from "../../error";
 import type { OAuthCredentials } from "../../registry/oauth/types";

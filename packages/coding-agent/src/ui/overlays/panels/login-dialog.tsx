@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The OAuth sign-in sheet (`omp.overlay.login`): a modal glass sheet over the
  * composer. Top to bottom: one sentence saying what to do, the device code
@@ -12,11 +12,11 @@
  * `showPrompt`, `showManualInput`, `showWaiting`, `showProgress`); the
  * terminal draws the flow's transcript in a box titled `Login to …`.
  */
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthPrompt } from "@oh-my-pi/pi-ai/oauth/types";
-import { type JSXNode, nativeRendering, type Signal, signal, type TextEdit, untrack } from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthPrompt } from "@linxiraos/pi-ai/oauth/types";
+import { type JSXNode, nativeRendering, type Signal, signal, type TextEdit, untrack } from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import "../../styles/panels/login-dialog";
 import { editLine } from "../settings/line-edit";
 import { ActionButton, applyEdit, applyMaskedEdit } from "./common";
@@ -292,7 +292,7 @@ export class LoginDialogState {
 function FieldNode(props: { readonly state: LoginDialogState; readonly field: LoginField }): JSXNode {
 	const { field, state } = props;
 	return (
-		<col role="omp.form.field" gap="sm">
+		<col role="zeta.form.field" gap="sm">
 			<input
 				prompt="> "
 				placeholder={field.placeholder}
@@ -311,7 +311,7 @@ function FieldNode(props: { readonly state: LoginDialogState; readonly field: Lo
 
 function Live(props: { readonly message: string; readonly nodeKey: string }): JSXNode {
 	return (
-		<row key={props.nodeKey} role="omp.login.waiting" gap="sm" align="center">
+		<row key={props.nodeKey} role="zeta.login.waiting" gap="sm" align="center">
 			<spinner style="orbit" label={sheetText(props.message)} tone="muted" />
 		</row>
 	);
@@ -320,7 +320,7 @@ function Live(props: { readonly message: string; readonly nodeKey: string }): JS
 function Done(props: { readonly message: string; readonly nodeKey: string }): JSXNode {
 	const problem = PROGRESS_PROBLEM.test(props.message);
 	return (
-		<row key={props.nodeKey} role="omp.login.done" gap="sm" align="baseline" tone={problem ? "warning" : undefined}>
+		<row key={props.nodeKey} role="zeta.login.done" gap="sm" align="baseline" tone={problem ? "warning" : undefined}>
 			<icon key="icon" name={problem ? "warn" : "check"} />
 			<text key="text" wrap="word" text={sheetText(props.message).replace(/…$/, "")} />
 		</row>
@@ -361,14 +361,14 @@ export function LoginDialog(props: { readonly state: LoginDialogState }): JSXNod
 		>
 			<overlay
 				key="sheet"
-				role="omp.overlay.login"
+				role="zeta.overlay.login"
 				head={`Sign in to ${state.providerName}`}
 				anchor="center"
 				size="md"
 				modal
 			>
 				<col gap="lg">
-					<col key="body" role="omp.login.body" gap="md">
+					<col key="body" role="zeta.login.body" gap="md">
 						{() => {
 							const auth = state.auth();
 							const steps = state.steps();
@@ -380,12 +380,12 @@ export function LoginDialog(props: { readonly state: LoginDialogState }): JSXNod
 									: auth.instructions
 										? sheetText(auth.instructions)
 										: "Continue in your browser. If it didn't open, open or copy the link below.";
-								body.push(<text key="lead" role="omp.login.lead" wrap="word" text={lead} />);
+								body.push(<text key="lead" role="zeta.login.lead" wrap="word" text={lead} />);
 								if (auth.device) {
 									body.push(
 										<row
 											key="code"
-											role="omp.login.code"
+											role="zeta.login.code"
 											align="center"
 											actions={{ click: "copy" }}
 											href={auth.device}
@@ -397,11 +397,11 @@ export function LoginDialog(props: { readonly state: LoginDialogState }): JSXNod
 									);
 								}
 								body.push(
-									<row key="link" role="omp.login.link" gap="sm" align="center">
+									<row key="link" role="zeta.login.link" gap="sm" align="center">
 										<icon key="icon" name="link" />
 										<text
 											key="url"
-											role="omp.login.url"
+											role="zeta.login.url"
 											truncate="middle"
 											lines={1}
 											title={auth.url}
@@ -420,7 +420,7 @@ export function LoginDialog(props: { readonly state: LoginDialogState }): JSXNod
 									body.push(
 										<text
 											key="shortcut"
-											role="omp.login.shortcut"
+											role="zeta.login.shortcut"
 											truncate="middle"
 											lines={1}
 											title={auth.launchUrl}
@@ -448,13 +448,13 @@ export function LoginDialog(props: { readonly state: LoginDialogState }): JSXNod
 								const label = step.message.trim().replace(PRESS_KEY_SUFFIX, "").replace(/:$/, "");
 								body.push(
 									step.answer !== undefined ? (
-										<row key={`a${index}`} role="omp.login.answer" gap="sm" align="baseline">
+										<row key={`a${index}`} role="zeta.login.answer" gap="sm" align="baseline">
 											<text key="label" truncate="end" lines={1} text={label} />
 											<text key="value" truncate="end" lines={1} text={step.answer || "—"} />
 										</row>
 									) : (
-										<col key={`i${index}`} role="omp.login.prompt" gap="sm">
-											<text key="label" role="omp.login.label" wrap="word" text={label} />
+										<col key={`i${index}`} role="zeta.login.prompt" gap="sm">
+											<text key="label" role="zeta.login.label" wrap="word" text={label} />
 											<FieldNode state={state} field={step.field} />
 										</col>
 									),
@@ -463,7 +463,7 @@ export function LoginDialog(props: { readonly state: LoginDialogState }): JSXNod
 							if (auth && live === -1 && !field) status.push(<Live message={BROWSER_WAIT} nodeKey="browser" />);
 							if (status.length > 0) {
 								body.push(
-									<col key="status" role="omp.login.status" gap="xs">
+									<col key="status" role="zeta.login.status" gap="xs">
 										{status}
 									</col>,
 								);
@@ -495,7 +495,7 @@ export function LoginDialog(props: { readonly state: LoginDialogState }): JSXNod
 							/>
 						);
 						return (
-							<row key="actions" role="omp.actions" align="center" gap="sm">
+							<row key="actions" role="zeta.actions" align="center" gap="sm">
 								{field && open}
 								<spacer grow={1} />
 								{cancel}

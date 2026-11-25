@@ -1,5 +1,3 @@
-import type { Effort } from "@linxiraos/pi-catalog/effort";
-========
 import type { Model } from "@linxiraos/pi-ai";
 import type { Effort } from "@linxiraos/pi-catalog/effort";
 
@@ -30,7 +28,6 @@ export function resolveModelMentionToken<T>(
 	return undefined;
 }
 
->>>>>>> v19.2.0
 /** Submitted mention; groups are agent pseudonym and display name. */
 export const MODEL_MENTION_TAG_RE = /<model agent="(m\d+)" name="([^"]*)"\/>/g;
 

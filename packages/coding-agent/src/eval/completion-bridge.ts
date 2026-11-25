@@ -14,12 +14,12 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { instrumentedCompleteSimple, resolveTelemetry } from "@oh-my-pi/pi-agent-core";
-import { type Api, type AssistantMessage, Effort, type Model, type Tool } from "@oh-my-pi/pi-ai";
-import { clampThinkingLevelForModel, getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
+import { type } from "@linxiraos/zeta-schema";
+import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
+import { type Api, type AssistantMessage, Effort, type Model, type Tool } from "@linxiraos/pi-ai";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { RawSseDebugBuffer } from "../debug/raw-sse-buffer";
-import { logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { extractTextContent, extractToolCall, parseJsonPayload } from "../commit/utils";
 
 import { cfgOffline } from "../config/auxiliary-model-policy";

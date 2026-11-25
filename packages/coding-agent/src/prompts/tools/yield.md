@@ -1,5 +1,6 @@
 {{#if workPoolItems}}
 Submit ONE workpool item at a time as `{ key, data }` or `{ key, error }`:
+
 - `key`: its 1-based number.
 - `data`: the self-contained outcome/evidence value.
 - `error`: a failure reason.

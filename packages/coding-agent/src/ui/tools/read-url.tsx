@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The `read` tool's view of an http(s) URL: the head links `domain /path`;
  * the result previews the page's non-empty lines over one quiet stats line
@@ -6,10 +6,10 @@
  *
  * Terminal look: `read-url` (`src/ui/styles/tools/read-url.ts`), fed by {@link ReadUrlTerm}.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { TspText } from "@oh-my-pi/pi-wire";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { TspText } from "@linxiraos/pi-wire";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { parseLineRanges } from "../../tools/line-ranges";
 import { formatFullOutputReference, type OutputMeta } from "../../tools/output-meta-format";
 import type { ToolHead, ToolPresenter, ToolView } from "./contract";
@@ -156,8 +156,8 @@ function urlHead(input: string, meta: readonly string[] = []): ToolHead {
 function ErrorText(props: { readonly message: string }): JSXNode {
 	const body = plain(props.message).trim();
 	if (body.includes("\n") && /^[{[]/.test(body))
-		return <code text={body} lang="json" tone="error" role="omp.tool.error" />;
-	return <text spans={[{ t: body, s: "error" }]} wrap="word" role="omp.tool.error" />;
+		return <code text={body} lang="json" tone="error" role="zeta.tool.error" />;
+	return <text spans={[{ t: body, s: "error" }]} wrap="word" role="zeta.tool.error" />;
 }
 
 /** The page body after a `---` front block, when there is one. */
@@ -235,10 +235,10 @@ export const readUrlPresenter: ToolPresenter<ReadUrlArgs, ReadUrlDetails> = {
 					<NoteText text="(no content)" />
 				),
 				stats.length > 0 && (
-					<text spans={[{ t: stats.join(" · "), s: "muted" }]} wrap="word" role="omp.tool.stats" />
+					<text spans={[{ t: stats.join(" · "), s: "muted" }]} wrap="word" role="zeta.tool.stats" />
 				),
 				notice !== undefined && (
-					<text spans={[{ t: notice as string, s: "warning" }]} wrap="word" role="omp.tool.notice" />
+					<text spans={[{ t: notice as string, s: "warning" }]} wrap="word" role="zeta.tool.notice" />
 				),
 			],
 			term: {

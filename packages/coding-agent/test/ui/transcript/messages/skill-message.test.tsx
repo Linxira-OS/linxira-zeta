@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
 import { SkillMessage, type SkillMessageProps } from "../../../../src/ui/transcript/messages/skill-message";
 import { screenSuite, single } from "./harness";
 

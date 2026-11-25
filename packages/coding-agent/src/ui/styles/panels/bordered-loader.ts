@@ -2,9 +2,9 @@
  * The bordered loader's terminal look: ruled top and bottom, the spinner
  * frame and the muted message wrapped beneath it, then the muted key hints.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { TspTextProps } from "@oh-my-pi/pi-wire";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { wrap } from "@linxiraos/pi-tui/text/width";
+import type { TspTextProps } from "@linxiraos/pi-wire";
 import { terminalPaddingX } from "../terminal-padding";
 import { activityFrame, findNode, hintText, plainText, propsOf, roleOf, rule } from "./common";
 

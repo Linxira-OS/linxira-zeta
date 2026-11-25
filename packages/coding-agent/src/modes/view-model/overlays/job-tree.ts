@@ -1,4 +1,4 @@
-import type { SymbolSet } from "@oh-my-pi/pi-tui/theme/contract";
+import type { SymbolSet } from "@linxiraos/pi-tui/theme/contract";
 
 /** What the tree reads off a job. */
 export interface JobTreeJob {

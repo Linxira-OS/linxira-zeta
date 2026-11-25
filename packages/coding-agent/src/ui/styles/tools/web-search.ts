@@ -6,12 +6,12 @@
  * and the provider metadata, on the status background. A plain-text result
  * is a `⚠ Response` tree of its lines (six while collapsed).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { pluralize } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/index";
+import { replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { pluralize } from "@linxiraos/pi-utils";
 import { PREVIEW_LIMITS } from "../../../utils/render-utils";
 import type { WebSearchTerm, WebSearchTermSource } from "../../tools/web-search";
 import { webLink } from "./file-common";

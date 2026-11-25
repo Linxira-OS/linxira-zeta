@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The small selector sheet (thinking level, queue mode, theme, show images,
  * session account, …): a `picker` docked as child `picker` of a column, with
@@ -10,9 +10,9 @@
  * item, `close`/`cancel` cancels. Events addressed to any other keypath are
  * not the sheet's.
  */
-import { type Accessor, type JSXNode, read, type Reactive, signal } from "@oh-my-pi/pi-tui";
-import type { PickerTerm } from "@oh-my-pi/pi-tui/term/painters/picker";
-import type { TspPickerAction, TspPickerColumn, TspPickerItem, TspPickerProps } from "@oh-my-pi/pi-wire";
+import { type Accessor, type JSXNode, read, type Reactive, signal } from "@linxiraos/pi-tui";
+import type { PickerTerm } from "@linxiraos/pi-tui/term/painters/picker";
+import type { TspPickerAction, TspPickerColumn, TspPickerItem, TspPickerProps } from "@linxiraos/pi-wire";
 import { cancelKbd, confirmKbd } from "../../keys/hints";
 
 /** Key of the picker child; its events arrive at this keypath. */

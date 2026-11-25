@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { readImageMetadata, removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import { readImageMetadata, removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { loadImageAttachmentInput, loadImageInput } from "../src/utils/image-loading";
-import { InvalidImageDataError } from "@oh-my-pi/pi-coding-agent/utils/image-input";
+import { InvalidImageDataError } from "@linxiraos/zeta/utils/image-input";
 
 describe("readImageMetadata", () => {
 	let testDir: string;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { relativeLuminance } from "@oh-my-pi/pi-utils";
-import { loadTheme, loadThemeJson } from "@oh-my-pi/pi-tui/theme/loader";
-import { resolveColorValue } from "@oh-my-pi/pi-tui/theme/theme";
+import { relativeLuminance } from "@linxiraos/pi-utils";
+import { loadTheme, loadThemeJson } from "@linxiraos/pi-tui/theme/loader";
+import { resolveColorValue } from "@linxiraos/pi-tui/theme/theme";
 
 /**
  * Regression test for #6334: markdown code fence header lines (mdCodeBlockBorder)

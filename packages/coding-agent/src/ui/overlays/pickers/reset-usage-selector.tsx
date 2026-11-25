@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The account picker for `/usage reset`: provider accounts with their saved
  * rate-limit resets. A reset is a scarce, irreversible credit, so spending
@@ -7,9 +7,9 @@
  * Moving to another account, ⎋, or the strip's `cancel` drops the pending
  * confirmation; ⎋ with nothing pending (or `close`) cancels the picker.
  */
-import { batch, type JSXNode, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
-import { formatDuration, sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspPickerAction, TspPickerItem, TspPickerProps, TspSpan } from "@oh-my-pi/pi-wire";
+import { batch, type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
+import { formatDuration, sanitizeText } from "@linxiraos/pi-utils";
+import type { TspPickerAction, TspPickerItem, TspPickerProps, TspSpan } from "@linxiraos/pi-wire";
 import type { ResetUsageAccount } from "../../../modes/view-model/overlays/reset-usage-selector";
 import { formatUsageResetWindow } from "../../../session/usage-display";
 import { closeAction, PICKER_KEY, pickerAction } from "./select-sheet";

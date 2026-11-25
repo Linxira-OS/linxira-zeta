@@ -19,7 +19,7 @@ import {
 	galleryStatusSettings,
 } from "./status-facts";
 import type { GalleryPreviewEntry } from "./types";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 interface SegmentVariantSpec {
 	label: string;

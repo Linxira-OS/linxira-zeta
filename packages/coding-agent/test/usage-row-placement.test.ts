@@ -4,13 +4,13 @@
  * assistant turns retain a standalone row below their visible content/tools.
  */
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { formatNumber } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { formatNumber } from "@linxiraos/pi-utils";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 // 4242 → "4.2K": distinctive enough not to collide with a read group's render.

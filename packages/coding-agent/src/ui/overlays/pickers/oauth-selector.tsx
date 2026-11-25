@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The provider picker for `/login` and `/logout` (and the setup wizard's
  * "Connect a provider" sheet).
@@ -10,9 +10,9 @@
  * Activating an unavailable provider explains why instead of picking it.
  * With more providers than visible rows the list filters as you type.
  */
-import type { CredentialsApi, KeysApi } from "@oh-my-pi/pi-ai";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthProviderInfo } from "@oh-my-pi/pi-ai/oauth/types";
+import type { CredentialsApi, KeysApi } from "@linxiraos/pi-ai";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthProviderInfo } from "@linxiraos/pi-ai/oauth/types";
 import {
 	type Accessor,
 	batch,
@@ -22,8 +22,8 @@ import {
 	read,
 	type Reactive,
 	signal,
-} from "@oh-my-pi/pi-tui";
-import type { TspPickerAction, TspPickerItem, TspText, TspTone } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import type { TspPickerAction, TspPickerItem, TspText, TspTone } from "@linxiraos/pi-wire";
 import { fuzzyFilter } from "../../../utils/fuzzy";
 import "../../styles/pickers/oauth";
 import type { OAuthLookTerm, OAuthRowStatus } from "../../styles/pickers/oauth";

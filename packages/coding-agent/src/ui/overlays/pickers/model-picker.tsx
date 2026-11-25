@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The alt+p model switcher: pick a model for this session (role models stay
  * as they are), with the thinking slider for the highlighted model; the
@@ -12,12 +12,12 @@
  * clears the query then closes. The catalog is read at once and refreshed
  * in the background when stale; a refresh error shows in the head.
  */
-import type { Model } from "@oh-my-pi/pi-ai";
-import { batch, computed, effect, type JSXNode, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
-import { keyCaps } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspPickerLevel, TspPickerScope } from "@oh-my-pi/pi-wire";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { Model } from "@linxiraos/pi-ai";
+import { batch, computed, effect, type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
+import { keyCaps } from "@linxiraos/pi-tui/term/painters/picker";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspPickerLevel, TspPickerScope } from "@linxiraos/pi-wire";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type { ScopedModelItem } from "../../../modes/view-model/overlays/model-hub";
 import {
 	buildSessionModelScope,

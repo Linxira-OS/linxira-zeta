@@ -10,7 +10,7 @@ function workerThreads(): typeof WorkerThreads {
 	if (!workerThreadsCache) workerThreadsCache = require("node:worker_threads") as typeof WorkerThreads;
 	return workerThreadsCache;
 }
-import { isRecord, logger, Snowflake, workerHostEntry } from "@oh-my-pi/pi-utils";
+import { isRecord, logger, Snowflake, workerHostEntry } from "@linxiraos/pi-utils";
 import {
 	createWorkerHandle,
 	createWorkerSubprocess,

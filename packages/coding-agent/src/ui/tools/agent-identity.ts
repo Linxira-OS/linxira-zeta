@@ -17,9 +17,9 @@
  * come next, farthest from everything taken first; a fixed fallback set
  * fills what remains.
  */
-import { hexToOklch, hueDistance, oklabDistance, oklchCusp, oklchToHex, relativeLuminance } from "@oh-my-pi/pi-utils";
-import { fgSgr } from "@oh-my-pi/pi-tui/theme/color";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { hexToOklch, hueDistance, oklabDistance, oklchCusp, oklchToHex, relativeLuminance } from "@linxiraos/pi-utils";
+import { fgSgr } from "@linxiraos/pi-tui/theme/color";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { MAIN_AGENT_ID } from "../../registry/agent-hub-types";
 
 /** Palette slots per theme; the seventh subagent reuses the first colour. */

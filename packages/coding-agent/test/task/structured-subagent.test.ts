@@ -2,63 +2,60 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import { unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import {
 	disableProvider,
 	enableProvider,
 	getDisabledProviders,
 	isProviderEnabled,
 	setDisabledProviders,
-} from "@oh-my-pi/pi-coding-agent/capability";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { parseModelPattern } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AgentCompactionThresholdOverride } from "@oh-my-pi/pi-coding-agent/config/compaction-threshold";
-import type {
-	BeforeSubagentSpawnEvent,
-	LoadExtensionsResult,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+} from "@linxiraos/zeta/capability";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { parseModelPattern } from "@linxiraos/zeta/config/model-resolver";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { AgentCompactionThresholdOverride } from "@linxiraos/zeta/config/compaction-threshold";
+import type { BeforeSubagentSpawnEvent, LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
 import {
 	artifactsDirsFromRegistry,
 	resetRegisteredArtifactDirsForTests,
-} from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
-import * as planHandoff from "@oh-my-pi/pi-coding-agent/plan-mode/plan-handoff";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+} from "@linxiraos/zeta/internal-urls/registry-helpers";
+import * as planHandoff from "@linxiraos/zeta/plan-mode/plan-handoff";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 
-import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
-import { createEvalCustomTools } from "@oh-my-pi/pi-coding-agent/task/eval-tools";
-import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
-import * as isolationRunner from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
+import { TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import { createEvalCustomTools } from "@linxiraos/zeta/task/eval-tools";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
 import {
 	buildStructuredSubagentRecoveryHint,
 	resolveEffectiveSubagentPolicy,
 	runStructuredSubagent,
 	StructuredSubagentError,
 	type StructuredSubagentRequest,
-} from "@oh-my-pi/pi-coding-agent/task/structured-subagent";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { SingleResult, TaskParams } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/task/structured-subagent";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { SingleResult, TaskParams } from "@linxiraos/zeta/task/task-details";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
-import { cfgRetryModelFallback } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { cfgEvalToolsEnabled } from "@oh-my-pi/pi-coding-agent/eval/settings";
-import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@oh-my-pi/pi-coding-agent/task/settings";
+import { cfgRetryModelFallback } from "@linxiraos/zeta/session/settings";
+import { cfgEvalToolsEnabled } from "@linxiraos/zeta/eval/settings";
+import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@linxiraos/zeta/task/settings";
 
 const AGENT: AgentDefinition = {
 	name: "worker",

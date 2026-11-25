@@ -3,8 +3,8 @@
  * thinking level, first that applies. The interactive mode recolors from its live state;
  * the startup frame draws the same border from the predicted thinking level.
  */
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { thinkingColor } from "@oh-my-pi/pi-tui/theme/schema";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { thinkingColor } from "@linxiraos/pi-tui/theme/schema";
 import type { VimMode } from "../../ui/composer/vim";
 import { sessionAccentHex } from "../../ui/status/accent";
 

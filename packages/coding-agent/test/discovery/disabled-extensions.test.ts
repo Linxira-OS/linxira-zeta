@@ -2,21 +2,16 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { enableUserSource } from "@oh-my-pi/pi-coding-agent/capability";
-import { type ContextFile, contextFileCapability } from "@oh-my-pi/pi-coding-agent/capability/context-file";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import type { EffectiveExtensionRoots } from "@oh-my-pi/pi-coding-agent/capability/types";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import {
-	disableProvider,
-	enableProvider,
-	initializeWithSettings,
-	loadCapability,
-} from "@oh-my-pi/pi-coding-agent/discovery";
-import { discoverExtensionPaths } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { isShadowedExtension } from "@oh-my-pi/pi-coding-agent/extensibility/inventory/types";
-import { loadAllExtensions } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/state-manager";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { enableUserSource } from "@linxiraos/zeta/capability";
+import { type ContextFile, contextFileCapability } from "@linxiraos/zeta/capability/context-file";
+import type { Skill } from "@linxiraos/zeta/capability/skill";
+import type { EffectiveExtensionRoots } from "@linxiraos/zeta/capability/types";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { disableProvider, enableProvider, initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
+import { discoverExtensionPaths } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { isShadowedExtension } from "@linxiraos/zeta/extensibility/inventory/types";
+import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 function restoreEnvValue(key: string, value: string | undefined): void {
 	if (value === undefined) {

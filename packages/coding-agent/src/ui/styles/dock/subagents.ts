@@ -10,11 +10,11 @@
  * then the dim expander. Every row is cut to the width. Clicks on an agent's
  * rows send `subagents.focus=<id>`, on the expander `subagents.toggle`.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatDuration } from "@linxiraos/pi-utils";
 import { terminalPaddingX } from "../terminal-padding";
 import { FEED_MODEL_BADGE_WIDTH, previewLine } from "../../../utils/render-utils";
 import { keyLabel } from "../../keys/hints";

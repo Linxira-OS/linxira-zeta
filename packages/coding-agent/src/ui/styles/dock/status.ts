@@ -5,9 +5,9 @@
  * todo folds in: `TODO 2/5 · ☐ next task` docks right on the status row's
  * last line (a blank row, then the line, when nothing else shows).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext, roleOf } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext, roleOf } from "@linxiraos/pi-tui/term/paint";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import type { StatusHudModel } from "../../dock/status";
 import { termOf } from "../messages/fill";
 import { todoCompactLine } from "./todo";

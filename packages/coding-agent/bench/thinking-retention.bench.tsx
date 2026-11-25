@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Benchmark: streamed thinking cost and retained memory.
  *
@@ -9,10 +9,10 @@
  *
  * Usage: `bun bench/thinking-retention.bench.tsx [steps=500]`
  */
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { createRoot, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { createRoot, signal, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { heapStats } from "bun:jsc";
 import { AssistantMessageBlock } from "../src/ui/transcript/messages/assistant-message";
 

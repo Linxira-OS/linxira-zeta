@@ -8,6 +8,7 @@ import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue, resolveRoleSelection } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
+import type { MemoryLearningWindow } from "../memory-backend/window-types";
 import extractInputTemplate from "../prompts/memories/sharpshooter-extract-input.md" with { type: "text" };
 import extractSystemTemplate from "../prompts/memories/sharpshooter-extract-system.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
@@ -235,6 +236,30 @@ export function maybeStartSharpshooterExtraction(options: {
 	}
 }
 
+/** One batch per window; admission requires evidence within one individual user message. */
+export async function learnSharpshooterWindow(
+	options: {
+		session: AgentSession;
+		settings: Settings;
+		modelRegistry: ModelRegistry;
+		agentDir: string;
+		cwd: string;
+	},
+	input: MemoryLearningWindow,
+): Promise<void> {
+	const userEvidence = input.messages.filter(message => message.role === "user").map(message => message.content);
+	if (!userEvidence.some(content => content.trim())) return;
+	await runSharpshooterExtraction(
+		options,
+		{ prompt: JSON.stringify(input.messages) },
+		{
+			cwd: options.cwd,
+			sourceId: `window:${input.id}`,
+			userEvidence,
+		},
+	);
+}
+
 async function runSharpshooterExtraction(
 	options: {
 		session: AgentSession;
@@ -243,10 +268,14 @@ async function runSharpshooterExtraction(
 		agentDir: string;
 	},
 	envelope: SharpshooterEnvelope,
+	delivery?: { cwd: string; sourceId: string; userEvidence: string[] },
 ): Promise<void> {
 	const { session, settings, modelRegistry, agentDir } = options;
 	const model = await resolveSharpshooterModel(settings, modelRegistry, session.model?.provider);
-	if (!model || session.isDisposed || (cfgOffline.get(settings) && session.model?.provider !== model.provider)) return;
+	if (!model || session.isDisposed || (cfgOffline.get(settings) && session.model?.provider !== model.provider)) {
+		if (delivery) throw new Error("Sharpshooter window extraction is unavailable: no model or session disposed.");
+		return;
+	}
 
 	const input = prompt.render(extractInputTemplate, { ...envelope });
 	const journal = journalCompletion(session.sessionManager, { purpose: "sharpshooter:extract" });
@@ -278,20 +307,39 @@ async function runSharpshooterExtraction(
 		throw new Error(response.errorMessage || "Sharpshooter extraction model error");
 	}
 
+	let recorded = false;
+	let deltaIndex = 0;
 	for (const block of response.content) {
 		if (block.type !== "toolCall" || block.name !== recordDeltasTool.name) continue;
 		const args = block.arguments;
 		if (!args || typeof args !== "object" || !("deltas" in args) || !Array.isArray(args.deltas)) {
+			if (delivery) throw new Error("Sharpshooter window extraction returned malformed deltas.");
 			logger.debug("Sharpshooter extraction rejected malformed record_deltas call");
 			continue;
 		}
+		recorded = true;
 		for (const candidate of args.deltas) {
-			const delta = admitDelta(candidate, envelope.prompt, session.sessionId);
+			const index = deltaIndex++;
+			const evidence =
+				candidate && typeof candidate === "object" ? (candidate as DeltaCandidate).evidence : undefined;
+			const userPrompt = delivery
+				? delivery.userEvidence.find(content => typeof evidence === "string" && content.includes(evidence))
+				: envelope.prompt;
+			const delta = userPrompt === undefined ? undefined : admitDelta(candidate, userPrompt, session.sessionId);
 			if (!delta) continue;
-			if (session.isDisposed) return;
-			await appendSharpshooterDelta(agentDir, session.sessionManager.getCwd(), delta);
+			if (session.isDisposed) {
+				if (delivery) throw new Error("Sharpshooter session disposed before window delivery.");
+				return;
+			}
+			await appendSharpshooterDelta(
+				agentDir,
+				delivery?.cwd ?? session.sessionManager.getCwd(),
+				delta,
+				delivery ? `${delivery.sourceId}:${index}` : undefined,
+			);
 		}
 	}
+	if (delivery && !recorded) throw new Error("Sharpshooter window extraction did not return record_deltas.");
 }
 
 function admitDelta(candidate: unknown, currentPrompt: string, sessionId: string): SharpshooterDelta | undefined {

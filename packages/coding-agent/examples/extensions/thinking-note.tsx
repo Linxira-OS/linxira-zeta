@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import type { ExtensionFactory } from "@oh-my-pi/pi-coding-agent";
+/** @jsxImportSource @linxiraos/pi-tui */
+import type { ExtensionFactory } from "@linxiraos/zeta";
 
 /** Draws a muted note under every assistant thinking block (display only). */
 const extension: ExtensionFactory = pi => {

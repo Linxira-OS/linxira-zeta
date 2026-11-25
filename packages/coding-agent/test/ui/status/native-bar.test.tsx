@@ -1,14 +1,14 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * What Tern is sent of the status line outside the composer facts: the settings screen's live
  * preview bar, and the glyphs the model chip embeds (the active preset's, so a Nerd Font run can
  * travel as an `icon` span).
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { createRoot, isUiNode, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { presetSymbols } from "@oh-my-pi/pi-tui/theme/symbols";
+import { createRoot, isUiNode, signal, type UiNode } from "@linxiraos/pi-tui";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { presetSymbols } from "@linxiraos/pi-tui/theme/symbols";
 import { StatusBarPreview } from "../../../src/ui/status/composer-facts";
 import type { StatusFacts } from "../../../src/ui/status/facts";
 import { effectiveStatusSettings, segmentView } from "../../../src/ui/status/segments";

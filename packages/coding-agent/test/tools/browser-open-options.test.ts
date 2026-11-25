@@ -3,23 +3,23 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, describe, expect, it, spyOn } from "bun:test";
-import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import { resolveInitScriptSources } from "@oh-my-pi/pi-coding-agent/tools/browser/open-options";
-import { findFreeCdpPort } from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import { DownloadManager } from "@oh-my-pi/pi-coding-agent/tools/browser/downloads";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import { resolveInitScriptSources } from "@linxiraos/zeta/tools/browser/open-options";
+import { findFreeCdpPort } from "@linxiraos/zeta/tools/browser/attach";
+import { DownloadManager } from "@linxiraos/zeta/tools/browser/downloads";
 import {
 	buildHeadlessLaunchArgs,
 	closeLaunchedBrowser,
 	launchHeadlessBrowser,
 	removeUserDataDir,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { getTab, releaseAllTabs } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { CLAUDE_TRACE_DEBUG_CERT, CLAUDE_TRACE_DEBUG_KEY } from "@oh-my-pi/pi-coding-agent/cli/claude-trace-cli";
+} from "@linxiraos/zeta/tools/browser/launch";
+import { getTab, releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { CLAUDE_TRACE_DEBUG_CERT, CLAUDE_TRACE_DEBUG_KEY } from "@linxiraos/zeta/cli/claude-trace-cli";
 import type { Browser, Page } from "puppeteer-core";
 import { rejectionOf } from "../helpers/rejection";
 import { chromiumAvailable } from "./chromium-probe";

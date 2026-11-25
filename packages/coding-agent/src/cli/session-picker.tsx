@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The standalone session picker (`omp --resume`, `--from-<tool>` imports):
  * the `/resume` selector run fullscreen before any session exists.
  */
 import * as path from "node:path";
-import { getProjectDir, logger } from "@oh-my-pi/pi-utils";
+import { getProjectDir, logger } from "@linxiraos/pi-utils";
 import type { SessionPickerOptions } from "../modes/view-model/apps/session-picker";
 import type {
 	SessionHistoryMatcher,

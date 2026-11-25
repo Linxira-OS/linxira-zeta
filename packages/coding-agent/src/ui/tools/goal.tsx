@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Goal: `Goal set "objective" budget 50K` for calls; results show the goal's
  * status, its objective, its token/time usage and a completion report.
@@ -6,8 +6,8 @@
  * Terminal look: `goal` (`src/ui/styles/tools/goal.ts`): one line while
  * pending, then a card on the status background.
  */
-import type { TspSpan } from "@oh-my-pi/pi-wire";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { TspSpan } from "@linxiraos/pi-wire";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
 import { registerToolPresenter } from "./registry";
@@ -113,7 +113,7 @@ export const goalPresenter: ToolPresenter<GoalArgs, GoalDetails> = {
 			return {
 				label: head(op),
 				tone: "error",
-				body: <text role="omp.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
+				body: <text role="zeta.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
 				term: {
 					look: "goal",
 					result: true,

@@ -10,6 +10,8 @@ export {
 	type BtwHistoryTurn,
 	getBtwCopyText,
 	getBtwLatestTurn,
+	splitBtwInject,
+	formatBtwInjectText,
 	getBtwRecordInject,
 	getBtwTurns,
 	getBtwTurnKey,

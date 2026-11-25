@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
@@ -10,13 +10,13 @@ import { extensionOverlay } from "../../../src/modes/controllers/extension-ui-bl
 import { singleNode } from "../../../src/ui/extensions/render-output";
 import { nativeShell } from "../../helpers/native-shell";
 import { mountOverlay } from "../../helpers/overlay-terminal";
-import { type MoveOverlayResult } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/move-overlay";
+import { type MoveOverlayResult } from "@linxiraos/zeta/modes/view-model/overlays/move-overlay";
 import {
 	moveDirectorySource,
 	resolveExistingDirectory,
 	resolveMovePath,
 } from "../../../src/modes/move-directory-source";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { FileType, glob } from "@oh-my-pi/pi-natives";
+import { FileType, glob } from "@linxiraos/pi-natives";
 import {
 	CONFIG_DIR_NAME,
 	getAgentDir,
@@ -15,7 +15,7 @@ import {
 	parseFrontmatter,
 	pathIsWithin,
 	tryParseJson,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { isUserSourceEnabled } from "../capability";
 import type { ContextFile } from "../capability/context-file";
 import type { ExtensionModule } from "../capability/extension-module";

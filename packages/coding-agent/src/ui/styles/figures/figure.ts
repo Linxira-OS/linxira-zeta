@@ -15,13 +15,13 @@
  * - `col` `omp.figures` (a reply with figures): its runs set off by blank
  *   rows, prose Markdown with the standard inset.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { paintImage, paintPicture } from "@oh-my-pi/pi-tui/term/painters/image";
-import { stack, styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { renderMarkdownFrame } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { paintImage, paintPicture } from "@linxiraos/pi-tui/term/painters/image";
+import { stack, styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { renderMarkdownFrame } from "@linxiraos/pi-tui/text/markdown/index";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { terminalPaddingX } from "../terminal-padding";
 import type { EmbedTerm } from "../../transcript/figures/embed";
 import type { FigureTerm } from "../../transcript/figures/svg-figure";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type RpcAgentProcess, RpcClient } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-client";
+import { type RpcAgentProcess, RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 
 function fakeAgent() {
 	const exited = Promise.withResolvers<number>();

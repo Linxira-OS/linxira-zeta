@@ -1,5 +1,5 @@
 import type { EvalStatusEvent, EvalView } from "../tools/details/eval";
-import { isRecord, logger, readLines, Snowflake } from "@oh-my-pi/pi-utils";
+import { isRecord, logger, readLines, Snowflake } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import type { ShadowBarrier, ShadowControlNode, ShadowOperation } from "./speculation/types";
 import { type EvalDisplayOutput, evalImageMetadata } from "./types";

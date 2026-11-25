@@ -1,4 +1,4 @@
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { ToolError } from "../../tools/tool-errors";
 import type { HostEvalPreludeDefinition } from "../../eval/preludes";
 import commitDocumentation from "../../prompts/tools/commit.md" with { type: "text" };

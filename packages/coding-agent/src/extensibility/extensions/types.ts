@@ -19,6 +19,9 @@ import type {
 	MessageRenderer,
 	TranscriptPresenter,
 } from "./render-types";
+import type { PluginLocaleCatalog } from "../plugins/locales";
+import type { AgentMessenger } from "../../irc/facade";
+import type { AgentDirectory } from "../../registry/agent-directory";
 export type {
 	AssistantThinkingRenderer,
 	ExtensionRender,
@@ -38,9 +41,9 @@ export {
 	type TranscriptPresentation,
 	type TranscriptPresenter,
 } from "./render-types";
-import type { type as ArkType } from "@oh-my-pi/omptype";
-import type * as TypeBox from "@oh-my-pi/omptype/typebox";
-import type * as zod from "@oh-my-pi/omptype/zod";
+import type { type as ArkType } from "@linxiraos/zeta-schema";
+import type * as TypeBox from "@linxiraos/zeta-schema/typebox";
+import type * as zod from "@linxiraos/zeta-schema/zod";
 import type {
 	AgentMessage,
 	AgentToolResult,
@@ -48,8 +51,8 @@ import type {
 	ThinkingLevel,
 	ToolApproval,
 	ToolLoadMode,
-} from "@oh-my-pi/pi-agent-core";
-import type { CompactionResult } from "@oh-my-pi/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core";
+import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { ContextUsage } from "../../modes/view-model/status-line/types";
 import type { LoopConditionConfig } from "../../modes/view-model/status-line/loop";
 import type { LivePhase } from "../../modes/view-model/apps/live-visualizer";
@@ -72,14 +75,14 @@ import type {
 	TextContent,
 	TSchema,
 	UsageProvider,
-} from "@oh-my-pi/pi-ai";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/oauth/types";
-import type { KeyEvent } from "@oh-my-pi/pi-tui";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+} from "@linxiraos/pi-ai";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
+import type { KeyEvent } from "@linxiraos/pi-tui";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type { Keybinding } from "../../config/keybindings/app-keybindings";
 import type { AutocompleteItem, AutocompleteProvider } from "../../autocomplete/autocomplete";
 import type { KeyId } from "../../config/keybindings/key-id";
-import type { logger as PiLogger } from "@oh-my-pi/pi-utils";
+import type { logger as PiLogger } from "@linxiraos/pi-utils";
 import type { KeybindingsManager } from "../../config/keybindings/keybindings";
 import type { ComposerDecorator, SubmitTransform } from "../../ui/composer/composer";
 import type { ComposerShape } from "../../ui/styles/composer/shapes";
@@ -823,6 +826,10 @@ export interface ExtensionLiveSession {
 }
 
 export interface ExtensionContext {
+	/** Cross-agent roster (Zeta extension peer API). */
+	readonly agents: AgentDirectory;
+	/** Cross-agent messaging over the existing IRC bus (Zeta extension peer API). */
+	readonly messaging: AgentMessenger;
 	/** UI methods for user interaction */
 	ui: ExtensionUIContext;
 	/** Current run mode. Use `"tui"` to guard terminal-only UI such as custom components. */
@@ -837,6 +844,12 @@ export interface ExtensionContext {
 	hasUI: boolean;
 	/** Current working directory */
 	cwd: string;
+	/**
+	 * Translate a plugin-owned message key through the owning plugin's locale
+	 * catalogue, falling back to the host language and then `fallback ?? key`.
+	 * Loose extensions without a catalogue always return `fallback ?? key`.
+	 */
+	t(key: string, fallback?: string): string;
 	/** Session manager (read-only) */
 	sessionManager: ReadonlySessionManager;
 	/** Model registry for API key resolution */
@@ -1858,7 +1871,8 @@ export type {
 // `getArgumentCompletions` and bind handlers to ExtensionCommandContext.
 export interface RegisteredCommand {
 	name: string;
-	description?: string;
+	/** Resolved lazily when a function so localized copy follows `/language`. */
+	description?: string | (() => string);
 	getArgumentCompletions?: (argumentPrefix: string) => AutocompleteItem[] | null;
 	handler: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 }
@@ -2603,6 +2617,8 @@ export interface Extension {
 	path: string;
 	resolvedPath: string;
 	label?: string;
+	/** Catalogues from the owning plugin, bound to this extension's `ctx.t()`; absent for loose extensions. */
+	localeCatalog?: PluginLocaleCatalog;
 	handlers: Map<string, HandlerFn[]>;
 	tools: Map<string, RegisteredTool<any, any>>;
 	toolRegistrationListeners?: Set<ToolRegistrationListener>;

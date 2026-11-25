@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Advisor notes injected into the session: a callout tinted by its worst
  * note (that severity's icon and the tally head it, the advisor's name ends
@@ -14,9 +14,9 @@
  * `ⓘ Advisor` tag with the note count, then each note on a rail tinted by
  * its severity.
  */
-import { type JSXNode, type Reactive, read } from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import type { AdvisorMessageDetails, AdvisorNote, AdvisorSeverity } from "../../../session/transcript/messages";
 import { cardExpansion } from "../expansion";
 
@@ -95,7 +95,7 @@ export function AdvisorMessage(props: {
 	};
 	return (
 		<card
-			role="omp.advisor"
+			role="zeta.advisor"
 			tone={look.tone}
 			collapsible={collapsible}
 			collapsed={() => (collapsible ? !expanded() : undefined)}
@@ -103,18 +103,18 @@ export function AdvisorMessage(props: {
 			term={() => ({ notes, expanded: expanded(), collapsedLines: read(props.collapsedLines) })}
 			onToggle={toggle}
 		>
-			<row key="head" gap="sm" align="center" role="omp.advisor.head">
+			<row key="head" gap="sm" align="center" role="zeta.advisor.head">
 				<icon name={look.icon} tone={look.tone} />
 				<text spans={tally(notes)} grow={1} />
-				<text role="omp.advisor.source" spans={[{ t: sources.size === 1 && sole ? sole : "Advisor", s: "dim" }]} />
+				<text role="zeta.advisor.source" spans={[{ t: sources.size === 1 && sole ? sole : "Advisor", s: "dim" }]} />
 			</row>
 			{notes.map((note, index) => {
 				if (notes.length === 1) {
-					return <text propKey={`n${index}`} role="omp.advisor.note" spans={spansOf(note)} wrap="word" />;
+					return <text propKey={`n${index}`} role="zeta.advisor.note" spans={spansOf(note)} wrap="word" />;
 				}
 				const { tone, icon, label } = RANK_LOOK[rankOf(note)];
 				return (
-					<row key={`n${index}`} gap="sm" align="start" role="omp.advisor.note" tone={tone}>
+					<row key={`n${index}`} gap="sm" align="start" role="zeta.advisor.note" tone={tone}>
 						<icon name={icon} tone={tone} aria={label} />
 						<text spans={spansOf(note)} wrap="word" grow={1} shrink={1} />
 					</row>

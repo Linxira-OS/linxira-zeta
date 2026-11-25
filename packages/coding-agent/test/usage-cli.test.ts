@@ -8,11 +8,11 @@ import {
 	SqliteAuthCredentialStore,
 	type UsageReport,
 	type UsageResetCredit,
-} from "@oh-my-pi/pi-ai";
-import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@oh-my-pi/pi-ai/auth-broker";
-import { OAUTH_ORG_POLICY_BLOCK_SCOPE } from "@oh-my-pi/pi-ai/auth-storage";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
+import { OAUTH_ORG_POLICY_BLOCK_SCOPE } from "@linxiraos/pi-ai/auth-storage";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@linxiraos/pi-utils";
 import {
 	buildRedactionMap,
 	annotateUsagePolicy,
@@ -23,16 +23,16 @@ import {
 	runUsageCommand,
 	type UsagePolicyDiagnosticsOptions,
 	type UsageResetExpiryOptions,
-} from "@oh-my-pi/pi-coding-agent/cli/usage-cli";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import { resetAccountLockKey } from "@oh-my-pi/pi-coding-agent/session/codex-auto-reset";
-import { claimResetExpiryNotice } from "@oh-my-pi/pi-coding-agent/session/reset-expiry";
-import { resetLockPath } from "@oh-my-pi/pi-coding-agent/session/reset-fence";
+} from "@linxiraos/zeta/cli/usage-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import { resetAccountLockKey } from "@linxiraos/zeta/session/codex-auto-reset";
+import { claimResetExpiryNotice } from "@linxiraos/zeta/session/reset-expiry";
+import { resetLockPath } from "@linxiraos/zeta/session/reset-fence";
 import {
 	collectUnreportedAccounts,
 	type UsageAccountIdentity,
-} from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/usage-accounts";
+} from "@linxiraos/zeta/slash-commands/helpers/usage-accounts";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const HOUR = 3_600_000;

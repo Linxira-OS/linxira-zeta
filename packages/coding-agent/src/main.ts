@@ -2820,8 +2820,7 @@ export async function runRootCommand(
 				mcpManager,
 				startBackgroundModelDiscovery,
 			} = createdSession;
-			if (isInteractive)
-				session.addDisposer(bindAgentMesh(sessionOptions.cwd ?? getProjectDir(), settingsInstance, session));
+			if (isInteractive) session.addDisposer(bindAgentMesh(sessionOptions.cwd ?? getProjectDir(), settingsInstance));
 			if (!isInteractive) session.validateRetryFallbackChains();
 
 			const sessionToolNames = session.getAllToolNames();

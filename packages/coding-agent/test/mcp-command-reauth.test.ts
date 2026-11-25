@@ -3,13 +3,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import * as mcpClient from "@oh-my-pi/pi-coding-agent/mcp/client";
-import * as oauthFlow from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
-import type { SourceMeta } from "@oh-my-pi/pi-coding-agent/capability/types";
-import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import * as mcpClient from "@linxiraos/zeta/mcp/client";
+import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
+import type { SourceMeta } from "@linxiraos/zeta/capability/types";
+import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -17,7 +17,7 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import {
 	createInteractiveModeContext,
 	createMcpManagerStub,

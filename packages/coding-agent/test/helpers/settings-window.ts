@@ -3,7 +3,7 @@
  * focused the way the fullscreen menu focuses it (its root takes the keys).
  */
 import { afterEach, beforeEach } from "bun:test";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { resetSettingsForTest, Settings } from "../../src/config/settings";
 import { createSettingsHost } from "../../src/config/settings-ui";
 import { createPluginSettingsHost } from "../../src/extensibility/plugins/settings-host";

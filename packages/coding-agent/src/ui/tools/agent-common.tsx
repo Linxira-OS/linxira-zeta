@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Body pieces the agent tools share (yield, todo, vibe, wait, task…): clean
  * display text, the error text, a toned note, count wording and the resolved
  * model badge of subagent rows.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { stripControl } from "@oh-my-pi/pi-tui/text/sanitize";
-import { replaceTabs, truncateMiddle, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { stripControl } from "@linxiraos/pi-tui/text/sanitize";
+import { replaceTabs, truncateMiddle, visibleWidth } from "@linxiraos/pi-tui/text/width";
 
 /** Untrusted text as a row shows it: escapes and controls dropped, tabs expanded. */
 export function cleanText(text: string): string {
@@ -17,8 +17,8 @@ export function cleanText(text: string): string {
 export function ErrorText(props: { readonly message: string }): JSXNode {
 	const body = cleanText(props.message).trim();
 	if (body.includes("\n") && /^[{[]/.test(body))
-		return <code text={body} lang="json" tone="error" role="omp.tool.error" />;
-	return <text role="omp.tool.error" spans={[{ s: "error", t: body }]} wrap="word" />;
+		return <code text={body} lang="json" tone="error" role="zeta.tool.error" />;
+	return <text role="zeta.tool.error" spans={[{ s: "error", t: body }]} wrap="word" />;
 }
 
 /** A subagent's resolved model as its row badges it. */

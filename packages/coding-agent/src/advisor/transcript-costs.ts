@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { visitEntriesFromFileStream } from "../session/session-loader";
 import {
 	ADVISOR_TRANSCRIPT_FILENAME,

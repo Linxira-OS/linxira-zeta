@@ -7,7 +7,7 @@
  * {@link ComposerHint.learnedAfter} times: the host records each use under the
  * hint's id and reports counts through {@link ComposerHintContext.uses}.
  */
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { KeybindingsManager } from "../../../config/keybindings/keybindings";
 import { formatDoubleTap, formatKeyHint } from "../../../ui/keys/hints";
 

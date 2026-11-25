@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The HTML form dialog: an agent-written form asked as a card of questions
  * (the ask card's vocabulary, `omp.ask.*`). The open field's group shows its
  * legend, text and controls; the other fields fold to their answers. The
  * terminal draws the card from the model (`../../styles/forms/html-form.ts`).
  */
-import { computed, effect, type JSXNode, signal, untrack } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { computed, effect, type JSXNode, signal, untrack } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { ChoiceField, FormBlock, FormField, FormSpan } from "../../../tools/html-form/parse";
 import { spansText } from "../../../tools/html-form/parse";
 import { keyLabel } from "../../setup/scenes/choice";
@@ -90,10 +90,10 @@ function Block(props: {
 			);
 		case "list":
 			return (
-				<col key={key} motionKey={key} role="omp.ask.bullets" gap="xs">
+				<col key={key} motionKey={key} role="zeta.ask.bullets" gap="xs">
 					{block.items.map((item, index) => (
 						<text
-							role="omp.ask.text"
+							role="zeta.ask.text"
 							wrap="word"
 							spans={[{ s: "muted", t: block.ordered ? `${index + 1}.` : "•" }, { t: " " }, ...tspSpans(item)]}
 						/>
@@ -101,7 +101,7 @@ function Block(props: {
 				</col>
 			);
 		case "pre":
-			return <code key={key} motionKey={key} role="omp.ask.pre" text={block.text.replaceAll("\t", "   ")} />;
+			return <code key={key} motionKey={key} role="zeta.ask.pre" text={block.text.replaceAll("\t", "   ")} />;
 		case "table": {
 			const width = Math.max(0, ...block.rows.map(row => row.length));
 			const heads = block.rows.slice(0, block.headerRows)[0];
@@ -110,7 +110,7 @@ function Block(props: {
 				<table
 					key={key}
 					motionKey={key}
-					role="omp.ask.table"
+					role="zeta.ask.table"
 					cols={Array.from({ length: width }, (_, j) => ({ id: `c${j}`, head: tspSpans(heads?.[j] ?? []) }))}
 					rows={body.map((row, r) => ({
 						id: `r${r}`,
@@ -135,7 +135,7 @@ function Block(props: {
 			const label =
 				media?.kind === "failed" ? `▣ ${block.alt} — couldn't load: ${media.message}` : `▣ ${block.alt} — loading…`;
 			return (
-				<text key={key} motionKey={key} role="omp.ask.text" truncate="end" spans={[{ s: "muted", t: label }]} />
+				<text key={key} motionKey={key} role="zeta.ask.text" truncate="end" spans={[{ s: "muted", t: label }]} />
 			);
 		}
 		default:
@@ -157,12 +157,12 @@ function OpenField(props: {
 	if (field.label.length > 0) {
 		const spans = tspSpans(field.label);
 		if (field.required) spans.push({ s: "error", t: " *" });
-		children.push(<text role="omp.ask.label" wrap="word" spans={spans} />);
+		children.push(<text role="zeta.ask.label" wrap="word" spans={spans} />);
 	}
 	if (field.kind === "choice") children.push(...choiceControls(model, index, field));
 	else if (field.multiline) {
 		children.push(
-			<col role="omp.field">
+			<col role="zeta.field">
 				<editor
 					key="input"
 					sendable={false}
@@ -188,9 +188,9 @@ function OpenField(props: {
 			/>,
 		);
 	}
-	if (error) children.push(<text role="omp.ask.error" spans={[{ s: "error", t: error }]} />);
+	if (error) children.push(<text role="zeta.ask.error" spans={[{ s: "error", t: error }]} />);
 	return (
-		<col key={props.nodeKey} motionKey={props.nodeKey} role="omp.ask.field" gap="xs">
+		<col key={props.nodeKey} motionKey={props.nodeKey} role="zeta.ask.field" gap="xs">
 			{children}
 		</col>
 	);
@@ -244,7 +244,7 @@ function choiceControls(model: HtmlFormModel, index: number, field: ChoiceField)
 	const out: JSXNode[] = [
 		<list
 			key={`f${index}`}
-			role="omp.ask.options"
+			role="zeta.ask.options"
 			selected={chosen === undefined ? undefined : chosen === OTHER_ROW ? "other" : `o${chosen}`}
 			onSelect={item => model.select(index, item, false)}
 			onActivate={item => model.select(index, item, true)}
@@ -267,11 +267,11 @@ function choiceControls(model: HtmlFormModel, index: number, field: ChoiceField)
 	if (note && note.field === index) {
 		out.push(
 			<text
-				role="omp.ask.note"
+				role="zeta.ask.note"
 				wrap="word"
 				text={`Note for ${oneLine(spansText(field.options[note.option]!.label))}`}
 			/>,
-			<col role="omp.field">
+			<col role="zeta.field">
 				<editor
 					key="input"
 					sendable={false}
@@ -301,17 +301,17 @@ function Fold(props: { readonly model: HtmlFormModel; readonly index: number; re
 		<col
 			key={nodeKey}
 			motionKey={nodeKey}
-			role="omp.ask.fold"
+			role="zeta.ask.fold"
 			gap="xs"
 			actions={{ click: `open:${index}` }}
 			title="Answer this question"
 		>
-			<row role="omp.ask.fold.head" align="baseline" gap="sm">
-				<text role="omp.ask.fold.mark" spans={[mark]} />
-				<text role="omp.ask.fold.question" wrap="word" spans={[{ t: model.question(index) }]} />
+			<row role="zeta.ask.fold.head" align="baseline" gap="sm">
+				<text role="zeta.ask.fold.mark" spans={[mark]} />
+				<text role="zeta.ask.fold.question" wrap="word" spans={[{ t: model.question(index) }]} />
 			</row>
 			{foldSummary(model, index, field, `${nodeKey}.summary`)}
-			{error ? <text role="omp.ask.error" spans={[{ s: "error", t: error }]} /> : null}
+			{error ? <text role="zeta.ask.error" spans={[{ s: "error", t: error }]} /> : null}
 		</col>
 	);
 }
@@ -325,7 +325,7 @@ function foldSummary(model: HtmlFormModel, index: number, field: FormField, key:
 				<text
 					key={key}
 					motionKey={key}
-					role="omp.ask.fold.well"
+					role="zeta.ask.fold.well"
 					lines={1}
 					truncate="end"
 					spans={[{ s: "dim", t: field.placeholder || "type your answer" }]}
@@ -362,7 +362,7 @@ function Parts(props: PartsProps & { readonly parts: readonly FormPart[] }): JSX
 				<text
 					key={`l${s}`}
 					motionKey={`l${s}`}
-					role="omp.ask.legend"
+					role="zeta.ask.legend"
 					wrap="word"
 					spans={tspSpans(section.title)}
 				/>,
@@ -400,13 +400,13 @@ function Group(
 	if (!open) {
 		if (group.fields.length === 1) return Fold({ model, index: group.fields[0]!, nodeKey: key });
 		return (
-			<col key={key} motionKey={key} role="omp.ask.group" gap="md">
+			<col key={key} motionKey={key} role="zeta.ask.group" gap="md">
 				{group.fields.map(index => Fold({ model, index, nodeKey: `q${index}` }))}
 			</col>
 		);
 	}
 	return (
-		<col key={key} motionKey={key} role="omp.ask.open" gap="sm" reveal={{ at: "start", n: props.reveal }}>
+		<col key={key} motionKey={key} role="zeta.ask.open" gap="sm" reveal={{ at: "start", n: props.reveal }}>
 			{Parts({ ...props, parts: group.parts })}
 		</col>
 	);
@@ -416,8 +416,8 @@ function Actions(props: { readonly model: HtmlFormModel; readonly remaining?: nu
 	const model = props.model;
 	if (model.note())
 		return (
-			<row key="actions" motionKey="actions" role="omp.actions" align="center" gap="sm">
-				<text role="omp.ask.note" text={noteEditHint(model)} />
+			<row key="actions" motionKey="actions" role="zeta.actions" align="center" gap="sm">
+				<text role="zeta.ask.note" text={noteEditHint(model)} />
 				<ActionButton
 					id="cancel"
 					label="Keep"
@@ -442,10 +442,10 @@ function Actions(props: { readonly model: HtmlFormModel; readonly remaining?: nu
 			: undefined;
 	const enterSubmits = active === "submit" || model.sole;
 	return (
-		<row key="actions" motionKey="actions" role="omp.actions" align="center" gap="sm">
+		<row key="actions" motionKey="actions" role="zeta.actions" align="center" gap="sm">
 			{props.remaining !== undefined ? (
 				<text
-					role="omp.ask.summary"
+					role="zeta.ask.summary"
 					truncate="end"
 					spans={[{ s: "muted", t: `Submits these answers in ${Math.ceil(props.remaining / 1000)}s` }]}
 				/>
@@ -521,7 +521,7 @@ export function HtmlFormDialog(props: HtmlFormProps): JSXNode {
 	});
 	return (
 		<col
-			role="omp.ask.card"
+			role="zeta.ask.card"
 			gap="md"
 			transition="layout"
 			reveal="start"
@@ -539,19 +539,19 @@ export function HtmlFormDialog(props: HtmlFormProps): JSXNode {
 				model.action(act, event.key);
 			}}
 		>
-			<row key="head" motionKey="head" role="omp.ask.card.head" align="baseline" gap="sm" justify="between">
-				<text role="omp.ask.card.tag" spans={[{ s: "accent", t: "ask" }]} />
+			<row key="head" motionKey="head" role="zeta.ask.card.head" align="baseline" gap="sm" justify="between">
+				<text role="zeta.ask.card.tag" spans={[{ s: "accent", t: "ask" }]} />
 				{() => {
 					const progress = model.progress();
-					return progress ? <text role="omp.ask.card.progress" spans={[{ s: "muted", t: progress }]} /> : null;
+					return progress ? <text role="zeta.ask.card.progress" spans={[{ s: "muted", t: progress }]} /> : null;
 				}}
 			</row>
-			<col key="body" role="omp.ask.card.body" gap="lg" mark={() => (props.skipNotice?.() ? "drop" : undefined)}>
+			<col key="body" role="zeta.ask.card.body" gap="lg" mark={() => (props.skipNotice?.() ? "drop" : undefined)}>
 				{() => {
 					const parts = { model, media: props.media?.(), pictureRows: pictureRows() };
 					return [
 						intro.length > 0 ? (
-							<col key="intro" motionKey="intro" role="omp.ask.intro" gap="md">
+							<col key="intro" motionKey="intro" role="zeta.ask.intro" gap="md">
 								{Parts({ ...parts, parts: intro })}
 							</col>
 						) : null,
@@ -565,7 +565,7 @@ export function HtmlFormDialog(props: HtmlFormProps): JSXNode {
 					<text
 						key="skip"
 						motionKey="skip"
-						role="omp.ask.skip"
+						role="zeta.ask.skip"
 						wrap="word"
 						spans={[{ s: "warning", t: `⚠ ${notice}` }]}
 					/>

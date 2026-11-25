@@ -3,12 +3,12 @@
  * that print a view and exit (`omp q`, `omp gallery`) instead of running a
  * live surface.
  */
-import { createRoot, type JSXNode, resolveChildren } from "@oh-my-pi/pi-tui";
-import { hyperlinksDefault } from "@oh-my-pi/pi-tui/driver/caps/env";
-import { detectTerminalId } from "@oh-my-pi/pi-tui/driver/caps/identity";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { renderBlock } from "@oh-my-pi/pi-tui/term/render";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot, type JSXNode, resolveChildren } from "@linxiraos/pi-tui";
+import { hyperlinksDefault } from "@linxiraos/pi-tui/driver/caps/env";
+import { detectTerminalId } from "@linxiraos/pi-tui/driver/caps/identity";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { renderBlock } from "@linxiraos/pi-tui/term/render";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { ensureTheme } from "./theme/service";
 
 /** Options of {@link printRows}. */

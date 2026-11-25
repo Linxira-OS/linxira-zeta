@@ -1,6 +1,6 @@
 # TUI integration for extensions and custom tools
 
-This document covers the **current** UI contract used by `packages/coding-agent` and `packages/tui` (`@oh-my-pi/pi-tui`) for extension UI, custom tool UI, and custom renderers.
+This document covers the **current** UI contract used by `packages/coding-agent` and `packages/tui` (`@linxiraos/pi-tui`) for extension UI, custom tool UI, and custom renderers.
 
 ## What this subsystem is
 
@@ -69,10 +69,10 @@ Native PTY API changes require rebuilding the addon with
 Run its real-PTY regressions with `bun test ./.omp/tests/tui.test.ts`. CI runs
 them on Linux only; the Windows-specific cases run only on a local Windows host.
 
-## Component model (`@oh-my-pi/pi-tui`)
+## Component model (`@linxiraos/pi-tui`)
 
 - **Signals** (`packages/tui/src/reactive.ts`): `signal`, `computed`, `effect`, `batch`, `untrack`, `onCleanup`, contexts. Synchronous and glitch-free.
-- **JSX without a compiler** (`jsx-runtime.ts`, `element.ts`): start a `.tsx` file with `/** @jsxImportSource @oh-my-pi/pi-tui */`. Function components run once; a function passed as a prop or child is reactive. Control flow: `Show`, `For`, `Index`, `Switch`/`Match`, `Dynamic` (`flow.ts`).
+- **JSX without a compiler** (`jsx-runtime.ts`, `element.ts`): start a `.tsx` file with `/** @jsxImportSource @linxiraos/pi-tui */`. Function components run once; a function passed as a prop or child is reactive. Control flow: `Show`, `For`, `Index`, `Switch`/`Match`, `Dynamic` (`flow.ts`).
 - **Nodes** (`node.ts`): lowercase tags create retained `UiNode`s. Their kinds are the TSP wire kinds (`col`, `row`, `text`, `md`, `code`, `card`, `spinner`, `list`, `picker`, `editor`, …) plus the terminal-only `canvas`. A node has reactive props, children, a `key`, and handlers (`onSelect`, `onActivate`, `onAction`, `onChange`, `onEdit`, `onSend`, `onKey`, `onPaste`, …).
 - **Surface** (`surface.ts`): `createSurface(template)` builds three regions: `main` (the transcript flow; `settle(node)` marks a block final so the terminal backend writes it to scrollback once), `dock` (live chrome such as the composer), and `layer` (overlays; fullscreen layers use the alternate screen). The surface owns keyboard focus.
 - **Host** (`host.ts`): `startHost({ surface, theme, onKey, intercept, … })` renders the surface natively when the terminal speaks TSP (Tern), and with the terminal backend everywhere else.
@@ -94,10 +94,10 @@ Nodes are laid out and painted by pi-tui; you only manage width yourself in a ro
 3. **Truncate/wrap ANSI-aware text** with `truncate()` / `wrap()`.
 4. **Sanitize tabs** from external content with `replaceTabs()`.
 
-All four come from `@oh-my-pi/pi-tui/text/width`.
+All four come from `@linxiraos/pi-tui/text/width`.
 
 ```ts
-import { replaceTabs, truncate } from "@oh-my-pi/pi-tui/text/width";
+import { replaceTabs, truncate } from "@linxiraos/pi-tui/text/width";
 
 const rows = { render: (width: number) => lines.map(line => truncate(replaceTabs(line), width)) };
 ```
@@ -118,7 +118,7 @@ Extension UI factories receive a `KeybindingsManager` (interactive mode; an in-m
 
 ### Built-in widgets follow the keymap
 
-pi-tui's terminal widgets (`picker`, `prefs`, `menu`, `button`/`buttons`, `editor`/`input`) read their keys from a widget keymap instead of fixed key ids: `select.up`/`down`/`pageUp`/`pageDown`/`confirm`/`cancel` and the `editor.*` motions and edits (`@oh-my-pi/pi-tui/term/keymap`). omp fills it from the user's `tui.select.*`, `tui.editor.*` and `tui.input.newLine` bindings when the keymap loads or reloads (`setWidgetKeymap`), so a list or text field in your UI honours remaps without matching keys itself. A picker action keyed `esc` (or `enter`) also runs on the other `select.cancel` (`select.confirm`) keys.
+pi-tui's terminal widgets (`picker`, `prefs`, `menu`, `button`/`buttons`, `editor`/`input`) read their keys from a widget keymap instead of fixed key ids: `select.up`/`down`/`pageUp`/`pageDown`/`confirm`/`cancel` and the `editor.*` motions and edits (`@linxiraos/pi-tui/term/keymap`). omp fills it from the user's `tui.select.*`, `tui.editor.*` and `tui.input.newLine` bindings when the keymap loads or reloads (`setWidgetKeymap`), so a list or text field in your UI honours remaps without matching keys itself. A picker action keyed `esc` (or `enter`) also runs on the other `select.cancel` (`select.confirm`) keys.
 
 ## Focus, overlays, and cursor
 
@@ -189,9 +189,9 @@ The `/pause` screen shows the same local turn-and-job state in ANSI and TSP: dra
 ## Realistic custom view example (extension command)
 
 ```tsx
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import type { ExtensionAPI } from "@linxiraos/zeta";
+import { signal } from "@linxiraos/pi-tui";
 
 export default function extension(pi: ExtensionAPI): void {
 	pi.registerCommand("pick-model", {

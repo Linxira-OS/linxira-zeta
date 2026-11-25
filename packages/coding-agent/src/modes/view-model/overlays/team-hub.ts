@@ -9,15 +9,8 @@
  * agents, or statuses.
  */
 
-import { Input } from "../components/input";
-import { HubFrame, type SidebarEntry, type SidebarStyle } from "./hub-frame";
-import { matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
-import { formatKeyHint, formatKeyHints } from "../app-keybindings";
-import { matchesKey } from "../keys";
-import { theme } from "../theme/theme";
-import { padding, replaceTabs, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
-import type { Component } from "../tui";
-import type { TUI } from "../tui";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "../../../utils/text-width";
 
 // ── Data contract (the coding-agent builds this from the real Team DB) ──────
 
@@ -138,10 +131,10 @@ export interface TeamHubDataSource {
 
 export interface TeamHubDeps {
 	source: TeamHubDataSource;
-	onDone: () => void;
-	requestRender: () => void;
-	/** TUI handle for terminal height and input focus; tests may omit it. */
-	ui?: TUI;
+	/** Called when the Hub should close (Escape on the root). */
+	onDone?: () => void;
+	/** Called after state changes; a reactive host re-renders from its own effect instead. */
+	requestRender?: () => void;
 	/** Focus the Hub on this PM on first load (a PM-root launch). */
 	initialPmId?: string;
 	/** Open Agent Hub (subagent control stays there); omitted in a standalone Hub. */
@@ -152,7 +145,11 @@ export interface TeamHubDeps {
 
 export type TeamHubEntryKind = "separator" | "label" | "room" | "task" | "pm" | "engineer";
 
-export interface TeamHubSidebarEntry extends SidebarEntry<TeamHubEntryKind> {
+export interface TeamHubSidebarEntry {
+	readonly id: string;
+	readonly kind: TeamHubEntryKind;
+	readonly label: string;
+	readonly annotation?: string;
 	roomName?: string;
 	agentId?: string;
 	pmId?: string;
@@ -387,39 +384,52 @@ export function formatTeamHubEvent(event: TeamHubEvent, width: number, now: Date
 	const head = `${parts.time}  ${parts.sender}${parts.reply ? ` ${parts.reply}` : ""}  `;
 	const bodyWidth = Math.max(8, width - visibleWidth(head));
 	return wrapTextWithAnsi(parts.body || "(empty)", bodyWidth).map((line, index) =>
-		index === 0 ? `${head}${line}` : `${padding(visibleWidth(head))}${line}`,
+		index === 0 ? `${head}${line}` : `${" ".repeat(visibleWidth(head))}${line}`,
 	);
 }
 
-// ── Component ───────────────────────────────────────────────────────────────
+// ── Model ───────────────────────────────────────────────────────────────────
 
-type HubFocus = "roster" | "events" | "composer";
+/** Which pane owns j/k and the footer hint. */
+export type TeamHubFocus = "roster" | "events" | "composer";
 
-function filterInput(): Input {
-	const input = new Input();
-	input.prompt = "";
-	return input;
+/** State of the room composer while it is open. */
+export interface TeamHubComposerState {
+	readonly room: string;
+	readonly senderIndex: number;
+	readonly draft: string;
 }
 
-export class TeamHubOverlayComponent implements Component {
+/** State of the add/remove-member prompt while it is open. */
+export interface TeamHubMemberState {
+	readonly mode: "add" | "remove";
+	readonly room: string;
+	readonly draft: string;
+}
+
+/**
+ * Selection, filtering, room timeline, composer and refresh state of the Team
+ * Hub. A host view reads the getters and calls the action methods; nothing
+ * here draws rows, styles text or decodes keys.
+ */
+export class TeamHubModel {
 	readonly #deps: TeamHubDeps;
-	readonly #frame: HubFrame;
-	readonly #filter = filterInput();
 	#snapshot: TeamHubSnapshot | undefined;
 	#entries: TeamHubSidebarEntry[] = [];
 	#selectedId: string | undefined;
-	#focus: HubFocus = "roster";
+	#filter = "";
 	#filterEditing = false;
+	#focus: TeamHubFocus = "roster";
 	#loading = false;
 	#error: string | undefined;
 	#warning: string | undefined;
 	#notice: string | undefined;
-	#composer: Input | undefined;
 	#composerRoom: string | undefined;
-	#memberInput: Input | undefined;
+	#composerSender = 0;
+	#composerDraft = "";
 	#memberMode: "add" | "remove" | undefined;
 	#memberRoom: string | undefined;
-	#senderIndex = 0;
+	#memberDraft = "";
 	#detailAgentId: string | undefined;
 	#detailTaskId: string | undefined;
 	#focusedPmId: string | undefined;
@@ -432,19 +442,67 @@ export class TeamHubOverlayComponent implements Component {
 	constructor(deps: TeamHubDeps) {
 		this.#deps = deps;
 		this.#focusedPmId = deps.initialPmId;
-		this.#frame = new HubFrame(
-			"Team Hub",
-			{ min: 28, max: 46 },
-			(width, rows) => this.#renderSidebar(width, rows),
-			(width, height) => this.#renderBody(width, height),
-			{ bodyMinWidth: 30 },
-		);
-		void this.#reload();
+		void this.reload();
 	}
 
 	/** Resolves after the latest database read settles (initial load or refresh). */
 	get ready(): Promise<void> {
 		return this.#lastLoad;
+	}
+	get snapshot(): TeamHubSnapshot | undefined {
+		return this.#snapshot;
+	}
+	get entries(): readonly TeamHubSidebarEntry[] {
+		return this.#entries;
+	}
+	get selectedId(): string | undefined {
+		return this.#selectedId;
+	}
+	get selectedEntry(): TeamHubSidebarEntry | undefined {
+		return this.#entries.find(entry => entry.id === this.#selectedId);
+	}
+	get selectedRoom(): TeamHubRoomView | undefined {
+		return this.#snapshot?.selectedRoom ?? undefined;
+	}
+	get detailTask(): TeamHubTask | undefined {
+		return this.#detailTaskId ? this.#snapshot?.tasks?.find(task => task.taskKey === this.#detailTaskId) : undefined;
+	}
+	get detailAgent(): TeamHubEngineer | undefined {
+		return this.#detailAgentId
+			? this.#snapshot?.engineers.find(engineer => engineer.id === this.#detailAgentId)
+			: undefined;
+	}
+	get filter(): string {
+		return this.#filter;
+	}
+	get filterEditing(): boolean {
+		return this.#filterEditing;
+	}
+	get focus(): TeamHubFocus {
+		return this.#focus;
+	}
+	get loading(): boolean {
+		return this.#loading;
+	}
+	get error(): string | undefined {
+		return this.#error;
+	}
+	get warning(): string | undefined {
+		return this.#warning;
+	}
+	get notice(): string | undefined {
+		return this.#notice;
+	}
+	get eventScroll(): number {
+		return this.#eventScroll;
+	}
+	get composer(): TeamHubComposerState | undefined {
+		if (this.#composerRoom === undefined) return undefined;
+		return { room: this.#composerRoom, senderIndex: this.#composerSender, draft: this.#composerDraft };
+	}
+	get member(): TeamHubMemberState | undefined {
+		if (this.#memberMode === undefined || this.#memberRoom === undefined) return undefined;
+		return { mode: this.#memberMode, room: this.#memberRoom, draft: this.#memberDraft };
 	}
 
 	dispose(): void {
@@ -452,26 +510,9 @@ export class TeamHubOverlayComponent implements Component {
 		this.#generation++;
 	}
 
-	invalidate(): void {
-		this.#frame.invalidate();
-	}
-
-	// ── data ────────────────────────────────────────────────────────────────
-
-	#currentRoomName(): string | undefined {
-		return this.#snapshot?.selectedRoom?.room.name;
-	}
-
-	#selectedEntry(): TeamHubSidebarEntry | undefined {
-		return this.#entries.find(entry => entry.id === this.#selectedId);
-	}
-
-	#selectedRoom(): TeamHubRoomView | undefined {
-		return this.#snapshot?.selectedRoom ?? undefined;
-	}
-
-	#reload(roomName?: string): Promise<void> {
-		const promise = this.#load(roomName);
+	/** Reload the Hub, keeping the current room unless `roomName` names another. */
+	reload(roomName?: string): Promise<void> {
+		const promise = this.#load(roomName ?? this.selectedRoom?.room.name);
 		this.#lastLoad = promise;
 		return promise;
 	}
@@ -485,17 +526,15 @@ export class TeamHubOverlayComponent implements Component {
 		this.#requestRender();
 		try {
 			const snapshot = await this.#deps.source.load({
-				room: roomName ?? this.#currentRoomName(),
+				room: roomName,
 				preferPmId: this.#focusedPmId ?? this.#deps.initialPmId,
 			});
 			if (this.#disposed || generation !== this.#generation) return;
 			this.#snapshot = snapshot;
 			this.#warning = snapshot.warning;
-			this.#frame.setTitle(`Team Hub · ${snapshot.teamName}`);
 			this.#initializeBaseline(snapshot);
 			this.#markSelectedRoomSeen();
-			this.#entries = buildTeamHubEntries(snapshot, this.#filter.getValue(), this.#baseline);
-			this.#ensureSelection();
+			this.#rebuild();
 		} catch (error) {
 			if (this.#disposed || generation !== this.#generation) return;
 			this.#error = error instanceof Error ? error.message : String(error);
@@ -515,13 +554,18 @@ export class TeamHubOverlayComponent implements Component {
 	}
 
 	#markSelectedRoomSeen(): void {
-		const room = this.#selectedRoom()?.room;
+		const room = this.selectedRoom?.room;
 		if (room && room.lastSeq !== null) this.#baseline.set(room.id, room.lastSeq);
+	}
+
+	#rebuild(): void {
+		this.#entries = buildTeamHubEntries(this.#snapshot, this.#filter, this.#baseline);
+		this.#ensureSelection();
 	}
 
 	#ensureSelection(): void {
 		if (this.#selectedId && this.#entries.some(entry => entry.id === this.#selectedId)) return;
-		const selectedRoom = this.#snapshot?.selectedRoom?.room;
+		const selectedRoom = this.selectedRoom?.room;
 		if (selectedRoom) {
 			const id = `room:${selectedRoom.name}`;
 			if (this.#entries.some(entry => entry.id === id)) {
@@ -529,26 +573,26 @@ export class TeamHubOverlayComponent implements Component {
 				return;
 			}
 		}
-		const first = this.#entries.find(entry => entry.kind !== "label" && entry.kind !== "separator");
-		this.#selectedId = first?.id;
+		this.#selectedId = this.#entries.find(entry => entry.kind !== "label" && entry.kind !== "separator")?.id;
 	}
 
-	#select(id: string | undefined): void {
+	/** Select a sidebar row; entering a room loads its events. */
+	async select(id: string | undefined): Promise<void> {
 		if (!id || id === this.#selectedId) {
 			this.#requestRender();
 			return;
 		}
 		this.#selectedId = id;
-		const entry = this.#selectedEntry();
+		const entry = this.selectedEntry;
 		this.#eventScroll = 0;
 		if (entry?.kind === "room") {
 			this.#detailAgentId = undefined;
 			this.#detailTaskId = undefined;
-			if (entry.roomName && entry.roomName !== this.#currentRoomName()) {
-				void this.#reload(entry.roomName);
-			} else {
-				this.#markSelectedRoomSeen();
+			if (entry.roomName && entry.roomName !== this.selectedRoom?.room.name) {
+				await this.reload(entry.roomName);
+				return;
 			}
+			this.#markSelectedRoomSeen();
 		} else if (entry?.kind === "task") {
 			this.#detailAgentId = undefined;
 			this.#detailTaskId = entry.taskId;
@@ -564,574 +608,278 @@ export class TeamHubOverlayComponent implements Component {
 		this.#requestRender();
 	}
 
-	#requestRender(): void {
-		this.#deps.requestRender();
+	/** Move the selection (roster focus) or scroll the events (events focus). */
+	moveSelection(delta: number): void {
+		if (this.#focus === "events") {
+			this.scrollEvents(delta);
+			return;
+		}
+		void this.select(moveTeamHubSelection(this.#entries, this.#selectedId, delta));
 	}
 
-	#terminalRows(): number {
-		return this.#deps.ui?.terminal?.rows || process.stdout.rows || 40;
-	}
-
-	// ── input ───────────────────────────────────────────────────────────────
-
-	handleInput(data: string): void {
-		if (this.#memberMode) {
-			this.#handleMemberInput(data);
-			return;
-		}
-		if (this.#filterEditing) {
-			this.#handleFilterInput(data);
-			return;
-		}
-		if (this.#composer) {
-			this.#handleComposerInput(data);
-			return;
-		}
-
-		if (matchesKey(data, "escape")) {
-			if (this.#filter.getValue()) {
-				this.#clearFilter();
-				return;
-			}
-			if (this.#focus === "events") {
-				this.#focus = "roster";
-				this.#requestRender();
-				return;
-			}
-			if (this.#detailAgentId) {
-				this.#detailAgentId = undefined;
-				this.#requestRender();
-				return;
-			}
-			this.#deps.onDone();
-			return;
-		}
-		if (matchesKey(data, "tab")) {
-			this.#focus = this.#focus === "roster" ? "events" : "roster";
-			this.#requestRender();
-			return;
-		}
-		if (matchesKey(data, "left") || data === "h") {
-			this.#focus = "roster";
-			this.#requestRender();
-			return;
-		}
-		if (matchesKey(data, "right") || data === "l") {
-			this.#focus = "events";
-			this.#requestRender();
-			return;
-		}
-		if (data === "j" || matchesSelectDown(data)) {
-			if (this.#focus === "roster") {
-				this.#select(moveTeamHubSelection(this.#entries, this.#selectedId, 1));
-			} else {
-				this.#scrollEvents(1);
-			}
-			return;
-		}
-		if (data === "k" || matchesSelectUp(data)) {
-			if (this.#focus === "roster") {
-				this.#select(moveTeamHubSelection(this.#entries, this.#selectedId, -1));
-			} else {
-				this.#scrollEvents(-1);
-			}
-			return;
-		}
-		if (matchesKey(data, "pageUp")) {
-			this.#scrollEvents(5);
-			return;
-		}
-		if (matchesKey(data, "pageDown")) {
-			this.#scrollEvents(-5);
-			return;
-		}
-		if (matchesKey(data, "enter") || data === "\r" || data === "\n") {
-			const entry = this.#selectedEntry();
-			if (entry?.kind === "room") {
-				this.#focus = "events";
-				this.#markSelectedRoomSeen();
-				this.#entries = buildTeamHubEntries(this.#snapshot, this.#filter.getValue(), this.#baseline);
-				this.#requestRender();
-			} else if (entry?.kind === "engineer") {
-				this.#focus = "events";
-				this.#detailAgentId = entry.agentId;
-				this.#requestRender();
-			}
-			return;
-		}
-		if (data === "g") {
-			const room = this.#snapshot ? selectTeamHubRoom(this.#snapshot.rooms, "shared") : undefined;
-			if (room) this.#select(`room:${room.name}`);
-			else this.#setNotice("No shared coordination room exists in this team.");
-			return;
-		}
-		if (data === "p") {
-			const pmId = this.#focusedPmId ?? this.#selectedRoom()?.room.pmId ?? this.#snapshot?.pms[0]?.id;
-			const room = this.#snapshot
-				? nextTeamHubPmRoom(this.#snapshot.rooms, this.#selectedRoom()?.room.name, pmId)
-				: undefined;
-			if (room) this.#select(`room:${room.name}`);
-			else this.#setNotice(pmId ? `PM "${pmId}" owns no room.` : "No PM rooms exist in this team.");
-			return;
-		}
-		if (data === "s") {
-			this.#openComposer();
-			return;
-		}
-		if (data === "m" || data === "M") {
-			this.#openMemberInput(data === "m" ? "add" : "remove");
-			return;
-		}
-		if (data === "K") {
-			this.#cycleRoomKind();
-			return;
-		}
-		const task = this.#detailTask();
-		if (task) {
-			const action =
-				data === "c"
-					? "claim"
-					: data === "n"
-						? "renew"
-						: data === "u"
-							? "submit"
-							: data === "x"
-								? "complete"
-								: data === "X"
-									? "reject"
-									: data === "C"
-										? "cancel"
-										: undefined;
-			if (action) {
-				void this.#taskAction(task, action);
-				return;
-			}
-		}
-		if (data === "a") {
-			if (this.#deps.openAgentHub) this.#deps.openAgentHub();
-			else this.#setNotice("Agent Hub is available inside a coding session; this Hub is standalone.");
-			return;
-		}
-		if (data === "r") {
-			this.#notice = undefined;
-			void this.#reload(this.#currentRoomName());
-			return;
-		}
-		if (data === "/") {
-			this.#filterEditing = true;
-			this.#requestRender();
-			return;
-		}
-	}
-
-	#setNotice(message: string): void {
-		this.#notice = message;
-		this.#requestRender();
-	}
-
-	#scrollEvents(delta: number): void {
+	scrollEvents(delta: number): void {
 		this.#eventScroll = Math.max(0, this.#eventScroll + delta);
 		this.#requestRender();
 	}
 
-	// ── filter ──────────────────────────────────────────────────────────────
-
-	#handleFilterInput(data: string): void {
-		if (matchesKey(data, "escape")) {
-			this.#clearFilter();
-			return;
+	/** Enter: focus a room's timeline or open an engineer's detail. */
+	activateSelected(): void {
+		const entry = this.selectedEntry;
+		if (entry?.kind === "room") {
+			this.#focus = "events";
+			this.#markSelectedRoomSeen();
+			this.#rebuild();
+		} else if (entry?.kind === "engineer") {
+			this.#focus = "events";
+			this.#detailAgentId = entry.agentId;
 		}
-		if (matchesKey(data, "enter") || data === "\r" || data === "\n") {
-			this.#filterEditing = false;
-			this.#requestRender();
-			return;
-		}
-		this.#filter.handleInput(data);
-		this.#entries = buildTeamHubEntries(this.#snapshot, this.#filter.getValue(), this.#baseline);
-		this.#ensureSelection();
 		this.#requestRender();
 	}
 
-	#clearFilter(): void {
-		this.#filter.setValue("");
+	/** `g`: open the shared coordination room. */
+	openSharedRoom(): void {
+		const room = this.#snapshot ? selectTeamHubRoom(this.#snapshot.rooms, "shared") : undefined;
+		if (room) void this.select(`room:${room.name}`);
+		else this.setNotice("No shared coordination room exists in this team.");
+	}
+
+	/** `p`: next room owned by the focused PM. */
+	openNextPmRoom(): void {
+		const pmId = this.#focusedPmId ?? this.selectedRoom?.room.pmId ?? this.#snapshot?.pms[0]?.id;
+		const room = this.#snapshot
+			? nextTeamHubPmRoom(this.#snapshot.rooms, this.selectedRoom?.room.name, pmId)
+			: undefined;
+		if (room) void this.select(`room:${room.name}`);
+		else this.setNotice(pmId ? `PM "${pmId}" owns no room.` : "No PM rooms exist in this team.");
+	}
+
+	setNotice(message: string | undefined): void {
+		this.#notice = message;
+		this.#requestRender();
+	}
+
+	/** Replace the roster filter; section labels disappear while a query is active. */
+	setFilter(query: string): void {
+		this.#filter = query;
+		this.#rebuild();
+		this.#requestRender();
+	}
+
+	beginFilter(): void {
+		this.#filterEditing = true;
+		this.#requestRender();
+	}
+
+	commitFilter(): void {
 		this.#filterEditing = false;
-		this.#entries = buildTeamHubEntries(this.#snapshot, "", this.#baseline);
-		this.#ensureSelection();
 		this.#requestRender();
 	}
 
-	// ── composer ────────────────────────────────────────────────────────────
-
-	#openMemberInput(mode: "add" | "remove"): void {
-		const room = this.#selectedRoom();
-		if (!room) {
-			this.#setNotice("Select a room first, then press m/M.");
-			return;
-		}
-		if (mode === "add" ? !this.#deps.source.addRoomMember : !this.#deps.source.removeRoomMember) {
-			this.#setNotice("This Hub source cannot manage room members.");
-			return;
-		}
-		const input = filterInput();
-		input.prompt = mode === "add" ? "add member: " : "remove member: ";
-		this.#memberInput = input;
-		this.#memberMode = mode;
-		this.#memberRoom = room.room.name;
+	clearFilter(): void {
+		this.#filter = "";
+		this.#filterEditing = false;
+		this.#rebuild();
 		this.#requestRender();
 	}
 
-	#handleMemberInput(data: string): void {
-		if (matchesKey(data, "escape")) {
-			this.#memberInput = undefined;
-			this.#memberMode = undefined;
-			this.#memberRoom = undefined;
-			this.#requestRender();
-			return;
-		}
-		if (matchesKey(data, "enter") || data === "\r" || data === "\n") {
-			const member = this.#memberInput?.getValue().trim();
-			const room = this.#memberRoom;
-			const mode = this.#memberMode;
-			if (!member || !room || !mode) return;
-			this.#memberInput = undefined;
-			this.#memberMode = undefined;
-			this.#memberRoom = undefined;
-			void (async () => {
-				try {
-					const result =
-						mode === "add"
-							? await this.#deps.source.addRoomMember?.({ room, member })
-							: await this.#deps.source.removeRoomMember?.({ room, member });
-					this.#notice = result?.message ?? (mode === "add" ? "Member added." : "Member removed.");
-					await this.#reload(room);
-				} catch (error) {
-					this.#error = error instanceof Error ? error.message : String(error);
-					this.#requestRender();
-				}
-			})();
-			return;
-		}
-		this.#memberInput?.handleInput(data);
-		this.#requestRender();
-	}
-
-	async #taskAction(
-		task: TeamHubTask,
-		action: "claim" | "renew" | "submit" | "complete" | "reject" | "cancel",
-	): Promise<void> {
-		const source = this.#deps.source.taskAction;
-		if (!source) {
-			this.#setNotice("This Hub source cannot run task actions.");
-			return;
-		}
-		this.#notice = `${action} ${task.taskKey}…`;
-		this.#requestRender();
-		try {
-			const result = await source({ task: task.taskKey, action });
-			this.#notice = result.message;
-			await this.#reload(this.#currentRoomName());
-		} catch (error) {
-			this.#error = error instanceof Error ? error.message : String(error);
-			this.#requestRender();
-		}
-	}
-
-	#cycleRoomKind(): void {
-		const source = this.#deps.source.setRoomKind;
-		const room = this.#selectedRoom();
-		if (!source || !room) {
-			this.#setNotice("Select a room first, then press K.");
-			return;
-		}
-		const order = ["room", "coordination", "pm"] as const;
-		const next = order[(order.indexOf(room.room.kind) + 1) % order.length];
-		if (next === "pm" && !room.room.pmId) {
-			this.#setNotice("A pm room needs an owning PM; this room has none.");
-			return;
-		}
-		void (async () => {
-			try {
-				const result = await source({ room: room.room.name, kind: next, pm: room.room.pmId ?? undefined });
-				this.#notice = result.message;
-				await this.#reload(room.room.name);
-			} catch (error) {
-				this.#error = error instanceof Error ? error.message : String(error);
-				this.#requestRender();
-			}
-		})();
-	}
-
-	#openComposer(): void {
+	/** Open the room composer on the selected room. */
+	openComposer(): boolean {
 		if (this.#detailAgentId || this.#detailTaskId) {
-			this.#setNotice("Select a room first, then press s to post.");
-			return;
+			this.setNotice("Select a room first, then post.");
+			return false;
 		}
-		const room = this.#selectedRoom();
+		const room = this.selectedRoom;
 		if (!room) {
-			this.#setNotice("Select a room first, then press s to post.");
-			return;
+			this.setNotice("Select a room first, then post.");
+			return false;
 		}
 		if (room.members.length === 0) {
-			this.#setNotice(`Room "#${room.room.name}" has no members; add a member before posting.`);
-			return;
+			this.setNotice(`Room "#${room.room.name}" has no members; add a member before posting.`);
+			return false;
 		}
 		this.#notice = undefined;
 		this.#composerRoom = room.room.name;
 		const ownerIndex = room.room.pmId ? room.members.findIndex(member => member.agentId === room.room.pmId) : -1;
 		const pmIndex = room.members.findIndex(member => member.role === "pm");
-		this.#senderIndex = ownerIndex >= 0 ? ownerIndex : pmIndex >= 0 ? pmIndex : 0;
-		const input = new Input();
-		input.prompt = "> ";
-		input.onSubmit = value => void this.#submit(value);
-		this.#composer = input;
+		this.#composerSender = ownerIndex >= 0 ? ownerIndex : pmIndex >= 0 ? pmIndex : 0;
+		this.#composerDraft = "";
 		this.#focus = "composer";
 		this.#requestRender();
+		return true;
 	}
 
-	#closeComposer(): void {
-		this.#composer = undefined;
+	closeComposer(): void {
 		this.#composerRoom = undefined;
+		this.#composerDraft = "";
 		this.#focus = "roster";
 		this.#requestRender();
 	}
 
-	#handleComposerInput(data: string): void {
-		if (matchesKey(data, "escape")) {
-			this.#closeComposer();
-			return;
-		}
-		if (matchesKey(data, "tab") || matchesKey(data, "shift+tab")) {
-			const room = this.#selectedRoom();
-			if (room && room.members.length > 0) {
-				const delta = matchesKey(data, "shift+tab") ? -1 : 1;
-				this.#senderIndex = (this.#senderIndex + delta + room.members.length) % room.members.length;
-				this.#requestRender();
-			}
-			return;
-		}
-		this.#composer?.handleInput(data);
+	setComposerDraft(text: string): void {
+		this.#composerDraft = text;
+	}
+
+	/** Tab/Shift+Tab: choose the member that posts. */
+	cycleComposerSender(delta: number): void {
+		const room = this.selectedRoom;
+		if (!room || room.members.length === 0) return;
+		this.#composerSender = (this.#composerSender + delta + room.members.length) % room.members.length;
 		this.#requestRender();
 	}
 
-	async #submit(value: string): Promise<void> {
+	/** Post the composer's draft as the selected member. */
+	async submitComposer(value: string): Promise<boolean> {
 		const body = value.trim();
-		const room = this.#selectedRoom();
-		if (!room) return;
+		const room = this.selectedRoom;
+		if (!room) return false;
 		if (!body) {
-			this.#setNotice("Message body must not be empty.");
-			return;
+			this.setNotice("Message body must not be empty.");
+			return false;
 		}
-		const sender = room.members[this.#senderIndex];
+		const sender = room.members[this.#composerSender];
 		if (!sender) {
-			this.#setNotice("Select a room member as the sender (Tab) before posting.");
-			return;
+			this.setNotice("Select a room member as the sender before posting.");
+			return false;
 		}
 		const roomName = this.#composerRoom ?? room.room.name;
 		try {
 			const result = await this.#deps.source.post({ room: roomName, body, sender: sender.agentId });
 			this.#notice = `Posted #${result.seq} to #${roomName} as ${sender.label}.`;
-			this.#closeComposer();
-			await this.#reload(roomName);
+			this.closeComposer();
+			await this.reload(roomName);
+			return true;
 		} catch (error) {
-			this.#setNotice(error instanceof Error ? error.message : String(error));
+			this.setNotice(error instanceof Error ? error.message : String(error));
+			return false;
 		}
 	}
 
-	// ── render ──────────────────────────────────────────────────────────────
-
-	#renderSidebar(width: number, rows: number): string[] {
-		return this.#frame.renderSidebar(
-			this.#entries,
-			width,
-			rows,
-			{
-				id: this.#selectedId ?? "",
-				focused: this.#focus === "roster",
-				follow: true,
-				clamp: false,
-			},
-			entry => this.#sidebarStyle(entry),
-		);
+	/** `m`/`M`: open the add/remove-member prompt for the selected room. */
+	openMemberInput(mode: "add" | "remove"): boolean {
+		const room = this.selectedRoom;
+		if (!room) {
+			this.setNotice("Select a room first, then press m/M.");
+			return false;
+		}
+		if (mode === "add" ? !this.#deps.source.addRoomMember : !this.#deps.source.removeRoomMember) {
+			this.setNotice("This Hub source cannot manage room members.");
+			return false;
+		}
+		this.#memberMode = mode;
+		this.#memberRoom = room.room.name;
+		this.#memberDraft = "";
+		this.#requestRender();
+		return true;
 	}
 
-	#sidebarStyle(entry: TeamHubSidebarEntry): SidebarStyle {
-		switch (entry.kind) {
-			case "label":
-				return { icon: "", annotation: "", muted: true };
-			case "room":
-				return { icon: "", annotation: entry.annotation ?? "" };
-			case "task":
-				return { icon: "◇", annotation: entry.annotation ?? "" };
-			case "pm":
-				return { icon: "◆", annotation: entry.annotation ?? "" };
-			case "engineer":
-				return { icon: "·", annotation: entry.annotation ?? "", muted: false };
-			default:
-				return { icon: "", annotation: "" };
+	cancelMemberInput(): void {
+		this.#memberMode = undefined;
+		this.#memberRoom = undefined;
+		this.#memberDraft = "";
+		this.#requestRender();
+	}
+
+	setMemberDraft(text: string): void {
+		this.#memberDraft = text;
+	}
+
+	/** Apply the member prompt's value to its room. */
+	async submitMember(value: string): Promise<boolean> {
+		const member = value.trim();
+		const room = this.#memberRoom;
+		const mode = this.#memberMode;
+		if (!member || !room || !mode) return false;
+		this.cancelMemberInput();
+		try {
+			const result =
+				mode === "add"
+					? await this.#deps.source.addRoomMember?.({ room, member })
+					: await this.#deps.source.removeRoomMember?.({ room, member });
+			this.#notice = result?.message ?? (mode === "add" ? "Member added." : "Member removed.");
+			await this.reload(room);
+			return true;
+		} catch (error) {
+			this.#error = error instanceof Error ? error.message : String(error);
+			this.#requestRender();
+			return false;
 		}
 	}
 
-	#renderBody(width: number, height: number | undefined): readonly string[] {
-		const rows = Math.max(1, Math.floor(height ?? this.#terminalRows() - 4));
-		const lines: string[] = [];
-		const push = (line = ""): void => {
-			lines.push(truncateToWidth(replaceTabs(line), width));
-		};
-
-		if (this.#error) push(theme.fg("error", this.#error));
-		else if (this.#warning) push(theme.fg("warning", this.#warning));
-		else if (this.#notice) push(theme.fg("warning", this.#notice));
-		else if (this.#loading) push(theme.fg("dim", "Loading team data…"));
-		else push();
-
-		if (this.#filterEditing || this.#filter.getValue()) {
-			const prefix = theme.fg("dim", "filter: ");
-			const field = this.#filter.render(Math.max(1, width - visibleWidth(prefix)))[0] ?? "";
-			push(`${prefix}${field}`);
+	/** `c/n/u/x/X/C`: run a task action on the open task's lease. */
+	async runTaskAction(action: "claim" | "renew" | "submit" | "complete" | "reject" | "cancel"): Promise<boolean> {
+		const task = this.detailTask;
+		const source = this.#deps.source.taskAction;
+		if (!source) {
+			this.setNotice("This Hub source cannot run task actions.");
+			return false;
 		}
-
-		const reserved = this.#composer ? 3 : this.#memberMode ? 2 : 0;
-		const available = Math.max(1, rows - lines.length - reserved);
-		const task = this.#detailTask();
-		const agent = this.#detailAgent();
-		if (task) {
-			for (const line of this.#renderTask(task, width)) push(line);
-		} else if (agent) {
-			for (const line of this.#renderEngineer(agent, width)) push(line);
-		} else if (this.#snapshot?.selectedRoom) {
-			for (const line of this.#renderRoom(this.#snapshot.selectedRoom, width, available)) push(line);
-		} else if (this.#snapshot && this.#snapshot.rooms.length === 0) {
-			push(theme.fg("dim", "No rooms in this team yet."));
-			push(theme.fg("dim", "Create one: zetacode team room create <name> --pm <pm>"));
-			push(theme.fg("dim", "Add members: zetacode team room member add <room> --agent <id>"));
-		} else {
-			push(theme.fg("dim", "No room selected."));
+		if (!task) return false;
+		this.#notice = `${action} ${task.taskKey}…`;
+		this.#requestRender();
+		try {
+			const result = await source({ task: task.taskKey, action });
+			this.#notice = result.message;
+			await this.reload(this.selectedRoom?.room.name);
+			return true;
+		} catch (error) {
+			this.#error = error instanceof Error ? error.message : String(error);
+			this.#requestRender();
+			return false;
 		}
+	}
 
-		if (this.#memberMode) {
-			const prompt = this.#memberMode === "add" ? "add member: " : "remove member: ";
-			push("");
-			push(
-				`${theme.fg("dim", prompt)}${this.#memberInput?.render(Math.max(1, width - visibleWidth(prompt)))[0] ?? ""}`,
-			);
+	/** `K`: cycle the selected room's kind. */
+	async cycleRoomKind(): Promise<boolean> {
+		const source = this.#deps.source.setRoomKind;
+		const room = this.selectedRoom;
+		if (!source || !room) {
+			this.setNotice("Select a room first, then press K.");
+			return false;
 		}
-		if (this.#composer) {
-			const room = this.#selectedRoom();
-			const sender = room?.members[this.#senderIndex];
-			push("");
-			push(
-				`${theme.fg("dim", "to ")}#${this.#composerRoom ?? ""}  ${theme.fg("dim", "from ")}${sender?.label ?? "—"}`,
-			);
-			push(this.#composer.render(width)[0] ?? "");
+		const order = ["room", "coordination", "pm"] as const;
+		const next = order[(order.indexOf(room.room.kind) + 1) % order.length]!;
+		if (next === "pm" && !room.room.pmId) {
+			this.setNotice("A pm room needs an owning PM; this room has none.");
+			return false;
 		}
-
-		while (lines.length < rows) lines.push("");
-		return lines.slice(0, rows);
-	}
-
-	#detailAgent(): TeamHubEngineer | undefined {
-		if (!this.#detailAgentId) return undefined;
-		return this.#snapshot?.engineers.find(engineer => engineer.id === this.#detailAgentId);
-	}
-
-	#detailTask(): TeamHubTask | undefined {
-		if (!this.#detailTaskId) return undefined;
-		return this.#snapshot?.tasks?.find(task => task.taskKey === this.#detailTaskId);
-	}
-
-	#renderTask(task: TeamHubTask, width: number): string[] {
-		const lines: string[] = [];
-		lines.push(`${theme.bold(theme.fg("accent", task.taskKey))}  ${theme.fg("dim", task.status)}`);
-		lines.push(`${theme.bold("Task")} ${truncateToWidth(task.title, width)}`);
-		lines.push(
-			`${theme.fg("dim", "PM:")} ${task.assignedPmId}  ${theme.fg("dim", "assignee:")} ${task.assigneeAgentId ?? "—"}`,
-		);
-		lines.push(
-			`${theme.fg("dim", "owner:")} ${task.ownerAgentId ?? "—"}  ${theme.fg("dim", "lease:")} ${
-				task.leaseExpiresAt ? new Date(task.leaseExpiresAt * 1000).toISOString() : "—"
-			}`,
-		);
-		lines.push(`${theme.fg("dim", "REQ:")} ${task.reqIds.length > 0 ? task.reqIds.join(", ") : "—"}`);
-		lines.push(theme.fg("dim", "Claim with `zetacode team task claim`, submit for review, PM completes."));
-		return lines;
-	}
-
-	#renderEngineer(engineer: TeamHubEngineer, width: number): string[] {
-		const lines: string[] = [];
-		lines.push(theme.bold(theme.fg("accent", engineer.name)));
-		lines.push(
-			`${theme.fg("dim", "PM:")} ${engineer.pmName}  ${theme.fg("dim", "execution:")} ${engineer.execution}`,
-		);
-		if (engineer.worktrees.length === 0) {
-			lines.push(theme.fg("dim", "No registered worktree. Add one: zetacode team worktree add <task> …"));
-			return lines;
+		try {
+			const result = await source({ room: room.room.name, kind: next, pm: room.room.pmId ?? undefined });
+			this.#notice = result.message;
+			await this.reload(room.room.name);
+			return true;
+		} catch (error) {
+			this.#error = error instanceof Error ? error.message : String(error);
+			this.#requestRender();
+			return false;
 		}
-		for (const worktree of engineer.worktrees) {
-			if (lines.length > 0) lines.push("");
-			lines.push(`${theme.bold(worktree.kind)}  ${worktree.name}`);
-			lines.push(theme.fg("dim", `branch ${worktree.branch}`));
-			lines.push(truncateToWidth(worktree.path, width));
+	}
+
+	/** `a`: hand focus to the Agent Hub when the host provides one. */
+	openAgentHub(): void {
+		if (this.#deps.openAgentHub) this.#deps.openAgentHub();
+		else this.setNotice("Agent Hub is available inside a coding session; this Hub is standalone.");
+	}
+
+	/** Escape: clear the filter, leave the events pane, close a detail, else close the Hub. */
+	cancel(): void {
+		if (this.#filter) {
+			this.clearFilter();
+			return;
 		}
-		return lines;
-	}
-
-	#renderRoom(room: TeamHubRoomView, width: number, available: number): string[] {
-		const lines: string[] = [];
-		const title = `#${room.room.name}`;
-		const kind = ROOM_KIND_LABEL[room.room.kind];
-		const owner = room.room.kind === "pm" && room.room.pmName ? ` · PM ${room.room.pmName}` : "";
-		const last = room.room.lastSeq === null ? "no events" : `last #${room.room.lastSeq}`;
-		lines.push(
-			`${theme.bold(theme.fg("accent", title))}  ${theme.fg("dim", `${kind}${owner} · ${room.room.memberCount} members · ${last}`)}`,
-		);
-		const members = room.members.length > 0 ? room.members.map(member => member.label).join(", ") : "no members";
-		lines.push(theme.fg("dim", `members: ${members}`));
-		lines.push("");
-
-		const filtered = filterTeamHubEvents(orderTeamHubEvents(room.events), this.#filter.getValue());
-		if (filtered.length === 0) {
-			lines.push(theme.fg("dim", room.events.length === 0 ? "No events yet." : "No events match the filter."));
-			return lines;
+		if (this.#focus === "events") {
+			this.#focus = "roster";
+			this.#requestRender();
+			return;
 		}
-		const eventLines = filtered.flatMap(event => this.#renderEvent(event, width));
-		const headerRows = lines.length;
-		const bodyRows = Math.max(1, available - headerRows);
-		const maxStart = Math.max(0, eventLines.length - bodyRows);
-		const start = Math.max(0, maxStart - this.#eventScroll);
-		lines.push(...eventLines.slice(start, start + bodyRows));
-		return lines;
+		if (this.#detailAgentId) {
+			this.#detailAgentId = undefined;
+			this.#requestRender();
+			return;
+		}
+		this.#deps.onDone?.();
 	}
 
-	#renderEvent(event: TeamHubEvent, width: number): string[] {
-		const parts = describeTeamHubEvent(event);
-		const head = `${theme.fg("dim", parts.time)}  ${theme.bold(theme.fg("accent", parts.sender))}${
-			parts.reply ? ` ${theme.fg("dim", parts.reply)}` : ""
-		}  `;
-		const bodyWidth = Math.max(8, width - visibleWidth(head));
-		const body = wrapTextWithAnsi(parts.body || "(empty)", bodyWidth);
-		return body.map((line, index) => (index === 0 ? `${head}${line}` : `${padding(visibleWidth(head))}${line}`));
-	}
-
-	#renderFooter(width: number): string {
-		const filter = this.#filter.getValue() ? `/${this.#filter.getValue()}  ·  ` : "";
-		const hint =
-			`${filter}${formatKeyHints(["j", "k"])}:select  ${formatKeyHint("enter")}:open  ${formatKeyHint("tab")}:pane  ` +
-			`${formatKeyHint("g")}:shared  ${formatKeyHint("p")}:PM  ${formatKeyHint("s")}:send  ` +
-			`${formatKeyHint("a")}:Agent Hub  ${formatKeyHint("r")}:refresh  /:filter  ${formatKeyHint("escape")}:back`;
-		return theme.fg("dim", truncateToWidth(hint, Math.max(10, width)));
-	}
-
-	render(width: number): readonly string[] {
-		const termHeight = this.#terminalRows();
-		const frame = this.#frame.render(width, termHeight, this.#entries, this.#renderFooter(width - 4));
-		const lines = frame.map(line => truncateToWidth(line, width));
-		if (lines.length <= termHeight) return lines;
-		// Tiny terminals can fall below the fixed chrome floor; keep the title and
-		// the footer instead of spilling into scrollback.
-		const footerLines = Math.min(3, lines.length);
-		return [...lines.slice(0, Math.max(0, termHeight - footerLines)), ...lines.slice(-footerLines)].slice(
-			0,
-			Math.max(1, termHeight),
-		);
+	#requestRender(): void {
+		if (!this.#disposed) this.#deps.requestRender?.();
 	}
 }

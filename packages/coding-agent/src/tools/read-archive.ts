@@ -9,6 +9,7 @@ import {
 	parseArchivePathCandidates,
 } from "@linxiraos/pi-utils/ar";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
+import { applyListLimit } from "./list-limit";
 import type { ToolSession } from "../sdk";
 import { convertBufferWithMarkit } from "../utils/markit";
 import { truncateHead } from "./streaming-output";

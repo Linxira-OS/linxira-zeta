@@ -1,4 +1,4 @@
-import { getProjectDir } from "@oh-my-pi/pi-utils";
+import { getProjectDir } from "@linxiraos/pi-utils";
 import { shortenPath } from "../utils/render-utils";
 import { type CleanseAgentHooks, type CleanseAgentRuntime, createCleanseAgentRuntime } from "./agent";
 import { groupDiagnosticsByFile } from "./balance";
@@ -28,6 +28,8 @@ export interface CleanseCommandOptions {
 	request?: string;
 	/** Run every discovered checker without the interactive picker. */
 	all?: boolean;
+	/** Workspace the run inspects; defaults to the project directory. */
+	cwd?: string;
 }
 
 /** Rendering and prompting seam for one cleanse run; satisfied by the CLI streams and the TUI overlay. */
@@ -57,7 +59,7 @@ export async function runCleanse(
 	const maxAgents = options.maxAgents ?? 32;
 	if (!Number.isInteger(maxAgents) || maxAgents <= 0) throw new Error("--agents must be a positive integer");
 	const model = options.model?.trim() || DEFAULT_MODEL;
-	const cwd = getProjectDir();
+	const cwd = options.cwd ?? getProjectDir();
 	let runtime: CleanseAgentRuntime | undefined;
 	let runtimePromise: Promise<CleanseAgentRuntime> | undefined;
 	let loopResult: CleanseLoopResult | undefined;

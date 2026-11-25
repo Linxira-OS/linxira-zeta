@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import type { MultiplexerId } from "@oh-my-pi/pi-tui/driver/mux/detect";
+import type { MultiplexerId } from "@linxiraos/pi-tui/driver/mux/detect";
 import { terminalLaunchCapabilities } from "./providers";
 import { launchError } from "./shared";
 import {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as lexer from "@oh-my-pi/pi-tui/text/markdown/lexer";
+import * as lexer from "@linxiraos/pi-tui/text/markdown/lexer";
 import { setTableCharts, splitTableCharts } from "../../src/session/transcript/table-chart";
 
 const TABLE = (n: number): string =>

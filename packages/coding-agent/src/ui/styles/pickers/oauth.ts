@@ -5,9 +5,9 @@
  * search line (`Type to search` / `Search: query` with its caret), the empty
  * copy and the last activation's warning under it.
  */
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, Hit, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, Hit, PaintContext } from "@linxiraos/pi-tui/term/paint";
 import {
 	boxBottom,
 	boxRow,
@@ -21,9 +21,9 @@ import {
 	scrollbar,
 	scrollWindow,
 	sheetHit,
-} from "@oh-my-pi/pi-tui/term/painters/picker";
-import { spinnerFrame } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { padTo, truncate } from "@oh-my-pi/pi-tui/text/width";
+} from "@linxiraos/pi-tui/term/painters/picker";
+import { spinnerFrame } from "@linxiraos/pi-tui/term/painters/spinner";
+import { padTo, truncate } from "@linxiraos/pi-tui/text/width";
 
 /** A provider's credential state as the row shows it. */
 export type OAuthRowStatus = "checking" | "invalid" | "valid" | "none";

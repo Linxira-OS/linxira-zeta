@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The jobs pill's sheet: the background jobs of the viewed agent and its
  * subagents as a tree (a task job heads the jobs its subagent started) beside
@@ -18,10 +18,10 @@
  * The terminal draws the list and the selected job's facts as plain rows
  * (look `omp.jobs.sheet`, `src/ui/styles/pickers/jobs.ts`).
  */
-import { type Accessor, computed, type JSXNode, type KeyEvent, signal, untrack } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import { ShellVisualization } from "@oh-my-pi/pi-natives";
+import { type Accessor, computed, type JSXNode, type KeyEvent, signal, untrack } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatDuration } from "@linxiraos/pi-utils";
+import { ShellVisualization } from "@linxiraos/pi-natives";
 import type {
 	ShellTrace,
 	ShellVizLayer,
@@ -31,7 +31,7 @@ import type {
 	TspMenuProps,
 	TspSpan,
 	TspTone,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 import type { JobWidgetView } from "../../../tools/details/job-widget";
 import type { ShellStream } from "../../../tools/shell-steps";
 import { defaultShellVizPreferences, readShellPresentation } from "../../../tools/shell-viz";
@@ -385,18 +385,18 @@ export function JobsPanel(props: JobsPanelProps): JSXNode {
 		>
 			{() =>
 				view().rows.length === 0 ? (
-					<col key="empty" role="omp.jobs.empty" align="center">
+					<col key="empty" role="zeta.jobs.empty" align="center">
 						<icon name="jobs" />
-						<text role="omp.jobs.empty.title" text="No background jobs" />
+						<text role="zeta.jobs.empty.title" text="No background jobs" />
 						<text
-							role="omp.jobs.empty.note"
+							role="zeta.jobs.empty.note"
 							text="Commands and subagent tasks started in the background show up here while they run."
 							wrap="word"
 						/>
 					</col>
 				) : (
-					<row key="split" role="omp.jobs.split">
-						<col key="master" role="omp.jobs.master">
+					<row key="split" role="zeta.jobs.split">
+						<col key="master" role="zeta.jobs.master">
 							<list
 								key={LIST_KEY}
 								selected={() => selectedId()}
@@ -424,12 +424,12 @@ export function JobsPanel(props: JobsPanelProps): JSXNode {
 					</row>
 				)
 			}
-			<row key="actions" role="omp.actions" gap="sm" align="center">
+			<row key="actions" role="zeta.actions" gap="sm" align="center">
 				{() =>
 					view().rows.length > 0 && (
 						<text
 							key="summary"
-							role="omp.jobs.summary"
+							role="zeta.jobs.summary"
 							text={`${view().running} running · ${view().recent} recent`}
 							wrap="none"
 						/>
@@ -449,7 +449,7 @@ function JobListRow(props: { entry: JobTreeRow<JobsPanelJob>; now: number }): JS
 	if (guide) label.push({ t: guide, s: "mono dim" });
 	if (entry.kind === "agent") {
 		label.push({ t: sanitizeDisplaySingleLine(entry.agent.id) });
-		return <text key={`agent-${stableKey(entry.agent.id)}`} role="omp.jobs.group" spans={label} wrap="none" />;
+		return <text key={`agent-${stableKey(entry.agent.id)}`} role="zeta.jobs.group" spans={label} wrap="none" />;
 	}
 	const { job } = entry;
 	const age = formatDuration(jobAge(job, props.now));
@@ -543,33 +543,38 @@ function JobDetail(props: {
 	const facts = jobFacts(job, detail);
 	const presentation = stepPresentation(detail?.trace, props.preferences);
 	return (
-		<col key={stableKey(job.id)} role="omp.jobs.detail">
-			<row role="omp.jobs.status" gap="sm" align="center">
+		<col key={stableKey(job.id)} role="zeta.jobs.detail">
+			<row role="zeta.jobs.status" gap="sm" align="center">
 				<text
-					role="omp.jobs.state"
+					role="zeta.jobs.state"
 					spans={[STATUS_GLYPH[job.status], { t: ` ${STATUS_LABEL[job.status]}` }]}
 					tone={STATUS_TONE[job.status]}
 					wrap="none"
 				/>
 				<elapsed
-					role="omp.jobs.age"
+					role="zeta.jobs.age"
 					age={age}
 					format="short"
 					title={running ? "Running for" : "Ran for"}
 					stopped={running ? undefined : age}
 				/>
-				<text role="omp.jobs.id" spans={[{ t: `${job.type} · ${job.id}`, s: "mono" }]} wrap="none" truncate="end" />
+				<text
+					role="zeta.jobs.id"
+					spans={[{ t: `${job.type} · ${job.id}`, s: "mono" }]}
+					wrap="none"
+					truncate="end"
+				/>
 				<spacer grow={1} />
 				{running && props.cancellable && (
 					<ActionButton id="cancel" label="Cancel job" title="Cancel job  x" tone="error" keys={["x"]} />
 				)}
 			</row>
 			{job.type === "task" && (
-				<col key="about" role="omp.jobs.about" gap="xs">
-					<text role="omp.jobs.title" text={jobTitle(job)} title={jobTitle(job)} wrap="word" />
+				<col key="about" role="zeta.jobs.about" gap="xs">
+					<text role="zeta.jobs.title" text={jobTitle(job)} title={jobTitle(job)} wrap="word" />
 					{job.caption && (
 						<text
-							role="omp.jobs.caption"
+							role="zeta.jobs.caption"
 							spans={[{ t: job.caption, s: "muted" }]}
 							title={job.caption}
 							wrap="word"
@@ -580,7 +585,7 @@ function JobDetail(props: {
 			{presentation ? (
 				<shell
 					key="command"
-					role="omp.jobs.command"
+					role="zeta.jobs.command"
 					presentation={presentation}
 					lang="bash"
 					preview={{ lines: COMMAND_PREVIEW_LINES }}
@@ -590,7 +595,7 @@ function JobDetail(props: {
 			) : (
 				command !== undefined && (
 					<code
-						role="omp.jobs.command"
+						role="zeta.jobs.command"
 						text={command}
 						lang="bash"
 						wrap
@@ -598,9 +603,9 @@ function JobDetail(props: {
 					/>
 				)
 			)}
-			{facts.length > 0 && <kv role="omp.jobs.facts" layout="inline" items={facts} />}
+			{facts.length > 0 && <kv role="zeta.jobs.facts" layout="inline" items={facts} />}
 			{detail?.widget && (
-				<col key="widget" role="omp.jobs.widget">
+				<col key="widget" role="zeta.jobs.widget">
 					<JobWidget view={detail.widget} />
 				</col>
 			)}
@@ -637,17 +642,17 @@ function JobOutput(props: { shown: ShownOutput; running: boolean; now: number })
 					: "No output"
 				: undefined;
 	return (
-		<col key="out" role="omp.jobs.out" gap="sm">
-			<row key="source" role="omp.jobs.source" gap="sm" align="center">
+		<col key="out" role="zeta.jobs.out" gap="sm">
+			<row key="source" role="zeta.jobs.source" gap="sm" align="center">
 				{menu ? (
 					<menu key="sources" title="Output source" {...menu} />
 				) : (
-					<text role="omp.jobs.label" text={source.label} />
+					<text role="zeta.jobs.label" text={source.label} />
 				)}
 				{source.detail && shown.pinned && (
 					<text
 						key="stream"
-						role="omp.jobs.stream"
+						role="zeta.jobs.stream"
 						spans={[{ t: source.detail, s: "mono" }]}
 						wrap="none"
 						truncate="end"
@@ -658,7 +663,7 @@ function JobOutput(props: { shown: ShownOutput; running: boolean; now: number })
 					<QuietButton label="Follow live" act="follow" title="Show what the command writes now">
 						<row
 							key="follow"
-							role="omp.btn"
+							role="zeta.btn"
 							gap="xs"
 							align="center"
 							title="Show what the command writes now"
@@ -671,7 +676,7 @@ function JobOutput(props: { shown: ShownOutput; running: boolean; now: number })
 					running && (
 						<text
 							key="follow"
-							role="omp.jobs.follow"
+							role="zeta.jobs.follow"
 							text="Following"
 							title="Shows what the command writes now; click a step of the command to show its output"
 							wrap="none"
@@ -681,11 +686,11 @@ function JobOutput(props: { shown: ShownOutput; running: boolean; now: number })
 				)}
 			</row>
 			{note !== undefined ? (
-				<text key="empty" role="omp.jobs.nooutput" text={note} />
+				<text key="empty" role="zeta.jobs.nooutput" text={note} />
 			) : (
 				<ansi
 					key={`text-${stableKey(source.id)}`}
-					role="omp.jobs.output"
+					role="zeta.jobs.output"
 					text={source.text ?? ""}
 					follow={source.open}
 					max={{ h: "16lines" }}

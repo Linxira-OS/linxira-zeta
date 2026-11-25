@@ -5,14 +5,14 @@
  * the terminal backend does (`onKey`/`onPaste` handlers up the focus path,
  * then the focused kind's widget), and compare every stage.
  */
-import type { KeyEvent, UiEvent, UiNode } from "@oh-my-pi/pi-tui";
-import { bubbleEvent, bubbleKey, bubblePaste, keypathOf, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import { decodeKey } from "@oh-my-pi/pi-tui/driver/input/keys";
-import { type PaintEnvironment, paintNode, type StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { widgetFor, widgetState } from "@oh-my-pi/pi-tui/term/widgets";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
-import { type CorpusCase, describeTree, stageNative } from "@oh-my-pi/pi-tui/testing/corpus";
-import { type Signal, signal } from "@oh-my-pi/pi-tui";
+import type { KeyEvent, UiEvent, UiNode } from "@linxiraos/pi-tui";
+import { bubbleEvent, bubbleKey, bubblePaste, keypathOf, pathTo } from "@linxiraos/pi-tui/dispatch";
+import { decodeKey } from "@linxiraos/pi-tui/driver/input/keys";
+import { type PaintEnvironment, paintNode, type StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { widgetFor, widgetState } from "@linxiraos/pi-tui/term/widgets";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
+import { type CorpusCase, describeTree, stageNative } from "@linxiraos/pi-tui/testing/corpus";
+import { type Signal, signal } from "@linxiraos/pi-tui";
 import {
 	type AutocompleteItem,
 	type AutocompleteProvider,

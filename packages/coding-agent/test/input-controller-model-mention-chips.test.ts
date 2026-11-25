@@ -5,8 +5,8 @@
  * Unknown models, a label already standing for another model and local-execution drafts stay literal.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { initTheme } from "../src/ui/theme/service";
 import { attachTerminal, createInteractiveModeContext } from "./helpers/interactive-mode-context";
 

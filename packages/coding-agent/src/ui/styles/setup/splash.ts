@@ -4,10 +4,10 @@
  * under it, and "press ⏎ to skip" on the last row. The frame fills the
  * rows the screen gives it and animates on the terminal clock.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { gradientArt, LOGO, LOGO_WIDTH } from "../../welcome/logo";
 import { formatKey } from "../../keys/format";
 

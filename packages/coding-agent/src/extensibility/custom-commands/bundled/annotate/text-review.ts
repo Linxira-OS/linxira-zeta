@@ -1,4 +1,4 @@
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 import { markdownFenceFor } from "../../../../utils/markdown-fence";
 import textReviewTemplate from "./prompts/text-review.md" with { type: "text" };
 import type { TextReviewAnnotation, TextReviewSource } from "./annotation-types";

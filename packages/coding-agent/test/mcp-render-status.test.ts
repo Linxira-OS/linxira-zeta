@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { MCPTool } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
-import type { MCPServerConnection, MCPToolDefinition, MCPTransport } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { formatOutputNotice, type OutputMeta } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { MCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
+import type { MCPServerConnection, MCPToolDefinition, MCPTransport } from "@linxiraos/zeta/mcp/types";
+import { formatOutputNotice, type OutputMeta } from "@linxiraos/zeta/tools/output-meta-format";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { toolText } from "./helpers/tool-text";
 
 beforeAll(async () => {

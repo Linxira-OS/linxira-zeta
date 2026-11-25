@@ -12,7 +12,7 @@
  * under its tool name.
  */
 import { ToolError } from "../tools/tool-errors";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import { shellChangeSnapshots } from "../commit/selective/journal";
 import { executeBash } from "../exec/bash-executor";
 import { createToolCommandHandler, toolCommandNames } from "../exec/tool-command-host";

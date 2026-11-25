@@ -170,6 +170,8 @@ const sessionEventTypes: Record<WireSessionEvent["type"], true> = {
 	...agentEventTypes,
 	auto_compaction_start: true,
 	auto_compaction_end: true,
+	compaction_phase: true,
+	state_version_changed: true,
 	manual_compaction_start: true,
 	manual_compaction_end: true,
 	auto_retry_start: true,
@@ -911,6 +913,16 @@ export class RpcClient {
 	 * and recording. `instructions` replaces the bundled live prompt (Handlebars:
 	 * `{{username}}`, `{{firstName}}`). Frames arrive through {@link onLive}.
 	 */
+	/** Start the guided-goal interview with an initial message. */
+	async guidedGoal(message?: string, images?: ImageContent[]): Promise<boolean> {
+		const response = await this.#send({
+			type: "guided_goal",
+			...(message === undefined ? {} : { message }),
+			...(images && images.length > 0 ? { images } : {}),
+		});
+		return this.#getData<{ started: boolean }>(response).started;
+	}
+
 	async liveStart(options?: { voice?: string; instructions?: string }): Promise<{ voice: string }> {
 		const response = await this.#send({
 			type: "live_start",

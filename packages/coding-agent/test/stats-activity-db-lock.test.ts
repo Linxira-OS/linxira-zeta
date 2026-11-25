@@ -2,9 +2,9 @@ import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeDb, initDb, insertMessageStats, STATS_BUSY_TIMEOUT_MS_ENV } from "@oh-my-pi/omp-stats/db";
-import type { MessageStats } from "@oh-my-pi/omp-stats/types";
-import { getAgentDir, getStatsDbPath, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { closeDb, initDb, insertMessageStats, STATS_BUSY_TIMEOUT_MS_ENV } from "@linxiraos/pi-stats/db";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
+import { getAgentDir, getStatsDbPath, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { loadDailyActivity } from "../src/stats/activity-client";
 import type { StatsActivityWorkerOutbound } from "../src/stats/activity-protocol";
 

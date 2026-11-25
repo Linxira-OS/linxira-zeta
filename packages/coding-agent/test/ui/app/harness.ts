@@ -7,9 +7,9 @@
  * `submitInteractiveInput`). Import `./env` before this module.
  */
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { type Signal, signal } from "@oh-my-pi/pi-tui";
-import { memoryTerminal, type MemoryTerminal } from "@oh-my-pi/pi-tui/testing/memory-terminal";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { type Signal, signal } from "@linxiraos/pi-tui";
+import { memoryTerminal, type MemoryTerminal } from "@linxiraos/pi-tui/testing/memory-terminal";
 import { CELL_U32, type Color, decodeCell, KittyTerminal, loadModuleSync } from "kitty-vt-wasm";
 import { APP_HOME, APP_PROJECT, APP_ROOT, resetAppRoot } from "./support/env";
 import { ScriptedModel, type Turn } from "./support/model";

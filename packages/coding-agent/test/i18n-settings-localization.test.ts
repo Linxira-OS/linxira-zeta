@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { SETTING_TABS } from "@linxiraos/pi-tui/overlays/settings-defs";
+import { SETTING_TABS } from "../src/config/settings-defs";
 import { createSettingsHost } from "../src/config/settings-ui";
 import { resetSettingsForTest, Settings } from "../src/config/settings";
 import { currentLanguage, setLanguage } from "../src/i18n";

@@ -17,6 +17,7 @@ import type {
 } from "./types";
 import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { uriToFile } from "./uri";
+export { EquivalentUriMap, fileToUri, uriToFile } from "./uri";
 
 export { detectLanguageId } from "../utils/lang-from-path";
 

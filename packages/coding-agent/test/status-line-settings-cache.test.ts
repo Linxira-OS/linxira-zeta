@@ -5,12 +5,12 @@
  * git integration is on and a git-backed segment is visible.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgGitEnabled } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { STATUS_LINE_PRESETS } from "@oh-my-pi/pi-coding-agent/modes/view-model/status-line/presets";
-import type { StatusLineSettings } from "@oh-my-pi/pi-coding-agent/modes/view-model/status-line/types";
-import { effectiveStatusSettings } from "@oh-my-pi/pi-coding-agent/ui/status/segments";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { cfgGitEnabled } from "@linxiraos/zeta/modes/settings";
+import { STATUS_LINE_PRESETS } from "@linxiraos/zeta/modes/view-model/status-line/presets";
+import type { StatusLineSettings } from "@linxiraos/zeta/modes/view-model/status-line/types";
+import { effectiveStatusSettings } from "@linxiraos/zeta/ui/status/segments";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import { disposeStatusLines, flushStatus, lineText, statusLine, statusSession } from "./helpers/session-status-line";
 
 beforeAll(async () => {

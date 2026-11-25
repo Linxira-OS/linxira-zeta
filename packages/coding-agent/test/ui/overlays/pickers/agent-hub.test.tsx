@@ -1,8 +1,8 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, test } from "bun:test";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
 import { nativeShell } from "../../../helpers/native-shell";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import type { AgentActivityRow } from "../../../../src/modes/view-model/overlays/agent-activity";
 import type { AgentRecordLike } from "../../../../src/registry/agent-hub-types";
 import type { ObservableSession } from "../../../../src/task/session-observer-registry";

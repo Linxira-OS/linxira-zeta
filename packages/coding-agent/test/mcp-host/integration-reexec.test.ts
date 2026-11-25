@@ -7,18 +7,14 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { daemonClient, probeDaemon } from "@oh-my-pi/pi-coding-agent/daemon/client";
-import {
-	DAEMON_RESUME_LEASE_GRACE_ENV,
-	type DaemonClient,
-	type UnitSnapshot,
-} from "@oh-my-pi/pi-coding-agent/daemon/protocol";
-import { holdSharedMcp } from "@oh-my-pi/pi-coding-agent/mcp/host/access";
-import { MCP_MODULE_KIND } from "@oh-my-pi/pi-coding-agent/mcp/host/contract";
-import { disposeLocalMcpHost } from "@oh-my-pi/pi-coding-agent/mcp/host/local";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPTool } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
-import type { MCPStdioServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
+import { daemonClient, probeDaemon } from "@linxiraos/zeta/daemon/client";
+import { DAEMON_RESUME_LEASE_GRACE_ENV, type DaemonClient, type UnitSnapshot } from "@linxiraos/zeta/daemon/protocol";
+import { holdSharedMcp } from "@linxiraos/zeta/mcp/host/access";
+import { MCP_MODULE_KIND } from "@linxiraos/zeta/mcp/host/contract";
+import { disposeLocalMcpHost } from "@linxiraos/zeta/mcp/host/local";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
+import type { MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
 import { IsolatedDaemon, isAlive, waitFor } from "../fixtures/daemon-harness";
 import { type LegacyServerState, STATE_TOOL } from "./reexec-legacy-server";
 import { forceDaemonReexec } from "./reexec-support";

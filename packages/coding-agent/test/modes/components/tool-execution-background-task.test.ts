@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@oh-my-pi/pi-coding-agent/task/task-details";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/zeta/task/task-details";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { ToolCall } from "../../../src/ui/transcript/tool-block";
 import { toolCall, toolCallText } from "../../helpers/tool-text";
 

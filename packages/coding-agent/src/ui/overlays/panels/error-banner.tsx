@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The error banner over the composer: a strip with the error's headline,
  * `Details` (unfolds the whole message in place, `Less` folds it) when the
@@ -7,9 +7,9 @@
  * The terminal draws it as a red-ruled block: the message (first line bold,
  * at most four rows, then a `… +N more lines` hint) and the dismissal note.
  */
-import { type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import { type JSXNode, signal } from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import "../../styles/panels/error-banner";
 import { ActionButton } from "./common";
 
@@ -30,7 +30,7 @@ export function ErrorBanner(props: ErrorBannerProps): JSXNode {
 	const expanded = signal(false);
 	return (
 		<row
-			role="omp.errorBanner"
+			role="zeta.errorBanner"
 			tone="error"
 			gap="sm"
 			align={() => (expanded() ? "start" : "center")}

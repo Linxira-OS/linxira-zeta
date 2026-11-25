@@ -6,12 +6,8 @@ import { lookup } from "./registry";
 // look unregistered and fall through to a schema that no longer holds them.
 import "./all-settings";
 import { SHAPE_VARIANT_NAMES } from "../../../snapcompact/src/snapcompact";
-import { TREE_FILTER_MODES } from "../../../tui/src/overlays/tree-selector";
-import {
-	AUTO_THINKING,
-	getConfiguredThinkingLevelMetadata,
-	getThinkingLevelMetadata,
-} from "@linxiraos/pi-tui/thinking";
+import { TREE_FILTER_MODES } from "../modes/view-model/overlays/tree-selector";
+import { AUTO_THINKING, getConfiguredThinkingLevelMetadata, getThinkingLevelMetadata } from "../thinking";
 import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search-types";
 import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
 import { DEFAULT_STREAM_URL } from "@linxiraos/pi-wire/stream";
@@ -118,7 +114,7 @@ import {
 	type StatusLineSegmentId,
 	type StatusLineSeparatorStyle,
 } from "@linxiraos/pi-tui/status-line/schema";
-import type { SettingTab, AnyUiMetadata, SubmenuOption, UiBase } from "@linxiraos/pi-tui/overlays/settings-defs";
+import type { SettingTab, AnyUiMetadata, SubmenuOption, UiBase } from "./settings-defs";
 
 export {
 	CONTEXT_LINE_MODE_VALUES,
@@ -6583,7 +6579,7 @@ export function getEnumValues(path: SettingPath): readonly string[] | undefined 
 // Derived Types from Schema
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type { TreeFilterMode } from "@linxiraos/pi-tui/overlays/tree-selector";
+export type { TreeFilterMode } from "../ui/overlays/pickers/tree-selector";
 
 /** Personality preset - derived from schema */
 export type Personality = SettingValue<"personality">;

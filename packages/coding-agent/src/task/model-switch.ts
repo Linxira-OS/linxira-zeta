@@ -33,7 +33,7 @@
 import type { Api, Model } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { ConfiguredThinkingLevel } from "../thinking";
 import { extractRetryHint } from "@linxiraos/pi-utils/fetch-retry";
 import { formatModelRoleAlias } from "../config/model-roles";
 import { cfgDisabledProviders } from "../config/model-settings";

@@ -88,6 +88,9 @@ import { MAX_RPC_FRAME_BYTES, MAX_RPC_REASSEMBLED_BYTES, RpcFrameEncoder } from 
 import { claimRpcInput, readRpcInputFrames } from "./rpc-input";
 import { pageRpcMessages, RPC_MESSAGES_PAGE_BUSY_ERROR, RpcMessagesPageError } from "./rpc-messages";
 import { RpcBtwController } from "./rpc-btw";
+import type { Writable } from "node:stream";
+import type { SessionClient } from "../../session/session-client";
+import { LoopContinuationController } from "../../loop/continuation-controller";
 import { RpcGoalController } from "./rpc-goal";
 import { DEFAULT_MODEL_PICKER_LIMIT, RpcModelPicker } from "./rpc-model-picker";
 import { RpcDictationBridge, type RpcDictationControllerFactory } from "./rpc-dictation";
@@ -1554,7 +1557,23 @@ export function registerRpcPersistenceSurface(
 }
 
 /** Startup options for {@link runRpcMode}. */
+export type RpcFrameSink = Writable;
+
 export interface RpcModeOptions {
+	/** Client kind that owns this protocol connection (provenance metadata only). */
+	client?: SessionClient;
+	/** Host-provided frame sink; defaults to stdout. */
+	sink?: RpcFrameSink;
+	/** Host callback when the input/writer closes instead of exiting the process. */
+	onClosed?: (code: number) => void;
+	/** Dispose the session on close; false when the host keeps it alive. */
+	disposeSession?: boolean;
+	/** Caller-owned loop controller for hosted sockets. */
+	loopController?: LoopContinuationController;
+	/** Caller-owned goal controller for hosted sockets. */
+	goalController?: RpcGoalController;
+	/** Caller-owned live-voice bridge for hosted sockets. */
+	liveBridge?: RpcLiveBridge;
 	/** `--mode rpc-ui`: route tool UI (e.g. ask) over the protocol, independently of headless extensions. */
 	setToolUIContext?: (uiContext: ExtensionUIContext, hasUI: boolean) => void;
 	/** `--no-ui`: extensions run with `hasUI=false` and no UI frames; tool UI and host-issued login are unaffected. */
@@ -2318,10 +2337,8 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 				// Answer once the continuation is under way; a failure after that is a late error.
 				await inputGate.enqueue(async () => {
 					if (!inputGate.isCurrent(command) || shutdownState.requested) return;
-					const admitted = Promise.withResolvers<void>();
-					const resuming = session.resume({ onAdmitted: admitted.resolve });
-					await Promise.race([resuming, admitted.promise]);
-					resuming.catch(onPromptError(id, "resume"));
+					const resuming = session.resume();
+					await resuming.catch(onPromptError(id, "resume"));
 				});
 				return success(id, "resume");
 			}

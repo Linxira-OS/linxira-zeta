@@ -12,15 +12,15 @@
  * - With prompt zones on, the bubble is an OSC 133 prompt zone.
  * - An empty prompt draws nothing.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { renderMarkdownFrame } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { fgSgr } from "@oh-my-pi/pi-tui/theme/color";
-import type { TspCardProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { renderMarkdownFrame } from "@linxiraos/pi-tui/text/markdown/index";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { fgSgr } from "@linxiraos/pi-tui/theme/color";
+import type { TspCardProps } from "@linxiraos/pi-wire";
 import { type GlowingKeyword, MAGIC_KEYWORD_PERIOD_MS, magicKeywordLetters } from "../../composer/magic-keywords";
 import type { TermChip } from "../../transcript/messages/chips";
 import { fileLink } from "../tools/file-common";

@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext, SubmittedUserInput } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext, SubmittedUserInput } from "@linxiraos/zeta/modes/types";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
 import { Composer } from "../src/ui/composer/composer";
 import { createInputHarness, type InputHarness } from "./helpers/input-harness";
-import { USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { vocalizer } from "@oh-my-pi/pi-coding-agent/tts/vocalizer";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import type { FileSlashCommand } from "@oh-my-pi/pi-coding-agent/extensibility/slash-commands";
+import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import { vocalizer } from "@linxiraos/zeta/tts/vocalizer";
+import * as logger from "@linxiraos/pi-utils/logger";
+import type { FileSlashCommand } from "@linxiraos/zeta/extensibility/slash-commands";
 
-import { cfgDoubleEscapeAction } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgDoubleEscapeAction } from "@linxiraos/zeta/modes/settings";
 
 type Spy = Mock<(...args: unknown[]) => unknown>;
 type StartPendingSubmissionSpy = Mock<InteractiveModeContext["startPendingSubmission"]>;

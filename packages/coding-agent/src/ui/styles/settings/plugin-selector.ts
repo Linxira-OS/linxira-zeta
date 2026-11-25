@@ -4,12 +4,12 @@
  * install state and scope, the description beside it, a scrollbar and the
  * search status once the list overflows; the row under the pointer banded.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { definePickerLook, PICKER_HOVER, pickerState, pickerTerm } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { selectList } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { spaces, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { definePickerLook, PICKER_HOVER, pickerState, pickerTerm } from "@linxiraos/pi-tui/term/painters/picker";
+import { selectList } from "@linxiraos/pi-tui/term/painters/prefs";
+import { spaces, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
 
 /** Rows the selector lists before it scrolls. */
 export const PLUGIN_SELECTOR_ROWS = 20;

@@ -3,7 +3,7 @@
  * parts are expanded (reset when another extension is shown), the rows it
  * may fill, and the live sources it joins (MCP manager, session tools).
  */
-import { signal } from "@oh-my-pi/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
 import type { MCPRuntimeSource } from "../../../extensibility/inventory/mcp-runtime";
 import type { Extension } from "../../../extensibility/inventory/types";
 import { type ExtensionInspectorSource, inspectorKey, type ToolRuntimeSource } from "./extensions-data";

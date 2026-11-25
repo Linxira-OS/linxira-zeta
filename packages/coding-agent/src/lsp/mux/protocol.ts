@@ -21,11 +21,53 @@ export const LSP_MODULE_VERSION = 1;
 /** Hard ceiling for a cold LSP handshake, including callers with no deadline. */
 export const LSP_STARTUP_MAX_MS = TOOL_TIMEOUTS.lsp.max * 1_000;
 
+export { LSP_MUX_WORKER_ARG } from "../../cli/worker-selectors";
+
+/** Environment key carrying the socket endpoint the mux must listen on. */
+export const LSP_MUX_SOCKET_ENV = "ZETA_LSP_MUX_SOCKET";
+
+/** Environment key carrying the canonical project directory the mux serves. */
+export const LSP_MUX_PROJECT_DIR_ENV = "ZETA_LSP_MUX_PROJECT_DIR";
+
+/** Stable broker daemon name for the shared LSP mux. */
+export const LSP_MUX_DAEMON_NAME = "zeta.lsp.mux";
+
+/** Broker readiness regex matched against the banner printed by the worker. */
+export const LSP_MUX_READY_PATTERN = String.raw`zetacode lsp mux listening on \S+`;
+
+/** Banner printed on stdout once the mux socket accepts connections. */
+export function lspMuxReadyBanner(endpoint: string): string {
+	return `zetacode lsp mux listening on ${endpoint}`;
+}
+
+/** `call("lsp", MUX_CONNECT_METHOD, MuxConnectParams)`: attach a server process to a mux tunnel. */
+export const MUX_CONNECT_METHOD = "zeta/muxConnect";
+
+/** Parameters of {@link MUX_CONNECT_METHOD}. */
+export interface MuxConnectParams {
+	command: string;
+	args: string[];
+	cwd: string;
+	env?: Record<string, string>;
+	initializationOptions?: unknown;
+}
+
+/** Result of {@link MUX_CONNECT_METHOD}. */
+export interface MuxConnectResult {
+	key: string;
+	spawned: boolean;
+	pid?: number;
+}
+
+/** Liveness probe on a mux tunnel. */
+export const MUX_PING_METHOD = "zeta/muxPing";
+export const MUX_PING_RESULT = "pong";
+
 /**
  * `call("lsp", LSP_ACQUIRE_METHOD, LspServerParams)`: reserve the first free
  * instance of the server identity. Result: {@link LspAcquireResult}.
  */
-export const LSP_ACQUIRE_METHOD = "acquire";
+export const LSP_ACQUIRE_METHOD = "zeta/lspAcquire";
 
 /**
  * `call("lsp", LSP_UNRESERVE_METHOD, LspAcquireResult)`: drop a reservation
@@ -41,7 +83,7 @@ export const LSP_UNRESERVE_METHOD = "unreserve";
  * `shutdown`/`exit` is intercepted by the module so the process can linger
  * for reuse.
  */
-export const MUX_RESTART_METHOD = "omp/muxRestartServer";
+export const MUX_RESTART_METHOD = "zeta/muxRestartServer";
 
 /**
  * Last frame the module writes on each tunnel bound to a server that just
@@ -49,7 +91,7 @@ export const MUX_RESTART_METHOD = "omp/muxRestartServer";
  * which a bare close cannot. Sent as `{ jsonrpc, method, params }` (in that
  * key order) so the client finds it by prefix in the tunnel's final bytes.
  */
-export const MUX_SERVER_EXITED_METHOD = "omp/muxServerExited";
+export const MUX_SERVER_EXITED_METHOD = "zeta/muxServerExited";
 
 /** Bytes of server stderr forwarded in {@link MUX_SERVER_EXITED_METHOD}. */
 export const MUX_SERVER_EXIT_STDERR_BYTES = 4_096;

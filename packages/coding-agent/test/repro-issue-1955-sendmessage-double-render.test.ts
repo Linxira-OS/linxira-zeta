@@ -1,18 +1,18 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type {
 	ExtensionActions,
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionRunner,
 	ExtensionUIContext,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { ExtensionUiController } from "@oh-my-pi/pi-coding-agent/modes/controllers/extension-ui-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { normalizeCustomMessagePayload } from "@oh-my-pi/pi-coding-agent/session/transcript/messages";
+} from "@linxiraos/zeta/extensibility/extensions";
+import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { normalizeCustomMessagePayload } from "@linxiraos/zeta/session/transcript/messages";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 
 /**

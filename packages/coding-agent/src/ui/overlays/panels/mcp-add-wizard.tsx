@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The add-MCP-server sheet: the phase strip, the step's title and lead,
  * its body (the field, a status, the review), its choices, and a footer
@@ -6,8 +6,8 @@
  * (Cancel) run. The terminal draws the step in a box (role look
  * `omp.mcpAddWizard`); see {@link MCPAddWizardModel}.
  */
-import { computed, type JSXNode, type UiNode, untrack } from "@oh-my-pi/pi-tui";
-import type { TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import { computed, type JSXNode, type UiNode, untrack } from "@linxiraos/pi-tui";
+import type { TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import { findNode, keyGlyph } from "../../styles/panels/common";
 import "../../styles/panels/mcp-add-wizard";
 import { ActionButton, feedField } from "./common";
@@ -51,7 +51,7 @@ function StatusRow(props: { readonly status: WizardStatus }): JSXNode {
 			: { spans: label.map((t, i): TspSpan => (i % 2 === 1 ? { s: "mono", t } : { t })) };
 	if (status.state === "busy") {
 		return (
-			<row key={status.key} role="omp.mcpAdd.status" gap="sm" align="center">
+			<row key={status.key} role="zeta.mcpAdd.status" gap="sm" align="center">
 				<spinner style="orbit" tone="accent" />
 				<text {...text} wrap="word" />
 			</row>
@@ -59,7 +59,7 @@ function StatusRow(props: { readonly status: WizardStatus }): JSXNode {
 	}
 	const [icon, tone] = STATUS_ICON[status.state];
 	return (
-		<row key={status.key} role="omp.mcpAdd.status" tone={tone} gap="sm" align="center">
+		<row key={status.key} role="zeta.mcpAdd.status" tone={tone} gap="sm" align="center">
 			<icon name={icon} tone={tone} />
 			<text {...text} wrap="word" />
 		</row>
@@ -76,11 +76,11 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 	});
 
 	const progress = () => (
-		<row key="progress" role="omp.mcpAdd.progress" gap="xs">
+		<row key="progress" role="zeta.mcpAdd.progress" gap="xs">
 			{PHASES.map((label, index) => (
 				<col
 					key={label}
-					role="omp.mcpAdd.phase"
+					role="zeta.mcpAdd.phase"
 					tone={() => {
 						rev();
 						const phase = model.view.phase;
@@ -104,7 +104,7 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 		switch (view.kind) {
 			case "input":
 				return [
-					<col key="field" role="omp.mcpAdd.field" gap="xs" tone={view.error ? "error" : undefined}>
+					<col key="field" role="zeta.mcpAdd.field" gap="xs" tone={view.error ? "error" : undefined}>
 						<input
 							prompt="> "
 							text={() => (
@@ -117,40 +117,40 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 						/>
 						{view.error ? (
 							<text
-								role="omp.mcpAdd.note"
+								role="zeta.mcpAdd.note"
 								wrap="word"
 								spans={[{ s: "error", t: view.error.replace(/\t/g, "   ") }]}
 							/>
 						) : (
-							view.note && <text role="omp.mcpAdd.note" wrap="word" text={view.note} />
+							view.note && <text role="zeta.mcpAdd.note" wrap="word" text={view.note} />
 						)}
 					</col>,
 				];
 			case "choice":
 				return [
 					view.failure && !view.failure.cancelled && (
-						<text key="error" role="omp.mcpAdd.error" wrap="word" text={view.failure.message} />
+						<text key="error" role="zeta.mcpAdd.error" wrap="word" text={view.failure.message} />
 					),
-					view.failure?.tip && <text key="tip" role="omp.mcpAdd.note" wrap="word" text={view.failure.tip} />,
+					view.failure?.tip && <text key="tip" role="zeta.mcpAdd.note" wrap="word" text={view.failure.tip} />,
 				];
 			case "async": {
 				const statuses = view.statuses.map(status => <StatusRow status={status} />);
 				return [
 					view.checks ? (
-						<col key="checks" role="omp.mcpAdd.checks" gap="sm">
+						<col key="checks" role="zeta.mcpAdd.checks" gap="sm">
 							{statuses}
 						</col>
 					) : (
 						statuses
 					),
-					view.error !== undefined && <text key="error" role="omp.mcpAdd.error" wrap="word" text={view.error} />,
+					view.error !== undefined && <text key="error" role="zeta.mcpAdd.error" wrap="word" text={view.error} />,
 				];
 			}
 			case "confirm":
 				return [
 					<kv
 						key="summary"
-						role="omp.mcpAdd.summary"
+						role="zeta.mcpAdd.summary"
 						items={model.summary().map(row => ({ k: row.key, v: row.native satisfies TspText }))}
 					/>,
 				];
@@ -161,7 +161,11 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 		const view = model.view;
 		if (view.kind !== "choice") return undefined;
 		return (
-			<list key={`choices-${model.step}`} role="omp.mcpAdd.choices" selected={() => (rev(), String(model.selected))}>
+			<list
+				key={`choices-${model.step}`}
+				role="zeta.mcpAdd.choices"
+				selected={() => (rev(), String(model.selected))}
+			>
 				{view.choices.map((choice, index) => (
 					<item
 						key={String(index)}
@@ -192,7 +196,7 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 					? "Save server"
 					: undefined;
 		return (
-			<row key="actions" role="omp.actions" gap="sm" align="center">
+			<row key="actions" role="zeta.actions" gap="sm" align="center">
 				<Button act="cancel" label="Cancel" keys={named ? backKey : "ctrl+c"} />
 				<spacer grow={1} />
 				{!named && <Button act="back" label={view.kind === "async" ? view.back : "Back"} keys={backKey} />}
@@ -217,12 +221,12 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 		const title = view.kind === "confirm" ? "Review and save" : view.title;
 		const lead = view.kind === "confirm" ? "omp connects to the server as soon as it is saved." : view.lead;
 		return (
-			<col key="head" role="omp.mcpAdd.head" gap="xs">
+			<col key="head" role="zeta.mcpAdd.head" gap="xs">
 				<row gap="sm" align="center">
-					<text role="omp.mcpAdd.title" wrap="word" text={title} />
-					{view.kind === "input" && view.optional && <text role="omp.mcpAdd.tag" text="Optional" />}
+					<text role="zeta.mcpAdd.title" wrap="word" text={title} />
+					{view.kind === "input" && view.optional && <text role="zeta.mcpAdd.tag" text="Optional" />}
 				</row>
-				{lead && <text role="omp.mcpAdd.lead" wrap="word" text={lead} />}
+				{lead && <text role="zeta.mcpAdd.lead" wrap="word" text={lead} />}
 			</col>
 		);
 	};
@@ -250,7 +254,7 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 				else if (event.type === "edit") model.editField(event);
 			}}
 		>
-			<overlay key="sheet" role="omp.overlay.mcpAdd" head="Add MCP server" anchor="center" size="md" modal>
+			<overlay key="sheet" role="zeta.overlay.mcpAdd" head="Add MCP server" anchor="center" size="md" modal>
 				{() => {
 					shape();
 					return (

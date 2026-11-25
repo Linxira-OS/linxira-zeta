@@ -14,7 +14,7 @@
  * so the transcript shows each repetition like a manual submit.
  */
 import { logger } from "@linxiraos/pi-utils";
-import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
+import type { LoopConditionConfig, LoopLimitRuntime } from "../modes/view-model/status-line/loop";
 import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
 import { evaluateLoopCondition } from "../modes/loop-condition";
 import {

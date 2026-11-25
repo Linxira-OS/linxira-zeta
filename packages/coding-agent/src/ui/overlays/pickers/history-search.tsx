@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Prompt history search: past prompts, newest first, filtered as you type
  * (each word must appear), with query hits marked. Enter (or `insert`, or a
@@ -9,9 +9,9 @@
  * navigation and picks run a pending search first so they act on the
  * current query's results.
  */
-import { batch, type JSXNode, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
-import { shortenHome } from "@oh-my-pi/pi-tui/text/sanitize";
-import type { TspPickerAction, TspPickerItem } from "@oh-my-pi/pi-wire";
+import { batch, type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
+import { shortenHome } from "@linxiraos/pi-tui/text/sanitize";
+import type { TspPickerAction, TspPickerItem } from "@linxiraos/pi-wire";
 import "../../styles/pickers/history";
 import type { HistoryLookTerm } from "../../styles/pickers/history";
 import { tokenHits } from "../../styles/pickers/common";

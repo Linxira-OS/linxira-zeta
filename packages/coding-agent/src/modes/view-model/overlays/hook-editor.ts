@@ -1,5 +1,5 @@
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { Ellipsis } from "@oh-my-pi/pi-natives";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { Ellipsis } from "@linxiraos/pi-natives";
 import { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "../../../utils/text-width";
 
 /** Most title rows the terminal prompt shows, so a long question cannot push the input row off-screen. */

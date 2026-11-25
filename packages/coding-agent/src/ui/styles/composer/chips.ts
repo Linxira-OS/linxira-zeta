@@ -8,12 +8,12 @@
  * of text (kitty Unicode placeholders, the only form that fits between the
  * card's borders), else its glyph.
  */
-import type { TspImageProps, TspSpan, TspText } from "@oh-my-pi/pi-wire";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { pictureRows } from "@oh-my-pi/pi-tui/term/painters/image";
-import { fgSgr } from "@oh-my-pi/pi-tui/theme/color";
-import { replaceTabs, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { TspImageProps, TspSpan, TspText } from "@linxiraos/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { pictureRows } from "@linxiraos/pi-tui/term/painters/image";
+import { fgSgr } from "@linxiraos/pi-tui/theme/color";
+import { replaceTabs, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { fileLink } from "../tools/file-common";
 
 /** Terminal-only facts of a chip card (its `term` prop). */

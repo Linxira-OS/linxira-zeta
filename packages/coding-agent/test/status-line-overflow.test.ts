@@ -5,10 +5,10 @@
  * working directory.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { StatusLineSettings } from "@oh-my-pi/pi-coding-agent/modes/view-model/status-line/types";
-import { effectiveStatusSettings, segmentView } from "@oh-my-pi/pi-coding-agent/ui/status/segments";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { StatusLineSettings } from "@linxiraos/zeta/modes/view-model/status-line/types";
+import { effectiveStatusSettings, segmentView } from "@linxiraos/zeta/ui/status/segments";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { segmentText, statusFacts, statusText } from "./helpers/session-status-line";
 
 beforeAll(async () => {

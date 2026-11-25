@@ -8,9 +8,9 @@ import {
 	untilAborted,
 	withTimeout,
 	workerHostEntry,
-} from "@oh-my-pi/pi-utils";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { resolveImageMaxEdge, resolveImageTokenization } from "@oh-my-pi/pi-catalog/compat/image-tokenization";
+} from "@linxiraos/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { resolveImageMaxEdge, resolveImageTokenization } from "@linxiraos/pi-catalog/compat/image-tokenization";
 import type { CDPSession, Page, Target, Viewport } from "puppeteer-core";
 import { callSessionTool } from "../../eval/js/tool-bridge";
 import { TOOL_TIMEOUTS } from "../tool-timeouts";
@@ -59,6 +59,7 @@ import {
 	type RunResultOk,
 	type ScreenshotLimits,
 	type SessionSnapshot,
+	type TabWebMcpRequest,
 	type Transferable,
 	type Transport,
 	type WorkerInbound,
@@ -267,6 +268,8 @@ export interface RunInTabOptions {
 	session: ToolSession;
 	/** The call is a direct `tab.waitForDownload()`. */
 	waitsForDownload?: boolean;
+	/** Work Studio WebMCP operation to execute in the tab. */
+	webmcp?: TabWebMcpRequest;
 }
 
 export interface ReleaseTabOptions {
@@ -3348,4 +3351,21 @@ function errorFromWorkerEvent(event: ErrorEvent): Error {
 	if (event.error instanceof Error) return event.error;
 	if (event.message) return new Error(event.message);
 	return new Error("Unknown tab worker error");
+}
+
+export async function createStudioBrowserObservation(tab: TabSession): Promise<CDPSession> {
+	if (tab.backend !== "worker" || tab.state !== "alive" || tabs.get(tab.name) !== tab)
+		throw new ToolError("This browser backend cannot be observed through CDP");
+	const target = await findTargetForTab(tab);
+	if (!target || tabs.get(tab.name) !== tab) throw new ToolError("Browser target changed before observation");
+	return target.createCDPSession();
+}
+
+export async function resumeStudioBrowserControl(tab: TabSession): Promise<void> {
+	if (!(await unfreezeTabSession(tab))) throw new ToolError("Browser target could not be resumed for human control");
+	tab.lastActivityAt = Date.now();
+}
+
+export async function settleStudioBrowserControl(tab: TabSession): Promise<void> {
+	if (tabs.get(tab.name) === tab && tab.state === "alive") await setTabFrozen(tab, true);
 }

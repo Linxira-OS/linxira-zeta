@@ -12,8 +12,8 @@ import type {
 	ThinkingContent,
 	ToolCall,
 	Usage,
-} from "@oh-my-pi/pi-ai";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+} from "@linxiraos/pi-ai";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 
 function zeroUsage(): Usage {
 	return {

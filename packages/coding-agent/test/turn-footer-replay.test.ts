@@ -4,11 +4,11 @@
  * the answer's Copy lives.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import { type UiNode, untrack } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import type { SessionContext } from "@linxiraos/zeta/session/session-context";
+import { type UiNode, untrack } from "@linxiraos/pi-tui";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 
 const AT = new Date(2026, 0, 2, 3, 4, 5).getTime();

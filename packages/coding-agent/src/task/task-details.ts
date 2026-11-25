@@ -1,7 +1,8 @@
-import { type } from "@oh-my-pi/omptype";
-import type { Usage } from "@oh-my-pi/pi-ai";
+import { type } from "@linxiraos/zeta-schema";
+import type { SubagentFailureClass } from "./model-switch";
+import type { Usage } from "@linxiraos/pi-ai";
 import type { ConfiguredThinkingLevel } from "../utils/render-utils";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 
 /** Formats sanitized task identifiers as hierarchy breadcrumbs. */
 export function formatTaskId(id: string): string {
@@ -176,6 +177,11 @@ export interface YieldItem {
 	 * during post-mortem validation.
 	 */
 	schemaOverridden?: boolean;
+	/**
+	 * Terminal yield asking the executor to use the run's last assistant message
+	 * as the result instead of `data` (string-typed completions that finish in prose).
+	 */
+	useLastTurn?: boolean;
 }
 
 /**
@@ -414,6 +420,20 @@ export interface SingleResult {
 	};
 	/** Output metadata for agent:// URL integration */
 	outputMeta?: { lineCount: number; charCount: number };
+	/**
+	 * Audit record of a caller-supplied per-spawn `model` selector: what the run
+	 * would have used (`from`) and what it ran (`to`). Undefined when the caller
+	 * named no model.
+	 */
+	modelChange?: {
+		source: "spawn-param";
+		from?: string;
+		to: string;
+	};
+	/** Failure class of a settled run, for the parent's model-failure ledger. */
+	failureClass?: SubagentFailureClass;
+	/** Selectors the parent session could try instead of the failed one, nearest first. */
+	fallbackCandidates?: readonly string[];
 }
 
 /** Tool details for TUI rendering */

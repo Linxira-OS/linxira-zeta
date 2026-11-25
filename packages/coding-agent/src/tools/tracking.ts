@@ -10,12 +10,9 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { type } from "@linxiraos/zeta-schema";
-import type { Component } from "@linxiraos/pi-tui";
-import { Text } from "@linxiraos/pi-tui";
 import { getProjectTrackingDir, getTrackingIndexPath, logger } from "@linxiraos/pi-utils";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import type { Settings } from "../config/settings";
-import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n";
 import trackingDescription from "../prompts/tools/tracking.md" with { type: "text" };
 import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
@@ -528,11 +525,5 @@ export class TrackingTool implements AgentTool<typeof trackingSchema, TrackingTo
 				},
 			};
 		}
-	}
-
-	render(_result: AgentToolResult<TrackingToolDetails>, _opts: RenderResultOptions): Component | null {
-		const details = _result.details;
-		if (!details) return null;
-		return new Text(details.message);
 	}
 }

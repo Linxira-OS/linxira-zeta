@@ -12,8 +12,8 @@
  * `onRenderError`; when no hook drew anything because of that, the base view
  * shows.
  */
-import { isUiNode, type UiNode } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { isUiNode, type UiNode } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { ExtensionRows, ExtensionTheme } from "../../extensibility/extensions/render-types";
 import { extensionOutput, extensionTheme, isExtensionRows, singleNode } from "../extensions/render-output";
 import type { ToolPresenter, ToolResult, ToolView, ToolViewState } from "./contract";

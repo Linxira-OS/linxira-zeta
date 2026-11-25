@@ -1,7 +1,7 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { afterAll } from "bun:test";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { type Signal, signal, type UiEvent } from "@oh-my-pi/pi-tui";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { type Signal, signal, type UiEvent } from "@linxiraos/pi-tui";
 import {
 	type OAuthAuthState,
 	OAuthSelector,

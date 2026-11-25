@@ -3,15 +3,15 @@
  * regardless of heartbeats; newly spawned agents appear above existing rows.
  */
 import { afterEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { createAgentHubRuntime } from "@oh-my-pi/pi-coding-agent/modes/agent-hub-runtime";
-import { type AgentRef, AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionObserverRegistry } from "@oh-my-pi/pi-coding-agent/task/session-observer-registry";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { createAgentHubRuntime } from "@linxiraos/zeta/modes/agent-hub-runtime";
+import { type AgentRef, AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionObserverRegistry } from "@linxiraos/zeta/task/session-observer-registry";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { AgentActivityIndex, type AgentActivityRow } from "../src/activity";
 import { agentColored, agentColorHex, agentPalette } from "../src/ui/tools/agent-identity";
 import { type HubProps, type MountedHub, mountAgentHub } from "./helpers/agent-hub";

@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { computed, signal, type UiNode } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { computed, signal, type UiNode } from "@linxiraos/pi-tui";
 import { StreamingPanel, ToolActivity, TranscriptBlocks } from "../../../../src/ui/transcript/messages/panel";
 import { screenSuite, single } from "./harness";
 

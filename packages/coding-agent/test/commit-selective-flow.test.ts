@@ -4,16 +4,16 @@ import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { commitSelection, type CommitOutcome } from "@oh-my-pi/pi-coding-agent/commit/selective/apply";
-import { createDraft } from "@oh-my-pi/pi-coding-agent/commit/selective/draft";
-import { ChangeJournal, type JournalRecord } from "@oh-my-pi/pi-coding-agent/commit/selective/journal";
-import { createCommitPrelude } from "@oh-my-pi/pi-coding-agent/commit/selective/prelude-definition";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { VcsGitRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/zeta-schema";
+import { commitSelection, type CommitOutcome } from "@linxiraos/zeta/commit/selective/apply";
+import { createDraft } from "@linxiraos/zeta/commit/selective/draft";
+import { ChangeJournal, type JournalRecord } from "@linxiraos/zeta/commit/selective/journal";
+import { createCommitPrelude } from "@linxiraos/zeta/commit/selective/prelude-definition";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import type { VcsGitRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const tempDirs: string[] = [];
 

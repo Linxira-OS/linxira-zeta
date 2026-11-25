@@ -11,9 +11,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { createRoot, type JSXNode, jsx, type Signal, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode } from "@oh-my-pi/pi-tui/term/paint";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+import { createRoot, type JSXNode, jsx, type Signal, signal, type UiNode } from "@linxiraos/pi-tui";
+import { paintNode } from "@linxiraos/pi-tui/term/paint";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 import {
 	CORPUS_DIR,
 	type CorpusCase,
@@ -22,7 +22,7 @@ import {
 	listCases,
 	loadCase,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
+} from "@linxiraos/pi-tui/testing/corpus";
 import { Composer, ComposerChips, type ComposerSlots } from "../../../src/ui/composer";
 import { fixtureProvider, key, sendKey, settle, subsetDiff } from "./harness";
 

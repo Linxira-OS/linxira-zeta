@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { plainRows } from "@oh-my-pi/pi-tui/testing/cells";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { plainRows } from "@linxiraos/pi-tui/testing/cells";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/index";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

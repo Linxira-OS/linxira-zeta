@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { KeybindingsManager, setKeybindings } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { SessionInfo } from "@oh-my-pi/pi-coding-agent/session/session-listing";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { ModelHub } from "../src/ui/overlays/pickers/model-hub";
 import { SessionSelector } from "../src/ui/overlays/pickers/session-selector";

@@ -5,8 +5,7 @@ import type { FetchImpl } from "@linxiraos/pi-utils";
 import type { ModeId } from "../session/agent-session";
 import type { PromptCacheEntry } from "../session/cache-warmer";
 import type { ToolConversationState } from "./tool-state";
-import type { FetchImpl, ImageContent, Message, Model, ServiceTierByFamily, ToolChoice } from "@linxiraos/pi-ai";
-import { logger } from "@linxiraos/pi-utils";
+
 import type { XdevState } from "./xdev";
 import type { AsyncJobManagerApi } from "../async/job-manager";
 import type { AsyncNotifyEntry, AsyncNotifySource } from "../session/async-notify";

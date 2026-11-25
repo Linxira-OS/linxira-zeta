@@ -1,5 +1,5 @@
-import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import type { ImageTokenization } from "@oh-my-pi/pi-catalog/compat/image-tokenization";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import type { ImageTokenization } from "@linxiraos/pi-catalog/compat/image-tokenization";
 import { ToolError } from "../tool-errors";
 import type { Viewport } from "puppeteer-core";
 import type { FrontTabSource } from "./native-windows";
@@ -276,4 +276,11 @@ export interface Transport {
 	send(msg: WorkerOutbound | WorkerInbound, transferList?: Transferable[]): void;
 	onMessage(handler: (msg: WorkerOutbound | WorkerInbound) => void): () => void;
 	close(): void;
+}
+
+/** Work Studio WebMCP request envelope. */
+export interface TabWebMcpRequest {
+	action: string;
+	options?: unknown;
+	[key: string]: unknown;
 }

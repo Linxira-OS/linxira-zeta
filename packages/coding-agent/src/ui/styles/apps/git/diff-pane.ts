@@ -7,13 +7,13 @@
  * center a dim message; a streaming file shows its arrived lines side by
  * side; a media/binary change compares its two sides.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { defineRolePainter, type PaintImages } from "@oh-my-pi/pi-tui/term/paint";
-import { renderSpans } from "@oh-my-pi/pi-tui/text/highlight";
-import { sliceCells, spaces, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatBytes } from "@oh-my-pi/pi-utils";
-import { mixHex } from "@oh-my-pi/pi-utils/color";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { defineRolePainter, type PaintImages } from "@linxiraos/pi-tui/term/paint";
+import { renderSpans } from "@linxiraos/pi-tui/text/highlight";
+import { sliceCells, spaces, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatBytes } from "@linxiraos/pi-utils";
+import { mixHex } from "@linxiraos/pi-utils/color";
 import type { DiffDocument } from "../../../../cli/git-tui/model/diff-pane";
 import type { FileAssetSide } from "../../../../cli/git-tui/model/state";
 import {

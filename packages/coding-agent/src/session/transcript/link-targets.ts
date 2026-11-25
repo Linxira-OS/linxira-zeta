@@ -3,9 +3,9 @@
  * text blocks link to, resolved to local targets once per session and cached so
  * synchronous transcript rebuilds reuse them.
  */
-import type { AssistantMessage, TextContent } from "@oh-my-pi/pi-ai";
-import { lexMarkdown } from "@oh-my-pi/pi-tui/text/markdown/lexer";
-import { Marked } from "@oh-my-pi/pi-utils/marked";
+import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
+import { lexMarkdown } from "@linxiraos/pi-tui/text/markdown/lexer";
+import { Marked } from "@linxiraos/pi-utils/marked";
 
 /** What resolving and caching links needs from the interactive host. */
 export interface LinkTargetHost {

@@ -1,8 +1,15 @@
-import { createGradientHighlighter, type KeywordHighlighter } from "./gradient-highlight";
-import { magicKeywordRegex } from "./magic-keyword-boundary";
-import { keywordInProse } from "./markdown-prose";
+/**
+ * "orchestrate" as a magic keyword: standalone-prose detection and the
+ * keyword's editor/bubble gradient.
+ *
+ * The keyword table (`modes/magic-keywords`) is the single source of truth;
+ * detection reuses the session matcher so settings, notice injection and the
+ * composer agree on what counts as the keyword.
+ */
+import { type MagicKeyword, MAGIC_KEYWORDS } from "../../magic-keywords";
+import { containsMagicKeyword } from "../../../session/magic-keywords";
 
-const ORCHESTRATE_WORD = magicKeywordRegex("orchestrate");
+const ORCHESTRATE_WORD = "orchestrate";
 
 /**
  * Whether `text` contains the standalone keyword "orchestrate" (lowercase,
@@ -10,17 +17,8 @@ const ORCHESTRATE_WORD = magicKeywordRegex("orchestrate");
  * or XML/HTML section.
  */
 export function containsOrchestrate(text: string): boolean {
-	return keywordInProse(text, ORCHESTRATE_WORD);
+	return containsMagicKeyword(text, ORCHESTRATE_WORD);
 }
 
-/**
- * Highlight every standalone "orchestrate" in `text` for editor display with a
- * cool teal→violet gradient (hue 150..280), visually distinct from ultrathink's
- * full-spectrum rainbow.
- */
-export const highlightOrchestrate: KeywordHighlighter = createGradientHighlighter({
-	probe: "orchestrate",
-	highlight: magicKeywordRegex("orchestrate", "g"),
-	stops: 14,
-	hue: t => 150 + t * 130,
-});
+/** The keyword's gradient (teal→violet, hue 150..280), shared with the composer glow. */
+export const highlightOrchestrate: MagicKeyword = MAGIC_KEYWORDS.find(keyword => keyword.word === ORCHESTRATE_WORD)!;

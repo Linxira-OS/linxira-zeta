@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AnnotationReviewModel } from "@oh-my-pi/pi-coding-agent/ui/overlays/panels/annotation-review-model";
-import type { AnnotationOverlayDraft } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/annotation-types";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AnnotationReviewModel } from "@linxiraos/zeta/ui/overlays/panels/annotation-review-model";
+import type { AnnotationOverlayDraft } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/annotation-types";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	annotationDraftKey,
 	loadAnnotationDrafts,

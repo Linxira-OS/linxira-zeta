@@ -4,9 +4,9 @@
  * transcript's custom-tool box: one cell of padding left and right, one blank
  * row above and below; nothing at all when the hooks draw nothing.
  */
-import { isUiNode, type UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
+import { isUiNode, type UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
 import { paintRows } from "../../extensions/render-output";
 import type { LegacyTerm, ToolRenderPart } from "../../tools/legacy";
 import { tint, tintRow } from "./default";

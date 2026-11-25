@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Attached and produced images as `image` nodes: the bytes go to the blob
  * registry once (the node names them by content address) and the header's
@@ -6,9 +6,9 @@
  * decodes it. The terminal backend draws images where the terminal supports
  * a graphics protocol; transcript looks fall back to a `[Image: mime]` line.
  */
-import { computed, createRoot, effect, type JSXNode, type Reactive, read, signal } from "@oh-my-pi/pi-tui";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import type { TspImageProps } from "@oh-my-pi/pi-wire";
+import { computed, createRoot, effect, type JSXNode, type Reactive, read, signal } from "@linxiraos/pi-tui";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
+import type { TspImageProps } from "@linxiraos/pi-wire";
 import { readImageHeaderDimensions } from "../../../utils/image-resize";
 
 /** An image content part (base64 bytes). */

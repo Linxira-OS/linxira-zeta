@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
-import * as lsp from "@oh-my-pi/pi-coding-agent/lsp";
-import * as lspClient from "@oh-my-pi/pi-coding-agent/lsp/client";
-import * as lspConfig from "@oh-my-pi/pi-coding-agent/lsp/config";
-import type { LinterClient, ServerConfig } from "@oh-my-pi/pi-coding-agent/lsp/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import * as fileWriteFallback from "@oh-my-pi/pi-coding-agent/tools/file-write-fallback";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool } from "@linxiraos/zeta/edit";
+import * as lsp from "@linxiraos/zeta/lsp";
+import * as lspClient from "@linxiraos/zeta/lsp/client";
+import * as lspConfig from "@linxiraos/zeta/lsp/config";
+import type { LinterClient, ServerConfig } from "@linxiraos/zeta/lsp/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import * as fileWriteFallback from "@linxiraos/zeta/tools/file-write-fallback";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function makeSession(
 	cwd: string,

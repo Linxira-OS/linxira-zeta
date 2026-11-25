@@ -1,7 +1,7 @@
 /** The models and preferences the `overlays/model-*` corpus cases were captured with. */
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 import type { ModelBrowserSource } from "../../../../src/modes/view-model/overlays/model-browser";
 
 export function model(provider: string, id: string, extra: Partial<Model> = {}): Model {

@@ -8,12 +8,12 @@
  * - `row` `omp.hint.retry`: a blank row, then `F5` (dim) ` to retry`
  *   (muted) where the working row's interrupt key stood.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { shimmerTiers } from "@oh-my-pi/pi-tui/term/painters/shimmer";
-import { type ShimmerMode, type ShimmerTiers, shimmerText } from "@oh-my-pi/pi-tui/text/shimmer";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { shimmerTiers } from "@linxiraos/pi-tui/term/painters/shimmer";
+import { type ShimmerMode, type ShimmerTiers, shimmerText } from "@linxiraos/pi-tui/text/shimmer";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { terminalPaddingX } from "../terminal-padding";
 import { keyLabel } from "../../keys/hints";
 import { termOf } from "../messages/fill";

@@ -1,4 +1,4 @@
-import type { PipeStreamInfo, PipeStreams } from "@oh-my-pi/pi-natives";
+import type { PipeStreamInfo, PipeStreams } from "@linxiraos/pi-natives";
 
 /** Bytes off a stream's end a view reads: screens of text, not the megabyte a stream keeps. */
 const STREAM_TAIL_BYTES = 64 * 1024;

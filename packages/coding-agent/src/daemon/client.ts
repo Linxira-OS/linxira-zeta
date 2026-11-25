@@ -10,8 +10,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IpcConnection } from "@oh-my-pi/pi-natives";
-import { isEexist, isEnoent, isPidAlive, logger, postmortem, toError } from "@oh-my-pi/pi-utils";
+import { IpcConnection } from "@linxiraos/pi-natives";
+import { isEexist, isEnoent, isPidAlive, logger, postmortem, toError } from "@linxiraos/pi-utils";
 import { resolveCliEntryCmd, resolveWorkerSpawnCmd, workerEnvFromParent } from "../subprocess/worker-client";
 import { daemonBuildId } from "./build";
 import { canonicalProjectDir, daemonDir, daemonEndpoint, daemonTcpAddress, daemonTokenPath } from "./paths";

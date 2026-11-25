@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { jsx, nativeRendering } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { jsx, nativeRendering } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { KeybindingsManager } from "../../../../config/keybindings/keybindings";
 import type { CustomCommandContext } from "../../../../extensibility/custom-commands/types";
 import type { ExtensionUiHost } from "../../../../extensibility/extensions/render-types";

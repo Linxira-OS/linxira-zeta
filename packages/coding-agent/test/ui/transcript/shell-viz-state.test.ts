@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ShellTrace } from "@oh-my-pi/pi-wire";
+import type { ShellTrace } from "@linxiraos/pi-wire";
 import { ShellVizState } from "../../../src/ui/transcript/shell-viz-state";
 
 /** A trace whose history has one record per millisecond. */

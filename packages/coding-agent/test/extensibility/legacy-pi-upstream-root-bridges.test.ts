@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import * as caShim from "@oh-my-pi/pi-coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import * as caShim from "@linxiraos/zeta/extensibility/legacy-pi-coding-agent-shim";
 
 // Upstream pi-coding-agent exports `parseSkillBlock` from its package root
 // (src/core/agent-session.ts). omp folds skill invocation into its own hook

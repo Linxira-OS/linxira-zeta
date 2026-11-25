@@ -38,6 +38,8 @@ import * as postmortem from "@linxiraos/pi-utils/postmortem";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { JsRuntime, type RuntimeHooks } from "../../eval/js/shared/runtime";
 import { cloneSafe, RunOutput } from "../browser/run-output";
+import { prompt } from "@linxiraos/pi-utils";
+import backgroundMoveNote from "../../prompts/tools/computer-background-move.md" with { type: "text" };
 import {
 	bindRunFacade,
 	markHandled,
@@ -231,6 +233,8 @@ interface ComputerRunContext {
 	confirmControl(reason: string): Promise<ControlVerdict>;
 	screenshots: ComputerScreenshot[];
 	frameActions: WeakMap<object, string>;
+	/** One background-move note per run; spent when the run succeeds. */
+	backgroundMoveNote: boolean;
 	emit(event: ComputerLifecycleEvent): void;
 }
 
@@ -1314,6 +1318,8 @@ class Win {
 		strictOptions(options, inputOptionsKeys, "move");
 		const context = this.#guardInput("move");
 		const native = pointerOptions(options);
+		// A desktop or display move drives the user's own pointer whatever the options, so it is never background.
+		let background = native.takeover !== true && this.id !== "desktop" && !this.id.startsWith("display:");
 		await sendInput(
 			this.#session,
 			context,
@@ -1725,6 +1731,7 @@ export class ComputerWorkerCore {
 			output,
 			screenshots,
 			frameActions: new WeakMap(),
+			backgroundMoveNote: false,
 			emit: event => {
 				try {
 					this.#transport.send({ type: "activity", event });

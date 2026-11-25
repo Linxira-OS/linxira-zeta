@@ -42,6 +42,7 @@
 - Fixed a disassembler connection race where a reference closed just before disconnect could issue one request into the destroyed host and report its exit instead of `dsm.open`.
 
 ## [1.5.10] - 2026-11-19
+
 ### Fixed
 
 - Fixed the bash tool treating leading `cd` targets with active glob, brace, or named-user home expansion as literal working directories; these commands now stay with the shell ([#20024](https://github.com/Linxira-OS/linxira-zeta/pull/20024) by [@eggpeat](https://github.com/eggpeat))
@@ -54,11 +55,12 @@
 - Fixed `/usage` showing "Usage history unavailable (database is locked)" while another process was writing the stats database; the stored history stays visible, marked not synced when the refresh cannot finish ([#19896](https://github.com/Linxira-OS/linxira-zeta/pull/19896) by [@Xytronix](https://github.com/Xytronix))
 - `openai-models-list` discovery no longer offers a gateway's speech and transcription models as chat models: rows whose only output is `speech` or `transcription` (including OpenRouter's `text->speech` style `architecture.modality` summary) become `tts` and `stt` models ([#19900](https://github.com/Linxira-OS/linxira-zeta/pull/19900) by [@Xytronix](https://github.com/Xytronix))
 - Subagents stopped by their parent through `proc://<id>/kill` now record "Stopped by parent agent" in their transcripts instead of "Interrupted by user" ([#20012](https://github.com/Linxira-OS/linxira-zeta/pull/20012) by [@nick-maderight](https://github.com/nick-maderight))
+
 ## [19.2.0] - 2026-11-25
 
 ### Breaking Changes
 
-- Migrated extension, hook, and custom-tool UI rendering to the host's `@oh-my-pi/pi-tui` implementation. Renderers now return pi-tui nodes or row objects, UI factories receive a lightweight UI host, and renderers receive the host theme and text-style helpers. Extensions that import bundled or alternate pi-tui packages no longer load; see [Migrating from pi-tui](../../docs/extensions.md#migrating-from-pi-tui).
+- Migrated extension, hook, and custom-tool UI rendering to the host's `@linxiraos/pi-tui` implementation. Renderers now return pi-tui nodes or row objects, UI factories receive a lightweight UI host, and renderers receive the host theme and text-style helpers. Extensions that import bundled or alternate pi-tui packages no longer load; see [Migrating from pi-tui](../../docs/extensions.md#migrating-from-pi-tui).
 - Removed `ctx.ui.setEditorComponent` and `getEditorComponent`; use the `ctx.ui.composer` hooks instead. `registerComposerShape` now accepts a `ComposerShape`, and tools must return nodes from `renderCall` and `renderResult` instead of implementing `describeCall` and `describeResult`.
 - Updated `ctx.ui.custom` options: pi-tui overlay options are no longer supported, `fullscreen` is a standalone option, and `onHandle` receives a `{ closed, close() }` handle.
 - The package root no longer re-exports pi-tui components and helpers; use the supported theme service and `ansiSpans` exports instead.
@@ -77,7 +79,7 @@
 ### Changed
 
 - `omp usage` times Anthropic re-login warnings by the expiry Anthropic reports at login, including 1-year logins, and falls back to the ~30-day estimate for older logins.
-- Rebuilt the interactive UI on `@oh-my-pi/pi-tui` while preserving the existing appearance and layout, and restored configured key mappings throughout dialogs, pickers, forms, and settings.
+- Rebuilt the interactive UI on `@linxiraos/pi-tui` while preserving the existing appearance and layout, and restored configured key mappings throughout dialogs, pickers, forms, and settings.
 - Eval-defined tools are now disabled by default; enable them with `eval.tools.enabled`. Cross-instance agent messaging is now enabled by default and can be disabled with `task.crossInstance`.
 - Vim mode now starts each new prompt according to `tui.vimStartMode` (Insert by default), and plain `y` no longer copies to the system clipboard unless `tui.vimYankToClipboard` is enabled; use `"+y` or `"*y` for explicit clipboard yanks.
 - `providers.maxInFlightRequests` is coordinated across omp processes through the daemon, so queued requests start promptly and capacity is returned immediately when a process exits.
@@ -133,7 +135,7 @@
 
 ### Removed
 
-- Removed `fileToUri`, `uriToFile`, and `EquivalentUriMap` from `@oh-my-pi/pi-coding-agent/lsp/utils`; import them from `@oh-my-pi/pi-coding-agent/lsp/uri` instead.
+- Removed `fileToUri`, `uriToFile`, and `EquivalentUriMap` from `@linxiraos/zeta/lsp/utils`; import them from `@linxiraos/zeta/lsp/uri` instead.
 - Hindsight forks now retain only turns added by the fork, rather than the inherited parent transcript.
 
 ## [19.1.1] - 2026-11-23
@@ -511,7 +513,7 @@
 ### Breaking Changes
 
 - `secrets.yml` regex rules are now Rust `regex` patterns run natively, in linear time: lookarounds and backreferences are no longer supported, and a `(?P<secret>…)` group marks the part to redact (text around it is context that stays); `\d`, `\w` and `\s` are Unicode-aware. A regex rule that does not compile stops startup with an error naming the file and entry instead of being skipped. Migrate `(?<=password=)\S+` to `password=(?P<secret>\S+)`; see [docs/secrets.md](https://github.com/Linxira-OS/linxira-zeta/blob/main/docs/secrets.md) ([#18965](https://github.com/Linxira-OS/linxira-zeta/pull/18965) by [@H4vC](https://github.com/H4vC))
-- Secret placeholders are now four camelCased words after the friendly name, e.g. `GitHubToken_correctHorseStapleBattery`, with no ` delimiters, and the transcript shows the real value wherever the model wrote one. Placeholders in the old `$NAME_HASH:CASE form, in sessions saved before this change, stay literal text, including in tool calls the model copies them into; start a new session to get working placeholders ([#19014](https://github.com/Linxira-OS/linxira-zeta/pull/19014) by [@H4vC](https://github.com/H4vC))
+- Secret placeholders are now four camelCased words after the friendly name, e.g. `GitHubToken_correctHorseStapleBattery`, with no `delimiters, and the transcript shows the real value wherever the model wrote one. Placeholders in the old`$NAME_HASH:CASE form, in sessions saved before this change, stay literal text, including in tool calls the model copies them into; start a new session to get working placeholders ([#19014](https://github.com/Linxira-OS/linxira-zeta/pull/19014) by [@H4vC](https://github.com/H4vC))
 - What the model writes from placeholders (replies, thinking, tool calls, summaries) is stored as written and replayed byte-identical, keeping thinking signatures and prompt caches valid; model output that still holds a value (written while redaction was off, or before the secret was configured) is redacted on replay. Values a regex rule finds later no longer rewrite earlier history. A `friendlyName` is shown to the model as written and is dropped only when it spells out its own secret ([#19014](https://github.com/Linxira-OS/linxira-zeta/pull/19014) by [@H4vC](https://github.com/H4vC))
 - `ask` over RPC hosts without a form dialog now shows each prompt with the form's surrounding paragraphs, lists, preformatted blocks and tables instead of only the question ([#18927](https://github.com/Linxira-OS/linxira-zeta/issues/18927))
 - Moved binary analysis from the standalone `ida` and `ghidra` tools into the backend-neutral `dsm` namespace (`xd://eval/dsm`).
@@ -758,6 +760,7 @@
 - Fixed the `ts-import-type` rule missing inline type imports whose member name is non-ASCII, such as `import("./units").温度` ([#16242](https://github.com/Linxira-OS/linxira-zeta/pull/16242))
 
 Older entries are archived in [packages/coding-agent/CHANGELOG.md@98457bf8eab0](https://github.com/Linxira-OS/linxira-zeta/blob/98457bf8eab0e58e6e523e7ffea11f0635b8ed78/packages/coding-agent/CHANGELOG.md).
+
 - Deleting or moving large directory trees inside a project no longer stalls language-server file watching ([#19490](https://github.com/Linxira-OS/linxira-zeta/pull/19490) by [@H4vC](https://github.com/H4vC)).
 - Reduced CPU and memory usage for long-running subagents as their sessions grow ([#19486](https://github.com/Linxira-OS/linxira-zeta/pull/19486) by [@H4vC](https://github.com/H4vC)).
 - Fixed `commit.draft()` incorrectly classifying files deleted or renamed through bash or eval as “Not yours”; they now appear under Review.
@@ -1067,6 +1070,7 @@ Older entries are archived in [packages/coding-agent/CHANGELOG.md@98457bf8eab0](
 - Explicit `copy-from-omp` remains a one-click import and no longer depends on ambient OMP compatibility being enabled.
 
 Older entries are archived in [packages/coding-agent/CHANGELOG.md@6eb3ab5f5890](https://github.com/Linxira-OS/linxira-zeta/blob/6eb3ab5f58900774fb767318f88de7c0fd94c691/packages/coding-agent/CHANGELOG.md).
+
 ### Fixed
 
 - `/usage`, session statistics, and `omp stats` now include session title spend from both the default fork title and the tiny title model, and tiny-model titles count toward `--max-cost` ([#18177](https://github.com/Linxira-OS/linxira-zeta/issues/18177), [#18491](https://github.com/Linxira-OS/linxira-zeta/pull/18491) by [@yuzu-octopus](https://github.com/yuzu-octopus))

@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Pieces the search tools (grep, glob, find, lsp) share: the file row, the
  * file chip, the inline error view and count wording.
  */
 import * as nodePath from "node:path";
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { ToolHead, ToolView } from "./contract";
 import { fileHref } from "./file-common";
 import { formatArtifactErrorNotice, formatTruncationMetaNotice, type OutputMeta } from "../../tools/output-meta-format";
@@ -59,7 +59,7 @@ export function FileRow(props: {
 	readonly cwd?: string;
 }): JSXNode {
 	return (
-		<row key={props.id} role="omp.tool.file">
+		<row key={props.id} role="zeta.tool.file">
 			<icon name={props.icon ?? (isDirectory(props.path) ? "folder" : "file")} />
 			<text
 				spans={pathSpans(props.path, listedFileHref(props.cwd, props.path))}
@@ -78,7 +78,7 @@ export function FileChip(props: { readonly path: string; readonly cwd?: string }
 	const href = listedFileHref(props.cwd, props.path);
 	const name = splitPath(props.path).name;
 	return (
-		<row key={props.path} role="omp.tool.chip" gap="xs" align="center" title={props.path}>
+		<row key={props.path} role="zeta.tool.chip" gap="xs" align="center" title={props.path}>
 			<icon name={isDirectory(props.path) ? "folder" : "file"} />
 			<text spans={[href ? { s: "strong", t: name, href } : { s: "strong", t: name }]} wrap="none" />
 		</row>
@@ -96,7 +96,7 @@ export function errorMeta(message: string): TspText {
  */
 export function inlineErrorView(head: ToolHead, message: string, extra?: Partial<ToolView>): ToolView {
 	const body = message.includes("\n") ? (
-		<text role="omp.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />
+		<text role="zeta.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />
 	) : undefined;
 	return {
 		head: { ...head, meta: [...(head.meta ?? []), errorMeta(message)] },

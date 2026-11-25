@@ -1,5 +1,4 @@
-import { type UpdateNotesDetails } from "@linxiraos/pi-tui/tools/autoresearch";
-import { updateNotesToolRenderer } from "@linxiraos/pi-tui/tools/autoresearch";
+import { type UpdateNotesDetails } from "../tool-details";
 import { type } from "@linxiraos/zeta-schema";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 
@@ -18,7 +17,6 @@ export function createUpdateNotesTool(
 	options: AutoresearchToolFactoryOptions,
 ): ToolDefinition<typeof updateNotesSchema, UpdateNotesDetails> {
 	return {
-		...updateNotesToolRenderer,
 		name: "update_notes",
 		label: "Update Notes",
 		description:

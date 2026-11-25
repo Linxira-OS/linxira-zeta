@@ -3,9 +3,9 @@
  * for the token after `^`, effort-level rows (`^model:high`), and applying the
  * picked selector.
  */
-import type { Model } from "@oh-my-pi/pi-ai";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { Model } from "@linxiraos/pi-ai";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import {
 	buildSearchAffinity,
 	buildSessionModelScope,

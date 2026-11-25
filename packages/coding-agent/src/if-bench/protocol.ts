@@ -7,7 +7,7 @@
  * The cat directive rotates through the start, middle, and end of the user turn
  * so a model cannot succeed by only attending to the prompt's edges.
  */
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 import type { IfBenchFailure } from "../modes/view-model/apps/if-bench-board";
 import type { Action } from "./actions";
 import { encodeAction } from "./actions";

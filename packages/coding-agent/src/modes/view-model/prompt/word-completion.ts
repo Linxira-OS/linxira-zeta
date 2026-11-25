@@ -9,6 +9,11 @@ export const WORD_COMPLETION_METHODS = ["off", "auto", "ngram", "smollm", "apple
 /** Configured word-completion engine; `off` disables ghost text. */
 export type WordCompletionMethod = (typeof WORD_COMPLETION_METHODS)[number];
 
+/** Narrow an arbitrary setting value to a completion method. */
+export function isWordCompletionMethod(value: unknown): value is WordCompletionMethod {
+	return typeof value === "string" && (WORD_COMPLETION_METHODS as readonly string[]).includes(value);
+}
+
 /** An engine that answers (every method but `off`). */
 export type WordCompletionEngine = Exclude<WordCompletionMethod, "off">;
 
@@ -114,6 +119,8 @@ export class WordCompletionProvider {
 
 	/** Bumped when an answer changes the ghost text the last call returned (reactive). */
 	readonly revision: Accessor<number> = this.#revision;
+	/** Host hook fired when the ghost text changes. */
+	onUpdate?: () => void;
 
 	constructor(backend: (engine: WordCompletionEngine) => WordPredictionBackend | undefined) {
 		this.#backend = backend;
@@ -209,6 +216,7 @@ export class WordCompletionProvider {
 		const displayed = this.#displayed;
 		if (current && displayed?.key === query.key && displayed.suffix !== (suffix ?? this.#project(query))) {
 			this.#revision.update(n => n + 1);
+			this.onUpdate?.();
 		}
 	}
 }

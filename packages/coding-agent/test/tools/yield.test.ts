@@ -1,17 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { Agent, type AgentEvent, validateAgentToolArguments } from "@oh-my-pi/pi-agent-core";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { convertOpenAICodexResponsesTools } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import type { Model, Tool, ToolCall } from "@oh-my-pi/pi-ai/types";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { buildOutputValidator } from "@oh-my-pi/pi-coding-agent/tools/output-schema-validator";
-import { YieldTool } from "@oh-my-pi/pi-coding-agent/tools/yield";
+import { Agent, type AgentEvent, validateAgentToolArguments } from "@linxiraos/pi-agent-core";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { convertOpenAICodexResponsesTools } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import type { Model, Tool, ToolCall } from "@linxiraos/pi-ai/types";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { buildOutputValidator } from "@linxiraos/zeta/tools/output-schema-validator";
+import { YieldTool } from "@linxiraos/zeta/tools/yield";
 import { buildWorkPoolOutputSchema } from "../../src/task/workpool-yield";
 import { yieldSectionShapes } from "../../src/task/yield-assembly";
-import { assembleYieldResult } from "@oh-my-pi/pi-coding-agent/task/yield-sections";
+import { assembleYieldResult } from "@linxiraos/zeta/task/yield-sections";
 
 function createSession(overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

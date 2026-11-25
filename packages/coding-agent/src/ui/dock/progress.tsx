@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Progress HUDs (`progress` slot), right above the working row: judgment
  * batches, downloads, and a background compaction while a turn holds the
@@ -15,10 +15,10 @@
  * A download shows once it has run 150 ms (quick fetches never flash) and
  * stays 1.5 s once done, 10 s once failed.
  */
-import { type Accessor, For, type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatBytes } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type Accessor, For, type JSXNode, signal } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatBytes } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { DownloadActivity } from "../../downloads/activity";
 import type { JudgmentBatchProgress } from "../../eval/judgment-batch-events";
 import { sanitizeDisplaySingleLine } from "../../extensibility/inventory/display-text";
@@ -148,7 +148,7 @@ function HudRow(props: HudRowProps): JSXNode {
 	const bar = props.bar;
 	const tail = props.tail;
 	return (
-		<row key={props.nodeKey} justify="end" gap="sm" align="center" role="omp.hud.progress" term={props.term}>
+		<row key={props.nodeKey} justify="end" gap="sm" align="center" role="zeta.hud.progress" term={props.term}>
 			<text spans={[{ t: statusText(props.label), s: "dim" }]} wrap="none" truncate="end" shrink={1} />
 			{bar !== undefined && (
 				<progress value={bar === null ? null : Math.min(1, Math.max(0, bar))} max={{ w: "18ch" }} />
@@ -266,15 +266,15 @@ export function ProgressHud(props: { readonly model: ProgressHudModel }): JSXNod
 	const beside = (): BackgroundRun | undefined => (model.statusBusy() ? model.background.visible() : undefined);
 	return (
 		<col>
-			<col role="omp.hud.judge">
+			<col role="zeta.hud.judge">
 				<For each={model.judgments.batches}>{batch => <JudgmentRow batch={batch} />}</For>
 			</col>
-			<col role="omp.hud.downloads">
+			<col role="zeta.hud.downloads">
 				<For each={() => model.downloads.rows().filter(row => row.shown)}>
 					{row => <DownloadRowNode activity={row.activity} />}
 				</For>
 			</col>
-			<col role="omp.hud.compaction">
+			<col role="zeta.hud.compaction">
 				{() => {
 					const run = beside();
 					if (!run) return undefined;

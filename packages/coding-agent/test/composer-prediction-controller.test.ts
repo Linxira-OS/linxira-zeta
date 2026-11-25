@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { Message, Model } from "@oh-my-pi/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Message, Model } from "@linxiraos/pi-ai";
 import {
 	AggregationTemporality,
 	type DataPoint,
@@ -9,15 +9,15 @@ import {
 	MeterProvider,
 	PeriodicExportingMetricReader,
 } from "@opentelemetry/sdk-metrics";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	ComposerPredictionController,
 	parseComposerPrediction,
 	parseComposerPredictions,
-} from "@oh-my-pi/pi-coding-agent/modes/controllers/composer-prediction-controller";
-import type { EphemeralTurnOptions, EphemeralTurnResult } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createRoot, effect } from "@oh-my-pi/pi-tui";
+} from "@linxiraos/zeta/modes/controllers/composer-prediction-controller";
+import type { EphemeralTurnOptions, EphemeralTurnResult } from "@linxiraos/zeta/session/agent-session-types";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createRoot, effect } from "@linxiraos/pi-tui";
 import { Composer } from "../src/ui/composer/composer";
 
 describe("parseComposerPrediction", () => {

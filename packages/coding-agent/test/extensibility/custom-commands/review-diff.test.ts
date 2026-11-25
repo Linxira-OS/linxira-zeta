@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { parseReviewDiffSnapshot } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/review/diff";
+import { parseReviewDiffSnapshot } from "@linxiraos/zeta/extensibility/custom-commands/bundled/review/diff";
 import type {
 	ReviewDiffRow,
 	ReviewSourceRow,
-} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/annotation-types";
+} from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/annotation-types";
 
 function rowOfKind(rows: readonly ReviewDiffRow[], kind: "context" | "added" | "removed"): ReviewSourceRow;
 function rowOfKind(

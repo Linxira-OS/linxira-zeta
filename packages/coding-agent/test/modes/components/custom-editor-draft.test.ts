@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { createRoot } from "@oh-my-pi/pi-tui";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgComposerRecallClearedDrafts } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { createRoot } from "@linxiraos/pi-tui";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { cfgComposerRecallClearedDrafts } from "@linxiraos/zeta/modes/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import { Composer, type ComposerOptions, chipLabel } from "../../../src/ui/composer";
 import { KEYS, key, sendKey, sendPaste } from "../../ui/composer/harness";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

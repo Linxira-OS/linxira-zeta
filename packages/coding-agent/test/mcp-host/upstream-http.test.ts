@@ -3,22 +3,17 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPTransportError } from "@oh-my-pi/pi-coding-agent/mcp/errors";
-import { type McpRemoteSpec, mcpIdentity, mcpPublicIdentity } from "@oh-my-pi/pi-coding-agent/mcp/host/contract";
-import { encodeMcpHeaderValue, HttpUpstream } from "@oh-my-pi/pi-coding-agent/mcp/host/http-upstream";
-import { LocalMcpHost } from "@oh-my-pi/pi-coding-agent/mcp/host/local";
-import type { McpPeer } from "@oh-my-pi/pi-coding-agent/mcp/host/peer";
-import { mcpUpstreams } from "@oh-my-pi/pi-coding-agent/mcp/host/peers";
-import { McpStore } from "@oh-my-pi/pi-coding-agent/mcp/host/store";
-import { HostLink } from "@oh-my-pi/pi-coding-agent/mcp/link";
-import { analyzeAuthError } from "@oh-my-pi/pi-coding-agent/mcp/oauth-discovery";
-import {
-	MCP_LEGACY_PROTOCOL_VERSION,
-	MCP_PROTOCOL_VERSION,
-	MCPMeta,
-	requestMeta,
-} from "@oh-my-pi/pi-coding-agent/mcp/protocol";
-import { postmortem, removeWithRetries, withTimeout } from "@oh-my-pi/pi-utils";
+import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
+import { type McpRemoteSpec, mcpIdentity, mcpPublicIdentity } from "@linxiraos/zeta/mcp/host/contract";
+import { encodeMcpHeaderValue, HttpUpstream } from "@linxiraos/zeta/mcp/host/http-upstream";
+import { LocalMcpHost } from "@linxiraos/zeta/mcp/host/local";
+import type { McpPeer } from "@linxiraos/zeta/mcp/host/peer";
+import { mcpUpstreams } from "@linxiraos/zeta/mcp/host/peers";
+import { McpStore } from "@linxiraos/zeta/mcp/host/store";
+import { HostLink } from "@linxiraos/zeta/mcp/link";
+import { analyzeAuthError } from "@linxiraos/zeta/mcp/oauth-discovery";
+import { MCP_LEGACY_PROTOCOL_VERSION, MCP_PROTOCOL_VERSION, MCPMeta, requestMeta } from "@linxiraos/zeta/mcp/protocol";
+import { postmortem, removeWithRetries, withTimeout } from "@linxiraos/pi-utils";
 import { rejectionOf, trackUnhandled } from "../helpers/rejection";
 import { httpSpec, realDeps } from "./upstream-support";
 

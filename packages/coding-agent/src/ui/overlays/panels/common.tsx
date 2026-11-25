@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Building blocks the overlay panels share: buttons (`omp.btn`, `omp.app.ibtn`, `omp.app.qbtn`),
  * key hints (a `kbd` beside a muted label) and the hint strip
@@ -15,9 +15,9 @@ import {
 	signal,
 	type TextEdit,
 	type UiNode,
-} from "@oh-my-pi/pi-tui";
-import { type WidgetContext, widgetFor, widgetState } from "@oh-my-pi/pi-tui/term/widgets";
-import type { TspMark, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { type WidgetContext, widgetFor, widgetState } from "@linxiraos/pi-tui/term/widgets";
+import type { TspMark, TspSpan, TspTone } from "@linxiraos/pi-wire";
 
 /** What an {@link ActionButton} takes. */
 export interface ActionButtonProps {
@@ -58,7 +58,7 @@ export function ActionButton(props: ActionButtonProps): JSXNode {
 			return (
 				<button
 					key={key}
-					role="omp.btn"
+					role="zeta.btn"
 					text={props.label}
 					actions={{ click: props.id }}
 					title={title}
@@ -76,7 +76,7 @@ export function ActionButton(props: ActionButtonProps): JSXNode {
 		return (
 			<row
 				key={key}
-				role="omp.btn"
+				role="zeta.btn"
 				align="center"
 				gap="xs"
 				actions={disabled === undefined ? { click: props.id } : undefined}
@@ -100,9 +100,9 @@ export function EscCloseButton(props: { readonly act?: string; readonly nodeKey?
 	const actions = { click: props.act ?? "close" };
 	return () =>
 		nativeSupports("button") ? (
-			<button key={key} role="omp.btn" keys={["escape"]} actions={actions} title="Close  esc" aria="Close" />
+			<button key={key} role="zeta.btn" keys={["escape"]} actions={actions} title="Close  esc" aria="Close" />
 		) : (
-			<row key={key} role="omp.btn" align="center" actions={actions} title="Close  esc">
+			<row key={key} role="zeta.btn" align="center" actions={actions} title="Close  esc">
 				<kbd keys={["escape"]} />
 			</row>
 		);
@@ -158,7 +158,7 @@ export function QuietButton(props: {
 		nativeSupports("button") ? (
 			<button
 				key={props.act}
-				role="omp.app.qbtn"
+				role="zeta.app.qbtn"
 				variant="quiet"
 				size="sm"
 				text={props.label}
@@ -167,7 +167,7 @@ export function QuietButton(props: {
 			/>
 		) : (
 			(props.children ?? (
-				<row key={props.act} role="omp.app.qbtn" actions={actions} title={props.title}>
+				<row key={props.act} role="zeta.app.qbtn" actions={actions} title={props.title}>
 					<text text={props.label} />
 				</row>
 			))
@@ -199,7 +199,7 @@ export function Hint(props: { readonly keys: readonly string[]; readonly label: 
 export function Hints(props: { readonly hints: Reactive<readonly KeyHint[]>; readonly nodeKey?: string }): JSXNode {
 	const hints = () => (typeof props.hints === "function" ? props.hints() : props.hints);
 	return (
-		<row key={props.nodeKey ?? "hints"} role="omp.overlay.hints" gap="md" wrap>
+		<row key={props.nodeKey ?? "hints"} role="zeta.overlay.hints" gap="md" wrap>
 			{() => hints().map(hint => <Hint keys={hint.keys} label={hint.label} />)}
 		</row>
 	);
@@ -242,7 +242,7 @@ export interface KeycapHint {
 /** A hint strip (`omp.overlay.hints`) of {@link KeycapHint}s. */
 export function KeycapHints(props: { readonly nodeKey: string; readonly hints: () => readonly KeycapHint[] }): JSXNode {
 	return (
-		<row key={props.nodeKey} role="omp.overlay.hints" gap="md" wrap>
+		<row key={props.nodeKey} role="zeta.overlay.hints" gap="md" wrap>
 			{() =>
 				props.hints().map(hint => (
 					<row align="center" gap="xs">

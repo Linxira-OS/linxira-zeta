@@ -17,8 +17,8 @@ import { cfgContextFilesExtra } from "../session/context-settings";
 import { cfgTaskPerCallModelAllow } from "../task/settings";
 import { cfgToolsRestrictedFolders } from "../tools/settings";
 import { cfgAuthUnpausedProviders } from "./model-settings";
-import { nativeRendering } from "@oh-my-pi/pi-tui";
-import { terminalCapabilities } from "@oh-my-pi/pi-tui/driver/session";
+import { nativeRendering } from "@linxiraos/pi-tui";
+import { terminalCapabilities } from "@linxiraos/pi-tui/driver/session";
 
 /** Condition over the global settings; hidden (false) until they are initialized. */
 function whenSettings(test: (settings: Settings) => boolean): () => boolean {

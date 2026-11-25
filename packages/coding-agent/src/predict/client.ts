@@ -53,12 +53,26 @@ interface PredictSession {
 }
 
 /** Process-wide access shared by every editor and the submit hook. */
-class TextPredictionClient {
+export class TextPredictionClient {
+	/** Corpus read by this client; Studio passes its isolated directory. */
+	readonly agentDirectory: string;
+	/** Whether SmolLM's weights may be prefetched in this process. */
+	readonly downloadWeights: boolean;
 	#session: PredictSession | undefined;
 	#opening: Promise<PredictSession> | undefined;
 	#retryAt = 0;
 	#backends = new Map<TextPredictMethod, WordPredictionBackend>();
 	#offReconnect: (() => void) | undefined;
+
+	constructor(options: { agentDirectory?: string; downloadWeights?: boolean; profile?: string } = {}) {
+		this.agentDirectory = options.agentDirectory ?? getAgentDir();
+		this.downloadWeights = options.downloadWeights ?? true;
+	}
+
+	/** Cancel any in-flight prediction work. */
+	stop(): void {
+		this.#session = undefined;
+	}
 
 	backend(method: WordCompletionEngine): WordPredictionBackend {
 		const resolved = resolveTextPredictMethod(method);
@@ -121,7 +135,7 @@ class TextPredictionClient {
 	async complete(engine: TextPredictMethod, before: string, prefix: string): Promise<TextPrediction> {
 		// SmolLM's weights download here, in the interactive process (shown in the
 		// download HUD), only once the user has chosen SmolLM.
-		if (engine === "smollm") prefetchSmolLmWeights();
+		if (engine === "smollm" && this.downloadWeights) prefetchSmolLmWeights();
 		const suggestion = await this.#call("complete", { method: engine, before, prefix }, COMPLETE_TIMEOUT_MS);
 		return { engine, suggestion };
 	}
@@ -170,7 +184,7 @@ class TextPredictionClient {
 		if (this.#session) return Promise.resolve(this.#session);
 		if (this.#opening) return this.#opening;
 		if (Date.now() < this.#retryAt) return Promise.reject(new Error("text-predict unavailable"));
-		const opening = openPredictUnit(getAgentDir()).then(
+		const opening = openPredictUnit(this.agentDirectory).then(
 			session => {
 				this.#session = session;
 				this.#opening = undefined;

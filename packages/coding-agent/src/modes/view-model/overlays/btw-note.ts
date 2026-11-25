@@ -1,4 +1,4 @@
-import type { TspMenuEntry } from "@oh-my-pi/pi-wire";
+import type { TspMenuEntry } from "@linxiraos/pi-wire";
 import { type BtwHistoryRecord } from "../../../session/btw-history-model";
 import { type BtwInjectState } from "./btw-inject";
 

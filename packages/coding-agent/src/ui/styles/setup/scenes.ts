@@ -3,11 +3,11 @@
  * intro, a blank row, then the scene's controls; every body is cut to the
  * rows the wizard gives it (`term.maxLines`).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext, roleOf } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { padTo, spaces, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { TspInputProps, TspText, TspTextProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext, roleOf } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { padTo, spaces, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { TspInputProps, TspText, TspTextProps } from "@linxiraos/pi-wire";
 import { selectRows } from "../forms/field";
 import { composerShapePreviewRows } from "../overlays/composer-shape-preview";
 

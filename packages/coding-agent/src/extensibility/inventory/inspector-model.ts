@@ -1,4 +1,4 @@
-import { parseFrontmatter } from "@oh-my-pi/pi-utils";
+import { parseFrontmatter } from "@linxiraos/pi-utils";
 import { sanitizeDisplayField, sanitizeDisplayText } from "./display-text";
 import { type Extension } from "./types";
 

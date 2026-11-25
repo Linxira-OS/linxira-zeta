@@ -1,5 +1,5 @@
-import { hsvToRgb, type RGB } from "@oh-my-pi/pi-utils";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { hsvToRgb, type RGB } from "@linxiraos/pi-utils";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { SttTarget } from "./stt-controller";
 
 /** The caret of a text input that push-to-talk paints its mic glyph onto. */

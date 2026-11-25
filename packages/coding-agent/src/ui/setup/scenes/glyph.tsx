@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Glyph mode: pick the symbol preset whose sample row renders cleanly. The
  * highlighted preset previews across the whole UI; Enter saves it.
@@ -33,7 +33,7 @@ export const glyphScene: SetupScene = {
 		return {
 			body: (
 				<col
-					role="omp.setup.glyph"
+					role="zeta.setup.glyph"
 					gap="sm"
 					term={() => ({ maxLines: context.maxLines() })}
 					onKey={key => model.key(key)}

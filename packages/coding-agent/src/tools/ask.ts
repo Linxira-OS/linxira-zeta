@@ -9,10 +9,10 @@
  * timeout submits the form's preselected values.
  */
 
-import { type as arkType } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { notifyTerminal } from "@oh-my-pi/pi-tui/driver/session";
+import { type as arkType } from "@linxiraos/zeta-schema";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { notifyTerminal } from "@linxiraos/pi-tui/driver/session";
 import { actionKey, formatKeyHint } from "../ui/keys/hints";
 import {
 	choiceValue,
@@ -31,7 +31,7 @@ import { shiftImageMarkers } from "../modes/view-model/prompt/composer-attachmen
 import { disambiguateDisplayLabels } from "../utils/render-utils";
 import type { AskToolDetails } from "./details/ask";
 import { ToolError } from "./tool-errors";
-import { isRecord, logger, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+import { isRecord, logger, prompt, untilAborted } from "@linxiraos/pi-utils";
 import type {
 	ExtensionFormDialogResult,
 	ExtensionUIContext,
@@ -50,7 +50,7 @@ import { vocalizer } from "../tts/vocalizer";
 import { describeAttachedImagesForTextModel, shouldDescribeImagesForTextModel } from "../utils/image-vision-fallback";
 import type { ToolSession } from ".";
 import { ToolAbortError } from "./tool-errors";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 /** Returned to a headless fork's model instead of aborting its run. */
 const HEADLESS_FORK_ASK_ERROR = prompt.render(askHeadlessForkMessage);

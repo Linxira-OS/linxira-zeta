@@ -2,7 +2,7 @@
  * Built-in model roles and role metadata helpers.
  */
 
-import { type Model, modelKind } from "@oh-my-pi/pi-catalog/types";
+import { type Model, modelKind } from "@linxiraos/pi-catalog/types";
 import {
 	KIND_ROLE_IDS,
 	MODEL_ROLE_IDS,
@@ -12,7 +12,7 @@ import {
 import type { ModelRegistry } from "./model-registry";
 import type { Settings } from "./settings";
 import { cfgCycleOrder, cfgModelTags } from "./model-settings";
-import { isForegroundKey } from "@oh-my-pi/pi-tui/theme/schema";
+import { isForegroundKey } from "@linxiraos/pi-tui/theme/schema";
 import type { ModelBrowserRoleInfo } from "../modes/view-model/overlays/model-browser";
 
 /** Canonical prefix for a configured model role selector. */

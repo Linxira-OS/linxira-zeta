@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { hasFsCode, removeWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
+import { hasFsCode, removeWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 function createSession(cwd: string): ToolSession {
 	return {
@@ -29,8 +29,8 @@ async function writeInChild(
 	cwd: string,
 ): Promise<{ code: number | null; signal: string | null; output: string }> {
 	const script = `
-		import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-		import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
+		import { Settings } from "@linxiraos/zeta/config/settings";
+		import { WriteTool } from "@linxiraos/zeta/tools/write";
 		const tool = new WriteTool({ cwd: ${JSON.stringify(cwd)}, settings: Settings.isolated() });
 		try {
 			await tool.execute("special-write", { path: ${JSON.stringify(target)}, content: "blocked\\n" });
@@ -52,7 +52,7 @@ async function writeInChild(
 	});
 	const code = await child.exited;
 	const output = `${await new Response(child.stdout).text()}${await new Response(child.stderr).text()}`;
-	return { code, signal: child.signalCode, output };
+	return { code, signal: child.signalCode ? String(child.signalCode) : null, output };
 }
 
 /** Release a reader without blocking if no read is still waiting. */

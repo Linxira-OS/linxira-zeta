@@ -4,10 +4,10 @@
  * or nothing while it has nothing to show.
  */
 import { pathToFileURL } from "node:url";
-import type { SymbolSet } from "@oh-my-pi/pi-tui/theme/contract";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import type { SymbolSet } from "@linxiraos/pi-tui/theme/contract";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import type { StatusLineSegmentId } from "../../config/status-line-schema";
 import { STATUS_LINE_PRESETS } from "../../modes/view-model/status-line/presets";
 import type { StatusLineSegmentOptions, StatusLineSettings } from "../../modes/view-model/status-line/types";
@@ -768,17 +768,6 @@ export function segmentView(
 		}
 		case "usage":
 			return usageSeg(input);
-		case "collab": {
-			const collab = facts.collab;
-			if (!collab) return null;
-			const label = `collab${collab.role === "host" ? "" : " guest"}:${collab.participantCount}`;
-			return view(
-				input,
-				[span(label, nativeAccent(input, "accent"))],
-				[{ t: `⇄ ${label}`, s: lookAccent(input, "accent") }],
-				"collab",
-			);
-		}
 		case "stream": {
 			const live = facts.stream ? [`LIVE ${facts.stream.viewers}`] : [];
 			if (facts.recording) live.push("REC");

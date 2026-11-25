@@ -15,7 +15,7 @@ import {
 	isRecord,
 	logger,
 	stripWindowsExtendedLengthPathPrefix,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { registerPluginCacheInvalidator } from "../../discovery/helpers";
 import { assertBunCanImport } from "../module-path";
 
@@ -761,7 +761,7 @@ function ensureBundledModuleLoadersLoaded(): Promise<BundledModuleLoaders> {
 	}
 	if (!bundledModuleLoadersPromise) {
 		// This virtual module exists only in compiled/npm builds; source mode cannot import it statically.
-		bundledModuleLoadersPromise = import("omp-legacy-pi-modules").then(module => module.BUNDLED_PI_MODULE_LOADERS);
+		bundledModuleLoadersPromise = import("zeta-legacy-pi-modules").then(module => module.BUNDLED_PI_MODULE_LOADERS);
 	}
 	return bundledModuleLoadersPromise;
 }
@@ -808,15 +808,15 @@ function resolveBundledVirtualSpecifier(specifier: string): BundledVirtualResolv
 
 // Canonical scope for in-process pi packages. Plugins published against any of
 // the aliased scopes below (mariozechner's original publish, earendil-works'
-// fork, or the canonical @oh-my-pi scope itself) are remapped to this scope and
+// fork, or the canonical @linxiraos scope itself) are remapped to this scope and
 // resolved against the bundled copy that ships inside the omp binary. This
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
 // scope name they happened to declare in their peerDependencies.
-const CANONICAL_PI_SCOPE = "@oh-my-pi";
+const CANONICAL_PI_SCOPE = "@linxiraos";
 
 // Scopes that have historically been used to publish (or alias) internal host
-// packages. `@oh-my-pi` is intentionally included so direct
+// packages. `@linxiraos` is intentionally included so direct
 // canonical imports still pass through the same host-bundled package resolution
 // path instead of pulling a duplicate copy from plugin node_modules.
 const PI_SCOPE_ALIASES = ["oh-my-pi", "mariozechner", "earendil-works"] as const;
@@ -834,7 +834,7 @@ const PI_PACKAGE_NAMES = [
 ] as const;
 
 /**
- * Upstream pi-tui under a foreign scope: its component API is gone (`@oh-my-pi/pi-tui` is the
+ * Upstream pi-tui under a foreign scope: its component API is gone (`@linxiraos/pi-tui` is the
  * reactive rewrite), so an extension importing it cannot load. {@link assertNoPiTuiImport} names
  * the replacement instead of aliasing the import onto a package with another API.
  */
@@ -853,9 +853,9 @@ export class PiTuiImportError extends Error {
 	) {
 		super(
 			`${importerPath} imports "${specifier}", which omp no longer provides: its component API was ` +
-				`replaced by the reactive @oh-my-pi/pi-tui. Return pi-tui nodes (JSX from "@oh-my-pi/pi-tui") or a { render(width): string[] } ` +
+				`replaced by the reactive @linxiraos/pi-tui. Return pi-tui nodes (JSX from "@linxiraos/pi-tui") or a { render(width): string[] } ` +
 				`rows object from renderers, ctx.ui.custom and ctx.ui.setWidget; replace ctx.ui.setEditorComponent ` +
-				`with the ctx.ui.composer hooks; import Theme types from "@oh-my-pi/pi-coding-agent". ` +
+				`with the ctx.ui.composer hooks; import Theme types from "@linxiraos/zeta". ` +
 				`See ${PI_TUI_MIGRATION_DOC}.`,
 		);
 		this.name = "PiTuiImportError";
@@ -957,7 +957,7 @@ const TYPEBOX_SPECIFIER_FILTER = /^(?:@sinclair\/typebox|typebox)$/;
  *
  * `bundle-dist.ts` defines `process.env.PI_BUNDLED="true"`; after bundling,
  * `import.meta.dir` points at `<package>/dist`. Do not resolve the package via
- * bare `@oh-my-pi/pi-coding-agent` here: from a global install Bun can pick an
+ * bare `@linxiraos/zeta` here: from a global install Bun can pick an
  * older cache entry, recreating mixed-runtime plugin loading.
  */
 export function __computeBundledSelfPackageRoot(metaDir: string, pathImpl: typeof path = path): string {
@@ -1017,7 +1017,7 @@ const TYPEBOX_SHIM_PATH = __resolveTypeBoxShimPath(USE_BUNDLED_PI_MODULES, sourc
 // longer satisfies those imports. The override below redirects only the bare
 // pi-ai package root onto a sibling shim that re-exports the canonical surface
 // plus the borrowed `Type` runtime from the omptype TypeBox facade. Subpath
-// imports such as `@oh-my-pi/pi-ai/oauth` continue to resolve directly
+// imports such as `@linxiraos/pi-ai/oauth` continue to resolve directly
 // against the bundled pi-ai package.
 const LEGACY_PI_AI_SHIM_PATH = USE_BUNDLED_PI_MODULES
 	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/pi-ai`)
@@ -1041,7 +1041,7 @@ const LEGACY_PI_CODING_AGENT_SHIM_PATH = USE_BUNDLED_PI_MODULES
 // in-process module instance — in dev / source-link / source SDK mode the
 // canonical specifier resolves cleanly through `Bun.resolveSync`; hardcoding a
 // source-tree path would miss installs where bundled packages live at
-// `node_modules/@oh-my-pi/pi-*`.
+// `node_modules/@linxiraos/pi-*`.
 //
 // Bundled entries are `omp-legacy-pi-bundled:<key>` specifiers handed to the
 // synthetic onLoad in `installLegacyPiSpecifierShim()`. Filesystem-shaped
@@ -1143,7 +1143,7 @@ function getResolvedSpecifier(specifier: string): string {
 }
 
 /**
- * Resolve a canonical `@oh-my-pi/*` specifier to a filesystem path, preferring
+ * Resolve a canonical `@linxiraos/*` specifier to a filesystem path, preferring
  * a bundled compat shim when one is registered for the package root.
  *
  * Falls back to `getResolvedSpecifier` (which may throw under compiled binary
@@ -2861,7 +2861,7 @@ function resolveLegacyPiSpecifier(args: { path: string; importer: string }): Leg
 		const resolved = resolveRemappedLegacyPiSpecifier(remappedSpecifier, args);
 		// A canonical specifier that remaps to itself and already resolves to the
 		// same host file from its importer (host code, e.g. `/login` requiring
-		// `@oh-my-pi/pi-ai/index.js`) has nothing to rewrite: decline and let Bun
+		// `@linxiraos/pi-ai/index.js`) has nothing to rewrite: decline and let Bun
 		// resolve it natively. Answering it anyway breaks `require()` on Bun
 		// 1.3.x, which reads the returned path back as `file:<path>` and, on
 		// source-link/dev installs, recurses into `NameTooLong reading
@@ -2886,7 +2886,7 @@ function resolveRemappedLegacyPiSpecifier(
 	remappedSpecifier: string,
 	args: { path: string; importer: string },
 ): LegacyPiResolveResult | undefined {
-	// Primary: resolve the canonical @oh-my-pi/* specifier from the host binary
+	// Primary: resolve the canonical @linxiraos/* specifier from the host binary
 	// location. Works in dev mode and in source-link installs.
 	try {
 		return toLegacyPiResolveResult(resolveCanonicalPiSpecifier(remappedSpecifier));
@@ -2894,7 +2894,7 @@ function resolveRemappedLegacyPiSpecifier(
 		// Fallback for compiled binary mode: the bundled packages live inside
 		// /$bunfs/root and aren't reachable by filesystem resolution. Prefer the
 		// canonical specifier against the importing file's directory when the
-		// plugin installed @oh-my-pi peer deps, then try the original legacy
+		// plugin installed @linxiraos peer deps, then try the original legacy
 		// specifier for plugins that still vendor only @mariozechner or
 		// @earendil-works peer deps.
 		const importerDir = path.dirname(args.importer);

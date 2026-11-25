@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { cfgHideThinkingBlock } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { cfgHideThinkingBlock } from "@linxiraos/zeta/session/settings";
 
 function createContext(options: {
 	hideThinkingBlock: boolean;

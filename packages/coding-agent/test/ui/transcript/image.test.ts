@@ -6,13 +6,13 @@ import {
 	setNativeRenderingForTest,
 	signal,
 	type UiNode,
-} from "@oh-my-pi/pi-tui";
-import type { TerminalCapabilities } from "@oh-my-pi/pi-tui/driver/contract";
-import { TerminalImages } from "@oh-my-pi/pi-tui/driver/images/store";
-import { driverImages } from "@oh-my-pi/pi-tui/term/backend";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/pi-tui";
+import type { TerminalCapabilities } from "@linxiraos/pi-tui/driver/contract";
+import { TerminalImages } from "@linxiraos/pi-tui/driver/images/store";
+import { driverImages } from "@linxiraos/pi-tui/term/backend";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { bindEffects } from "../../../src/config/registry";
 import { Settings } from "../../../src/config/settings";
 import { cfgTuiMaxInlineImageColumns, cfgTuiMaxInlineImageRows } from "../../../src/modes/settings";

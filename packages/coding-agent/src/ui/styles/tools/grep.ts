@@ -5,11 +5,11 @@
  * rows and fits the tree to a few rows, ending in `… N more matches`;
  * missing/binary notes follow in the warning color.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { highlightCode, supportsLanguage } from "@oh-my-pi/pi-tui/text/highlight";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { highlightCode, supportsLanguage } from "@linxiraos/pi-tui/text/highlight";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
 import { type GrepGroup, type GrepTerm, parseGrepOutput } from "../../tools/grep";
 import type { GroupedLinks } from "../../tools/grouped-output";
 import { groupedLink } from "./grouped-output";

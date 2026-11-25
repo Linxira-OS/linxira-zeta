@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { UiNode } from "@oh-my-pi/pi-tui";
+import { UiNode } from "@linxiraos/pi-tui";
 import { extensionOverlay } from "../../src/modes/controllers/extension-ui-blocks";
 import { PtyConsole, PtyConsoleModel } from "../../src/ui/overlays/panels/pty-console";
 import { initTheme } from "../../src/ui/theme/service";

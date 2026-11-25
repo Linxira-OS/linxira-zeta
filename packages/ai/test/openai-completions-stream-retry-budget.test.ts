@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
-import type { Context, Model } from "@oh-my-pi/pi-ai/types";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 const context: Context = {
 	messages: [{ role: "user", content: "hello", timestamp: 0 }],

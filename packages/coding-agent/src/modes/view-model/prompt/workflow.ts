@@ -1,8 +1,15 @@
-import { createGradientHighlighter, type KeywordHighlighter } from "./gradient-highlight";
-import { magicKeywordRegex } from "./magic-keyword-boundary";
-import { keywordInProse } from "./markdown-prose";
+/**
+ * "workflowz" as a magic keyword: standalone-prose detection and the
+ * keyword's editor/bubble gradient.
+ *
+ * The keyword table (`modes/magic-keywords`) is the single source of truth;
+ * detection reuses the session matcher so settings, notice injection and the
+ * composer agree on what counts as the keyword.
+ */
+import { type MagicKeyword, MAGIC_KEYWORDS } from "../../magic-keywords";
+import { containsMagicKeyword } from "../../../session/magic-keywords";
 
-const WORKFLOW_WORD = magicKeywordRegex("workflowz");
+const WORKFLOW_WORD = "workflowz";
 
 /**
  * Whether `text` contains the standalone keyword "workflowz"
@@ -10,17 +17,8 @@ const WORKFLOW_WORD = magicKeywordRegex("workflowz");
  * code span, or XML/HTML section.
  */
 export function containsWorkflow(text: string): boolean {
-	return keywordInProse(text, WORKFLOW_WORD);
+	return containsMagicKeyword(text, WORKFLOW_WORD);
 }
 
-/**
- * Highlight every standalone "workflowz" in `text` for editor display
- * with a warm amber→green gradient (hue 30..150), visually distinct from
- * ultrathink's rainbow and orchestrate's teal→violet.
- */
-export const highlightWorkflow: KeywordHighlighter = createGradientHighlighter({
-	probe: "workflow",
-	highlight: magicKeywordRegex("workflowz", "g"),
-	stops: 14,
-	hue: t => 30 + t * 120,
-});
+/** The keyword's warm amber→green gradient (hue 30..150), shared with the composer glow. */
+export const highlightWorkflow: MagicKeyword = MAGIC_KEYWORDS.find(keyword => keyword.word === WORKFLOW_WORD)!;

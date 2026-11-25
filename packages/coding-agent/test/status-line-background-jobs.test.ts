@@ -3,9 +3,9 @@
  * subagents, a task job counted once its subagent is not yet registered.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import type { AsyncJobType } from "@oh-my-pi/pi-coding-agent/async";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AsyncJobSnapshotItem } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AsyncJobType } from "@linxiraos/zeta/async";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { AsyncJobSnapshotItem } from "@linxiraos/zeta/session/agent-session";
 import { disposeStatusLines, statusLine, statusSession } from "./helpers/session-status-line";
 
 beforeAll(async () => {

@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { shortenPath, TRUNCATE_LENGTHS } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
-import * as piUtils from "@oh-my-pi/pi-utils";
-import { setWorktreesDir } from "@oh-my-pi/pi-utils";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { shortenPath, TRUNCATE_LENGTHS } from "@linxiraos/zeta/utils/render-utils";
+import * as piUtils from "@linxiraos/pi-utils";
+import { setWorktreesDir } from "@linxiraos/pi-utils";
 import { clearWorktrees, listWorktrees } from "../../src/cli/worktree-cli";
 import { Settings } from "../../src/config/settings";
 import * as client from "../../src/ovnfs/client";
@@ -590,7 +590,7 @@ describe("session worktree helpers (ovnfs checkout)", () => {
 		const id = session.getSessionId();
 		await session.close();
 		const findSession = async () => {
-			const listing = await SessionManager.listForPicker(repo, sourceDir, undefined, "repo", settings);
+			const listing = await SessionManager.listForPicker(repo, sourceDir, undefined, "repo");
 			return (await listing.complete).find(row => row.id === id);
 		};
 		expect((await findSession())?.cwd).toBe(wt.path);
@@ -614,6 +614,6 @@ describe("session worktree helpers (ovnfs checkout)", () => {
 		vi.spyOn(daemon, "runningDaemon").mockResolvedValue(undefined);
 		const removed = await findSession();
 		if (!removed) throw new Error("removed checkout session disappeared from its source picker");
-		expect(await SessionManager.isStrandedIn(removed, repo, sourceDir, settings)).toBe(true);
+		expect(await SessionManager.isStrandedIn(removed, repo, sourceDir)).toBe(true);
 	});
 });

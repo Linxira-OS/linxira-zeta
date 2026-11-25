@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The standalone model browser: a search field, the model list (keyed
  * `list`, one `item` per model, a `rule` after the Recent block) and the
@@ -12,10 +12,10 @@
  * `edit` events. The terminal look is `omp.model-browser`
  * (`styles/pickers/model-browser`).
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { For, type JSXNode } from "@oh-my-pi/pi-tui";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { For, type JSXNode } from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import {
 	formatCostDetail,
 	heldRoles,
@@ -147,7 +147,7 @@ export function ModelBrowser(props: { browser: ModelBrowserState }): JSXNode {
 			</row>
 			<list
 				key="list"
-				role="omp.model-browser.list"
+				role="zeta.model-browser.list"
 				selected={() => browser.pickerSelected}
 				filter={() => browser.query.trim() || undefined}
 				empty={() => {
@@ -166,7 +166,7 @@ export function ModelBrowser(props: { browser: ModelBrowserState }): JSXNode {
 					{row => (isSeparator(row) ? <rule key="separator" /> : <ModelItem browser={browser} item={row} />)}
 				</For>
 			</list>
-			<col key="detail" role="omp.model-browser.detail" gap="none">
+			<col key="detail" role="zeta.model-browser.detail" gap="none">
 				{() => detailChildren(browser)}
 			</col>
 		</col>
@@ -292,7 +292,7 @@ export function modelPreview(
 	}
 	const description = model.description ? sanitizeText(model.description).trim() : "";
 	const children: (JSXNode | null)[] = [
-		<text role="omp.picker.title" text={model.name} />,
+		<text role="zeta.picker.title" text={model.name} />,
 		<text
 			spans={[{ s: "mono", t: item.selector }]}
 			actions={{ click: "copy" }}

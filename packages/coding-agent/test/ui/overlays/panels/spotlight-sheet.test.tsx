@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { encodeRankPart } from "../../../../src/tools/details/spotlight";
 import { SpotlightSheet } from "../../../../src/ui/overlays/panels/spotlight-sheet";
 import { type Driver, panelSuite } from "./harness";

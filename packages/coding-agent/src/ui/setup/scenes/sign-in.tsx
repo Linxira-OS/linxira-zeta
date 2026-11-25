@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Sign in: connect one or more providers. Picking is the provider sheet
  * (`OAuthSelector` as a setup sheet); signing in is the login dialog, shown
@@ -6,12 +6,12 @@
  * scene never advances on its own: Escape on the sheet leaves it, reading
  * "Continue" once a sign-in succeeded.
  */
-import { type OAuthProvider, PASTE_CODE_LOGIN_PROVIDERS } from "@oh-my-pi/pi-ai";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { batch, computed, type JSXNode, signal, type UiNode, untrack } from "@oh-my-pi/pi-tui";
-import type { TspText } from "@oh-my-pi/pi-wire";
-import { getAgentDbPath } from "@oh-my-pi/pi-utils/dirs";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { type OAuthProvider, PASTE_CODE_LOGIN_PROVIDERS } from "@linxiraos/pi-ai";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { batch, computed, type JSXNode, signal, type UiNode, untrack } from "@linxiraos/pi-tui";
+import type { TspText } from "@linxiraos/pi-wire";
+import { getAgentDbPath } from "@linxiraos/pi-utils/dirs";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { LoginDialog, LoginDialogState } from "../../overlays/panels/login-dialog";
 import { OAuthSelector, type OAuthSelectorSheet } from "../../overlays/pickers/oauth-selector";
 import "../../styles/setup";

@@ -4,11 +4,11 @@
  * scrollbar when they overflow), the choices (`❯` and the choice's tone on
  * the selected one), a rule, and the dim key hints.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { padTo, truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { TspItemProps, TspListProps, TspTextProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { padTo, truncate, wrap } from "@linxiraos/pi-tui/text/width";
+import type { TspItemProps, TspListProps, TspTextProps } from "@linxiraos/pi-wire";
 import { bindingGlyph, boxRows, findNode, keyLabels, plainText, propsOf, selectNavGlyphs, termOf } from "./common";
 import { appApproveKeys } from "../../../config/keybindings/matchers";
 import { expandKeyLabel } from "../../keys/hints";

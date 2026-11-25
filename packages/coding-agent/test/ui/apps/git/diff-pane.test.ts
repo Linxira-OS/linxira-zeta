@@ -1,6 +1,6 @@
-import { signal } from "@oh-my-pi/pi-tui";
-import { paintNode, releasePaintCache } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
+import { signal } from "@linxiraos/pi-tui";
+import { paintNode, releasePaintCache } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
 import type { DiffBuildOptions } from "../../../../src/cli/git-tui/model/diff-pane";
 import type { FileAssetSide, FileStreamUpdate } from "../../../../src/cli/git-tui/model/state";
 import { buildDiffDocument, DiffPaneModel, type DiffPaneState, GitDiffPane } from "../../../../src/ui/apps/git";

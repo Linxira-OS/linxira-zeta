@@ -13,9 +13,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth-storage";
+import { SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
 import { AgentStorage } from "../src/session/agent-storage";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 
 let dir: string;
 let dbPath: string;

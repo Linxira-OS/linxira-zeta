@@ -4,12 +4,12 @@
  * plain files) and live rows (spinner lines for the phase and checkers, the
  * repair head with a 16-cell bar, a line per running lane).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { formatDuration } from "@oh-my-pi/pi-tui/term/painters/elapsed";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { TspAgentProps, TspMeterProps, TspSpan, TspSpinnerProps, TspTextProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { formatDuration } from "@linxiraos/pi-tui/term/painters/elapsed";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
+import type { TspAgentProps, TspMeterProps, TspSpan, TspSpinnerProps, TspTextProps } from "@linxiraos/pi-wire";
 import { paintSheet } from "./btw";
 import { activityFrame, plainText, propsOf, roleOf } from "./common";
 

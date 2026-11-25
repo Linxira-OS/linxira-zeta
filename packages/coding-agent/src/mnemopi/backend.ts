@@ -26,7 +26,7 @@ import memoryExtractionPrompt from "../prompts/system/memory-extraction-system.m
 import mnemopiInstructions from "../prompts/system/mnemopi-instructions.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
 import { tinyModelClient } from "../tiny/title-client";
-import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { shortenPath } from "../utils/render-utils";
 import {
 	loadMnemopiConfig,
 	type MnemopiBackendConfig,
@@ -51,7 +51,7 @@ import {
 import { cfgMemoryBackend } from "../memory-backend/settings";
 import { cfgMnemopiInjectionTokenLimit } from "./settings";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
-import { concreteThinkingLevel, shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
+import { concreteThinkingLevel, shouldDisableReasoning, toReasoningEffort } from "../thinking";
 
 // `/diagnose` is the only user of this subpath; load it lazily alongside the
 // loaders in ./state to keep mnemopi off the CLI startup module graph.

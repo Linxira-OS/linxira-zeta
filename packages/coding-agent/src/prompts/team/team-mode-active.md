@@ -23,6 +23,7 @@ You alone own the canonical architecture summary, `INDEX.md`, `status.json` and 
 Worker `local://` writes are private under `local/agents/<worker-id>/`. Shared files are read-only to workers unless you grant an explicit owner capability; pass context in the assignment instead.
 
 {{#if adrSkill}}
+
 # ADR skill (injected once per Team scope)
 
 {{adrSkill}}

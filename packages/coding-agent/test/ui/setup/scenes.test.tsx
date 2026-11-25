@@ -1,15 +1,15 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `setup/<scene>` corpus: each onboarding scene's body mounted the way the
  * wizard mounts it, with the body budget (`maxLines`) the case records.
  */
 import { afterAll } from "bun:test";
-import type { StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { listThemes, loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { setAgentDir } from "@oh-my-pi/pi-utils/dirs";
-import type { OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/oauth/types";
-import type { CorpusCase } from "@oh-my-pi/pi-tui/testing/corpus";
+import type { StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { listThemes, loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { setAgentDir } from "@linxiraos/pi-utils/dirs";
+import type { OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
+import type { CorpusCase } from "@linxiraos/pi-tui/testing/corpus";
 import {
 	composerScene,
 	modelScene,

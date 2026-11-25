@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { settingsScreen, setupSettingsWindow } from "../../helpers/settings-window";
 
 const restoreTheme = currentTheme();

@@ -1,17 +1,17 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { afterEach, expect, test } from "bun:test";
-import { resolveChildren } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { resolveChildren } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { KeybindingsManager, setKeybindings } from "../../../../src/config/keybindings/keybindings";
 import type { CodexResetFireworksEvent } from "../../../../src/modes/view-model/overlays/codex-reset-fireworks";
 import { BorderedLoader } from "../../../../src/ui/overlays/panels/bordered-loader";
 import { CodexResetFireworks } from "../../../../src/ui/overlays/panels/codex-reset-fireworks";
 import { ErrorBanner } from "../../../../src/ui/overlays/panels/error-banner";
 import { StatsNotice } from "../../../../src/ui/overlays/panels/stats-notice";
-import { signal } from "@oh-my-pi/pi-tui";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+import { signal } from "@linxiraos/pi-tui";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import type { PauseWorkStatus } from "../../../../src/modes/view-model/overlays/pause-screen";
 import { isSettled, PauseScreen } from "../../../../src/ui/overlays/panels/pause-screen";
 import { MoveOverlay } from "../../../../src/ui/overlays/panels/move-overlay";

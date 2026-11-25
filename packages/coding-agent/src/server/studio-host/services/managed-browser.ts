@@ -2,7 +2,7 @@ import { randomBytes, randomUUID, createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { logger } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../../../tools/tool-errors";
 import type { AgentSession } from "../../../session/agent-session";
 import { startRelayServer, type RelayServer } from "../../../tools/browser/relay/server";
 import type { RelayKind } from "../../../tools/browser/relay/kind";

@@ -1,6 +1,7 @@
 import type { AssistantMessage, ImageContent, MessageAttribution, TextContent } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
+import { tuiText, tuiTextFmt } from "@linxiraos/pi-tui/i18n";
 import type { BranchSummaryMessage, CompactionSummaryMessage } from "@linxiraos/pi-agent-core/compaction/messages";
 import type { OutputMeta } from "../../tools/output-meta-format";
 

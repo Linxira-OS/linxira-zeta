@@ -2,14 +2,14 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, afterEach, describe, expect, it } from "bun:test";
-import { IpcConnection, IpcServer } from "@oh-my-pi/pi-natives";
-import type { PresentedFrame } from "@oh-my-pi/pi-tui";
+import { IpcConnection, IpcServer } from "@linxiraos/pi-natives";
+import type { PresentedFrame } from "@linxiraos/pi-tui";
 import type { StreamFrameSource } from "../../src/stream/paint-encoder";
 import { streamSocketEndpoint } from "../../src/stream/paths";
 import { StreamPublisher } from "../../src/stream/publisher";
 import { STREAM_LOCAL_PROTO, type StreamSessionFrame } from "../../src/stream/protocol";
 import { StreamRedactor } from "../../src/stream/redactor";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

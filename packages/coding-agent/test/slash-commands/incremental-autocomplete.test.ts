@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { CombinedAutocompleteProvider } from "@oh-my-pi/pi-coding-agent/autocomplete/autocomplete";
+import { CombinedAutocompleteProvider } from "@linxiraos/zeta/autocomplete/autocomplete";
 
 test("narrowing retains hidden skills while approaching the namespace or competing with an alias", async () => {
 	const provider = new CombinedAutocompleteProvider(

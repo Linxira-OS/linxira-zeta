@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The tray (`tray` slot, native only): on a host whose `hello` advertises
  * `tray`, a row of live cards over the composer — one per subagent and
@@ -17,9 +17,9 @@
  * handled here; `tray.open`, `tray.stop`, `tray.dismiss` and `jobs.open` go
  * to {@link TrayModel.onAction}. A text terminal draws nothing.
  */
-import { For, type JSXNode, signal, untrack } from "@oh-my-pi/pi-tui";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspTrayMain, TspTrayStatus } from "@oh-my-pi/pi-wire";
+import { For, type JSXNode, signal, untrack } from "@linxiraos/pi-tui";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTrayMain, TspTrayStatus } from "@linxiraos/pi-wire";
 import type { JobWidgetView } from "../../tools/details/job-widget";
 import { previewLine, shortenEmbeddedPaths, TRUNCATE_LENGTHS } from "../../utils/render-utils";
 import { replaceTabs } from "../../utils/text-width";
@@ -184,7 +184,7 @@ function Dot(props: { readonly status: TspTrayStatus; readonly waiting?: boolean
 	return (
 		<text
 			key="dot"
-			role="omp.tray.dot"
+			role="zeta.tray.dot"
 			spans={[
 				{
 					t: "●",
@@ -204,9 +204,9 @@ function Clock(props: {
 }): JSXNode {
 	const age = Math.max(0, Math.round(props.duration ?? props.now - props.start));
 	return props.duration === undefined ? (
-		<elapsed key="time" role="omp.tray.time" age={age} format="short" />
+		<elapsed key="time" role="zeta.tray.time" age={age} format="short" />
 	) : (
-		<elapsed key="time" role="omp.tray.time" age={age} stopped={age} format="short" />
+		<elapsed key="time" role="zeta.tray.time" age={age} stopped={age} format="short" />
 	);
 }
 
@@ -258,13 +258,21 @@ function DoingRow(props: { readonly item: TrayAgentItem }): JSXNode {
 	return (
 		<row
 			key="doing"
-			role="omp.tray.doing"
+			role="zeta.tray.doing"
 			gap="sm"
 			align="center"
 			tone={item.status === "failed" ? "error" : undefined}
 		>
-			<text key="call" role="omp.tray.call" spans={callSpans(item)} wrap="none" truncate="end" grow={1} shrink={1} />
-			{outcome.length > 0 && <text key="outcome" role="omp.tray.outcome" spans={outcome} wrap="none" shrink={0} />}
+			<text
+				key="call"
+				role="zeta.tray.call"
+				spans={callSpans(item)}
+				wrap="none"
+				truncate="end"
+				grow={1}
+				shrink={1}
+			/>
+			{outcome.length > 0 && <text key="outcome" role="zeta.tray.outcome" spans={outcome} wrap="none" shrink={0} />}
 		</row>
 	);
 }
@@ -273,24 +281,26 @@ function AgentCard(props: { readonly item: TrayAgentItem; readonly now: number }
 	const item = props.item;
 	return (
 		<col key={trayKey(item.key)} {...cardProps(item)}>
-			<row key="head" role="omp.tray.head" gap="xs" align="center">
+			<row key="head" role="zeta.tray.head" gap="xs" align="center">
 				<Dot status={item.status} waiting={item.waiting} />
-				<text key="name" role="omp.tray.name" text={item.name} wrap="none" truncate="end" grow={1} />
-				{item.unread > 0 && <badge key="unread" role="omp.tray.unread" text={String(item.unread)} tone="warning" />}
+				<text key="name" role="zeta.tray.name" text={item.name} wrap="none" truncate="end" grow={1} />
+				{item.unread > 0 && (
+					<badge key="unread" role="zeta.tray.unread" text={String(item.unread)} tone="warning" />
+				)}
 				<Clock start={item.start} duration={item.duration} now={props.now} />
 				{item.tools !== undefined && (
-					<row key="tools" role="omp.tray.tools" align="center">
+					<row key="tools" role="zeta.tray.tools" align="center">
 						<text key="count" spans={[{ t: "/", s: "dim" }, { t: String(item.tools) }]} wrap="none" />
 						<icon key="icon" name="gear" tone="muted" />
 					</row>
 				)}
 			</row>
 			<DoingRow item={item} />
-			<row key="meta" role="omp.tray.meta" gap="sm" align="center">
+			<row key="meta" role="zeta.tray.meta" gap="sm" align="center">
 				{item.model !== "" && (
 					<text
 						key="model"
-						role="omp.tray.model"
+						role="zeta.tray.model"
 						text={item.model}
 						wrap="none"
 						truncate="end"
@@ -298,7 +308,7 @@ function AgentCard(props: { readonly item: TrayAgentItem; readonly now: number }
 						shrink={1}
 					/>
 				)}
-				{item.stats !== "" && <text key="stats" role="omp.tray.stats" text={item.stats} wrap="none" />}
+				{item.stats !== "" && <text key="stats" role="zeta.tray.stats" text={item.stats} wrap="none" />}
 			</row>
 		</col>
 	);
@@ -315,10 +325,10 @@ function JobGlance(props: { readonly view: JobWidgetView }): JSXNode {
 	const spark = primarySpark(view);
 	const stage = view.stage ? stageLine(view.stage) : "";
 	return (
-		<row key="glance" role="omp.tray.glance" gap="xs" align="center">
-			{glance && <text key="glance" role="omp.hud.glance" spans={glance} wrap="none" />}
+		<row key="glance" role="zeta.tray.glance" gap="xs" align="center">
+			{glance && <text key="glance" role="zeta.hud.glance" spans={glance} wrap="none" />}
 			{spark && <MiniSpark spark={spark} />}
-			{stage !== "" && <text key="stage" role="omp.tray.stage" text={stage} wrap="none" truncate="end" />}
+			{stage !== "" && <text key="stage" role="zeta.tray.stage" text={stage} wrap="none" truncate="end" />}
 		</row>
 	);
 }
@@ -336,7 +346,7 @@ function JobOut(props: { readonly item: TrayJobItem; readonly lines: number }): 
 	return (
 		<text
 			key="out"
-			role="omp.tray.out"
+			role="zeta.tray.out"
 			text={parts.slice(-props.lines).join("\n")}
 			wrap="none"
 			tone={props.item.status === "failed" ? "error" : undefined}
@@ -348,10 +358,10 @@ function JobCard(props: { readonly item: TrayJobItem; readonly now: number }): J
 	const item = props.item;
 	return (
 		<col key={trayKey(item.key)} {...cardProps(item)}>
-			<row key="head" role="omp.tray.head" gap="xs" align="center">
+			<row key="head" role="zeta.tray.head" gap="xs" align="center">
 				<Dot status={item.status} />
-				<text key="name" role="omp.tray.name" text={item.name} wrap="none" truncate="end" grow={1} />
-				<text key="id" role="omp.tray.id" text={item.ref} wrap="none" />
+				<text key="name" role="zeta.tray.name" text={item.name} wrap="none" truncate="end" grow={1} />
+				<text key="id" role="zeta.tray.id" text={item.ref} wrap="none" />
 				<Clock start={item.start} duration={item.duration} now={props.now} />
 			</row>
 			{item.view && hasGlance(item.view) ? <JobGlance view={item.view} /> : <JobOut item={item} lines={OUT_LINES} />}
@@ -363,11 +373,11 @@ function DoneCard(props: { readonly item: TrayDoneItem }): JSXNode {
 	const item = props.item;
 	return (
 		<col key={trayKey(item.key)} {...cardProps(item)}>
-			<row key="head" role="omp.tray.head" gap="xs" align="center">
+			<row key="head" role="zeta.tray.head" gap="xs" align="center">
 				<Dot status="done" />
-				<text key="name" role="omp.tray.name" text={item.name} wrap="none" truncate="end" grow={1} />
+				<text key="name" role="zeta.tray.name" text={item.name} wrap="none" truncate="end" grow={1} />
 			</row>
-			<text key="doing" role="omp.tray.doing" spans={[{ t: item.names }]} wrap="none" truncate="end" />
+			<text key="doing" role="zeta.tray.doing" spans={[{ t: item.names }]} wrap="none" truncate="end" />
 		</col>
 	);
 }
@@ -433,7 +443,7 @@ function DoneEntry(props: { readonly entry: TrayDoneEntry }): JSXNode {
 	return (
 		<row
 			key={trayKey(entry.id)}
-			role="omp.tray.done.item"
+			role="zeta.tray.done.item"
 			propRef={entry.id}
 			status={entry.status}
 			gap="xs"
@@ -442,12 +452,12 @@ function DoneEntry(props: { readonly entry: TrayDoneEntry }): JSXNode {
 			actions={entry.openable ? { click: `tray.open=${entry.id}` } : undefined}
 		>
 			<Dot status={entry.status} />
-			<text key="name" role="omp.tray.name" text={entry.name} wrap="none" truncate="end" shrink={1} />
+			<text key="name" role="zeta.tray.name" text={entry.name} wrap="none" truncate="end" shrink={1} />
 			{entry.meta !== "" && (
-				<text key="meta" role="omp.tray.meta" spans={[{ t: entry.meta, s: "dim" }]} wrap="none" />
+				<text key="meta" role="zeta.tray.meta" spans={[{ t: entry.meta, s: "dim" }]} wrap="none" />
 			)}
 			{entry.line !== "" && (
-				<text key="line" role="omp.tray.line" text={entry.line} wrap="none" truncate="end" grow={1} shrink={1} />
+				<text key="line" role="zeta.tray.line" text={entry.line} wrap="none" truncate="end" grow={1} shrink={1} />
 			)}
 		</row>
 	);
@@ -463,15 +473,15 @@ function Peek(props: {
 	let body: JSXNode;
 	if (item.item === "agent") {
 		body = [
-			detail?.task && <text key="task" role="omp.tray.peek.task" text={detail.task} wrap="none" truncate="end" />,
+			detail?.task && <text key="task" role="zeta.tray.peek.task" text={detail.task} wrap="none" truncate="end" />,
 			detail && detail.tail.length > 0 && (
-				<col key="tail" role="omp.tray.tail">
+				<col key="tail" role="zeta.tray.tail">
 					{detail.tail.map((event, index) => (
-						<row key={String(index)} role="omp.tray.ev" state={event.state} gap="xs" align="center">
-							<text key="tool" role="omp.tray.ev.tool" text={event.tool} wrap="none" />
-							<text key="text" role="omp.tray.ev.text" text={event.text} wrap="none" truncate="end" grow={1} />
+						<row key={String(index)} role="zeta.tray.ev" state={event.state} gap="xs" align="center">
+							<text key="tool" role="zeta.tray.ev.tool" text={event.tool} wrap="none" />
+							<text key="text" role="zeta.tray.ev.text" text={event.text} wrap="none" truncate="end" grow={1} />
 							{event.age !== undefined && (
-								<elapsed key="time" role="omp.tray.time" age={Math.round(event.age)} format="short" />
+								<elapsed key="time" role="zeta.tray.time" age={Math.round(event.age)} format="short" />
 							)}
 						</row>
 					))}
@@ -486,21 +496,21 @@ function Peek(props: {
 	} else {
 		const earlier = item.count - item.entries.length;
 		body = (
-			<col key="done" role="omp.tray.done">
+			<col key="done" role="zeta.tray.done">
 				{item.entries.map(entry => (
 					<DoneEntry entry={entry} />
 				))}
-				{earlier > 0 && <text key="more" role="omp.tray.done.more" text={`+${earlier} earlier`} wrap="none" />}
+				{earlier > 0 && <text key="more" role="zeta.tray.done.more" text={`+${earlier} earlier`} wrap="none" />}
 			</col>
 		);
 	}
 	return (
-		<col key="peek" role="omp.tray.peek" propRef={item.ref}>
-			<row key="head" role="omp.tray.peek.head" gap="xs" align="center">
+		<col key="peek" role="zeta.tray.peek" propRef={item.ref}>
+			<row key="head" role="zeta.tray.peek.head" gap="xs" align="center">
 				<Dot status={item.status} />
-				<text key="name" role="omp.tray.name" text={item.name} wrap="none" truncate="end" shrink={1} />
+				<text key="name" role="zeta.tray.name" text={item.name} wrap="none" truncate="end" shrink={1} />
 				{meta !== "" && (
-					<text key="meta" role="omp.tray.peek.meta" text={meta} wrap="none" truncate="end" grow={1} shrink={1} />
+					<text key="meta" role="zeta.tray.peek.meta" text={meta} wrap="none" truncate="end" grow={1} shrink={1} />
 				)}
 				{item.item !== "done" && <Clock start={item.start} duration={item.duration} now={props.now} />}
 				{peekButtons(item)}
@@ -543,7 +553,7 @@ export function Tray(props: { readonly model: TrayModel; readonly now?: () => nu
 	);
 	return (
 		<col
-			role="omp.tray"
+			role="zeta.tray"
 			hidden={() => (model.items().length === 0 && peeked() === undefined) || undefined}
 			quiet={() => (model.items().length > 0 && model.quiet()) || undefined}
 			main={() => (model.items().length > 0 ? model.main() : undefined)}

@@ -3,9 +3,9 @@
  * (held at its peak and decaying per animation frame), the animation frame
  * and the user's streaming transcript.
  */
-import { type Accessor, batch, signal } from "@oh-my-pi/pi-tui";
-import { flattenLine, stripControl } from "@oh-my-pi/pi-tui/text/sanitize";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import { type Accessor, batch, signal } from "@linxiraos/pi-tui";
+import { flattenLine, stripControl } from "@linxiraos/pi-tui/text/sanitize";
+import type { TspTone } from "@linxiraos/pi-wire";
 import type { LivePhase } from "../../../modes/view-model/apps/live-visualizer";
 
 export type { LivePhase };

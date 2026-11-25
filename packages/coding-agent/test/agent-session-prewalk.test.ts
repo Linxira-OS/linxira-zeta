@@ -1,31 +1,31 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentTool, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { type Api, Effort, type Model } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { parseModelPattern } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { CustomToolAdapter } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/wrapper";
-import { MCPTool } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
-import type { MCPServerConnection } from "@oh-my-pi/pi-coding-agent/mcp/types";
+import { type } from "@linxiraos/zeta-schema";
+import { Agent, type AgentTool, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
+import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { parseModelPattern } from "@linxiraos/zeta/config/model-resolver";
+import { CustomToolAdapter } from "@linxiraos/zeta/extensibility/custom-tools/wrapper";
+import { MCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
+import type { MCPServerConnection } from "@linxiraos/zeta/mcp/types";
 import {
 	dispatchToolCommand,
 	type ToolCommandDispatch,
 	type ToolCommandState,
-} from "@oh-my-pi/pi-coding-agent/tools/tool-commands";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { getRestorableSessionModels } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+} from "@linxiraos/zeta/tools/tool-commands";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-context";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
 	cfgPrewalkEnabled,
 	cfgPrewalkFrom,
@@ -33,11 +33,11 @@ import {
 	cfgRetryBaseDelayMs,
 	cfgRetryFallbackChains,
 	cfgRetryFallbackRevertPolicy,
-} from "@oh-my-pi/pi-coding-agent/session/settings";
-import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/types";
-import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking/levels";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/session/settings";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
+import { AUTO_THINKING } from "@linxiraos/zeta/thinking/levels";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 

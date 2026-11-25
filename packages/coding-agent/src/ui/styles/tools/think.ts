@@ -2,9 +2,9 @@
  * `think`: the reasoning as Markdown in the thinking face (muted italic
  * prose), one cell in from either edge; nothing while it is empty.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/index";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/index";
 import { defineToolLook } from "./look";
 
 function paintThink(node: UiNode, cx: PaintContext): Block {

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Background activity the session reports into the transcript, each a status
  * block hidden with tool activity, plus the IRC coordination cards:
@@ -19,11 +19,11 @@
  * `omp.activity` (`panel.ts`), the `omp.custom` frame (`frame.ts`) and the
  * `omp.irc.*` cards (`src/ui/styles/tools/irc.ts`).
  */
-import { type JSXNode, type Reactive, read } from "@oh-my-pi/pi-tui";
-import { replaceTabs, truncate } from "@oh-my-pi/pi-tui/text/width";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatCount, formatDuration } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
+import { replaceTabs, truncate } from "@linxiraos/pi-tui/text/width";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatCount, formatDuration } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { PersistedSnapshot } from "../../../daemon/daemon-types";
 import type { AsyncNotifyDetails } from "../../../session/transcript/messages";
 import { formatArtifactErrorNotice, type OutputMeta } from "../../../tools/output-meta-format";
@@ -152,7 +152,7 @@ export function AsyncResult(props: AsyncResultProps): JSXNode {
 	return (
 		<MessageFrame
 			message={props.message}
-			role="omp.custom"
+			role="zeta.custom"
 			renderer={renderer}
 			expanded={props.expanded}
 			onToggle={props.onToggle}

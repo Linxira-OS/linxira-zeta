@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The terminal's transcript browser: a framed, scrollable view of rows the
  * caller lays out for the frame's width, at a height the caller sets.
@@ -19,10 +19,10 @@
  * with a row of margin, scrolled to its top when it starts above the view,
  * else to its end when it ends below.
  */
-import { type JSXNode, type Reactive, read, type Signal, signal, untrack } from "@oh-my-pi/pi-tui";
-import type { KeyEvent } from "@oh-my-pi/pi-tui/events";
-import { padTo, replaceTabs, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { type JSXNode, type Reactive, read, type Signal, signal, untrack } from "@linxiraos/pi-tui";
+import type { KeyEvent } from "@linxiraos/pi-tui/events";
+import { padTo, replaceTabs, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 /** Widths the caller lays the frame out at. */
 export interface BrowserFrameContext {
@@ -210,5 +210,5 @@ export type BrowserTerm = {
 /** The browser node: its frame drawn by the model, scroll keys routed to it. */
 export function TranscriptBrowser(props: { readonly model: TranscriptBrowserModel }): JSXNode {
 	const term: BrowserTerm = { browser: props.model };
-	return <col role="omp.transcript.browser" term={term} onKey={key => props.model.handleKey(key)} />;
+	return <col role="zeta.transcript.browser" term={term} onKey={key => props.model.handleKey(key)} />;
 }

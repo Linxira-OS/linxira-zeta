@@ -11,13 +11,13 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { agentTranscriptSource } from "@oh-my-pi/pi-coding-agent/modes/agent-hub-runtime";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { SILENT_ABORT_MARKER } from "@oh-my-pi/pi-coding-agent/session/messages";
-import type { ObservableSession } from "@oh-my-pi/pi-coding-agent/task/session-observer-registry";
-import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { agentTranscriptSource } from "@linxiraos/zeta/modes/agent-hub-runtime";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
+import type { ObservableSession } from "@linxiraos/zeta/task/session-observer-registry";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { AgentTranscriptViewer } from "../src/ui/overlays/panels/agent-transcript-viewer";
 import { AgentTranscriptViewerModel } from "../src/ui/overlays/panels/agent-transcript-viewer-model";
 import { type LayerTerminal, mountLayer } from "./helpers/layer-terminal";
@@ -38,7 +38,7 @@ function makeSubagentRegistry(sessions: ObservableSession[]) {
 		onChange: () => () => {},
 		setMainSession: () => {},
 		getActiveSubagentCount: () => sessions.filter(s => s.status === "active").length,
-	} as unknown as import("@oh-my-pi/pi-coding-agent/task/session-observer-registry").SessionObserverRegistry;
+	} as unknown as import("@linxiraos/zeta/task/session-observer-registry").SessionObserverRegistry;
 }
 
 function makeViewer(sessionFile: string, observed: ObservableSession[]): LayerTerminal {

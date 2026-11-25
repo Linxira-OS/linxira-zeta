@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Fullscreen apps (`omp git`, `omp ps`, the debug viewers, the console
  * monitor): one app view in a full-size overlay over a {@link Shell}, which
@@ -9,9 +9,9 @@
  * mode's `/git`, `/debug`); {@link runStandalone} starts a shell of its own
  * for a CLI command and restores the terminal when the app finishes.
  */
-import { type Accessor, type JSXNode, type PageProps, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import type { MouseTracking } from "@oh-my-pi/pi-tui/driver/io";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { type Accessor, type JSXNode, type PageProps, signal, type UiNode } from "@linxiraos/pi-tui";
+import type { MouseTracking } from "@linxiraos/pi-tui/driver/io";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { sheetView, type SheetAttributes } from "../overlays/sheet";
 import { Shell } from "../shell/shell";
 import "../styles/apps/screen/look";
@@ -73,7 +73,7 @@ export async function presentFullscreen<T>(
 			app.sheet && shell.native() ? (
 				sheetView(true, app.sheet, app.view())
 			) : (
-				<overlay key="fullscreen" size="full" role="omp.app.screen" page={app.page ?? {}}>
+				<overlay key="fullscreen" size="full" role="zeta.app.screen" page={app.page ?? {}}>
 					{app.view()}
 				</overlay>
 			),

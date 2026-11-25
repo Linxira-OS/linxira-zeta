@@ -1557,3 +1557,36 @@ export const cfgRecapIdleSeconds = register({
 
 /** Idle recap policy (`recap.*`). */
 export const cfgRecap = combine({ enabled: cfgRecapEnabled, idleSeconds: cfgRecapIdleSeconds });
+
+/**
+ * Right-hand sidebar visibility. Read by the interactive shell when it builds
+ * the sidebar column.
+ */
+export const cfgTuiSidebar = register({
+	id: "tui.sidebar",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "appearance",
+		group: "Display",
+		label: "Sidebar",
+		description:
+			"Show the right-hand sidebar (context gauge, todos, subagents, MCP health, and cached git branch/status/recent commits)",
+	},
+});
+
+/**
+ * Third-party sidebar widgets registered by extensions. Off by default: the
+ * widgets come from user-installed code, so they stay opt-in.
+ */
+export const cfgTuiSidebarWidgets = register({
+	id: "tui.sidebarWidgets",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "appearance",
+		group: "Display",
+		label: "Sidebar Widgets",
+		description: "Show third-party sidebar widgets registered by extensions",
+	},
+});

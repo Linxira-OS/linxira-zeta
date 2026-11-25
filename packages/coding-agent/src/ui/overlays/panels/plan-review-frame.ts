@@ -5,10 +5,10 @@
  * model slider and the options, then the key hints, the note editor or the
  * note chooser. Also where clicks land (option, Contents and body rows).
  */
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/render";
-import { padTo, replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/render";
+import { padTo, replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { sanitizeStatusText } from "../../../modes/view-model/chrome/shared";
 import { keyGlyph } from "../../styles/panels/common";
 import type { PlanAnnotation, PlanReviewModel } from "./plan-review-model";

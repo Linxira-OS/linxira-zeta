@@ -8,8 +8,8 @@
  * indices dim), strings `syntaxString`, numbers `syntaxNumber`, booleans and
  * null `syntaxKeyword`.
  */
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 /** Widest inline container, in cells. */
 const INLINE_LEN = 60;

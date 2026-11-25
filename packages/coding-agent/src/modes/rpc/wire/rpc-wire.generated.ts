@@ -495,7 +495,7 @@ export interface SessionState {
 	thinkingLevel?: ThinkingLevel;
 	/** The user's thinking selector: `auto` while auto mode picks the effort, else `thinkingLevel`. */
 	configuredThinkingLevel?: ConfiguredThinkingLevel;
-	/** Selectors the active model accepts, as omp's thinking selector lists them: `off`, `auto`, then its efforts. */
+	/** Selectors the active model accepts, as zeta's thinking selector lists them: `off`, `auto`, then its efforts. */
 	thinkingLevels?: ConfiguredThinkingLevel[];
 	isStreaming?: boolean;
 	isCompacting?: boolean;
@@ -530,6 +530,8 @@ export interface SessionState {
 	contextUsage?: ContextUsage;
 	/** Current goal mode; null when the session has no goal. */
 	goal?: GoalModeState | null;
+	/** True while the guided-goal interview is open. */
+	guidedGoalInterview?: boolean;
 }
 
 export interface BashResult {
@@ -606,7 +608,7 @@ export interface ModelPickerRole {
 	auto?: boolean;
 }
 
-/** One row of omp's session model picker. */
+/** One row of zeta's session model picker. */
 export interface ModelPickerRow {
 	provider: string;
 	id: string;
@@ -760,7 +762,7 @@ export interface AvailableSlashCommand {
 	subcommands?: SlashSubcommand[];
 }
 
-/** OMP-native session entries in append order. */
+/** Zeta-native session entries in append order. */
 export interface SessionEntries {
 	entries: Record<string, unknown>[];
 	leafId: string | null;
@@ -867,6 +869,46 @@ export type CacheWarmingMethod = "prewarm" | "replay";
 export type CacheWarmingOutcome = "hit" | "miss" | "error" | "aborted";
 
 export type NotifyType = "info" | "warning" | "error";
+
+export type CompactionTrigger = "manual" | "auto" | "speculation";
+
+export type CompactionPhase = "plan" | "summarize" | "archive" | "commit" | "failed" | "aborted";
+
+export type CompactionPhaseMethod = "remote" | "snapcompact" | "handoff" | "shake" | "soft" | "experimental" | "extension";
+
+export interface CompactionFidelity {
+	qa: number;
+	paths: number;
+	ids: number;
+	constraints: number;
+	unfinished: number;
+}
+
+export interface CompactionPhaseDetail {
+	tokensBefore?: number;
+	tokensAfter?: number;
+	entryId?: string;
+	durationMs?: number;
+	summaryChars?: number;
+	errorMessage?: string;
+	fidelity?: CompactionFidelity;
+}
+
+export interface CompactionPhaseEvent {
+	type: "compaction_phase";
+	passId: string;
+	trigger: CompactionTrigger;
+	phase: CompactionPhase;
+	at: number;
+	method?: CompactionPhaseMethod;
+	reason?: string;
+	detail?: CompactionPhaseDetail;
+}
+
+export interface StateVersionChangedEvent {
+	type: "state_version_changed";
+	stateVersion: number;
+}
 
 export interface AgentStartEvent {
 	type: "agent_start";
@@ -1116,7 +1158,7 @@ export interface QueueUpdateEvent {
 }
 
 /** A session event, discriminated by `type`; `set_event_filter` selects which are sent. */
-export type RpcAgentEvent = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent;
+export type RpcAgentEvent = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | CompactionPhaseEvent | StateVersionChangedEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent;
 
 /** First frame after startup; transport fields are absent on servers without protocol v2. */
 export interface ReadyEvent {
@@ -1693,6 +1735,15 @@ export interface SetSlowModeResult {
 	enabled: boolean;
 }
 
+export interface GuidedGoalParams {
+	message?: string;
+	images?: ImageContent[];
+}
+
+export interface GuidedGoalResult {
+	started?: boolean;
+}
+
 export interface GoalParams {
 	op: GoalOp;
 	objective?: string;
@@ -2035,6 +2086,7 @@ export interface RpcWireCommands {
 	get_state: { params: undefined; result: SessionState };
 	set_fast_mode: { params: SetFastModeParams; result: FastModeResult };
 	set_slow_mode: { params: SetSlowModeParams; result: SetSlowModeResult };
+	guided_goal: { params: GuidedGoalParams; result: GuidedGoalResult };
 	goal: { params: GoalParams; result: GoalResult };
 	set_ask_dialog: { params: SetAskDialogParams; result: SetAskDialogResult };
 	get_available_commands: { params: undefined; result: GetAvailableCommandsResult };

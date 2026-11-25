@@ -7,16 +7,16 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { closeExtensionParseCacheForTests } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import type { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { executeAcpBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/acp-builtins";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { closeExtensionParseCacheForTests } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
 import {
 	getAgentDir,
 	getMCPConfigPath,
@@ -24,7 +24,7 @@ import {
 	removeSyncWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { IsolatedDaemon } from "./fixtures/daemon-harness";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 

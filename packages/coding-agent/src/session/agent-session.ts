@@ -76,6 +76,10 @@ export interface LeadModeEntryOptions {
 }
 import { resolveTeamLocation } from "../team/paths";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
+import { type ApprovalGrantStore, getApprovalGrants } from "../tools/approval-cache";
+import type { MCPEvalNamespaceCatalog } from "../mcp/eval-namespaces";
+import { TrackingRecorder } from "../tools/tracking";
+import { journalCompletion } from "./model-usage-journal";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -193,7 +197,10 @@ import {
 	AsyncJobManager,
 	type AsyncJobManagerApi,
 	type AsyncJobOrigin,
+	type NotifyBatch,
 } from "../async";
+import type { AsyncNotifyEntry, AsyncNotifySource } from "./async-notify";
+import { hasLiveOwnedService } from "../launch/services";
 import { planParallel } from "../auto-parallel/planner";
 import { classifyAutoPrewalk } from "../auto-prewalk/classifier";
 import { reset as resetCapabilities } from "../capability";
@@ -204,6 +211,7 @@ import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
 import {
 	disabledProviderIds,
+	formatModelString,
 	formatModelStringWithRouting,
 	getModelMatchPreferences,
 	type ResolvedModelRoleValue,
@@ -266,6 +274,8 @@ import { GoalRuntime } from "../goals/runtime";
 import type { GoalModeState, GoalTokenUsage } from "../goals/state";
 import type { HindsightSessionState } from "../hindsight/state";
 import { InternalUrlRouter, type LocalProtocolOptions } from "../internal-urls";
+import { sessionLocalProtocolOptions } from "../internal-urls/context";
+import { resolveLocalRoot } from "../internal-urls/local-protocol";
 import type { SessionClient } from "./session-client";
 import { type ChainJudge, hasNativeJudge, journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
 import type { IrcMessage } from "../irc/irc-types";
@@ -367,6 +377,7 @@ import {
 	writeDeviceDispatch,
 } from "../tools/resolve";
 import { toolCommandDispatches } from "../tools/tool-commands";
+import { PROPOSE_DEVICE_NAME } from "../tools/xd-url";
 import { PROPOSE_COMMAND_NAME, REJECT_COMMAND_NAME } from "../tools/details/resolve";
 import { supportsExternalThinking } from "../tools/think";
 import { USER_TODO_EDIT_CUSTOM_TYPE } from "../tools/todo";
@@ -377,7 +388,7 @@ import { registerLocalSession } from "../thread/session-directory";
 import { prewarmSubagentWorker } from "../thread/subagent-worker";
 import { SubagentSpawnSignal } from "../thread/subagent-spawn-signal";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
-import type { AgentDefinition } from "../task/types";
+
 import type { AgentOutputManager } from "../task/output-manager";
 import type { ModelMention } from "./model-mention-syntax";
 import { ModelMentionRegistry, type ResolvedModelMention, referencedModelAgents } from "./model-mentions";
@@ -607,6 +618,8 @@ import {
 	type SessionAdvisorsHost,
 } from "./session-advisors";
 import {
+	type CacheBridgeEstimate,
+	type CacheBridgeOutcome,
 	type CacheRefreshOutcome,
 	type CacheWarmer,
 	type CacheWarmingMode,
@@ -739,6 +752,7 @@ import {
 } from "../utils/title-settings";
 import {
 	cfgArchiveEnabled,
+	cfgTrackingEnabled,
 	cfgCommitEnabled,
 	cfgComputerEnabled,
 	cfgRatchetEnabled,
@@ -1314,6 +1328,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** False for a subagent, whose gate belongs to its session tree's root. */
 	readonly #ownsCostGate: boolean;
 	#costCapRefusal: CostCapRefusal | undefined;
+	#mcpNamespaces: MCPEvalNamespaceCatalog | undefined;
+	/** True while this session is producing a handoff document (maintenance gate). */
+	#handoffInFlight = false;
 	/** Entries of tools mounted under `xd://`; empty when virtual devices are unmounted. */
 	getXdevToolEntries: () => Array<{ name: string; summary: string }>;
 	readonly yieldQueue: YieldQueue;
@@ -3114,7 +3131,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	async exitVibeMode(): Promise<number> {
 		if (!this.#vibeModeState?.enabled) return 0;
 		let killed = 0;
-		await this.runModeExitTeardown(async () => {
+		await this.withQueueDrainPaused(async () => {
 			if (this.isStreaming) {
 				await this.abort();
 			}
@@ -3172,7 +3189,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Exit Lead mode, restoring the pre-mode toolset. */
 	async exitLeadMode(): Promise<void> {
 		if (!this.#leadModeState?.enabled) return;
-		await this.runModeExitTeardown(async () => {
+		await this.withQueueDrainPaused(async () => {
 			if (this.isStreaming) {
 				await this.abort();
 			}
@@ -3263,7 +3280,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Exit Team mode, stop its workers and restore the previous tool set. */
 	async exitTeamMode(): Promise<void> {
 		if (!this.#teamModeEnabled) return;
-		await this.runModeExitTeardown(async () => {
+		await this.withQueueDrainPaused(async () => {
 			if (this.isStreaming) await this.abort();
 			await VibeSessionRegistry.global().killAll(this.#vibeParentSession(), this.#teamModeOwnerScope);
 			if (this.#teamModeOwnerScope) {
@@ -3322,7 +3339,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 	async exitTeamModePreservingActive(): Promise<void> {
 		if (!this.#teamModeEnabled) return;
-		await this.runModeExitTeardown(async () => {
+		await this.withQueueDrainPaused(async () => {
 			await this.removeTeamToolsPreservingActive();
 			this.#teamModeEnabled = false;
 			this.bumpStateVersion();
@@ -3779,7 +3796,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				const first = delivered[0];
 				if (!first) return;
 				if (this.#clientBridge?.deferAgentInitiatedTurns) {
-					this.#recordWithoutTurn(messages);
+					this.#recordWithoutTurn(delivered);
 					return;
 				}
 				// A user interrupt is still in effect: background completions (async job
@@ -3789,20 +3806,22 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				// turn has ended on its own.
 				if (this.#advisors.autoResumeSuppressed && !this.#turnSettledSinceUserInterrupt) {
 					logger.debug("Background delivery folded into context without a turn", {
-						count: messages.length,
-						customTypes: messages.map(message => (message.role === "custom" ? message.customType : message.role)),
+						count: delivered.length,
+						customTypes: delivered.map(message =>
+							message.role === "custom" ? message.customType : message.role,
+						),
 					});
-					this.#recordWithoutTurn(messages);
+					this.#recordWithoutTurn(delivered);
 					return;
 				}
 				const observation =
 					this.#ircWakeTurnObserver && !this.#openTurnObservation
-						? this.#startTurnObservation(messages)
+						? this.#startTurnObservation(delivered)
 						: undefined;
 				let turnError: unknown;
 				const inFlightEpoch = this.#beginInFlight();
 				try {
-					await this.agent.prompt(messages.length === 1 ? first : messages);
+					await this.agent.prompt(delivered.length === 1 ? first : delivered);
 				} catch (error) {
 					turnError = error;
 					throw error;
@@ -3886,6 +3905,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			return thunks;
 		});
 		this.getToolCommandEntries = config.getToolCommandEntries ?? (() => []);
+		this.getXdevToolEntries = config.getXdevToolEntries ?? (() => []);
 		const sessionToolsHost: SessionToolsHost = {
 			agent: this.agent,
 			sessionManager: this.sessionManager,
@@ -4314,14 +4334,18 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			generateHandoffDocument: async (customInstructions, options) => {
 				const model = this.model;
 				if (!model) throw new Error("Cannot generate a handoff document without a selected model");
-				const document = await this.#handoff.generateDocument(customInstructions, {
-					model,
-					signal: options?.signal ?? new AbortController().signal,
-					autoTriggered: options?.autoTriggered,
-				});
-				return document === undefined
-					? undefined
-					: { document, ...(this.#handoff.lastSavedPath ? { savedPath: this.#handoff.lastSavedPath } : {}) };
+				this.#handoffInFlight = true;
+				try {
+					return await this.#handoff.generateDocument(customInstructions, {
+						model,
+						signal: options?.signal ?? new AbortController().signal,
+						autoTriggered: options?.autoTriggered,
+						messages: options?.messages,
+						onAttempt: options?.onAttempt,
+					});
+				} finally {
+					this.#handoffInFlight = false;
+				}
 			},
 			removeAssistantMessageFromActiveContext: message =>
 				this.#recovery.removeAssistantMessageFromActiveContext(message),
@@ -4705,6 +4729,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (hard !== undefined) return hard;
 		const head = this.#toolChoiceQueue.peekPendingHead();
 		if (head !== undefined) {
+			const toolCommands = this.#tools.activeToolCommands;
 			return {
 				soft: true,
 				id: head.id,
@@ -10029,6 +10054,20 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return this.#maintenance.isCompacting;
 	}
 
+	/** Whether a manual compaction is preparing or waiting to apply without blocking turns. */
+	get isBackgroundCompacting(): boolean {
+		return this.#maintenance.isBackgroundCompacting;
+	}
+
+	/**
+	 * Absolute path of the session's `local://` directory, which exists only once something is
+	 * written there. Follows the tools' mapping, which an SDK host or a parent session may pin.
+	 */
+	get localRoot(): string {
+		const tools = this.#evalToolSession;
+		return resolveLocalRoot(tools ? sessionLocalProtocolOptions(tools) : this.#localProtocolOptions());
+	}
+
 	/** Background speculative-compaction state, for UI indicators. */
 	get compactionSpeculation(): "idle" | "running" | "armed" {
 		return this.#maintenance.speculationState;
@@ -12343,7 +12382,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		onRouted?.();
 
 		// Get command context from extension runner (includes session control methods)
-		const ctx = this.#extensionRunner.createCommandContext(command.extensionPath);
+		const ctx = this.#extensionRunner.createCommandContext();
 
 		try {
 			await this.#extensionRunner.runScoped(() => command.handler(args, ctx));
@@ -12366,7 +12405,6 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 		return {
 			ui: noOpUIContext,
-			settings: this.settings,
 			mode: "print",
 			hasUI: false,
 			cwd: this.sessionManager.getCwd(),
@@ -12381,7 +12419,6 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			// exactly like the runner's own defaults.
 			agents: createAgentDirectory(AgentRegistry.global()),
 			messaging: createAgentMessenger(),
-
 			model: this.model ?? undefined,
 			models: createExtensionModelQuery(this.#modelRegistry, this.settings, () => this.model ?? undefined),
 			isIdle: () => !this.isStreaming,
@@ -13386,11 +13423,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#resumeStrandedIrcAsides();
 			return;
 		}
-		const preparedGroup = [
-			...prependMessages,
-			...(descriptionNotice ? [descriptionNotice] : []),
-			normalizedAppMessage,
-		];
+		const preparedGroup = [...prependMessages, normalizedAppMessage];
 		// A user follow-up admitted behind a queued compaction waits outside the
 		// executable queue; its companions travel with it and keep their order.
 		if (deliverAs === "followUp" && this.#holdStudioFollowUp(preparedGroup)) {
@@ -14314,6 +14347,12 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Start skill-description compression held by `deferSkillDescriptionCompression` (see `createAgentSession`). */
 	startSkillDescriptionCompression(): void {
 		this.#skillDescriptions.startCompression();
+	}
+
+	/** Start skill and MCP namespace hint compression held by `deferHintCompression` (see `createAgentSession`). */
+	startHintCompression(): void {
+		this.#skillDescriptions.startCompression();
+		this.#mcpNamespaces?.startCompression();
 	}
 
 	/** Frozen skill-URI hint visibility snapshot (see {@link SessionTools.skillHintVisible}). */
@@ -19568,6 +19607,56 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const reply = await this.generateTitle(title, cardPrompt, signal, language);
 		const card = reply ? parseCardReply(reply, icons) : undefined;
 		return card ? formatCardTitle(card, title) : title;
+	}
+	/** Whether queued input, a live service, or a wake source starts this agent's next turn. */
+	hasWakeAfterTurn(): boolean {
+		if (this.agent.hasQueuedMessages() || this.#irc.hasPending()) return true;
+		if (this.#evalToolSession && hasLiveOwnedService(this.#evalToolSession)) return true;
+		const sources = this.#wakeSources();
+		if (!sources) return false;
+		if (sources.queued || sources.agents.length > 0) return true;
+		const manager = this.#asyncJobManager;
+		const registry = this.#agentRegistry;
+		const agentId = this.#agentId;
+		return sources.jobs.some(id => {
+			const jobAgent = manager?.getJob(id)?.agentId;
+			return !jobAgent || !registry || !agentId || !registry.awaits.blocksOn(jobAgent, agentId, 0);
+		});
+	}
+
+	/** What bridging a long tool call with compaction would produce for a prompt of `promptTokens`. */
+	bridgeCompactionEstimate(promptTokens: number): CacheBridgeEstimate | undefined {
+		return this.#maintenance.bridgeCompactionEstimate(promptTokens);
+	}
+
+	/** Compact the history behind the pending tool call in the background. */
+	startBridgeCompaction(): Promise<CacheBridgeOutcome> {
+		return this.#maintenance.startBridgeCompaction();
+	}
+
+	/** Records a call into an eval prelude. */
+	noteEvalPreludeCall(name: string): void {
+		this.#tools.noteEvalPreludeCall(name);
+	}
+
+	/** Opens the notify channel for a background job this session started. */
+	openAsyncNotify(job: AsyncNotifySource): (batch: NotifyBatch) => void {
+		const epoch = this.#asyncDeliveryEpoch;
+		return batch => {
+			if (this.#isDisposed || epoch !== this.#asyncDeliveryEpoch) return;
+			this.yieldQueue.enqueue<AsyncNotifyEntry>(ASYNC_NOTIFY_MESSAGE_TYPE, { ...job, ...batch });
+		};
+	}
+
+	/** Queues one batch of notify matches from a supervised service. */
+	queueServiceNotify(entry: AsyncNotifyEntry): void {
+		if (this.#isDisposed) return;
+		this.yieldQueue.enqueue<AsyncNotifyEntry>(ASYNC_NOTIFY_MESSAGE_TYPE, entry);
+	}
+
+	/** Whether requests to `model` leave other models' reasoning out of their input. */
+	omitsDemotedReasoning(model: Model): boolean {
+		return this.#recovery.omitsDemotedReasoning(model);
 	}
 }
 

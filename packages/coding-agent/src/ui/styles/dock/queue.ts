@@ -4,9 +4,9 @@
  * `Steering · 1` over dim `  1. message` rows, then the dim hint
  * `  └ ⌥↑ to edit`.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, truncate } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, truncate } from "@linxiraos/pi-tui/text/width";
 import { keyLabel } from "../../keys/hints";
 import type { QueuedMessageGroup } from "../../dock/queue";
 import { termOf } from "../messages/fill";

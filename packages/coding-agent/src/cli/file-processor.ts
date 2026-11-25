@@ -3,11 +3,11 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { getProjectDir, isEnoent, readImageMetadata } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { getProjectDir, isEnoent, readImageMetadata } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { resolveReadPath } from "../tools/path-utils";
-import { formatBytes } from "@oh-my-pi/pi-utils";
+import { formatBytes } from "@linxiraos/pi-utils";
 import { formatDimensionNote, resizeImage } from "../utils/image-resize";
 import { CONVERTIBLE_EXTENSIONS, convertFileWithMarkit } from "../utils/markit";
 import {

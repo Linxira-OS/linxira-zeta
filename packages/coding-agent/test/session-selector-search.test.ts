@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { rankSessionSearchMatches } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/session-selector";
-import type { SessionInfo } from "@oh-my-pi/pi-coding-agent/session/session-listing";
+import { rankSessionSearchMatches } from "@linxiraos/zeta/modes/view-model/overlays/session-selector";
+import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 import { SessionSelector } from "../src/ui/overlays/pickers/session-selector";
 import { firstOfKind, type LayerTerminal, mountLayer } from "./helpers/layer-terminal";
 

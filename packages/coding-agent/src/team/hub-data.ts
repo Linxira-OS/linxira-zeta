@@ -15,7 +15,7 @@ import type {
 	TeamHubRoomView,
 	TeamHubSnapshot,
 	TeamHubWorktree,
-} from "@linxiraos/pi-tui/overlays/team-hub";
+} from "../modes/view-model/overlays/team-hub";
 import { addRoomMember, createRoom, postRoomEvent, removeRoomMember, setRoomKind } from "./rooms";
 import { resolveTeamDbPath, TeamDb, type RoomSummaryRecord, type TaskRecord } from "./db";
 import { cancelTask, claimTask, completeTask, releaseTask, renewTaskLease, rejectTask, submitTask } from "./tasks";

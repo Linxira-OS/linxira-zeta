@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
 import type { BtwInjectState } from "../../../../src/modes/view-model/overlays/btw-inject";
 import type { BtwNoteHost } from "../../../../src/modes/view-model/overlays/btw-note";
 import { type BtwHistoryRecord, splitBtwInject } from "../../../../src/session/btw-history-model";

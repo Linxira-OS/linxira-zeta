@@ -6,21 +6,17 @@
  * their blocks.
  */
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import {
-	getKeybindings,
-	KeybindingsManager,
-	setKeybindings,
-} from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import "@oh-my-pi/pi-coding-agent/internal-urls/router";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CopyPickSource } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/copy-selector";
-import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { createRoot, isUiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { getKeybindings, KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import "@linxiraos/zeta/internal-urls/router";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { CopyPickSource } from "@linxiraos/zeta/modes/view-model/overlays/copy-selector";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
+import { createRoot, isUiNode } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { CopySelector } from "../../../src/ui/overlays/pickers/copy-selector";
 import { mountOverlay } from "../../helpers/overlay-terminal";
 

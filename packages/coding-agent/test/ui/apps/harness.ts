@@ -20,22 +20,22 @@ import {
 	signal,
 	type UiEvent,
 	type UiNode,
-} from "@oh-my-pi/pi-tui";
-import { bubbleEvent, bubbleKey, keypathOf, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import { decodeKey } from "@oh-my-pi/pi-tui/driver/input/keys";
-import { paintNode, releasePaintCache, type StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { type WidgetContext, widgetFor, widgetState } from "@oh-my-pi/pi-tui/term/widgets";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+} from "@linxiraos/pi-tui";
+import { bubbleEvent, bubbleKey, keypathOf, pathTo } from "@linxiraos/pi-tui/dispatch";
+import { decodeKey } from "@linxiraos/pi-tui/driver/input/keys";
+import { paintNode, releasePaintCache, type StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { type WidgetContext, widgetFor, widgetState } from "@linxiraos/pi-tui/term/widgets";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 import {
 	CORPUS_DIR,
 	type CorpusCase,
 	corpusEnvironment,
 	describeTree,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/pi-tui/testing/corpus";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { captureStage, skipsAt } from "../deviations";
 
 /** What a step may do to the mounted screen. */

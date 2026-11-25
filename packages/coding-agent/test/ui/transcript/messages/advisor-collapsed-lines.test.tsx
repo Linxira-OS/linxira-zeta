@@ -1,14 +1,14 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `display.advisorCollapsedLines`: a collapsed advisor card shows at most
  * that many note rows under its head; expanded, or with the setting at 0,
  * every row shows.
  */
 import { describe, expect, test } from "bun:test";
-import { createRoot, isUiNode, type Reactive, signal } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createRoot, isUiNode, type Reactive, signal } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import type { AdvisorMessageDetails } from "../../../../src/session/transcript/messages";
 import { AdvisorMessage } from "../../../../src/ui/transcript/messages/advisor-message";
 import "../../../../src/ui/styles/messages";

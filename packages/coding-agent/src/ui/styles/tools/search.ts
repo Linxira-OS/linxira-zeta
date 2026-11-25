@@ -3,11 +3,11 @@
  * (`🔍 Grep: needle in src 2 matches · 2 files`), branch trees of items with
  * a trailing `… N more` summary, and file paths with a dim directory.
  */
-import type { TspText } from "@oh-my-pi/pi-wire";
-import type { PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { replaceTabs, truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { TspText } from "@linxiraos/pi-wire";
+import type { PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { replaceTabs, truncate, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { fileLink } from "./file-common";
 
 /** The head's leading glyph. */

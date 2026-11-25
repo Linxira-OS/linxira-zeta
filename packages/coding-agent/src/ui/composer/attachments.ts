@@ -8,7 +8,7 @@
  * comes back on submit. In the terminal each chip takes its own color from a
  * fixed palette.
  */
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
 
 export type ChipKind = "paste" | "image" | "video";
 

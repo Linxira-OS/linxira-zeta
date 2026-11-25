@@ -9,13 +9,13 @@
  *
  * Reads {@link EvalTerm}.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { renderMarkdown } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatDuration, formatNumber, sanitizeText } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { renderMarkdown } from "@linxiraos/pi-tui/text/markdown/index";
+import { replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatDuration, formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import { type EvalStatusEvent, splitEvalOutput } from "../../../tools/details/eval";
 import { formatArtifactErrorNotice, formatTruncationMetaNotice } from "../../../tools/output-meta-format";
 import { FEED_MODEL_BADGE_WIDTH, isFeedModelBadgeEnabled, shortenPath } from "../../../utils/render-utils";

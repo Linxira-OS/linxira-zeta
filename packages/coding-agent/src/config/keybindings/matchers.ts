@@ -2,7 +2,7 @@
  * Actions that must stay reachable by keyboard even when the user unbinds
  * them: each falls back to a fixed chord when its binding is empty.
  */
-import type { KeyEvent } from "@oh-my-pi/pi-tui";
+import type { KeyEvent } from "@linxiraos/pi-tui";
 import type { Keybinding } from "./app-keybindings";
 import { canonicalKeyId, type KeyId } from "./key-id";
 import { getKeybindings, type KeybindingsManager } from "./keybindings";

@@ -6,16 +6,16 @@
  */
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionObserverRegistry } from "@oh-my-pi/pi-coding-agent/task/session-observer-registry";
-import { type KeyEvent, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { bubbleKey, pathTo } from "@oh-my-pi/pi-tui/dispatch";
-import { jsx } from "@oh-my-pi/pi-tui/jsx-runtime";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionObserverRegistry } from "@linxiraos/zeta/task/session-observer-registry";
+import { type KeyEvent, signal, type UiNode } from "@linxiraos/pi-tui";
+import { bubbleKey, pathTo } from "@linxiraos/pi-tui/dispatch";
+import { jsx } from "@linxiraos/pi-tui/jsx-runtime";
+import { TempDir } from "@linxiraos/pi-utils";
 import { Overlays } from "../../../src/ui/shell/overlays";
 import { initTheme } from "../../../src/ui/theme/service";
 

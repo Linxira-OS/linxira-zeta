@@ -1,5 +1,7 @@
 {{#each steps}}
+
 # Step {{number}} of {{total}}
+
 {{text}}
 {{/each}}
 {{#if last}}

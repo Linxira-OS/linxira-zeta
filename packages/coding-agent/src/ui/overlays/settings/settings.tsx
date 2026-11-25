@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The settings window: every setting the host declares, as a `prefs` page
  * set (one page per settings tab plus the installed plugins).
@@ -23,11 +23,11 @@ import {
 	nativeRendering,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { PREFS_MENU_FOOTER_ROLE } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import type { PrefsTerm } from "@oh-my-pi/pi-tui/term/painters/prefs-model";
-import { slugify } from "@oh-my-pi/pi-utils";
-import type { TspPrefsControl, TspPrefsProps, TspPrefsRow, TspPrefsSection, TspSpan } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { PREFS_MENU_FOOTER_ROLE } from "@linxiraos/pi-tui/term/painters/prefs";
+import type { PrefsTerm } from "@linxiraos/pi-tui/term/painters/prefs-model";
+import { slugify } from "@linxiraos/pi-utils";
+import type { TspPrefsControl, TspPrefsProps, TspPrefsRow, TspPrefsSection, TspSpan } from "@linxiraos/pi-wire";
 import {
 	getSettingDef,
 	getSettingsForTab,
@@ -47,7 +47,7 @@ import "../../styles/settings/settings";
 import { composerShape, composerShapeIds } from "../../styles/composer/shapes";
 import { listKeyId } from "../../../config/keybindings/matchers";
 import { getKeybindings } from "../../../config/keybindings/keybindings";
-import type { ShapeTarget } from "@oh-my-pi/snapcompact";
+import type { ShapeTarget } from "@linxiraos/zeta-compact";
 import type { StatusFacts } from "../../status/facts";
 import { createStatusLine, shapePlacement, type StatusChrome } from "../../status/status-line";
 import type { StatusLineSettings } from "../../../modes/view-model/status-line/types";

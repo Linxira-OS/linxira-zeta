@@ -23,7 +23,7 @@
  * Declaration order is significant: the settings panel lists a tab's settings in registration order
  * (sections follow `TAB_GROUPS`), and `config/all-settings.ts` imports every domain in that order.
  */
-import { logger, parseFlag } from "@oh-my-pi/pi-utils";
+import { logger, parseFlag } from "@linxiraos/pi-utils";
 import type { AnyUiMetadata, SubmenuOption, UiBase } from "./settings-defs";
 import type { SettingProvenance, Settings } from "./settings";
 

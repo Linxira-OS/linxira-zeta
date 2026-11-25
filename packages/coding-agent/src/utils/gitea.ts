@@ -1,7 +1,7 @@
 import { $which, isRecord } from "@linxiraos/pi-utils";
 import { REJECT_PROMPT_COMMAND } from "../exec/non-interactive-env";
 import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 
 /** Captured result of a completed `tea` invocation. */
 export interface TeaCommandResult {

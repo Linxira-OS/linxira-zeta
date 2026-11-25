@@ -1,11 +1,11 @@
 import * as path from "node:path";
 import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
-import { createRoot, resolveChildren } from "@oh-my-pi/pi-tui";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { ResolvedTheme } from "@oh-my-pi/pi-tui/theme/theme";
-import { CORPUS_NOW, type CorpusCase, corpusEnvironment, describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
+import { createRoot, resolveChildren } from "@linxiraos/pi-tui";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { ResolvedTheme } from "@linxiraos/pi-tui/theme/theme";
+import { CORPUS_NOW, type CorpusCase, corpusEnvironment, describeTree } from "@linxiraos/pi-tui/testing/corpus";
 import { RawSseDebugBuffer } from "../../../../src/debug/raw-sse-buffer";
 import { RawSseMain, RawSseViewer, RawSseViewerModel } from "../../../../src/ui/apps/raw-sse";
 import { type AppDriver, appSuite, caseFiles, nativeDiff, paintAppRows } from "../harness";

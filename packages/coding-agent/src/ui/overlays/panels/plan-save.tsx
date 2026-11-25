@@ -1,9 +1,9 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Where to save a plan: a path field (empty saves to the suggested path),
  * Save (enter) and Cancel (ctrl+g, escape).
  */
-import { type Accessor, type JSXNode, signal, untrack } from "@oh-my-pi/pi-tui";
+import { type Accessor, type JSXNode, signal, untrack } from "@linxiraos/pi-tui";
 import type { PlanSaveOverlayResult } from "../../../modes/view-model/overlays/plan-save-overlay";
 import "../../styles/panels/plan-save";
 import { ActionButton, applyEdit, type LineValue } from "./common";
@@ -73,7 +73,7 @@ export function PlanSave(props: PlanSaveProps): JSXNode {
 					/>
 				)
 			}
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<ActionButton
 					id="cancel"

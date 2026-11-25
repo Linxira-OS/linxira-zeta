@@ -1,13 +1,13 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Collaboration blocks: a guest's prompt as a user bubble headed by its
  * sender, and the join link with its QR code.
  *
  * Terminal looks: `src/ui/styles/figures/collab.ts`.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import { computed, type JSXNode, type Reactive, read } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import { computed, type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { encodeQr, qrHalfBlocks } from "./qr";
 
 /** A collab guest's prompt as the session records it (`customType: "collab"`). */
@@ -31,7 +31,7 @@ export function CollabPrompt(props: { readonly message: CollabPromptMessage }): 
 			: message.content.map(part => (part.type === "text" ? (part.text ?? "") : "")).join("");
 	const term: CollabPromptTerm = { sender };
 	return (
-		<card role="omp.user.collab" tone="user" head={[{ t: `«${sender}» ›`, s: "accent strong" }]} term={term}>
+		<card role="zeta.user.collab" tone="user" head={[{ t: `«${sender}» ›`, s: "accent strong" }]} term={term}>
 			<md text={text} />
 		</card>
 	);
@@ -57,7 +57,7 @@ export function CollabQrCode(props: {
 		),
 	);
 	return (
-		<col role="omp.collab.qrcode" term={term}>
+		<col role="zeta.collab.qrcode" term={term}>
 			<text spans={[{ t: props.url.replace(/^https?:\/\//, ""), s: "accent link", href: props.url }]} wrap="none" />
 			<code text={native} lang="text" wrap={false} />
 		</col>

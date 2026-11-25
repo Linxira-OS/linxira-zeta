@@ -15,7 +15,7 @@ import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import type { Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { tagImageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
+import { tagImageAttachmentSource } from "../src/utils/image-source";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";

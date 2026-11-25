@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as capability from "@oh-my-pi/pi-coding-agent/capability";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { resetActiveRulesForTests, setActiveRules } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import type { SSHHost } from "@oh-my-pi/pi-coding-agent/capability/ssh";
-import type { CapabilityResult } from "@oh-my-pi/pi-coding-agent/capability/types";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { resetActiveSkillsForTests, setActiveSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls/router";
+import * as capability from "@linxiraos/zeta/capability";
+import type { Rule } from "@linxiraos/zeta/capability/rule";
+import { resetActiveRulesForTests, setActiveRules } from "@linxiraos/zeta/capability/rule";
+import type { SSHHost } from "@linxiraos/zeta/capability/ssh";
+import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
 import {
 	applyInternalUrlCompletion,
 	extractInternalUrlContext,
 	getInternalUrlSuggestions,
 	isInternalUrlPrefix,
-} from "@oh-my-pi/pi-coding-agent/internal-urls/completion";
-import { PromptActionAutocompleteProvider } from "@oh-my-pi/pi-coding-agent/autocomplete/prompt-actions";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/internal-urls/completion";
+import { PromptActionAutocompleteProvider } from "@linxiraos/zeta/autocomplete/prompt-actions";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

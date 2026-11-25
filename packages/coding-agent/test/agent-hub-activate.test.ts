@@ -6,27 +6,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Model, Usage } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { createAgentHubRuntime } from "@oh-my-pi/pi-coding-agent/modes/agent-hub-runtime";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model, Usage } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { createAgentHubRuntime } from "@linxiraos/zeta/modes/agent-hub-runtime";
 import {
 	type AgentMetrics,
 	aggregateMetrics,
 	hubFallbackStatsSession,
 	hubRowMetrics,
-} from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/agent-hub-projection";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { visitEntriesFromFileStream } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getBundledAgent } from "@oh-my-pi/pi-coding-agent/task/agents";
-import { SessionObserverRegistry } from "@oh-my-pi/pi-coding-agent/task/session-observer-registry";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/modes/view-model/overlays/agent-hub-projection";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { visitEntriesFromFileStream } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { getBundledAgent } from "@linxiraos/zeta/task/agents";
+import { SessionObserverRegistry } from "@linxiraos/zeta/task/session-observer-registry";
+import { TempDir } from "@linxiraos/pi-utils";
 import { type MountedHub, mountAgentHub } from "./helpers/agent-hub";
 
 const AGENT_ID = "Worker";

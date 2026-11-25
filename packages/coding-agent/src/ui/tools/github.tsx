@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * GitHub: the operation as the title (`GitHub Search Issues`), its subject
  * (repo, query, branch) after it. Results are the CLI's markdown; a run
@@ -7,9 +7,9 @@
  *
  * Terminal look: `github` (`src/ui/styles/tools/github.ts`).
  */
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { sanitizeDisplayWarning } from "../../utils/render-utils";
 import type { ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
@@ -391,7 +391,7 @@ export const githubPresenter: ToolPresenter<GithubArgs, GithubDetails> = {
 			return {
 				label: label(title, parts),
 				tone: "error",
-				body: <text role="omp.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
+				body: <text role="zeta.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
 				term: {
 					look: "github",
 					result: true,

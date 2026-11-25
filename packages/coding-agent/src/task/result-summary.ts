@@ -5,12 +5,12 @@
  * when a woken subagent re-yields, so a parent reads the same shape (status,
  * preview, `agent://` pointer) regardless of which path delivered it.
  */
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@linxiraos/pi-utils";
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { AgentRegistry, isResumable } from "../registry/agent-registry";
 import { ASYNC_INLINE_RESULT_MAX_CHARS } from "../session/async-job-delivery";
 import { escapeHarnessTags } from "../session/harness-tags";
-import { formatBytes, formatDuration } from "@oh-my-pi/pi-utils";
+import { formatBytes, formatDuration } from "@linxiraos/pi-utils";
 import type { SingleResult } from "./task-details";
 
 /**

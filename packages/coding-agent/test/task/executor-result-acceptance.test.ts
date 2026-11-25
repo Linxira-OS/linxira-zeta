@@ -6,33 +6,29 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage, ToolCall } from "@oh-my-pi/pi-ai";
-import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { resetRegisteredArtifactDirsForTests } from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import type { IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/irc-types";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { IrcBridge, type IrcBridgeHost } from "@oh-my-pi/pi-coding-agent/session/irc-bridge";
-import {
-	attachIrcWakeTurnMonitor,
-	runSubagentFollowUpTurn,
-	runSubprocess,
-} from "@oh-my-pi/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { WaitTool } from "@oh-my-pi/pi-coding-agent/tools/wait";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage, ToolCall } from "@linxiraos/pi-ai";
+import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { resetRegisteredArtifactDirsForTests } from "@linxiraos/zeta/internal-urls/registry-helpers";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+import type { IrcMessage } from "@linxiraos/zeta/irc/irc-types";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
+import { attachIrcWakeTurnMonitor, runSubagentFollowUpTurn, runSubprocess } from "@linxiraos/zeta/task/executor";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { WaitTool } from "@linxiraos/zeta/tools/wait";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const AGENT_ID = "accepted-result";
 

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `omp stream`'s console: the link status and channel, the viewer URL,
  * audience and attached panes, the event log (chat, link and pane events;
@@ -8,8 +8,8 @@
  * ↑/↓ recall sent lines, Ctrl+C stops the stream.
  */
 import { stripVTControlCharacters } from "node:util";
-import { type Accessor, batch, type JSXNode, type KeyEvent, type Signal, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import type { StreamChatMessage, TspSpan } from "@oh-my-pi/pi-wire";
+import { type Accessor, batch, type JSXNode, type KeyEvent, type Signal, signal, type UiNode } from "@linxiraos/pi-tui";
+import type { StreamChatMessage, TspSpan } from "@linxiraos/pi-wire";
 import { runStandalone } from "../ui/apps/fullscreen";
 import { formatKeyHint, formatKeyHints } from "../ui/keys/hints";
 import { applyEdit, type LineValue } from "../ui/overlays/panels/common";

@@ -10,7 +10,7 @@
  * the interactive mode attaches.
  */
 import * as os from "node:os";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import {
 	CONTEXT_LINE_MODE_VALUES,
 	STATUS_LINE_PRESET_VALUES,

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The session tree (`/tree`): every entry of the session as a `tree` picker,
  * the branch holding the current leaf first, filter tabs (default, no tools,
@@ -6,10 +6,10 @@
  * to the selected entry (Shift+Enter summarizes the abandoned branch first);
  * Shift+L labels it (the label editor takes the preview pane).
  */
-import { batch, computed, type JSXNode, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspPickerAction, TspPickerItem, TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import { batch, computed, type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { TspPickerAction, TspPickerItem, TspSpan, TspText } from "@linxiraos/pi-wire";
 import {
 	advisorLabel,
 	advisorTreeDisplay,
@@ -705,7 +705,7 @@ export function TreeSelector(props: TreeSelectorProps): JSXNode {
 		const editor = labelEditor();
 		if (editor)
 			return [
-				<text text="Label" role="omp.picker.title" />,
+				<text text="Label" role="zeta.picker.title" />,
 				<text spans={[{ t: "Empty to remove", s: "muted" }]} />,
 				<input text={editor.line.text} cursor={editor.line.cursor} prompt="> " sendable={false} />,
 			];
@@ -727,12 +727,12 @@ export function TreeSelector(props: TreeSelectorProps): JSXNode {
 			};
 			const copy = targetCopy(target, collectBlocks(target));
 			out.push(
-				<text text={rowText(`${copy.label[0]!.toUpperCase()}${copy.label.slice(1)}`)} role="omp.picker.title" />,
+				<text text={rowText(`${copy.label[0]!.toUpperCase()}${copy.label.slice(1)}`)} role="zeta.picker.title" />,
 			);
 			if (label) out.push(<text spans={[{ t: rowText(label), s: "warning" }]} />);
 			out.push(turnPreview(target, copy.content || parts));
 		} else {
-			out.push(<text text={parts} role="omp.picker.title" />);
+			out.push(<text text={parts} role="zeta.picker.title" />);
 			if (label) out.push(<text spans={[{ t: rowText(label), s: "warning" }]} />);
 		}
 		return out;

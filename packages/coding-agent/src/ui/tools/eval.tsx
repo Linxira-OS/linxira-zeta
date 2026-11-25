@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `eval`: notebook cells (Python, JavaScript) run in a kernel. Each cell is
  * one run box: a caption when there are several, the source (reflowed for
@@ -9,10 +9,10 @@
  * Terminal look: `eval` (`src/ui/styles/tools/eval.ts`), fed by {@link EvalTerm}.
  */
 
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs, truncate } from "@oh-my-pi/pi-tui/text/width";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs, truncate } from "@linxiraos/pi-tui/text/width";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import {
 	type EvalCellResult,
 	type EvalLanguage,
@@ -177,19 +177,19 @@ function StatusEvent(props: {
 	}
 	if (progress) spans.push({ t: ` ${formatMcpProgress(progress, STATUS_VALUE_WIDTH)}` });
 	const preview = props.expanded ? eventString(event.preview)?.trimEnd() : undefined;
-	if (!preview) return <text key={props.nodeKey} spans={spans} truncate="end" role="omp.tool.eval.status" />;
+	if (!preview) return <text key={props.nodeKey} spans={spans} truncate="end" role="zeta.tool.eval.status" />;
 	const head = preview
 		.split(/\r?\n/)
 		.map(line => plain(line.slice(line.lastIndexOf("\r") + 1)))
 		.slice(0, STATUS_PREVIEW_LINES);
 	const path = eventString(event.path);
 	return (
-		<col key={props.nodeKey} role="omp.tool.eval.status.event" gap="none">
-			<text key="line" spans={spans} truncate="end" role="omp.tool.eval.status" />
+		<col key={props.nodeKey} role="zeta.tool.eval.status.event" gap="none">
+			<text key="line" spans={spans} truncate="end" role="zeta.tool.eval.status" />
 			<code
 				key="preview"
 				text={head.join("\n")}
-				role="omp.tool.eval.status.preview"
+				role="zeta.tool.eval.status.preview"
 				path={path ? splitPathAndSel(path).path : undefined}
 				wrap={false}
 				preview={{ lines: STATUS_PREVIEW_FOLDED }}
@@ -206,7 +206,7 @@ function StatusSection(props: { readonly log: StatusEventLog; readonly expanded:
 	const from = props.expanded ? 0 : Math.max(0, events.length - RUN_STATUS_TAIL);
 	const hidden = from + elided;
 	return (
-		<col key="status" role="omp.run.status" gap="none">
+		<col key="status" role="zeta.run.status" gap="none">
 			{hidden > 0 && <text key="earlier" spans={[{ t: `${hidden} earlier`, s: "muted" }]} />}
 			{events.slice(from).map((event, i) => (
 				<StatusEvent event={event} expanded={props.expanded} nodeKey={`s${hidden + i}`} />
@@ -231,7 +231,7 @@ function TableView(props: { readonly view: Extract<EvalView, { kind: "table" }>;
 				});
 				return { id: `r${r}`, cells: record };
 			})}
-			role="omp.tool.eval.table"
+			role="zeta.tool.eval.table"
 		/>
 	);
 }
@@ -244,7 +244,7 @@ function outputNodes(output: string, views: readonly EvalViewEntry[] | undefined
 			return (
 				<RunOutput
 					output={part.text}
-					role="omp.tool.eval.output"
+					role="zeta.tool.eval.output"
 					previewLines={previewLines}
 					nodeKey={i === 0 ? "output" : `output-${i}`}
 				/>
@@ -286,7 +286,7 @@ function CellBox(props: { readonly cell: CellRun; readonly index: number; readon
 		const spans: TspSpan[] = [{ t: `${index + 1}/${total}`, s: "muted" }];
 		const title = plain(cell.title ?? "").trim();
 		if (title) spans.push({ t: ` ${title}`, s: "toolTitle" });
-		caption = <text key="caption" spans={spans} role="omp.run.caption" />;
+		caption = <text key="caption" spans={spans} role="zeta.run.caption" />;
 	}
 	return (
 		<RunBox nodeKey={`cell-${index}`} tone={cell.foot?.state === "failed" ? "error" : undefined}>
@@ -294,7 +294,7 @@ function CellBox(props: { readonly cell: CellRun; readonly index: number; readon
 			{cell.code.trim().length > 0 && (
 				<RunInput
 					source={cell.code}
-					role="omp.tool.eval.input"
+					role="zeta.tool.eval.input"
 					lang={highlightLanguage(cell.language)}
 					wrap={false}
 				/>

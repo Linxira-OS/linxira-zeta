@@ -3,6 +3,7 @@
 {{#if notes}}
 Option notes:
 {{#each notes}}
+
 - {{question}}: {{option}} [{{name}}={{jsonStringify value}}] — {{text}}
-{{/each}}
-{{/if}}
+  {{/each}}
+  {{/if}}

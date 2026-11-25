@@ -10,7 +10,7 @@ import {
 	type AgentToolUpdateCallback,
 	isNonBlankContext,
 	joinAdditionalContext,
-} from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import type {
 	AssistantMessage,
 	CredentialDisabledEvent,
@@ -18,30 +18,35 @@ import type {
 	Model,
 	ProviderResponseMetadata,
 	TextContent,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	clearContextHistoryIndex,
 	getContextHistoryIndex,
 	markPerCallContextMessage,
 	setContextHistoryIndex,
-} from "@oh-my-pi/pi-ai/utils/block-symbols";
+} from "@linxiraos/pi-ai/utils/block-symbols";
 import { canonicalKeyId, type KeyId } from "../../config/keybindings/key-id";
 import { KeybindingsManager } from "../../config/keybindings/keybindings";
 import { KEYBINDINGS, type Keybinding } from "../../config/keybindings/app-keybindings";
 import { appApproveKeys, appFollowUpKeys } from "../../config/keybindings/matchers";
-import { isRecord, logger } from "@oh-my-pi/pi-utils";
-import { refreshShellConfigCache } from "@oh-my-pi/pi-utils/procmgr";
+import { isRecord, logger } from "@linxiraos/pi-utils";
+import { refreshShellConfigCache } from "@linxiraos/pi-utils/procmgr";
 import { MAIN_AGENT_RULE_NAME } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";
 import { type Settings, withActiveSettings } from "../../config/settings";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { translatePluginMessage } from "../plugins/locales";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { extensionTheme } from "../../ui/extensions/render-output";
 import type { ComposerShape } from "../../ui/styles/composer/shapes";
 import type { AsyncJobSnapshot, SendUserMessageOptions } from "../../session/agent-session";
-import { MAIN_AGENT_ID } from "../../registry/agent-registry";
+import { AgentRegistry, MAIN_AGENT_ID } from "../../registry/agent-registry";
+import { type AgentDirectory, createAgentDirectory } from "../../registry/agent-directory";
+import { type AgentMessenger, createAgentMessenger } from "../../irc/facade";
+import { IrcBus } from "../../irc/bus";
+import type { AgentRegistryApi } from "../../registry/agent-registry";
 import type { SessionManager } from "../../session/session-manager";
 import type { ApprovalRecordSink } from "../../session/tool-approval-records";
 import { addFileDeleteFallback, addFileWriteFallback } from "../../tools/file-write-fallback";
@@ -320,6 +325,25 @@ function createHandlerUIContext(
 			return delegated;
 		},
 	});
+}
+
+/**
+ * Bind `ctx.t()` to one extension's catalogues without spreading the context:
+ * the runner context is shared across extensions, so overriding `t` on a
+ * prototype-scoped copy keeps each plugin's strings from leaking into another
+ * extension's handlers. Extensions without catalogues keep the host default
+ * (`fallback ?? key`).
+ */
+function withExtensionCatalog(ctx: ExtensionContext, extension: Extension): ExtensionContext {
+	const catalog = extension.localeCatalog;
+	if (!catalog) return ctx;
+	const scoped: ExtensionContext = Object.create(ctx);
+	Object.defineProperty(scoped, "t", {
+		value: (key: string, fallback?: string) => translatePluginMessage(catalog.tables, key, fallback),
+		enumerable: true,
+		configurable: true,
+	});
+	return scoped;
 }
 
 /**
@@ -644,6 +668,10 @@ export class ExtensionRunner {
 	#sessionModes?: ExtensionContextActions["sessionModes"];
 	#keybindings?: ExtensionContextActions["keybindings"];
 	#getMemoryFn?: () => MemoryRuntimeContext | undefined;
+	/** Cross-agent roster behind `ctx.agents`. */
+	readonly #agents: AgentDirectory;
+	/** Cross-agent messenger behind `ctx.messaging`. */
+	readonly #messaging: AgentMessenger;
 	#createAnnotations?: ExtensionAnnotationsFactory;
 	#commandDiagnostics: Array<{ type: string; message: string; path: string }> = [];
 	/** Link schemes already reported as claimed by more than one extension. */
@@ -913,11 +941,17 @@ export class ExtensionRunner {
 		private readonly agent: ExtensionAgentIdentity = TOP_LEVEL_AGENT,
 		/** Builds `ctx.annotations`; supplied by the host that wires the bundled `/annotate` command. */
 		createAnnotations?: ExtensionAnnotationsFactory,
+		/** Registry backing `ctx.agents`; defaults to the process-global registry. */
+		registry?: AgentRegistryApi,
+		/** Bus backing `ctx.messaging`; defaults to the process-global bus. */
+		bus?: Pick<IrcBus, "send" | "wait" | "inbox">,
 	) {
 		this.#uiContext = noOpUIContext;
 		this.#getMemoryFn = getMemory;
 		this.#createAnnotations = createAnnotations;
 		this.#getAsyncJobSnapshotFn = getAsyncJobSnapshot ?? (() => null);
+		this.#agents = createAgentDirectory(registry ?? AgentRegistry.global());
+		this.#messaging = createAgentMessenger(bus ?? IrcBus.global());
 		this.runtime.getShortcutConflict = (shortcut, extensionPath) => this.getShortcutConflict(shortcut, extensionPath);
 	}
 
@@ -1319,6 +1353,35 @@ export class ExtensionRunner {
 
 	getExtensionPaths(): string[] {
 		return this.extensions.map(e => e.path);
+	}
+
+	/** The runtime handed to extension factories (also used to load late extensions). */
+	getRuntime(): ExtensionRuntime {
+		return this.runtime;
+	}
+
+	/**
+	 * Remove every extension matching `predicate` from the live set, in place.
+	 * Handlers, commands and shortcuts are read from {@link extensions} per
+	 * event, so removing an entry retires them together; the caller owns tool
+	 * unregistration through its host. Returns the removed extensions in load
+	 * order.
+	 */
+	removeExtensions(predicate: (extension: Extension) => boolean): Extension[] {
+		const removed: Extension[] = [];
+		for (let index = this.extensions.length - 1; index >= 0; index -= 1) {
+			const extension = this.extensions[index]!;
+			if (!predicate(extension)) continue;
+			this.extensions.splice(index, 1);
+			this.#suspendedExtensions.delete(extension);
+			removed.unshift(extension);
+		}
+		if (removed.length === 0) return removed;
+		this.#loadOrder = this.#loadOrder?.filter(extension => !removed.includes(extension));
+		if (removed.some(extension => extension.transcriptPresenters.length > 0)) {
+			notifyTranscriptPresentersChanged();
+		}
+		return removed;
 	}
 
 	/** Every extension this runner loaded, in load order, including suspended ones. */
@@ -1969,10 +2032,16 @@ export class ExtensionRunner {
 			getAsyncJobSnapshot: () => this.#getAsyncJobSnapshotFn(),
 			hasUI: this.hasUI(),
 			cwd: this.cwd,
+			// Extensions with a plugin catalogue get a scoped `t` (see
+			// `withExtensionCatalog`); loose extensions fall back to the caller's
+			// text so `ctx.t()` is always callable.
+			t: (key: string, fallback?: string) => fallback ?? key,
 			sessionManager: this.sessionManager,
 			modelRegistry: this.modelRegistry,
 			isProjectTrusted: () => true,
 			agent,
+			agents: this.#agents,
+			messaging: this.#messaging,
 			get model() {
 				return getModel();
 			},
@@ -2072,9 +2141,23 @@ export class ExtensionRunner {
 		for (const dispose of this.#fileFallbackDisposers.splice(0)) dispose();
 	}
 
-	createCommandContext(): ExtensionCommandContext {
+	/**
+	 * Bind `ctx.t()` to the catalogues of the extension at `extensionPath`.
+	 * Used by dispatch sites that do not carry the `Extension` object (tool
+	 * adapters, slash commands, shortcuts). A loose extension or one shipping
+	 * no catalogues keeps the base context unchanged.
+	 */
+	scopeContextToExtension(ctx: ExtensionContext, extensionPath: string | undefined): ExtensionContext {
+		if (!extensionPath) return ctx;
+		const extension = this.getLoadedExtensions().find(
+			candidate => candidate.path === extensionPath || candidate.resolvedPath === extensionPath,
+		);
+		return extension ? withExtensionCatalog(ctx, extension) : ctx;
+	}
+
+	createCommandContext(extensionPath?: string): ExtensionCommandContext {
 		return {
-			...this.createContext(),
+			...this.scopeContextToExtension(this.createContext(), extensionPath),
 			getContextUsage: () => this.#getContextUsageFn(),
 			waitForIdle: () => this.#waitForIdleFn(),
 			newSession: options => this.#newSessionHandler(options),
@@ -2124,7 +2207,7 @@ export class ExtensionRunner {
 						let result: R | undefined;
 						try {
 							const handlerContext = createHandlerContext(
-								ctx,
+								withExtensionCatalog(ctx, ext),
 								handlerSignal,
 								event.type === "tool_call" || SESSION_BEFORE_EVENTS[event.type] === true ? budget : undefined,
 							);

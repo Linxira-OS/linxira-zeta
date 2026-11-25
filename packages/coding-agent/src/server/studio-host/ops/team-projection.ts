@@ -1,5 +1,5 @@
 /** Active Team graph: source-scoped mesh membership joined with Vibe and registry facts. */
-import type { ActiveTeamHubSnapshot } from "@linxiraos/pi-tui/overlays/active-team-hub";
+import type { ActiveTeamHubSnapshot } from "../../../modes/view-model/overlays/active-team-hub";
 import type { AgentId, SessionId } from "../protocol/index.js";
 import type {
 	TeamGraphNode,

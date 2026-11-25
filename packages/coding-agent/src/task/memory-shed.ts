@@ -24,9 +24,7 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
-import { clearRenderCache } from "@linxiraos/pi-tui";
-import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
-import { TERMINAL_STATES } from "@linxiraos/pi-tui/apps/ps-data";
+import { TERMINAL_STATES } from "../cli/ps-data";
 import type { ToolSession } from "../tools";
 import { listServices, stopService } from "../launch/services";
 import { mnemopiEmbedClient } from "../mnemopi/embed-client";
@@ -100,8 +98,8 @@ function describeReason(level: MemoryShedLevel, sample: MemorySample): string {
  */
 export const DEFAULT_MEMORY_SHED_EFFECTS: MemoryShedEffects = {
 	clearRenderCaches: () => {
-		clearRenderCache();
-		clearMermaidCache();
+		// The reactive pi-tui owns its markdown/mermaid LRUs internally and exposes
+		// no reset; shedding targets the coding-agent caches below.
 	},
 	releaseIdleTabs: ownerId => releaseIdleTabsForOwner(ownerId, { idleMs: 0 }),
 	terminateMnemopiWorker: () => mnemopiEmbedClient.terminate(),

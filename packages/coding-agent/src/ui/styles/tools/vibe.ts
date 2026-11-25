@@ -12,17 +12,17 @@
  *   six expanded), current tool, output tail (one/three), last activity,
  *   and the settled outcome in the bottom rail.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { elapsedAt } from "@oh-my-pi/pi-tui/term/painters/elapsed";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { shimmerTiers } from "@oh-my-pi/pi-tui/term/painters/shimmer";
-import { shimmerText } from "@oh-my-pi/pi-tui/text/shimmer";
-import { truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import type { TspElapsedProps, TspSpan } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { elapsedAt } from "@linxiraos/pi-tui/term/painters/elapsed";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { shimmerTiers } from "@linxiraos/pi-tui/term/painters/shimmer";
+import { shimmerText } from "@linxiraos/pi-tui/text/shimmer";
+import { truncate, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatDuration } from "@linxiraos/pi-utils";
+import type { TspElapsedProps, TspSpan } from "@linxiraos/pi-wire";
 import { oneLine } from "../../tools/agent-common";
 import { nodePlain, nodeStyle, plainText, spansOf } from "./agent-common";
 import { bracketed, isActive, spinnerGlyph } from "./frame";

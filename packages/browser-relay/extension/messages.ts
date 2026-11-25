@@ -89,6 +89,8 @@ export interface RelayStatus {
 	connected: boolean;
 	/** zeta version stamped into the running worker script; undefined in an unstamped dev build. */
 	extensionVersion: string | undefined;
+	/** Browser-side reason the last native host port closed; cleared by a link. */
+	hostError?: string;
 }
 
 /** A worker-owned `zetacode --mode rpc` session behind the native host. */

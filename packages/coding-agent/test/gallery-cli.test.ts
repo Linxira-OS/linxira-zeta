@@ -7,15 +7,15 @@ import {
 	renderGalleryState,
 	renderGallerySurfaceSections,
 	resolveFixture,
-} from "@oh-my-pi/pi-coding-agent/cli/gallery-cli";
+} from "@linxiraos/zeta/cli/gallery-cli";
 import {
 	type GalleryFixture,
 	getComposerGalleryInventory,
 	getSegmentGalleryInventory,
-} from "@oh-my-pi/pi-coding-agent/cli/gallery-fixtures";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/ui/theme/service";
-import { toolPresenterNames } from "@oh-my-pi/pi-coding-agent/ui/tools/registry";
+} from "@linxiraos/zeta/cli/gallery-fixtures";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { initTheme } from "@linxiraos/zeta/ui/theme/service";
+import { toolPresenterNames } from "@linxiraos/zeta/ui/tools/registry";
 
 beforeAll(async () => {
 	resetSettingsForTest();

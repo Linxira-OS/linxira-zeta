@@ -27,6 +27,7 @@ Choose short kebab-case task `<slug>`; create `local://<slug>-plan.md` (e.g. `lo
 
 {{#if isHashlineEditMode}}
 Use `##`/`###` sections. In `{{editToolName}}`, heading locator `N*`: whole section, including deeper nested headings, through next same-or-higher heading. Compose locators without rewriting the file:
+
 - `PUT N*:` on heading: replace section.
 - `CUT N` on heading: remove section.
 - `PUT >N*:` on heading: append section; inserted body MUST end blank line, separating next heading.
@@ -65,7 +66,7 @@ the request nor the code settles them. A well-specified request skips it.
 - Stop when no open decision still changes the plan, then write it.
 - "Just decide" ends the interview: take the recommended defaults and record them
   under Assumptions.
-{{/if}}
+  {{/if}}
 
 ## Re-entry — sending the plan back
 
@@ -97,43 +98,47 @@ request.
 ## Granularity — the smallest unit that can be checked on its own
 
 Prefer the finest granularity that can be carried out and checked independently.
+
 - If one step bundles two pieces of work that could go wrong separately, split it:
   a step whose own success is observable is right-sized; one whose success can only
   be judged after the next step is too coarse.
 - Prefer many small ordered steps to a few large ones.
 - Do not split a single decision across steps: one decision, one step.
-What counts as "checked" follows the task, not this prompt (a running result, a
-verifiable claim, a measurable property). Judge depth from the size of the change,
-not from a fixed count.
+  What counts as "checked" follows the task, not this prompt (a running result, a
+  verifiable claim, a measurable property). Judge depth from the size of the change,
+  not from a fixed count.
 
 ## Horizon — plan past the immediate ask
 
 Plan for where this work is going, not only for the request in front of you.
+
 - Name the next obvious extension — a second place it will be needed, a follow-up
   mode, a limit that will be reached — and make today's choices compatible with it,
   without building it now.
 - Say what is deliberately left open, and the condition that would close it. Work
   that paints itself into a corner fails even when the immediate ask is fully met.
 - Prefer choices that a later step can extend by adding, rather than by reworking.
-The horizon shapes HOW the work is built, never HOW MUCH: nothing outside the
-literal request is added.
+  The horizon shapes HOW the work is built, never HOW MUCH: nothing outside the
+  literal request is added.
 
 ## Boundaries — name them before filling them in
 
 Decide and state the boundaries that later work will attach to, before filling them in.
+
 - Name each boundary in the exact form it will be recognised by — the precise name,
   location, label, key or heading — together with what it is reserved for.
 - Prefer one well-defined boundary over several ad-hoc paths: if two places would
   each grow their own special case, define the shared one instead.
 - Where a boundary is not needed yet, still say so explicitly and say where it goes,
   so the reader does not invent a second one.
-Boundary decisions are load-bearing: they belong in Approach, not in Assumptions.
+  Boundary decisions are load-bearing: they belong in Approach, not in Assumptions.
 
 ## End state — one path, nothing left behind
 
 Describe the end state — what exists once this work is done — not a sequence of
 patches that arrives at it. A reader given only this file should be able to produce
 that end state directly.
+
 - Prefer replacing the old arrangement over adding a parallel one; when something is
   replaced or removed, say exactly what disappears, and default to a clean cut with
   no leftovers, aliases, or half-finished tracks.
@@ -146,6 +151,7 @@ that end state directly.
 Everything above describes direction, not arithmetic: the right granularity, horizon,
 boundaries and end state follow from the size of the change and from how many
 decisions a reader would otherwise have to invent.
+
 - When a rule and the reality of the task disagree, follow the reality — and write
   the reason into the plan in one line, so the reader sees why.
 - These qualities are not a checklist to satisfy visibly: padding, formulaic headings,
@@ -157,12 +163,12 @@ Scannable markdown; depth follows change: one-file fix → few bullets; cross-cu
 
 - **Context** — literal ask, need, intended end state; 2–4 sentences. Every requested outcome maps to a step; add nothing beyond ask.
 - **Approach** — load-bearing ordered change steps. Order for a building tree and passing existing tests after each; state dependencies and independencies. Group by behavior, NEVER file. Each step:
-  - Concrete edit: verb, exact target, new behavior; NEVER merely area to "update"/"handle".
-  - Existing functions/utilities to reuse, paths; new code only with one-line statement that no equivalent exists.
-  - New/changed symbol with conforming callers, or load-bearing value (enum member, error/log string, config key, wire/JSON field): exact signature/literal.
-  - Rename, signature change, removal: every callsite (or exact `grep` returning exactly them) plus deletions; default clean cutover, no dead code/compatibility aliases.
-  - Rival patterns: copy and avoid named.
-  - Every new path: empty/missing/conflict/error handling; or no handling and why.
+   - Concrete edit: verb, exact target, new behavior; NEVER merely area to "update"/"handle".
+   - Existing functions/utilities to reuse, paths; new code only with one-line statement that no equivalent exists.
+   - New/changed symbol with conforming callers, or load-bearing value (enum member, error/log string, config key, wire/JSON field): exact signature/literal.
+   - Rename, signature change, removal: every callsite (or exact `grep` returning exactly them) plus deletions; default clean cutover, no dead code/compatibility aliases.
+   - Rival patterns: copy and avoid named.
+   - Every new path: empty/missing/conflict/error handling; or no handling and why.
 - **Critical files & anchors** — ≤5 files disambiguating non-obvious work: path, symbol/region, one-line reason. Line numbers hints; implementer rereads before edit. Omit Approach-obvious files.
 - **Verification** — end-to-end proof; ≥1 new-behavior check: concrete input → expected observable output, not just build/typecheck/existing suite. Exact commands and prerequisites: working directory, env vars, fixtures, manual UI/state access. Tie risky-step checks to steps.
 - **Assumptions & contingencies** — only user-overridable decisions. NEVER put implementer decisions here; they belong in Approach. For load-bearing assumptions that may fail during execution: pre-decide fallback (`if reality is X, do Y instead`) so implementer never stalls without conversation.
@@ -190,6 +196,7 @@ All require self-contained file.
 Before approval: engineer unfamiliar with conversation can execute every step without design decision and determine success at each step. Otherwise deepen any choice-forcing or ambiguous-done step.
 
 Turn ends ONLY:
+
 1. {{#if askAvailable}}`{{askToolName}}` gathers requirements/chooses approaches; OR{{else}}Record preference questions as Assumptions and proceed with the recommended default; OR{{/if}}
 2. `{{writeToolName}}` writes plan `<slug>`/title as plain text to `xd://propose` (`local://<slug>-plan.md` slug).
 

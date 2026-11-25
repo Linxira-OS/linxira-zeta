@@ -3,8 +3,8 @@
  * search as the tool, printed as a ranked, colored digest (or JSON).
  */
 import { ToolError } from "../tools/tool-errors";
-import { formatBytes, formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatBytes, formatDuration, formatNumber } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { cfgNoJudge, cfgNoSpotlight, cfgOffline } from "../config/auxiliary-model-policy";
 import { InternalUrlFilesystem, isUrlPath } from "../internal-urls/url-filesystem";
 import { openStandaloneJudge } from "../judgment/standalone";

@@ -1,24 +1,24 @@
 import { afterAll, describe, expect, it, vi } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { type AgentMessage, type AgentTelemetryConfig, Tokenizer } from "@oh-my-pi/pi-agent-core";
+import { type } from "@linxiraos/zeta-schema";
+import { type AgentMessage, type AgentTelemetryConfig, Tokenizer } from "@linxiraos/pi-agent-core";
 import {
 	buildOpenAiNativeHistory,
 	createCompactionSummaryMessage,
 	defaultConvertToLlm,
-} from "@oh-my-pi/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core/compaction";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage, completeSimple, ToolResultMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage, completeSimple, ToolResultMessage } from "@linxiraos/pi-ai";
 import type {
 	ResponseFileSearchToolCall,
 	ResponseFunctionWebSearch,
 	ResponseInput,
 	ResponseToolSearchOutputItemParam,
-} from "@oh-my-pi/pi-ai/providers/openai-responses-wire";
-import { buildResponsesInput } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+} from "@linxiraos/pi-ai/providers/openai-responses-wire";
+import { buildResponsesInput } from "@linxiraos/pi-ai/providers/openai-shared";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import {
 	AdviseTool,
 	type AdvisorAgent,
@@ -46,8 +46,8 @@ import { getOpenAiRemoteCompactionPayload } from "../../src/session/session-cont
 import { formatSessionHistoryMarkdown } from "../../src/session/session-history-format";
 import { YieldQueue } from "../../src/session/yield-queue";
 import { type ImageDescriptionDeps, ImageDescriptions } from "../../src/utils/image-vision-fallback";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

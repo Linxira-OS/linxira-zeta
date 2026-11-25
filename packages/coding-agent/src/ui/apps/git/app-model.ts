@@ -12,8 +12,8 @@
  * pane's hunk and line actions, and routes keys and the pointer to the pane
  * with the keyboard.
  */
-import { type Accessor, batch, type KeyEvent, signal, untrack } from "@oh-my-pi/pi-tui";
-import type { MouseEvent } from "@oh-my-pi/pi-tui/driver/contract";
+import { type Accessor, batch, type KeyEvent, signal, untrack } from "@linxiraos/pi-tui";
+import type { MouseEvent } from "@linxiraos/pi-tui/driver/contract";
 import { buildLineSelectionPatch, type HunkBlock, type WhitespaceMode } from "../../../cli/git-tui/model/diff-pane";
 import type { GitTuiHost } from "../../../cli/git-tui/model/git-tui";
 import type { SidebarAction } from "../../../cli/git-tui/model/sidebar";

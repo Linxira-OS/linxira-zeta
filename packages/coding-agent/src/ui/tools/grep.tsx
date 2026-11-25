@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Grep: `Grep “pattern” in src  5 matches · 2 files`, then the matches
  * grouped by file (a file row and a numbered code excerpt with the match
@@ -7,9 +7,9 @@
  * Terminal look: `grep` (`src/ui/styles/tools/grep.ts`): a status-glyph head
  * line and a branch tree of files and their match rows.
  */
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
-import { highlightSpans } from "@oh-my-pi/pi-tui/text/highlight";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
+import { highlightSpans } from "@linxiraos/pi-tui/text/highlight";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { ToolHead, ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
 import {

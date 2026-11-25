@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The git app's sidebar (the changes sheet): a head with the change count,
  * the branch and a Path/Tree switch; one file `list` per section under a
@@ -8,8 +8,8 @@
  * nodes only while they own the keys. The terminal draws the whole sheet
  * through the `omp.app.git.side` look from the {@link SidebarModel}.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { ChangedFile, HeadCommit } from "../../../cli/git-tui/model/state";
 import "../../styles/apps/git/sidebar";
 import { KIND_LETTER, KIND_TONE } from "../../styles/apps/git/sidebar";
@@ -49,7 +49,7 @@ function StyleToggle(props: { readonly model: SidebarModel; readonly onInteract?
 				{ id: "tree", label: "Tree" },
 			]}
 			active={props.model.viewStyle}
-			role="omp.app.seg"
+			role="zeta.app.seg"
 			variant={segmentedVariant}
 			onSelect={item => {
 				if (props.model.pickItem(item, false)) props.onInteract?.();
@@ -113,7 +113,7 @@ function FileList(props: {
 				return entry ? itemKey(entryKey(entry)) : null;
 			}}
 			empty={props.empty}
-			role="omp.app.git.files"
+			role="zeta.app.git.files"
 			actions={{ click: "select", dblclick: "activate" }}
 			onSelect={item => {
 				if (model.pickItem(item, false)) props.onInteract?.();
@@ -150,9 +150,9 @@ function Section(props: {
 			<row gap="xs" align="center" actions={{ click: `fold-${area}` }} title={() => (folded() ? "Show" : "Hide")}>
 				<icon name={() => (folded() ? "chev-r" : "chev")} />
 				<text text={area === "unstaged" ? "Unstaged" : "Staged"} />
-				<text role="omp.app.git.count" spans={() => [{ s: "num", t: String(files().length) }]} />
+				<text role="zeta.app.git.count" spans={() => [{ s: "num", t: String(files().length) }]} />
 			</row>
-			<row gap="xs" align="center" role="omp.app.git.acts">
+			<row gap="xs" align="center" role="zeta.app.git.acts">
 				{() =>
 					files().length === 0
 						? null
@@ -192,7 +192,7 @@ function Section(props: {
 						cursor={line.cursor}
 						sendable={false}
 						placeholder="What should we stage?"
-						role="omp.app.git.field.on"
+						role="zeta.app.git.field.on"
 					/>
 				);
 			}
@@ -202,7 +202,7 @@ function Section(props: {
 					value={model.aiPrompt().text}
 					placeholder="What should we stage?"
 					act="edit-ai"
-					role="omp.app.git.field"
+					role="zeta.app.git.field"
 					on={model.focused() && model.selected()?.key === "stage-ai-input"}
 				/>
 			);
@@ -225,7 +225,7 @@ function CommitForm(props: { readonly model: SidebarModel }): JSXNode {
 	const model = props.model;
 	const on = (key: string): boolean => model.focused() && model.selected()?.key === key;
 	return (
-		<col gap="sm" role="omp.app.git.commit">
+		<col gap="sm" role="zeta.app.git.commit">
 			{() => {
 				const summary = model.summary();
 				if (model.editing() !== "summary") {
@@ -235,16 +235,16 @@ function CommitForm(props: { readonly model: SidebarModel }): JSXNode {
 							value={summary.text}
 							placeholder="Summary"
 							act="edit-summary"
-							role="omp.app.git.summary"
+							role="zeta.app.git.summary"
 							on={on("summary")}
 						/>
 					);
 				}
 				const left = SUMMARY_LIMIT - summary.text.length;
 				return (
-					<row key="summary" gap="sm" align="center" role="omp.app.git.summary.on">
+					<row key="summary" gap="sm" align="center" role="zeta.app.git.summary.on">
 						<input text={summary.text} cursor={summary.cursor} sendable={false} placeholder="Summary" grow={1} />
-						<text role="omp.app.git.count" spans={[{ s: left < 0 ? "warning num" : "num", t: String(left) }]} />
+						<text role="zeta.app.git.count" spans={[{ s: left < 0 ? "warning num" : "num", t: String(left) }]} />
 					</row>
 				);
 			}}
@@ -259,7 +259,7 @@ function CommitForm(props: { readonly model: SidebarModel }): JSXNode {
 							sendable={false}
 							placeholder="Description"
 							maxLines={5}
-							role="omp.app.git.body.on"
+							role="zeta.app.git.body.on"
 						/>
 					);
 				}
@@ -270,12 +270,12 @@ function CommitForm(props: { readonly model: SidebarModel }): JSXNode {
 						value={text.split("\n", 1)[0]! + (text.includes("\n") ? " …" : "")}
 						placeholder="Description"
 						act="edit-description"
-						role="omp.app.git.body"
+						role="zeta.app.git.body"
 						on={on("description")}
 					/>
 				);
 			}}
-			<row key="foot" justify="between" align="center" role="omp.app.git.foot">
+			<row key="foot" justify="between" align="center" role="zeta.app.git.foot">
 				<row
 					gap="xs"
 					align="center"
@@ -335,7 +335,7 @@ function HeadView(props: {
 	readonly onInteract?: Interact;
 }): JSXNode {
 	const head = props.head;
-	if (!head) return <text key="empty" spans={[{ s: "muted", t: "No commits yet" }]} role="omp.app.git.empty" />;
+	if (!head) return <text key="empty" spans={[{ s: "muted", t: "No commits yet" }]} role="zeta.app.git.empty" />;
 	const when = head.authorDate ? new Date(head.authorDate) : null;
 	const initials = head.authorName
 		.split(/\s+/)
@@ -352,13 +352,13 @@ function HeadView(props: {
 		});
 	}
 	const out: JSXNode[] = [
-		<col key="head" gap="sm" role="omp.app.git.commit-info">
-			<text spans={[{ s: "strong", t: head.subject }]} wrap="word" role="omp.app.git.subject" />
+		<col key="head" gap="sm" role="zeta.app.git.commit-info">
+			<text spans={[{ s: "strong", t: head.subject }]} wrap="word" role="zeta.app.git.subject" />
 			{head.body.trim() !== "" ? (
-				<text text={head.body.trim()} wrap="word" lines={8} role="omp.app.git.message" />
+				<text text={head.body.trim()} wrap="word" lines={8} role="zeta.app.git.message" />
 			) : null}
-			<row gap="sm" align="center" role="omp.app.git.author">
-				<text text={initials || "?"} role="omp.app.git.avatar" title={head.authorEmail} />
+			<row gap="sm" align="center" role="zeta.app.git.author">
+				<text text={initials || "?"} role="zeta.app.git.avatar" title={head.authorEmail} />
 				<col gap="none">
 					<text spans={[{ s: "strong", t: head.authorName }]} truncate="end" />
 					<text spans={[{ s: "dim", t: head.authorEmail }]} truncate="end" />
@@ -374,7 +374,7 @@ function HeadView(props: {
 	const additions = head.files.reduce((sum, file) => sum + (file.additions ?? 0), 0);
 	const deletions = head.files.reduce((sum, file) => sum + (file.deletions ?? 0), 0);
 	out.push(
-		<row key="files-head" justify="between" align="center" role="omp.app.git.head">
+		<row key="files-head" justify="between" align="center" role="zeta.app.git.head">
 			<text
 				spans={[
 					{ s: "strong", t: plural(head.files.length, "file") },
@@ -401,8 +401,8 @@ function HeadView(props: {
 function ChangesHead(props: { readonly model: SidebarModel; readonly onInteract?: Interact }): JSXNode {
 	const model = props.model;
 	return (
-		<row key="head" justify="between" align="center" role="omp.app.git.head">
-			<row gap="xs" align="center" role="omp.app.git.title">
+		<row key="head" justify="between" align="center" role="zeta.app.git.head">
+			<row gap="xs" align="center" role="zeta.app.git.title">
 				<text
 					spans={() => [
 						{ s: "strong", t: plural(model.state.unstaged.length + model.state.staged.length, "change") },
@@ -414,7 +414,7 @@ function ChangesHead(props: { readonly model: SidebarModel; readonly onInteract?
 						: [
 								<text spans={[{ s: "muted", t: "on" }]} />,
 								<text
-									role="omp.app.git.branch"
+									role="zeta.app.git.branch"
 									spans={[{ s: "mono", t: model.state.branch }]}
 									truncate="middle"
 								/>,
@@ -442,7 +442,7 @@ export function GitSidebar(props: GitSidebarProps): JSXNode {
 	return (
 		<col
 			key={props.nodeKey}
-			role="omp.app.git.side"
+			role="zeta.app.git.side"
 			term={{ sidebar: model }}
 			onAction={act => {
 				if (model.runAction(act)) interact?.();
@@ -458,7 +458,7 @@ export function GitSidebar(props: GitSidebarProps): JSXNode {
 				) : (
 					[
 						<ChangesHead model={model} onInteract={interact} />,
-						<col key="changes" gap="sm" role="omp.app.git.changes">
+						<col key="changes" gap="sm" role="zeta.app.git.changes">
 							<Section model={model} area="unstaged" onInteract={interact} />
 							<Section model={model} area="staged" onInteract={interact} />
 						</col>,

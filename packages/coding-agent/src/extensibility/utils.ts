@@ -1,10 +1,10 @@
 import * as path from "node:path";
-import { postmortem } from "@oh-my-pi/pi-utils";
+import { postmortem } from "@linxiraos/pi-utils";
 import { extractUriScheme } from "../internal-urls/parse";
 import { InternalUrlRouter } from "../internal-urls/router";
 import { expandPath } from "../tools/path-utils";
 import type { HookUIContext } from "./hooks/types";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { extensionTheme } from "../ui/extensions/render-output";
 
 /**

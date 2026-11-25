@@ -2,15 +2,15 @@ import { afterAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
-import { importExtensionModule } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { removeWithRetries } from "@linxiraos/pi-utils";
+import { importExtensionModule } from "@linxiraos/zeta/extensibility/extensions/loader";
 import {
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
 	PI_TUI_MIGRATION_DOC,
 	PiTuiImportError,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));
@@ -90,7 +90,7 @@ describe("legacy aliased-scope roots resolve the upstream 1.1.0 bridges", () => 
 			);
 			expect(error).toBeInstanceOf(PiTuiImportError);
 			expect((error as PiTuiImportError).specifier).toBe(specifier);
-			expect((error as Error).message).toContain("@oh-my-pi/pi-tui");
+			expect((error as Error).message).toContain("@linxiraos/pi-tui");
 			expect((error as Error).message).toContain(PI_TUI_MIGRATION_DOC);
 		},
 	);
@@ -123,16 +123,16 @@ describe("legacy aliased-scope roots resolve the upstream 1.1.0 bridges", () => 
 		expect(prepared.error).toContain(PI_TUI_MIGRATION_DOC);
 	});
 
-	it("resolves @oh-my-pi/pi-tui to the host's copy so extension nodes share its runtime", async () => {
+	it("resolves @linxiraos/pi-tui to the host's copy so extension nodes share its runtime", async () => {
 		const entry = await writeFixtureExtension(
 			[
-				'import { isUiNode, jsx } from "@oh-my-pi/pi-tui";',
+				'import { isUiNode, jsx } from "@linxiraos/pi-tui";',
 				'export const node = jsx("text", { text: "x" });',
 				"export { isUiNode };",
 			].join("\n"),
 		);
 		const loaded = (await loadLegacyPiModule(entry)) as { node: unknown; isUiNode: (value: unknown) => boolean };
-		const host = await import("@oh-my-pi/pi-tui");
+		const host = await import("@linxiraos/pi-tui");
 		expect(host.isUiNode(loaded.node)).toBe(true);
 		expect(loaded.isUiNode).toBe(host.isUiNode);
 	});
@@ -140,13 +140,13 @@ describe("legacy aliased-scope roots resolve the upstream 1.1.0 bridges", () => 
 	it("loads the helpers the old pi-tui carried from where they live now", async () => {
 		const entry = await writeFixtureExtension(
 			[
-				'import { concreteThinkingLevel, toReasoningEffort } from "@oh-my-pi/pi-tui/thinking";',
-				'import { fuzzyMatch } from "@oh-my-pi/pi-tui/fuzzy";',
+				'import { concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";',
+				'import { fuzzyMatch } from "@linxiraos/pi-tui/fuzzy";',
 				"export { concreteThinkingLevel, toReasoningEffort, fuzzyMatch };",
 			].join("\n"),
 		);
 		const loaded = (await loadLegacyPiModule(entry)) as Record<string, unknown>;
-		const levels = await import("@oh-my-pi/pi-coding-agent/thinking/levels");
+		const levels = await import("@linxiraos/zeta/thinking/levels");
 		expect(loaded.concreteThinkingLevel).toBe(levels.concreteThinkingLevel);
 		expect(loaded.toReasoningEffort).toBe(levels.toReasoningEffort);
 		expect(typeof loaded.fuzzyMatch).toBe("function");

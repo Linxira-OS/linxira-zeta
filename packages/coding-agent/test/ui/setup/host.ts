@@ -2,9 +2,9 @@
  * A setup host for corpus cases: configured values from the case's inputs,
  * every side effect recorded in `events` (the stage notes of the capture).
  */
-import type { AuthStorage, Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { signal } from "@oh-my-pi/pi-tui";
+import type { AuthStorage, Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { signal } from "@linxiraos/pi-tui";
 import type { ModelBrowserSource } from "../../../src/modes/view-model/overlays/model-browser";
 import type { GlyphPreset, SceneContext, SceneResult, SetupHost, ThemeLook } from "../../../src/ui/setup";
 

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The `/btw` side-answer sheet: the question as its head (a spinner while
  * the answer streams or branches), the answer (its `<inject>` block apart
@@ -9,9 +9,9 @@
  * (`canFollowUp`, `canBranch`, `canInject`) are asked whenever the state
  * changes, not continuously.
  */
-import { type JSXNode, type Signal, signal, untrack } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type JSXNode, type Signal, signal, untrack } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { BtwAnswerBody, flatError } from "./btw-answer";
 import { Hints, type KeyHint } from "./common";
 import { matchesAppInterrupt } from "../../../config/keybindings/matchers";
@@ -162,7 +162,7 @@ export function BtwPanel(props: BtwPanelProps): JSXNode {
 	};
 	return (
 		<col
-			role="omp.overlay.btw"
+			role="zeta.overlay.btw"
 			gap="sm"
 			tone={tone}
 			term={() => {
@@ -199,7 +199,7 @@ export function BtwPanel(props: BtwPanelProps): JSXNode {
 				return false;
 			}}
 		>
-			<row role="omp.sheet.head" align="center" gap="sm">
+			<row role="zeta.sheet.head" align="center" gap="sm">
 				{() => busy() && <spinner />}
 				<text lines={1} truncate="end" spans={head} />
 			</row>

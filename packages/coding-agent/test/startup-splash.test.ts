@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { shouldShowStartupSplash } from "@oh-my-pi/pi-coding-agent/startup-splash";
-import { signal } from "@oh-my-pi/pi-tui";
+import { shouldShowStartupSplash } from "@linxiraos/zeta/startup-splash";
+import { signal } from "@linxiraos/pi-tui";
 import { SPLASH_MS, StartupSplash } from "../src/ui/setup/splash";
 import { mountLayer } from "./helpers/layer-terminal";
 

@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The "new version available" notice: natively a download notice row; a text
  * terminal draws it boxed by warning rules (`Update Available`, then the
  * command to run).
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { bold } from "@oh-my-pi/pi-tui/theme/theme";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { bold } from "@linxiraos/pi-tui/theme/theme";
 import { AnsiText } from "../../ui/transcript/ansi-text";
 import { Notice } from "../../ui/transcript/messages/notices";
 

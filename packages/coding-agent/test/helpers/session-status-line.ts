@@ -3,7 +3,7 @@
  * a stand-in session, and its bar painted to plain text.
  */
 import "../../src/ui/styles/status";
-import { signal } from "@oh-my-pi/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
 import type { StatusLineSegmentId } from "../../src/config/status-line-schema";
 import { SessionStatusLine } from "../../src/modes/interactive/status-line";
 import type { StatusLineSettings } from "../../src/modes/view-model/status-line/types";

@@ -5,7 +5,7 @@
  * and `resetActiveTime` zeroes the meter for `/clear` and fresh sessions.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { disposeStatusLines, segmentText, statusFacts, statusLine, statusSession } from "./helpers/session-status-line";
 
 beforeAll(async () => {

@@ -9,9 +9,9 @@
  * sends them as spans (identity colours are terminal-only). Widths are
  * cells; `Infinity` leaves rows whole.
  */
-import { formatDuration, formatNumber, pluralize, sanitizeText } from "@oh-my-pi/pi-utils";
-import { toolIntentLabel, type TspSpan, type TspText } from "@oh-my-pi/pi-wire";
-import { replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import { formatDuration, formatNumber, pluralize, sanitizeText } from "@linxiraos/pi-utils";
+import { toolIntentLabel, type TspSpan, type TspText } from "@linxiraos/pi-wire";
+import { replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import { stripGeneratedOutputNotice, stripTrailingNotice } from "../../../tools/output-meta-format";
 import type {
 	AgentProgress,

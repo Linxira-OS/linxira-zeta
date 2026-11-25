@@ -4,9 +4,9 @@
  */
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SymbolSet } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatNumber, normalizePremiumRequests } from "@oh-my-pi/pi-utils";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import type { SymbolSet } from "@linxiraos/pi-tui/theme/contract";
+import { formatNumber, normalizePremiumRequests } from "@linxiraos/pi-utils";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { shortenPath } from "../../utils/render-utils";
 
 /** How full the context window reads. */

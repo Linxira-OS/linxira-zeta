@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A cancellable wait (sharing a session, signing in): a spinner beside the
  * message and an `esc cancel` hint. Escape (or the native `cancel` action)
  * calls `onAbort`.
  */
-import type { JSXNode, Reactive } from "@oh-my-pi/pi-tui";
+import type { JSXNode, Reactive } from "@linxiraos/pi-tui";
 import "../../styles/panels/bordered-loader";
 import { Hints } from "./common";
 import { matchesSelectCancel } from "../../../config/keybindings/matchers";
@@ -20,7 +20,7 @@ export function BorderedLoader(props: BorderedLoaderProps): JSXNode {
 	const message = () => (typeof props.message === "function" ? props.message() : props.message);
 	return (
 		<card
-			role="omp.hook.loader"
+			role="zeta.hook.loader"
 			onKey={key => {
 				if (!matchesSelectCancel(key) || !props.onAbort) return false;
 				props.onAbort();
@@ -30,7 +30,7 @@ export function BorderedLoader(props: BorderedLoaderProps): JSXNode {
 				if (act === "cancel") props.onAbort?.();
 			}}
 		>
-			<row role="omp.loader" justify="between">
+			<row role="zeta.loader" justify="between">
 				<row align="baseline" gap="sm">
 					<spinner style="braille" />
 					<text key="message" spans={() => [{ s: "muted", t: message() }]} />

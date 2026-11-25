@@ -5,11 +5,11 @@
  * warning color.
  */
 import * as path from "node:path";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
-import { truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
+import { truncate, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type { GlobTerm } from "../../tools/glob";
 import { fileLink } from "./file-common";
 import { standaloneErrorRows } from "./frame";

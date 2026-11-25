@@ -3,12 +3,12 @@
  * meta`, then the error in full, the data (a JSON tree, or the Markdown
  * source as muted lines, four while collapsed) and a note.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { displayLines } from "@oh-my-pi/pi-tui/text/sanitize";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { displayLines } from "@linxiraos/pi-tui/text/sanitize";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { boxTint, liveMark, nodePlain, nodeStyle, styledLines, tintBox } from "./agent-common";
 import { bracketed, expandHint, moreLinesHint } from "./frame";
 import { COLLAPSED_TREE, EXPANDED_TREE, jsonTreeRows } from "./json-tree";

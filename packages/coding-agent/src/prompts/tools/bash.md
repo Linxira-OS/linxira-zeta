@@ -9,12 +9,13 @@ In-process builtins, ahead of PATH: {{join builtins ", "}}.
 Don't trunc output by habit, result will be summarized and saved as an artifact.
 {{#if hasLaunch}}
 Long-lived services:
+
 - unique name; ready requires name; no async/timeout; pty defaults true.
 - ready needs log regex or port (both if given); host defaults localhost, ready.timeout 30s.
 - `notify` (regex) sends each matching output line as a follow-up while the service runs.
-{{/if}}
-{{#if autoBackgroundEnabled}}
-Non-`pty` calls still running after {{autoBackgroundSeconds}}s (or 1s before `timeout`, if sooner) usually move to background job `bg_N` and keep running to `timeout`.
-No backgrounding when the client terminal runs the command or the job cap is reached.
-The result arrives automatically as a follow-up message. NEVER poll.
-{{/if}}
+  {{/if}}
+  {{#if autoBackgroundEnabled}}
+  Non-`pty` calls still running after {{autoBackgroundSeconds}}s (or 1s before `timeout`, if sooner) usually move to background job `bg_N` and keep running to `timeout`.
+  No backgrounding when the client terminal runs the command or the job cap is reached.
+  The result arrives automatically as a follow-up message. NEVER poll.
+  {{/if}}

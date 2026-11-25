@@ -8,7 +8,7 @@
  * file parsed, and committed atomically through the edit tool's `replace`
  * engine with a snapshot guard so concurrent external writes are refused.
  */
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import {
 	type Api,
 	type AssistantMessage,
@@ -19,13 +19,13 @@ import {
 	type Tool,
 	type ToolCall,
 	type ToolResultMessage,
-} from "@oh-my-pi/pi-ai";
-import { parseCodeStatus } from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-ai";
+import { parseCodeStatus } from "@linxiraos/pi-natives";
 import { concreteThinkingLevel, toReasoningEffort } from "../thinking/levels";
 import type { EditToolDetails, EditToolPerFileResult } from "../tools/details/edit";
 import { splitMagicSections } from "./magic-sections";
 import { ToolError } from "../tools/tool-errors";
-import { isEnoent, prompt, stableStringifyJson } from "@oh-my-pi/pi-utils";
+import { isEnoent, prompt, stableStringifyJson } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import { getModelMatchPreferences, resolveModelRoleValue, resolveRoleSelection } from "../config/model-resolver";
 import { journalCompletion } from "../session/model-usage-journal";

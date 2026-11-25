@@ -6,8 +6,8 @@
  * bold on the selection band behind a `›`. The label editor replaces the
  * rows while open.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, Hit, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, Hit, PaintContext } from "@linxiraos/pi-tui/term/paint";
 import {
 	boxBottom,
 	boxRow,
@@ -18,10 +18,10 @@ import {
 	scrollbar,
 	scrollWindow,
 	sheetHit,
-} from "@oh-my-pi/pi-tui/term/painters/picker";
-import { padTo, truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+} from "@linxiraos/pi-tui/term/painters/picker";
+import { padTo, truncate } from "@linxiraos/pi-tui/text/width";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { caretField } from "./common";
 import { canonicalKeyId } from "../../../config/keybindings/key-id";
 import { getKeybindings } from "../../../config/keybindings/keybindings";

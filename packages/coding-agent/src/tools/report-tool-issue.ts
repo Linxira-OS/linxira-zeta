@@ -38,6 +38,7 @@ import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { FetchImpl } from "@linxiraos/pi-ai";
 import { $flag, getAutoQaDbPath, logger, VERSION } from "@linxiraos/pi-utils";
+import { REPORT_ISSUE_DEVICE_NAME, REPORT_ISSUE_DEVICE_PATH } from "./xd-url";
 import type { Settings } from "..";
 import type { Tool, ToolSession } from "./index";
 import { ToolError } from "./tool-errors";

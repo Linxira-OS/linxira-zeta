@@ -40,6 +40,7 @@ await d.commit("feat(parser): added the streaming parser", ["- Added `StreamPars
 await d.only("docs/**")  # d now holds what remains, preselected again
 await d.commit("docs: documented the streaming parser")
 ```
+
 </examples>
 
 <critical>

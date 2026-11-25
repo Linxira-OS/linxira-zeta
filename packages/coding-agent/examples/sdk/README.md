@@ -30,8 +30,8 @@ bun examples/sdk/01-minimal.ts
 ## Quick Reference
 
 ```typescript
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import {
 	AuthStorage,
 	createAgentSession,
@@ -39,7 +39,7 @@ import {
 	discoverAuthStorage,
 	ModelRegistry,
 	SessionManager,
-} from "@oh-my-pi/pi-coding-agent";
+} from "@linxiraos/zeta";
 
 // Auth and models setup
 const authStorage = await discoverAuthStorage();

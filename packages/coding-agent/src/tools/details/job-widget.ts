@@ -1,4 +1,4 @@
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import type { TspTone } from "@linxiraos/pi-wire";
 
 /** Where a widget's view stands. */
 export type JobWidgetState =

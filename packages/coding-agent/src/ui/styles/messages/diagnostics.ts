@@ -3,9 +3,9 @@
  * diagnostics tree titled "Late diagnostics", one cell in (five diagnostics
  * and a `… N more` row while collapsed).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
 import type { FileDiagnostics } from "../../tools/file-common";
 import { diagnosticsRows } from "../tools/file-common";
 import { paddedText, propsOf, termOf } from "./fill";

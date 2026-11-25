@@ -1,9 +1,6 @@
 import type { AgentTool, AgentToolResult, ToolApprovalDecision } from "@linxiraos/pi-agent-core";
-import type { Component } from "@linxiraos/pi-tui";
-import { Text } from "@linxiraos/pi-tui";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { type } from "@linxiraos/zeta-schema";
-import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import boardDescription from "../prompts/tools/board.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import {
@@ -234,11 +231,5 @@ export class BoardTool implements AgentTool<typeof boardSchema, BoardToolDetails
 		} catch (error) {
 			throw asToolError(error);
 		}
-	}
-
-	render(result: AgentToolResult<BoardToolDetails>, _opts: RenderResultOptions): Component | null {
-		const details = result.details;
-		if (!details) return null;
-		return new Text(details.message);
 	}
 }

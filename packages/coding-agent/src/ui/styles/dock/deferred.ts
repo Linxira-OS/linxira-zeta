@@ -6,9 +6,9 @@
  * note reads `… 12 more rows — 1 command output shown in full when the agent
  * pauses`.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate } from "@linxiraos/pi-tui/text/width";
 import { type DeferredCommandModel, queuedOutputs } from "../../dock/deferred";
 import { termOf } from "../messages/fill";
 

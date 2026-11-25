@@ -3,11 +3,11 @@
  * path field, the suggestions (`▶` and the accent on the highlighted one) or
  * the empty notice, and the dim key hints.
  */
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { inputLine } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { TspCardProps, TspInputProps, TspItemProps, TspListProps } from "@oh-my-pi/pi-wire";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { inputLine } from "@linxiraos/pi-tui/term/painters/prefs";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { TspCardProps, TspInputProps, TspItemProps, TspListProps } from "@linxiraos/pi-wire";
 import { keyLabel } from "../../keys/hints";
 import { bindingGlyph, boxRows, findNode, plainText, propsOf, selectNavGlyphs } from "./common";
 

@@ -1,16 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { CliUsageError } from "@oh-my-pi/pi-coding-agent/cli/usage-error";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { buildSessionOptions } from "@oh-my-pi/pi-coding-agent/main";
-import { type CustomTool, createAgentSession, type ExtensionFactory } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/zeta-schema";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { CliUsageError } from "@linxiraos/zeta/cli/usage-error";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { buildSessionOptions } from "@linxiraos/zeta/main";
+import { type CustomTool, createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // `--no-tools` must give the model exactly the `--tools` names. It used to clear

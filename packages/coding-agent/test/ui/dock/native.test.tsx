@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Native trees of the dock HUDs against what the old interactive mode
  * described for the same inputs (`native-fixtures.json`, captured from the
@@ -7,10 +7,10 @@
  * pills), written out here.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createRoot, type JSXNode, resolveChildren, type UiNode } from "@oh-my-pi/pi-tui";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree, firstDiff } from "@oh-my-pi/pi-tui/testing/corpus";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createRoot, type JSXNode, resolveChildren, type UiNode } from "@linxiraos/pi-tui";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree, firstDiff } from "@linxiraos/pi-tui/testing/corpus";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import {
 	BackgroundCompactionModel,
 	HudPills,

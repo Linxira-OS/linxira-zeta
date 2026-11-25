@@ -1,8 +1,15 @@
-import { createGradientHighlighter, type KeywordHighlighter } from "./gradient-highlight";
-import { magicKeywordRegex } from "./magic-keyword-boundary";
-import { keywordInProse } from "./markdown-prose";
+/**
+ * "ultrathink" as a magic keyword: standalone-prose detection and the
+ * keyword's editor/bubble gradient.
+ *
+ * The keyword table (`modes/magic-keywords`) is the single source of truth;
+ * detection reuses the session matcher so settings, notice injection and the
+ * composer agree on what counts as the keyword.
+ */
+import { type MagicKeyword, MAGIC_KEYWORDS } from "../../magic-keywords";
+import { containsMagicKeyword } from "../../../session/magic-keywords";
 
-const ULTRATHINK_WORD = magicKeywordRegex("ultrathink");
+const ULTRATHINK_WORD = "ultrathink";
 
 /**
  * Whether `text` contains the standalone keyword "ultrathink" (lowercase,
@@ -10,17 +17,8 @@ const ULTRATHINK_WORD = magicKeywordRegex("ultrathink");
  * or XML/HTML section.
  */
 export function containsUltrathink(text: string): boolean {
-	return keywordInProse(text, ULTRATHINK_WORD);
+	return containsMagicKeyword(text, ULTRATHINK_WORD);
 }
 
-/**
- * Rainbow-highlight every standalone "ultrathink" in `text` for editor display.
- * Sweeps red→violet (hue 0..330), stopping short of the wrap back to red so the
- * gradient resolves smoothly regardless of casing or match length.
- */
-export const highlightUltrathink: KeywordHighlighter = createGradientHighlighter({
-	probe: "ultrathink",
-	highlight: magicKeywordRegex("ultrathink", "g"),
-	stops: 14,
-	hue: t => t * 330,
-});
+/** The keyword's rainbow gradient (hue 0..330), shared with the composer glow. */
+export const highlightUltrathink: MagicKeyword = MAGIC_KEYWORDS.find(keyword => keyword.word === ULTRATHINK_WORD)!;

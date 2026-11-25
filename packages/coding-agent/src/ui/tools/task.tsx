@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Task (subagent spawns): the batch's shared context, then one `agent` node
  * per subagent: pending while the call streams, live from progress
@@ -11,11 +11,11 @@
  * markdown, the spawn list or agent rows, the run footer. Agent names take
  * their session identity colour (`agent-identity.ts`).
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { presetSymbols } from "@oh-my-pi/pi-tui/theme/symbols";
-import { formatDuration, formatNumber, pluralize, sanitizeText } from "@oh-my-pi/pi-utils";
-import type { TspAgentProps, TspPropNode, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { presetSymbols } from "@linxiraos/pi-tui/theme/symbols";
+import { formatDuration, formatNumber, pluralize, sanitizeText } from "@linxiraos/pi-utils";
+import type { TspAgentProps, TspPropNode, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import type { ConfiguredThinkingLevel } from "../../utils/render-utils";
 import { repairDoubleEncodedJsonString } from "../../task/repair-args";
 import {
@@ -78,7 +78,7 @@ function renderContextOf(state: ToolViewState): TaskRenderContext {
 function ContextLine(props: { readonly args: Partial<TaskParams> | undefined }): JSXNode {
 	const line = contextSource(props.args).replace(/\s+/g, " ").trim();
 	if (!line) return undefined;
-	return <text spans={[{ s: "muted", t: line }]} wrap="word" lines={2} role="omp.tool.context" />;
+	return <text spans={[{ s: "muted", t: line }]} wrap="word" lines={2} role="zeta.tool.context" />;
 }
 
 /** A brief as markdown (an agent's first child and its row's hover card); undefined when empty. */
@@ -89,11 +89,11 @@ function assignmentNode(raw: string | undefined): TspPropNode | undefined {
 
 function Assignment(props: { readonly node: TspPropNode | undefined }): JSXNode {
 	if (props.node?.k !== "md") return undefined;
-	return <md role="omp.task.assignment" text={props.node.p?.text ?? ""} />;
+	return <md role="zeta.task.assignment" text={props.node.p?.text ?? ""} />;
 }
 
 function errorLine(message: string, token = "error"): JSXNode {
-	return <text role="omp.tool.error" spans={[{ s: token, t: message }]} wrap="word" />;
+	return <text role="zeta.tool.error" spans={[{ s: token, t: message }]} wrap="word" />;
 }
 
 function thinkingToken(level: ConfiguredThinkingLevel | undefined): string | undefined {
@@ -282,7 +282,7 @@ function resultAgent(result: SingleResult, state: DescribeState, depth: number):
 			{structured !== undefined ? (
 				<json value={structured} open={1} />
 			) : output ? (
-				<md role="omp.task.output" text={output} />
+				<md role="zeta.task.output" text={output} />
 			) : undefined}
 			{result.stderr.trim() && !success ? <ansi text={result.stderr} preview={{ lines: 6 }} /> : undefined}
 			{artifacts.length > 0 ? <kv items={artifacts} /> : undefined}
@@ -410,7 +410,7 @@ function resultView(
 			...agents,
 			agents.length === 0 ? <NoteText message={text.trim() || "No results"} token="dim" /> : undefined,
 			trailer ? (
-				<text role="omp.tool.stats" spans={[{ s: "muted", t: sanitizeText(trailer) }]} wrap="word" />
+				<text role="zeta.tool.stats" spans={[{ s: "muted", t: sanitizeText(trailer) }]} wrap="word" />
 			) : undefined,
 		],
 		term,

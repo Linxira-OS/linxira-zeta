@@ -3,7 +3,7 @@
  * {@link TreeSelectorNode}s, the picker focused the way the overlay focuses it,
  * keys routed as the terminal backend routes them.
  */
-import type { TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { TreeSelector, type TreeSelectorProps } from "../../src/ui/overlays/pickers/tree-selector";
 import { mountOverlay } from "./overlay-terminal";
 

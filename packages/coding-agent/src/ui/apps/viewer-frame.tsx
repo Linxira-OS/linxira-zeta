@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The frame of the fullscreen debug viewers (log viewer, raw SSE, protocol
  * probe): a rounded box titled with the viewer's name holding header rows, a
@@ -12,8 +12,8 @@
  * (natively its rows in the active theme; the terminal paints it in its own
  * theme through the `omp.viewer.frame` look).
  */
-import { type Accessor, type JSXNode, read, type Reactive, type Signal, signal, untrack } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { type Accessor, type JSXNode, read, type Reactive, type Signal, signal, untrack } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { FRAME_ROLE, paintViewerFrame, type ViewerFrameLayout } from "../styles/apps/viewer/frame";
 
 /** What the content callback may size itself by. */

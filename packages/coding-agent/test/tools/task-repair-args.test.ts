@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { repairDoubleEncodedJsonString, repairTaskParams } from "@oh-my-pi/pi-coding-agent/task/repair-args";
-import type { TaskParams } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import { repairDoubleEncodedJsonString, repairTaskParams } from "@linxiraos/zeta/task/repair-args";
+import type { TaskParams } from "@linxiraos/zeta/task/task-details";
 
 describe("repairDoubleEncodedJsonString", () => {
 	it("decodes a uniformly double-encoded prose value", () => {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { KeybindingsManager, setKeybindings } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import type { HookEditorOptions } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/hook-editor";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { KeybindingsManager, setKeybindings } from "@linxiraos/zeta/config/keybindings/keybindings";
+import type { HookEditorOptions } from "@linxiraos/zeta/modes/view-model/overlays/hook-editor";
 import { HookEditor, type HookEditorHandle } from "../src/ui/overlays/panels/hook-dialogs";
 import { type LayerTerminal, mountLayer } from "./helpers/layer-terminal";
 

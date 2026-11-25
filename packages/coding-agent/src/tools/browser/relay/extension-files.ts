@@ -1,12 +1,12 @@
 /**
- * The relay extension's files as zeta installs them, and the checks that let a
+ * The relay extension's files as omp installs them, and the checks that let a
  * relay rewrite an installed copy in place (extension self-update).
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getBrowserRelayDir, isEnoent } from "@linxiraos/pi-utils";
 import { replaceFileAtomically } from "../../../utils/atomic-file";
-import { embeddedRelayExtension } from "./embedded-extension";
+import { embeddedRelayExtensionZstPath } from "./embedded-extension";
 import {
 	type RelayExtensionStamp,
 	readRelayExtensionStamp,
@@ -27,23 +27,34 @@ const GENERATED_EXTENSION = path.join(import.meta.dir, "extension.generated.json
 let loading: Promise<RelayExtensionBundle> | undefined;
 
 /**
- * The extension this zeta installs: embedded in binaries and bundles, read from `extension.generated.json` in a source
- * checkout. A missing file fails only the caller, so startup survives a checkout that has not generated it.
+ * The extension this omp installs: loaded lazily from the embedded zstd asset in
+ * binaries and bundles, or read from `extension.generated.json` in a source
+ * checkout. Coalesces concurrent loads without pinning the ~2 MiB bundle after
+ * callers finish.
  *
  * @throws Error naming `bun run gen:relay-extension` when a source checkout has not generated the extension.
  */
 export function loadRelayExtension(): Promise<RelayExtensionBundle> {
-	if (embeddedRelayExtension) return Promise.resolve(embeddedRelayExtension);
-	loading ??= Bun.file(GENERATED_EXTENSION)
-		.json()
-		.catch((error: unknown) => {
-			loading = undefined;
-			if (!isEnoent(error)) throw error;
-			throw new Error(
-				`This zeta checkout has not built the zeta extension (${GENERATED_EXTENSION} is missing). Run \`bun run gen:relay-extension\` at the repository root.`,
-			);
-		});
-	return loading;
+	if (loading) return loading;
+	const pending: Promise<RelayExtensionBundle> = embeddedRelayExtensionZstPath
+		? Bun.file(embeddedRelayExtensionZstPath)
+				.bytes()
+				.then(bytes => Bun.zstdDecompress(bytes))
+				.then((raw): RelayExtensionBundle => JSON.parse(raw.toString("utf8")))
+		: Bun.file(GENERATED_EXTENSION)
+				.json()
+				.catch((error: unknown) => {
+					if (!isEnoent(error)) throw error;
+					throw new Error(
+						`This omp checkout has not built the omp extension (${GENERATED_EXTENSION} is missing). Run \`bun run gen:relay-extension\` at the repository root.`,
+					);
+				});
+	loading = pending;
+	const settle = (): void => {
+		if (loading === pending) loading = undefined;
+	};
+	pending.then(settle, settle);
+	return pending;
 }
 
 type ExtensionFiles = Record<string, string | Buffer> & {
@@ -52,16 +63,19 @@ type ExtensionFiles = Record<string, string | Buffer> & {
 };
 
 /**
- * The extension files `zetacode browser-relay install` writes, stamped with the installing zeta's version.
+ * The extension files `omp browser-relay install` writes, stamped with the installing omp's version.
  *
  * @throws Error when the extension is missing (see {@link loadRelayExtension}) or lacks its manifest or service worker.
  */
-export async function relayExtensionFiles(ompVersion: string): Promise<ExtensionFiles> {
-	const { build, files: assets } = await loadRelayExtension();
+export async function relayExtensionFiles(
+	ompVersion: string,
+	bundle: Promise<RelayExtensionBundle> = loadRelayExtension(),
+): Promise<ExtensionFiles> {
+	const { build, files: assets } = await bundle;
 	const manifest = assets["manifest.json"];
 	const script = assets["background.js"];
 	if (typeof manifest !== "string" || typeof script !== "string")
-		throw new Error("The zeta extension lacks manifest.json or background.js");
+		throw new Error("The omp extension lacks manifest.json or background.js");
 	const files: ExtensionFiles = {
 		"manifest.json": stampRelayExtensionManifest(manifest, ompVersion),
 		"background.js": stampRelayExtensionScript(script, ompVersion, build),
@@ -74,7 +88,7 @@ export async function relayExtensionFiles(ompVersion: string): Promise<Extension
 	return files;
 }
 
-/** Where `zetacode browser-relay install` puts the extension without `--dir` (~/.zeta/browser-relay/extension). */
+/** Where `omp browser-relay install` puts the extension without `--dir` (~/.omp/browser-relay/extension). */
 export function defaultRelayExtensionDir(): string {
 	return path.join(getBrowserRelayDir(), "extension");
 }
@@ -85,10 +99,15 @@ export function defaultRelayExtensionDir(): string {
  * partly written file: a reload that meets a broken manifest unloads the
  * extension until the user reloads it by hand. Publish the manifest after its
  * assets and `background.js` last, so a write that fails midway leaves the
- * worker reporting the old version. Returns whether any file was published.
+ * worker reporting the old version. Returns whether any file was published. Callers writing several folders pass
+ * one `bundle` so the extension loads once.
  */
-export async function writeRelayExtension(dir: string, ompVersion: string): Promise<boolean> {
-	const files = await relayExtensionFiles(ompVersion);
+export async function writeRelayExtension(
+	dir: string,
+	ompVersion: string,
+	bundle?: Promise<RelayExtensionBundle>,
+): Promise<boolean> {
+	const files = await relayExtensionFiles(ompVersion, bundle);
 	let changed = false;
 	for (const name in files) {
 		if (name === "background.js" || name === "manifest.json") continue;
@@ -166,7 +185,7 @@ export async function installedRelayExtensionStamp(dir: string): Promise<RelayEx
 	}
 }
 
-/** The zeta version stamped in `dir`'s manifest; "" when it has none or cannot be read. */
+/** The omp version stamped in `dir`'s manifest; "" when it has none or cannot be read. */
 export async function installedRelayExtensionVersion(dir: string): Promise<string> {
 	try {
 		const manifest: unknown = await Bun.file(path.join(dir, "manifest.json")).json();

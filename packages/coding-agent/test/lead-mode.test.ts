@@ -16,7 +16,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "@linxiraos/zeta/ui/theme/service";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The assistant's turn: a `col` (role `omp.assistant`) of the reply's blocks
  * in order, keyed by content index so streamed deltas reach a native terminal
@@ -21,8 +21,8 @@
  *
  * Terminal look: `omp.assistant` (`src/ui/styles/messages/assistant.ts`).
  */
-import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
-import { presentNarrationAsAnswer } from "@oh-my-pi/pi-ai/utils/narration";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import { presentNarrationAsAnswer } from "@linxiraos/pi-ai/utils/narration";
 import {
 	computed,
 	effect,
@@ -35,11 +35,11 @@ import {
 	read,
 	signal,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { holdPartialTableRow, speculativeStreamingSource } from "@oh-my-pi/pi-tui/text/markdown/index";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatDuration, formatNumber, logger } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui";
+import { holdPartialTableRow, speculativeStreamingSource } from "@linxiraos/pi-tui/text/markdown/index";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatDuration, formatNumber, logger } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import type { TurnUsageSummary } from "../../../modes/view-model/overlays/usage-row";
 import type { CacheInvalidation } from "../../../session/transcript/cache-invalidation-marker";
 import { chartFence, hasChartTable, lookupTableChart, splitTableCharts } from "../../../session/transcript/table-chart";
@@ -557,19 +557,19 @@ export function AssistantMessageBlock(props: { model: AssistantMessageModel }): 
 				const info = read(model.cacheInvalidation);
 				return info && <CacheMissMarker info={info} />;
 			}}
-			{() => rewound() && <badge key="rewound" text="↺ rewound" tone="muted" role="omp.assistant.rewound-tag" />}
+			{() => rewound() && <badge key="rewound" text="↺ rewound" tone="muted" role="zeta.assistant.rewound-tag" />}
 			{() => {
 				const summary = usage();
 				if (!summary) return undefined;
 				const line = formatTurnUsage(summary);
 				return (
-					<row key="turn-usage" role="omp.turn.usage" gap="xs" align="center" title={line.title}>
+					<row key="turn-usage" role="zeta.turn.usage" gap="xs" align="center" title={line.title}>
 						{answered() &&
 							actions() && [
 								<icon
 									key="copy"
 									name="copy"
-									role="omp.turn.copy"
+									role="zeta.turn.copy"
 									title="Copy answer"
 									aria="Copy answer"
 									actions={{ click: "copy-answer" }}
@@ -677,7 +677,7 @@ function ReplyPart(props: {
 				{() =>
 					live() ? (
 						<row key="head" gap="sm" title={title}>
-							<spinner style="starburst" role="omp.thinking.spin" />
+							<spinner style="starburst" role="zeta.thinking.spin" />
 							<text spans={[{ t: "Thinking…", s: "muted" }]} />
 							<elapsed
 								age={() => {
@@ -712,7 +712,7 @@ function ReplyPart(props: {
 		const revision = signal(0);
 		const requestRender = (): void => revision.set(untrack(revision) + 1);
 		return (
-			<col key={slot} role="omp.thinking.extension">
+			<col key={slot} role="zeta.thinking.extension">
 				{() => {
 					revision();
 					const part = props.part();
@@ -771,7 +771,7 @@ function ErrorPartNode(props: { part: () => Part | undefined }): JSXNode {
 				return untrack(() => (
 					<text
 						propKey="error"
-						role="omp.assistant.abort"
+						role="zeta.assistant.abort"
 						spans={() => {
 							const e = error();
 							return e?.kind === "abort" ? [{ t: e.text, s: "error" }] : [];
@@ -788,7 +788,7 @@ function ErrorPartNode(props: { part: () => Part | undefined }): JSXNode {
 					return (
 						<section
 							propKey="error"
-							role="omp.assistant.recovered"
+							role="zeta.assistant.recovered"
 							head={() => {
 								const attempt = recovered()?.attempt ?? 1;
 								return [
@@ -821,7 +821,7 @@ function FailedTurn(props: { error: () => ErrorPart | undefined }): JSXNode {
 		return e?.kind === "failed" ? e : undefined;
 	};
 	const button = (act: string, label: string, keys: readonly string[], title: string): JSXNode => (
-		<row key={act} gap="xs" role="omp.error.action" actions={{ click: act }} title={title}>
+		<row key={act} gap="xs" role="zeta.error.action" actions={{ click: act }} title={title}>
 			<text text={label} />
 			{keys.length > 0 && <kbd keys={keys} />}
 		</row>
@@ -829,7 +829,7 @@ function FailedTurn(props: { error: () => ErrorPart | undefined }): JSXNode {
 	return (
 		<card
 			propKey="error"
-			role="omp.error"
+			role="zeta.error"
 			tone="error"
 			term={() => ({
 				preview: failed()?.preview,
@@ -840,19 +840,19 @@ function FailedTurn(props: { error: () => ErrorPart | undefined }): JSXNode {
 				<text spans={[{ t: "Request failed", s: "error strong" }]} />
 				{() => {
 					const code = failed()?.code;
-					return code && <badge text={code} tone="error" role="omp.error.code" />;
+					return code && <badge text={code} tone="error" role="zeta.error.code" />;
 				}}
 			</row>
 			<text
 				propKey="message"
-				role="omp.error.message"
+				role="zeta.error.message"
 				spans={(): TspSpan[] => [{ t: failed()?.text ?? "", s: "mono" }]}
 				wrap="word"
 				lines={() => failed()?.lines}
 			/>
 			{() =>
 				failed()?.actions && (
-					<row key="actions" gap="sm" role="omp.error.actions">
+					<row key="actions" gap="sm" role="zeta.error.actions">
 						{button("retry", "Retry", ["F5"], "Retry the failed turn")}
 						{button("copy-error", "Copy error", [], "Copy the error message")}
 						{button("switch-model", "Switch model", ["⌥P"], "Pick another model for this session")}

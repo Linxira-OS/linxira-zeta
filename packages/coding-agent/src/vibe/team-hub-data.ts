@@ -3,7 +3,7 @@ import type {
 	ActiveTeamAgentRow,
 	ActiveTeamHubSnapshot,
 	ActiveTeamHubSource,
-} from "@linxiraos/pi-tui/overlays/active-team-hub";
+} from "../modes/view-model/overlays/active-team-hub";
 import { AgentRegistry, type AgentRegistryApi } from "../registry/agent-registry";
 import { VibeSessionRegistry, type VibeOwnerScope, type VibeWorkerView } from "./runtime";
 import { post, snapshot, type TeamRoomSnapshot } from "./team-rooms";

@@ -2,7 +2,14 @@
 
 import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionPreparation } from "@linxiraos/pi-agent-core/compaction";
-import type { AssistantMessage, ImageContent, Message, Model, SimpleStreamOptions, TextContent } from "@linxiraos/pi-ai";
+import type {
+	AssistantMessage,
+	ImageContent,
+	Message,
+	Model,
+	SimpleStreamOptions,
+	TextContent,
+} from "@linxiraos/pi-ai";
 import { isRecord, logger } from "@linxiraos/pi-utils";
 import * as snapcompact from "@linxiraos/zeta-compact";
 import type { Settings } from "../config/settings";

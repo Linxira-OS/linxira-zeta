@@ -2,22 +2,22 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolResult, StreamFn } from "@oh-my-pi/pi-agent-core";
-import type { Model, ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CursorExecHandlers } from "@oh-my-pi/pi-coding-agent/cursor";
+import { type } from "@linxiraos/zeta-schema";
+import type { AgentTool, AgentToolResult, StreamFn } from "@linxiraos/pi-agent-core";
+import type { Model, ToolResultMessage } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CursorExecHandlers } from "@linxiraos/zeta/cursor";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/wrapper";
-import type { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import * as memoryBackendModule from "@oh-my-pi/pi-coding-agent/memory-backend";
-import { initializeExtensions } from "@oh-my-pi/pi-coding-agent/modes/runtime-init";
+} from "@linxiraos/zeta/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
+import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import * as memoryBackendModule from "@linxiraos/zeta/memory-backend";
+import { initializeExtensions } from "@linxiraos/zeta/modes/runtime-init";
 import {
 	type CreateAgentSessionOptions,
 	type CustomTool,
@@ -25,15 +25,15 @@ import {
 	discoverAuthStorage,
 	type ExtensionContext,
 	type ExtensionFactory,
-} from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { VIBE_TOOL_NAMES } from "@oh-my-pi/pi-coding-agent/tools/vibe";
-import { resetYieldTurnState } from "@oh-my-pi/pi-coding-agent/tools/yield";
-import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
+import { resetYieldTurnState } from "@linxiraos/zeta/tools/yield";
+import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 
-import { cfgExternalThinking } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { cfgToolsCommands } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { cfgExternalThinking } from "@linxiraos/zeta/session/settings";
+import { cfgToolsCommands } from "@linxiraos/zeta/tools/settings";
 
 const toolActivationExtension: ExtensionFactory = pi => {
 	pi.registerTool({

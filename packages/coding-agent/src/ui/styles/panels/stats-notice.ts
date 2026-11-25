@@ -1,7 +1,7 @@
 /** The stats notice's terminal look: a blank row, then the dimmed message (the button is native-only). */
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { TspTextProps } from "@oh-my-pi/pi-wire";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { wrap } from "@linxiraos/pi-tui/text/width";
+import type { TspTextProps } from "@linxiraos/pi-wire";
 import { terminalPaddingX } from "../terminal-padding";
 import { plainText, propsOf } from "./common";
 

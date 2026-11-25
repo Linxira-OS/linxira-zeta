@@ -1,5 +1,5 @@
-import { PythonKernel } from "@oh-my-pi/pi-coding-agent/eval/py/kernel";
-import { $which } from "@oh-my-pi/pi-utils";
+import { PythonKernel } from "@linxiraos/zeta/eval/py/kernel";
+import { $which } from "@linxiraos/pi-utils";
 
 /** Run one cell with the same builtin injection and prelude initialization as eval. */
 export async function runPrelude(code: string, env: Record<string, string>): Promise<string> {

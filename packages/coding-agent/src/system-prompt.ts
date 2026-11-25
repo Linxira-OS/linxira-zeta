@@ -4,10 +4,10 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { ToolExample, TSchema } from "@oh-my-pi/pi-ai";
-import { renderToolInventory } from "@oh-my-pi/pi-ai/dialect";
-import type { DelegationBias } from "@oh-my-pi/pi-catalog/compat/delegation";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { ToolExample, TSchema } from "@linxiraos/pi-ai";
+import { renderToolInventory } from "@linxiraos/pi-ai/dialect";
+import type { DelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
 import {
 	$env,
 	getAgentDir,
@@ -17,7 +17,7 @@ import {
 	isInteractiveHost,
 	logger,
 	prompt,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";
 import { findConfigFile } from "./config";
@@ -638,6 +638,14 @@ export interface BuildSystemPromptOptions {
 	mountedCommands?: Array<{ name: string; summary: string; dynamic?: boolean }>;
 	/** Inlined `--help` sections and the one-line catalog for mounted commands. */
 	toolCommandDocs?: string;
+	/**
+	 * Zeta 19.1 name for {@link mountedCommands}: tools mounted as `xd://`
+	 * commands. Kept for existing callers and templates; when both are given,
+	 * `mountedCommands` wins.
+	 */
+	xdevTools?: Array<{ name: string; summary: string; dynamic?: boolean }>;
+	/** Zeta 19.1 name for {@link toolCommandDocs}: inlined `--help` sections and catalog. */
+	xdevDocs?: string;
 	/** Whether Auto-QA grievance reporting is enabled; renders the `report_issue` note. */
 	autoQaEnabled?: boolean;
 	/** ovnfs command when its binary is found (`ovnfsCommand`); renders the separate-checkout guidance. */
@@ -663,6 +671,11 @@ export interface BuildSystemPromptResult {
 	 * a catalog the prompt already carries (issue #7139).
 	 */
 	toolCommandCatalogNames?: readonly string[];
+	/**
+	 * Zeta 19.1 alias of {@link toolCommandCatalogNames}: the mounted `xd://`
+	 * commands whose catalog this prompt rendered.
+	 */
+	xdevCatalogNames?: readonly string[];
 }
 
 /** Static wrapper; compiled (not rendered) so user-authored Markdown passes through byte-for-byte. */
@@ -769,13 +782,15 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		autoGraph = false,
 		reactions = false,
 		encourageEdits = true,
-		mountedCommands = [],
-		toolCommandDocs = "",
+		mountedCommands: providedMountedCommands = [],
+		toolCommandDocs: providedToolCommandDocs = "",
 		autoQaEnabled = false,
 		ovnfs,
 		subagent = false,
 		activeRepoContext: providedActiveRepoContext,
 	} = options;
+	const mountedCommands = providedMountedCommands.length > 0 ? providedMountedCommands : (options.xdevTools ?? []);
+	const toolCommandDocs = providedToolCommandDocs.length > 0 ? providedToolCommandDocs : (options.xdevDocs ?? "");
 	const inlineToolDescriptors = providedInlineToolDescriptors ?? false;
 	const resolvedCwd = cwd ?? getProjectDir();
 	let resolvedSystemPromptTemplate = options.systemPromptTemplate;
@@ -1017,11 +1032,11 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 	const toolListMode = !inlineToolDescriptors && nativeTools;
 	// Build tool descriptions for system prompt rendering.
 	const toolPromptNames = new Map<string, string>(toolNames.map(name => [name, tools?.get(name)?.wireName ?? name]));
-	// Mounted tool commands count as present for prompt gates ({{#has tools "lsp"}})
-	// and are referred to by their bare name, which is also the command to run.
+	// Mounted tool devices count as present for prompt gates ({{#has tools "lsp"}})
+	// and are referred to by their virtual device URL, `xd://<name>`.
 	// The Tool Inventory list stays limited to tools with a top-level definition.
 	for (const mounted of mountedCommands) {
-		if (!toolPromptNames.has(mounted.name)) toolPromptNames.set(mounted.name, mounted.name);
+		if (!toolPromptNames.has(mounted.name)) toolPromptNames.set(mounted.name, `xd://${mounted.name}`);
 	}
 	const toolRefs = Object.fromEntries(toolPromptNames.entries());
 	const mountedCommandNames = new Set(mountedCommands.map(mounted => mounted.name));
@@ -1157,6 +1172,10 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		mountedCommands,
 		hasDynamicToolCommands: mountedCommands.some(mounted => mounted.dynamic === true),
 		toolCommandDocs,
+		// Zeta 19.1 template names: user templates written against `{{xdevTools}}`
+		// / `{{xdevDocs}}` keep rendering the same data.
+		xdevTools: mountedCommands,
+		xdevDocs: toolCommandDocs,
 		autoQaEnabled,
 		// The guidance pastes it into shell commands: always single-quoted, so no path character splits or expands it.
 		ovnfs: ovnfs && quotePosixArgument(ovnfs),
@@ -1198,9 +1217,17 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 	// Claim delivery only when the rendered block 0 actually carries the tool-command
 	// catalog, so a template that references {{toolCommandDocs}} keeps mount-notice
 	// dedupe while one that omits it stays honest.
+	// Claim delivery only when the rendered block 0 actually carries the xd://
+	// section, so a template that references {{xdevDocs}} keeps mount-notice
+	// dedupe while one that omits it stays honest.
 	const toolCommandCatalogNames =
-		!resolvedCustomPrompt && toolCommandDocs.length > 0 && rendered.text.includes(toolCommandDocs)
+		!resolvedCustomPrompt && mountedCommands.length > 0 && rendered.text.includes("xd://")
 			? mountedCommands.map(mounted => mounted.name)
 			: undefined;
-	return { systemPrompt, toolCommandCatalogNames, sources: { blocks: systemPrompt.slice(), sources } };
+	return {
+		systemPrompt,
+		toolCommandCatalogNames,
+		xdevCatalogNames: toolCommandCatalogNames,
+		sources: { blocks: systemPrompt.slice(), sources },
+	};
 }

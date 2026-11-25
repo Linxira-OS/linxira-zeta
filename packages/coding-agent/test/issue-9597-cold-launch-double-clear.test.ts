@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	beginStartupComposer,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
-} from "@oh-my-pi/pi-coding-agent/modes/startup-composer";
+} from "@linxiraos/zeta/modes/startup-composer";
 import type { StartupPreferences } from "../src/modes/interactive/startup-cache";
 import { initTheme } from "../src/ui/theme/service";
 import { createModeTerminal } from "./helpers/mode-terminal";
@@ -17,7 +17,7 @@ import {
 	cfgStartupQuiet,
 	cfgTuiResizeScrollback,
 	cfgTuiVimMode,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
+} from "@linxiraos/zeta/modes/settings";
 
 // Every destructive reset emits one erase-scrollback (ED3). Count that
 // operation without coupling this regression to the ED2/ED3 ordering.

@@ -1,4 +1,4 @@
-import type { MultiplexerId } from "@oh-my-pi/pi-tui/driver/mux/detect";
+import type { MultiplexerId } from "@linxiraos/pi-tui/driver/mux/detect";
 import { cmuxLaunchProvider } from "./cmux";
 import { herdrLaunchProvider } from "./herdr";
 import { orcaLaunchProvider } from "./orca";

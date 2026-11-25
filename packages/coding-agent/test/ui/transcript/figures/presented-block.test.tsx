@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { type JSXNode, signal, type UiNode } from "@oh-my-pi/pi-tui";
-import { defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { type JSXNode, signal, type UiNode } from "@linxiraos/pi-tui";
+import { defineRolePainter } from "@linxiraos/pi-tui/term/paint";
 import type { TranscriptBlock, TranscriptPresentation } from "../../../../src/extensibility/extensions/render-types";
 import { PresentedBlock } from "../../../../src/ui/transcript/figures";
 import { region } from "../messages/harness";

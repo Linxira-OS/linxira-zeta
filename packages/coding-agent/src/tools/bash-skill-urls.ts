@@ -7,7 +7,7 @@ import { validateRelativePath } from "../internal-urls/filesystem-resource";
 import type { InternalResource, ResolveContext } from "../internal-urls/types";
 import type { ImageAttachmentEntry } from ".";
 import { normalizeLocalScheme } from "./path-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import {
 	resolveContainedPath,
 	type ContainedPathResolution,

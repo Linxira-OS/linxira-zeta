@@ -3,9 +3,9 @@
  * keyboard focus on its first node of `focusKind` (the overlay's focus target),
  * keys, pastes and mouse routed as the terminal backend routes them.
  */
-import type { JSXNode, UiNode } from "@oh-my-pi/pi-tui";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import type { JSXNode, UiNode } from "@linxiraos/pi-tui";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 
 const DARK = loadThemeSync("dark");
 

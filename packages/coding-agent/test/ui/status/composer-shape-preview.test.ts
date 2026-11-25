@@ -4,7 +4,7 @@
  * the shape asked for (`top omp 74`, `band omp`, `chip omp`, `bar left omp 80`),
  * so the stages pin where each shape attaches the status and at what width.
  */
-import { jsx, signal } from "@oh-my-pi/pi-tui";
+import { jsx, signal } from "@linxiraos/pi-tui";
 import { ComposerShapePreview, PREVIEW_TITLE } from "../../../src/ui/overlays/composer-shape-preview";
 import type { StatusChrome } from "../../../src/ui/status/status-line";
 import "../../../src/ui/styles/composer";

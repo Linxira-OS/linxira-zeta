@@ -5,8 +5,16 @@
  * and whole-text notes on top), then the review mode and the actions, then
  * the key hints, the note editor or the note chooser.
  */
-import { padTo, replaceTabs, sliceColumns, truncate, visibleWidth, wrap, wrapChars } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import {
+	padTo,
+	replaceTabs,
+	sliceColumns,
+	truncate,
+	visibleWidth,
+	wrap,
+	wrapChars,
+} from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type { ReviewDiffFile } from "../../../extensibility/custom-commands/bundled/annotate/annotation-types";
 import { keyGlyph } from "../../styles/panels/common";
 import {
@@ -17,7 +25,7 @@ import {
 	type TextNote,
 	type DiffNote,
 } from "./annotation-review-model";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { Keybinding } from "../../../config/keybindings/app-keybindings";
 import { actionKeyId } from "../../keys/hints";
 

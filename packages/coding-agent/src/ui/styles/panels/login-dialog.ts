@@ -4,9 +4,9 @@
  * link to it), how to open it, instructions, prompts with their fields and
  * answers, waits and progress (dim).
  */
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { inputLine } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { inputLine } from "@linxiraos/pi-tui/term/painters/prefs";
+import { wrap } from "@linxiraos/pi-tui/text/width";
 import type { LoginPiece } from "../../overlays/panels/login-dialog";
 import { boxRows, termOf } from "./common";
 

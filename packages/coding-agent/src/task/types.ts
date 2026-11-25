@@ -1,8 +1,8 @@
 import type { AgentSource } from "./task-details";
 export { TASK_SUBAGENT_PROGRESS_CHANNEL, TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "./session-observer-registry";
 export type { SubagentProgressPayload, SubagentLifecyclePayload } from "./session-observer-registry";
-import { type BaseType, type FluentType, type } from "@oh-my-pi/omptype";
-import { $env, isRecord } from "@oh-my-pi/pi-utils";
+import { type BaseType, type FluentType, type } from "@linxiraos/zeta-schema";
+import { $env, isRecord } from "@linxiraos/pi-utils";
 
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { ConfiguredThinkingLevel } from "../utils/render-utils";
@@ -64,6 +64,7 @@ export const taskItemSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"+": "delete",
 });
 const taskItemSchemaIsolated = type({
@@ -74,6 +75,7 @@ const taskItemSchemaIsolated = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"isolated?": "boolean",
 	"+": "delete",
 });
@@ -86,6 +88,7 @@ export const taskSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"isolated?": "boolean",
 	"+": "delete",
 });
@@ -97,6 +100,7 @@ const taskSchemaNoIsolation = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"+": "delete",
 });
 function guardBatchAgent(schema: BaseType): BaseType {

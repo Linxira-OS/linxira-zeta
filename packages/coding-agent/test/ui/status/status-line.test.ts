@@ -4,11 +4,11 @@
  * composer placements, extension statuses and live modes.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { createRoot, jsx, signal } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { SymbolPreset } from "@oh-my-pi/pi-tui/theme/schema";
+import { createRoot, jsx, signal } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { SymbolPreset } from "@linxiraos/pi-tui/theme/schema";
 import { getSegmentGalleryEntries } from "../../../src/cli/gallery-fixtures/segments";
 import type { StatusLineSegmentId } from "../../../src/config/status-line-schema";
 import type { StatusFacts, StatusPlacement } from "../../../src/ui/status/facts";

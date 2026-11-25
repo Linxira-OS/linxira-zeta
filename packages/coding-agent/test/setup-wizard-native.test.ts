@@ -1,16 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgSetupVersion } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { cfgSetupVersion } from "@linxiraos/zeta/modes/settings";
 import {
 	ALL_SCENES,
 	CURRENT_SETUP_VERSION,
 	runProviderSetupWizard,
 	runSetupWizard,
 	runStartupSplash,
-} from "@oh-my-pi/pi-coding-agent/modes/setup";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+} from "@linxiraos/zeta/modes/setup";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { Shell } from "../src/ui/shell/shell";
 import { type NativePage, nativeShell } from "./helpers/native-shell";
 

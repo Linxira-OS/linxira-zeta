@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import { disableUserSource, enableProvider, loadCapability } from "@oh-my-pi/pi-coding-agent/capability";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { disableUserSource, enableProvider, loadCapability } from "@linxiraos/zeta/capability";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
-} from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import { loadSkills, loadSkillPromptBody } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { loadSlashCommands } from "@oh-my-pi/pi-coding-agent/extensibility/slash-commands";
-import { loadAllExtensions } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/state-manager";
-import { __resetDirsFromEnvForTests, logger, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
-import "@oh-my-pi/pi-coding-agent/discovery/claude-plugins";
+} from "@linxiraos/zeta/discovery/helpers";
+import type { Skill } from "@linxiraos/zeta/capability/skill";
+import { loadSkills, loadSkillPromptBody } from "@linxiraos/zeta/extensibility/skills";
+import { loadSlashCommands } from "@linxiraos/zeta/extensibility/slash-commands";
+import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, logger, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import "@linxiraos/zeta/discovery/claude-plugins";
 
 describe("parseClaudePluginsRegistry", () => {
 	test("returns null for invalid JSON", () => {

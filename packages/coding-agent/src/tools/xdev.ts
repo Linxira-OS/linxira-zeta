@@ -39,12 +39,12 @@ import {
 import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema } from "@linxiraos/pi-ai";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { resolveToolWireName } from "../utils/tool-wire-name";
-import { stripXdUrlPrefix, XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url";
-import { truncateHeadBytes } from "@linxiraos/pi-tui/tools/streaming-output";
+import { stripXdUrlPrefix, XD_URL_PREFIX } from "./xd-url";
+import { truncateHeadBytes } from "./streaming-output";
 import { resolveToolTier, type ToolTier } from "./approval";
 import type { Tool, ToolSession } from "./index";
 import { renderError, ToolAbortError } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 
 /**
  * Discoverable built-ins that must stay top-level even when xdev mounting is

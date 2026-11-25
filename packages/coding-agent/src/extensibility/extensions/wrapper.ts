@@ -8,10 +8,10 @@ import {
 	type AgentToolUpdateCallback,
 	isNonBlankContext,
 	type ToolLoadMode,
-} from "@oh-my-pi/pi-agent-core";
-import type { ComputerSafetyCheck, ImageContent, Static, TextContent, TSchema } from "@oh-my-pi/pi-ai";
-import { prompt, sanitizeText, untilAborted, toError } from "@oh-my-pi/pi-utils";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+} from "@linxiraos/pi-agent-core";
+import type { ComputerSafetyCheck, ImageContent, Static, TextContent, TSchema } from "@linxiraos/pi-ai";
+import { prompt, sanitizeText, untilAborted, toError } from "@linxiraos/pi-utils";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { extensionTheme } from "../../ui/extensions/render-output";
 import nativeDelegationTemplate from "../../prompts/tools/native-delegation.md" with { type: "text" };
 import {

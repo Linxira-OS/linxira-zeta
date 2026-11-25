@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
 import type { AdvisorMessageDetails } from "../../../../src/session/transcript/messages";
 import { AdvisorMessage } from "../../../../src/ui/transcript/messages/advisor-message";
 import { screenSuite, single } from "./harness";

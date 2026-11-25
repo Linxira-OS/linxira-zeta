@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The `snapcompact.shape` preview: what the highlighted variant resolves to
  * (for `auto`, per the active model), the full-frame geometry and its cost,
@@ -8,8 +8,8 @@
  * the preview shows a spinner until its sample is ready. The sample is an
  * `image` node; the terminal draws a notice instead.
  */
-import { type Accessor, type JSXNode, type Signal, signal } from "@oh-my-pi/pi-tui";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
+import { type Accessor, type JSXNode, type Signal, signal } from "@linxiraos/pi-tui";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
 import {
 	DIM_OFF,
 	DIM_ON,
@@ -24,7 +24,7 @@ import {
 	type ShapeGeometry,
 	type ShapeTarget,
 	type ShapeVariantName,
-} from "@oh-my-pi/snapcompact";
+} from "@linxiraos/zeta-compact";
 import "../../styles/panels/snapcompact-shape-preview";
 import sampleDoc from "./snapcompact-sample.md" with { type: "text" };
 
@@ -137,7 +137,7 @@ export function SnapcompactShapePreview(props: SnapcompactShapePreviewProps): JS
 	};
 	return (
 		<col
-			role="omp.preview.snapcompact-shape"
+			role="zeta.preview.snapcompact-shape"
 			gap="sm"
 			term={() => ({ graphics: props.graphics ?? false, state: view().sample().state })}
 		>

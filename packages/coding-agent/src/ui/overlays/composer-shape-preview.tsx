@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The composer-shape picker's preview: a read-only prompt in the highlighted
  * shape's chrome, with the live status line where that shape puts it (top
@@ -11,8 +11,8 @@
  * The status comes from the session's status line (`createStatusLine(…).chrome`);
  * an unnamed session previews its title as {@link PREVIEW_TITLE}.
  */
-import { type Accessor, type JSXNode } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type Accessor, type JSXNode } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { StatusChrome } from "../status/status-line";
 import { composerShape } from "../styles/composer/shapes";
 
@@ -46,7 +46,7 @@ export function ComposerShapePreview(props: ComposerShapePreviewProps): JSXNode 
 	};
 	return (
 		<col
-			role="omp.preview.composer-shape"
+			role="zeta.preview.composer-shape"
 			gap="xs"
 			term={(): ComposerShapePreviewLook => ({
 				shape: props.shape(),

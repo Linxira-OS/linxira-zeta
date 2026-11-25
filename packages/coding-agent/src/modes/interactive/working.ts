@@ -4,8 +4,8 @@
  * trailer, the idle retry hint, and the idle trailer that keeps the last tok/s
  * reading on screen between turns.
  */
-import { adjustHsv } from "@oh-my-pi/pi-utils";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { adjustHsv } from "@linxiraos/pi-utils";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type { StatusHudModel, WorkingAccent, WorkingSpec } from "../../ui/dock";
 import { sessionAccentHex } from "../../ui/status/accent";
 import type { WorkingKind } from "../types";

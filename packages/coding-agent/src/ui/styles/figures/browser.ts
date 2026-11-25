@@ -1,5 +1,5 @@
 /** The transcript browser (`col` `omp.transcript.browser`): the frame its model lays out (see `TranscriptBrowserModel`). */
-import { defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
+import { defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
 import type { BrowserTerm } from "../../transcript/figures/browser";
 import { termOf } from "../messages/fill";
 

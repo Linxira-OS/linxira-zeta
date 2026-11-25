@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { runConfigCommand } from "@oh-my-pi/pi-coding-agent/cli/config-cli";
-import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { getConfigRootDir, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
-import { all, lookup } from "@oh-my-pi/pi-coding-agent/config/registry";
-import { getSettingDef } from "@oh-my-pi/pi-coding-agent/config/settings-defs";
+import { runConfigCommand } from "@linxiraos/zeta/cli/config-cli";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { getConfigRootDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { all, lookup } from "@linxiraos/zeta/config/registry";
+import { getSettingDef } from "@linxiraos/zeta/config/settings-defs";
 import { createSettingsHost } from "../src/config/settings-ui";
 
 describe("credential settings", () => {

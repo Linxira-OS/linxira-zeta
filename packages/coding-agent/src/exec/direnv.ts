@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type * as Zlib from "node:zlib";
-import { $which, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { $which, isEnoent, logger } from "@linxiraos/pi-utils";
 
 let zlibCache: typeof Zlib | undefined;
 function inflateSync(buf: Zlib.InputType): Buffer {

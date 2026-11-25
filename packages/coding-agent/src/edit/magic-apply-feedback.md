@@ -7,8 +7,9 @@ Use `read` and `replace` to repair the draft; successful edits are still in it.
 Use native tool calls, or write one JSON object per call in its own fenced block:
 
 ```json
-{"name":"read","arguments":{"start_line":1,"end_line":5}}
+{ "name": "read", "arguments": { "start_line": 1, "end_line": 5 } }
 ```
+
 {{else if failed}}
 At least one replacement failed. Correct the failed change in the draft before replying `DONE`.
 {{else}}

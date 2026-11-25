@@ -1,5 +1,5 @@
 import type { WebSearchGrounding } from "@linxiraos/pi-catalog/types";
-import type { SearchProviderId, SearchResponse } from "./provider-types";
+import { SEARCH_PROVIDER_LABELS, type SearchProviderId, type SearchResponse } from "./provider-types";
 
 export * from "./provider-types";
 
@@ -29,6 +29,30 @@ export const MAX_WEB_SEARCH_TIMEOUT_SECONDS = 300;
 
 /** Pure search engines represented by `web/*` catalog models. */
 export type SearchEngineId = Exclude<SearchProviderId, WebSearchGrounding>;
+
+/**
+ * Auto-resolution priority order (providers tab + fallback chain). Derived
+ * from the provider table so the settings dropdown and the provider chain
+ * share one source of truth and never drift apart.
+ */
+export const SEARCH_PROVIDER_ORDER: readonly SearchProviderId[] = Object.keys(
+	SEARCH_PROVIDER_LABELS,
+) as SearchProviderId[];
+
+/** Concrete provider choices retained for the settings UI. */
+export const SEARCH_PROVIDER_CHOICES: ReadonlyArray<{ value: SearchProviderId; label: string }> =
+	SEARCH_PROVIDER_ORDER.map(id => ({ value: id, label: SEARCH_PROVIDER_LABELS[id] }));
+
+/** Valid `web` role values: `auto` or any concrete provider id. */
+export const SEARCH_PROVIDER_PREFERENCES = ["auto", ...SEARCH_PROVIDER_ORDER] as const;
+
+export function isSearchProviderId(value: string): value is SearchProviderId {
+	return SEARCH_PROVIDER_ORDER.includes(value as SearchProviderId);
+}
+
+export function isSearchProviderPreference(value: string): value is SearchProviderId | "auto" {
+	return SEARCH_PROVIDER_PREFERENCES.includes(value as SearchProviderId | "auto");
+}
 
 /** Provider-specific error with optional HTTP status */
 export class SearchProviderError extends Error {

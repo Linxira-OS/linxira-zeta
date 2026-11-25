@@ -2,8 +2,8 @@
  * `composer/welcome` corpus: the welcome card across tip rolls, version
  * changes, self-update activity and the intro animation (terminal clock).
  */
-import { jsx } from "@oh-my-pi/pi-tui";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+import { jsx } from "@linxiraos/pi-tui";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import "../../../src/ui/styles/welcome";
 import { welcomeTip } from "../../../src/ui/welcome/tips";
 import { type VersionUpdate, Welcome, WelcomeModel } from "../../../src/ui/welcome/welcome";

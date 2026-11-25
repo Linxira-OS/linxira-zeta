@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Extension widgets around the editor (`widgetsAbove`, `widgetsBelow`) and
  * the editor gap (`editorGap`) above them.
@@ -16,7 +16,7 @@
  * a band-shaped composer closes while the status row above it draws (the
  * working row brings its own blank row). Natively the dock spaces itself.
  */
-import { type Accessor, For, type JSXNode, signal } from "@oh-my-pi/pi-tui";
+import { type Accessor, For, type JSXNode, signal } from "@linxiraos/pi-tui";
 import "../styles/dock";
 import { ansiSpans } from "../transcript/messages/spans";
 

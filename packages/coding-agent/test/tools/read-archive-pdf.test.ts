@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import * as piNatives from "@oh-my-pi/pi-natives";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import * as pdfRead from "@oh-my-pi/pi-coding-agent/tools/read-pdf";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import * as markit from "@oh-my-pi/pi-coding-agent/utils/markit";
-import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/read";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
-import * as ar from "@oh-my-pi/pi-utils/ar";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import * as piNatives from "@linxiraos/pi-natives";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import * as pdfRead from "@linxiraos/zeta/tools/read-pdf";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import * as markit from "@linxiraos/zeta/utils/markit";
+import type { ReadToolDetails } from "@linxiraos/zeta/tools/details/read";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import * as ar from "@linxiraos/pi-utils/ar";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 const MEMBER = "folder/sample document.pdf";

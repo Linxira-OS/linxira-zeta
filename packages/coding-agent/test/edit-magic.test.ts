@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Api, AssistantMessage, Message, Model, Tool, ToolCall } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool, magicEditSchema } from "@oh-my-pi/pi-coding-agent/edit";
-import { applyDescribedChange, parseMagicInput } from "@oh-my-pi/pi-coding-agent/edit/magic";
-import { applyReplace, readBufferLines } from "@oh-my-pi/pi-coding-agent/edit/magic-tools";
-import { fileViews } from "@oh-my-pi/pi-coding-agent/edit/magic-view";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { Api, AssistantMessage, Message, Model, Tool, ToolCall } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool, magicEditSchema } from "@linxiraos/zeta/edit";
+import { applyDescribedChange, parseMagicInput } from "@linxiraos/zeta/edit/magic";
+import { applyReplace, readBufferLines } from "@linxiraos/zeta/edit/magic-tools";
+import { fileViews } from "@linxiraos/zeta/edit/magic-view";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 import { rejectionOf } from "./helpers/rejection";
 

@@ -1,12 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import {
-	unpackedExtensionId,
-	writeRelayExtension,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/relay/extension-files";
-import { writeRelayNativeHost } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/native-host-manifest";
-import { NATIVE_HOST } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/protocol";
-import { VERSION } from "@oh-my-pi/pi-utils/dirs";
+import { unpackedExtensionId, writeRelayExtension } from "@linxiraos/zeta/tools/browser/relay/extension-files";
+import { writeRelayNativeHost } from "@linxiraos/zeta/tools/browser/relay/native-host-manifest";
+import { NATIVE_HOST } from "@linxiraos/zeta/tools/browser/relay/protocol";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { $ } from "bun";
 
 export interface FixtureRelayExtension {

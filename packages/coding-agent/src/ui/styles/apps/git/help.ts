@@ -5,8 +5,8 @@
  * column), then a blank row and the dim close hint. Every row is indented one
  * cell and cut with an ellipsis at the width.
  */
-import { defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import type { GitShortcutGroup } from "../../../apps/git/help";
 import { keyLabel } from "../../../keys/hints";
 import { termOf } from "../../panels/common";

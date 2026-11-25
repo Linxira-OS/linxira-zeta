@@ -7,7 +7,7 @@
  * Log index 0 is the oldest loaded entry; loading older history shifts every
  * index by the number of entries it adds.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 
 /** Entries the viewer shows at first, and per load-older step, before reading older history. */
 export const LOG_CHUNK = 50;

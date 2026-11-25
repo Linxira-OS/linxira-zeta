@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** The show-images selector: images inline in the terminal, or text placeholders. */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import { SelectSheet } from "./select-sheet";
 
 export interface ShowImagesSelectorProps {

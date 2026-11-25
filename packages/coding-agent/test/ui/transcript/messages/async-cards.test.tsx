@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { afterAll, setSystemTime } from "bun:test";
-import { signal } from "@oh-my-pi/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
 import "../../../../src/ui/styles/tools/irc";
 import type { AsyncNotifyDetails } from "../../../../src/session/transcript/messages";
 import { extensionOutput } from "../../../../src/ui/extensions/render-output";

@@ -75,7 +75,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"package.json", // pre-existing main debt: PI_IMAGE docker tag default + robomp scripts
 	"CONTRIBUTING.md", // pre-existing main debt: upstream-facing contributing doc
 	"packages/coding-agent/CHANGELOG.md", // changelog entries describe the residue itself
-	"scripts/merge-package-json.ts", // merge driver: must name the upstream @oh-my-pi scope to map it back
+	"scripts/merge-package-json.ts", // merge driver: must name the upstream @linxiraos scope to map it back
 	"scripts/studio-assets.ts", // source-sync overlay: matches upstream Studio names to rewrite them
 	"scripts/merge-package-json.test.ts", // driver test: fixtures carry the upstream scope to prove the mapping
 	"scripts/check-scope-imports.ts", // the class-3 guard documents the exact upstream→Zeta leaf mappings it exists to catch
@@ -240,7 +240,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	},
 	{
 		file: "scripts/merge-package-json.ts",
-		needle: '"@oh-my-pi/"',
+		needle: '"@linxiraos/"',
 		why: "the driver must keep the literal upstream npm scope in OMP_SCOPE or the mapping silently no-ops (swept away twice; v18.2.4-era regression ran the v18.3.1/v18.3.2 merges unmapped)",
 	},
 	{
@@ -250,7 +250,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	},
 	{
 		file: "scripts/merge-package-json.test.ts",
-		needle: "@oh-my-pi/",
+		needle: "@linxiraos/",
 		why: "driver-test upstream fixtures must carry the real upstream scope or this guard pair cannot fail",
 	},
 	{

@@ -4,11 +4,11 @@
  * run's command in its mode color) or the presenter's label, then the
  * presenter's rows two cells in. A viewport allocation keeps the first rows.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan, TspToolProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan, TspToolProps } from "@linxiraos/pi-wire";
 import { PRESENTED_ROLES, type PresentedTerm } from "../../transcript/figures/presented-block";
 
 function paintPresented(node: UiNode, cx: PaintContext): Block {

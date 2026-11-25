@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { createTestTerminal, type TestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { createTestTerminal, type TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { Settings } from "../../../src/config/settings";
 import {
 	type CodexResetFireworksEvent,
 	detectCodexResetFireworks,
-} from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/codex-reset-fireworks";
+} from "@linxiraos/zeta/modes/view-model/overlays/codex-reset-fireworks";
 import { CodexResetFireworks } from "../../../src/ui/overlays/panels/codex-reset-fireworks";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

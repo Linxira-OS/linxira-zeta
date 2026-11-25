@@ -7,11 +7,11 @@
  * in its last column when it overflows); the list scrolls to keep the
  * selection in view. Short or narrow terminals drop the frame.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { padTo, sliceColumns, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { padTo, sliceColumns, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import { sanitizeDisplayLine } from "../../../extensibility/inventory/display-text";
 import { sanitizeErrorLine } from "../../../modes/view-model/chrome/error-block";
 import { getBtwCopyText, getBtwLatestTurn } from "../../../session/btw-history-model";

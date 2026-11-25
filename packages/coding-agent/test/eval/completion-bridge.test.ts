@@ -1,10 +1,10 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { Api, AssistantMessage, Model, RawSseEvent } from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
-import { Effort } from "@oh-my-pi/pi-ai";
+import type { Api, AssistantMessage, Model, RawSseEvent } from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { Effort } from "@linxiraos/pi-ai";
 import { RawSseDebugBuffer } from "../../src/debug/raw-sse-buffer";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 import type { ModelRegistry } from "../../src/config/model-registry";
 import { cfgOffline } from "../../src/config/auxiliary-model-policy";
@@ -27,12 +27,12 @@ import { disposeAllKernelSessions, type PythonResult } from "../../src/eval/py/e
 import type { ToolSession } from "../../src/tools";
 import { getBundledAgent } from "../../src/task/agents";
 import type { AgentDefinition } from "../../src/task/types";
-import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 import { CostGate } from "../../src/session/cost-gate";
 import { SessionManager } from "../../src/session/session-manager";
 import { rejectionOf } from "../helpers/rejection";
 
-import { cfgRetryFallbackChains, cfgRetryMaxRetries } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { cfgRetryFallbackChains, cfgRetryMaxRetries } from "@linxiraos/zeta/session/settings";
 
 async function runEvalCompletionAndWait(
 	args: unknown,

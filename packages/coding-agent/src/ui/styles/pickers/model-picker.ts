@@ -5,11 +5,11 @@
  * the highlighted model's thinking level in its color), the model list
  * (`styles/pickers/model-browser`), and the mode's key hints.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Hit, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { definePickerLook, type PickerTerm, sheetHit } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Hit, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { definePickerLook, type PickerTerm, sheetHit } from "@linxiraos/pi-tui/term/painters/picker";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type { ModelBrowserState } from "../../overlays/pickers/model-browser-state";
 import { MODEL_LIST_TOP, modelBrowserRows } from "./model-browser";
 

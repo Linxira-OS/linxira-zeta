@@ -1,13 +1,13 @@
-import { type NarrowContext, type } from "@oh-my-pi/omptype";
-import { AXES } from "@oh-my-pi/pi-catalog/compat/axes";
-import { MODEL_KINDS, RUNNER_API_KINDS } from "@oh-my-pi/pi-catalog/types";
-import { once } from "@oh-my-pi/pi-utils";
+import { type NarrowContext, type } from "@linxiraos/zeta-schema";
+import { AXES } from "@linxiraos/pi-catalog/compat/axes";
+import { MODEL_KINDS, RUNNER_API_KINDS } from "@linxiraos/pi-catalog/types";
+import { once } from "@linxiraos/pi-utils";
 import {
 	isConfigurableFrameSize,
 	MAX_CONFIGURED_FRAME_SIZE,
 	MIN_CONFIGURED_FRAME_SIZE,
 	SHAPE_VARIANT_NAMES,
-} from "@oh-my-pi/snapcompact";
+} from "@linxiraos/zeta-compact";
 
 /**
  * Input modalities the catalog can express (`input-modalities` axis). A

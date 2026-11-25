@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { Effort } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import {
 	acquireModelRoleMutation,
 	applyModelPreset,
@@ -14,21 +14,21 @@ import {
 	modelPresetSavedMessage,
 	modelPresetShadowOwner,
 	saveModelPreset,
-} from "@oh-my-pi/pi-coding-agent/config/model-presets";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+} from "@linxiraos/zeta/config/model-presets";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import {
 	formatModelString,
 	formatModelStringWithRouting,
 	resolveModelScope,
-} from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { cfgModelPresets } from "@oh-my-pi/pi-coding-agent/config/model-settings";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { AgentSessionConfig } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { cfgDefaultThinkingLevel } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/config/model-resolver";
+import { cfgModelPresets } from "@linxiraos/zeta/config/model-settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { AgentSessionConfig } from "@linxiraos/zeta/session/agent-session-types";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { cfgDefaultThinkingLevel } from "@linxiraos/zeta/session/settings";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const SONNET = "anthropic/claude-sonnet-4-5";
 const SONNET_46 = "anthropic/claude-sonnet-4-6";

@@ -11,9 +11,9 @@
  * geometry at the terminal's size ({@link AnnotationReviewModel.reference})
  * is what paging and the cursor's scrolling act on.
  */
-import type { Accessor, TextEdit } from "@oh-my-pi/pi-tui";
-import { signal } from "@oh-my-pi/pi-tui";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { Accessor, TextEdit } from "@linxiraos/pi-tui";
+import { signal } from "@linxiraos/pi-tui";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type {
 	AnnotationOverlayDraft,
 	CodeReviewAnnotation,

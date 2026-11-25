@@ -3,10 +3,10 @@
  * shows. Paints each block's node statically (dark theme, clock at 0) with every transcript look
  * registered.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import type { Shell, TranscriptBlock } from "../../src/ui/shell";
 import "../../src/ui/styles/messages";
 import "../../src/ui/styles/panels/usage-row";

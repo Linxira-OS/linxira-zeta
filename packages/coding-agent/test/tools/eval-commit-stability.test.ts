@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { EvalStatusEvent, EvalToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/eval";
-import { isSettled } from "@oh-my-pi/pi-tui/surface";
-import type { PendingTool } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalStatusEvent, EvalToolDetails } from "@linxiraos/zeta/tools/details/eval";
+import { isSettled } from "@linxiraos/pi-tui/surface";
+import type { PendingTool } from "@linxiraos/zeta/modes/types";
 import { createInteractiveModeContext } from "../helpers/interactive-mode-context";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

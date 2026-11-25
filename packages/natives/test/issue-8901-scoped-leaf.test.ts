@@ -1,12 +1,12 @@
 /**
  * Regression for https://github.com/can1357/oh-my-pi/issues/8901.
  *
- * A release of `@oh-my-pi/pi-natives` run from bun's install cache has no
+ * A release of `@linxiraos/pi-natives` run from bun's install cache has no
  * `node_modules` segment in its path. Its platform leaf sits beside it as a
  * version-pinned sibling:
  *
- *   <cache>/@oh-my-pi/pi-natives@<ver>@@@1/        core, manifest declares the leaf
- *   <cache>/@oh-my-pi/pi-natives-<tag>@<ver>@@@1/  leaf, holds the addon
+ *   <cache>/@linxiraos/pi-natives@<ver>@@@1/        core, manifest declares the leaf
+ *   <cache>/@linxiraos/pi-natives-<tag>@<ver>@@@1/  leaf, holds the addon
  *
  * The loader must treat that copy as an installed release, so the leaf's addon
  * is among the candidates it opens. Each layout is written to its own temporary
@@ -20,7 +20,7 @@ import * as path from "node:path";
 
 const VERSION = "19.0.1";
 const TAG = `${process.platform}-${process.arch}`;
-const LEAF_PACKAGE = `@oh-my-pi/pi-natives-${TAG}`;
+const LEAF_PACKAGE = `@linxiraos/pi-natives-${TAG}`;
 const ADDON = `pi_natives.${TAG}.node`;
 const LOADER_SOURCES = path.join(import.meta.dir, "..", "native");
 const LOADER_MODULES = ["loader-state.js", "embedded-addon.js", "version-sentinel.js"];
@@ -62,9 +62,9 @@ async function loaderCandidates(loaderPath: string): Promise<string[]> {
 describe("issue 8901: platform leaf beside a bun-cache copy of the core package", () => {
 	it("lists the leaf's addon among the candidates", async () => {
 		const root = tempRoot();
-		const scope = path.join(root, "@oh-my-pi");
+		const scope = path.join(root, "@linxiraos");
 		const native = writePackage(path.join(scope, `pi-natives@${VERSION}@@@1`), {
-			name: "@oh-my-pi/pi-natives",
+			name: "@linxiraos/pi-natives",
 			version: VERSION,
 			optionalDependencies: { [LEAF_PACKAGE]: VERSION },
 		});
@@ -76,9 +76,9 @@ describe("issue 8901: platform leaf beside a bun-cache copy of the core package"
 
 	it("ignores a foreign-version sibling when no leaf matches the running version", async () => {
 		const root = tempRoot();
-		const scope = path.join(root, "@oh-my-pi");
+		const scope = path.join(root, "@linxiraos");
 		const native = writePackage(path.join(scope, `pi-natives@${VERSION}@@@1`), {
-			name: "@oh-my-pi/pi-natives",
+			name: "@linxiraos/pi-natives",
 			version: VERSION,
 			optionalDependencies: { [LEAF_PACKAGE]: VERSION },
 		});
@@ -91,7 +91,7 @@ describe("issue 8901: platform leaf beside a bun-cache copy of the core package"
 	it("still skips the leaf for a checkout, whose manifest declares none", async () => {
 		const root = tempRoot();
 		const native = writePackage(path.join(root, "checkout", "packages", "natives"), {
-			name: "@oh-my-pi/pi-natives",
+			name: "@linxiraos/pi-natives",
 			version: VERSION,
 		});
 		const leaf = path.join(root, "checkout", "node_modules", LEAF_PACKAGE);

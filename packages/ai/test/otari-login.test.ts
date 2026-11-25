@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { matchesReplacementCredential } from "@oh-my-pi/pi-ai/auth/sqlite-credential-store";
-import type { OAuthController } from "@oh-my-pi/pi-ai/oauth/types";
-import { resolveOpenAIRequestSetup } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
+import { matchesReplacementCredential } from "@linxiraos/pi-ai/auth/sqlite-credential-store";
+import type { OAuthController } from "@linxiraos/pi-ai/oauth/types";
+import { resolveOpenAIRequestSetup } from "@linxiraos/pi-ai/providers/openai-shared";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 
 async function loginOtari(options: OAuthController): Promise<string> {
 	const login = getProviderDefinition("otari")?.login;

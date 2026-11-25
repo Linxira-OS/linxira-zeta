@@ -7,11 +7,11 @@ export type {
 	HookMessageRenderer,
 	HookMessageRenderOptions,
 } from "../extensions/render-types";
-import type { type as ArkType } from "@oh-my-pi/omptype";
-import type * as TypeBox from "@oh-my-pi/omptype/typebox";
-import type * as zod from "@oh-my-pi/omptype/zod";
-import type { ImageContent, Message, Model, TextContent } from "@oh-my-pi/pi-ai";
-import type { logger as PiLogger } from "@oh-my-pi/pi-utils";
+import type { type as ArkType } from "@linxiraos/zeta-schema";
+import type * as TypeBox from "@linxiraos/zeta-schema/typebox";
+import type * as zod from "@linxiraos/zeta-schema/zod";
+import type { ImageContent, Message, Model, TextContent } from "@linxiraos/pi-ai";
+import type { logger as PiLogger } from "@linxiraos/pi-utils";
 import type { KeybindingsManager } from "../../config/keybindings/keybindings";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { EditToolDetails } from "../../tools/details/edit";
@@ -464,7 +464,8 @@ export type HookHandler<E, R = undefined> = (event: E, ctx: HookContext) => Prom
 // HookCommandContext and have no argument-completion hook.
 export interface RegisteredCommand {
 	name: string;
-	description?: string;
+	/** Resolved lazily when a function so localized copy follows `/language`. */
+	description?: string | (() => string);
 
 	handler: (args: string, ctx: HookCommandContext) => Promise<void>;
 }
@@ -568,7 +569,10 @@ export interface HookAPI {
 	 * Register a custom slash command.
 	 * Handler receives HookCommandContext with session control methods.
 	 */
-	registerCommand(name: string, options: { description?: string; handler: RegisteredCommand["handler"] }): void;
+	registerCommand(
+		name: string,
+		options: { description?: string | (() => string); handler: RegisteredCommand["handler"] },
+	): void;
 
 	/**
 	 * Execute a shell command and return stdout/stderr/code.

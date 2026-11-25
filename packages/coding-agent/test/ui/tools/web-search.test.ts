@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import { createRoot } from "@oh-my-pi/pi-tui";
-import { paintNode, staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { describeTree } from "@oh-my-pi/pi-tui/testing/corpus";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { createRoot } from "@linxiraos/pi-tui";
+import { paintNode, staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { describeTree } from "@linxiraos/pi-tui/testing/corpus";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import "../../../src/ui/styles/tools/web-search";
 import { type WebSearchResponse, webSearchPresenter } from "../../../src/ui/tools/web-search";
 import { bodyNodes, toolNode, toolScreenSuite } from "./presenter-corpus";

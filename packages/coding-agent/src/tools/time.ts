@@ -1,6 +1,6 @@
 import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { prompt } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import timeDescription from "../prompts/tools/time.md" with { type: "text" };

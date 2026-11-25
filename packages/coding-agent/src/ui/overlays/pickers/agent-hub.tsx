@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The Agent Hub (ctrl+s / `/agents`): every subagent of the session as a
  * data-first `picker` with two tabs.
@@ -27,9 +27,9 @@ import {
 	type UiEvent,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatAge, formatNumber } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatAge, formatNumber } from "@linxiraos/pi-utils";
 import type {
 	TspKvProps,
 	TspPickerColumn,
@@ -37,7 +37,7 @@ import type {
 	TspPickerProps,
 	TspPickerScope,
 	TspSpan,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 import { sanitizeDisplaySingleLine } from "../../../extensibility/inventory/display-text";
 import {
 	type AgentActivityKind,
@@ -1037,13 +1037,13 @@ export function AgentHub<T extends AgentRecordLike>(
 			facts.splice(facts[0]?.k === "Task" ? 1 : 0, 0, { k: "Model", v: value });
 		}
 		const out: JSXNode[] = [
-			<row key="title" role="omp.hub.title" gap="sm" align="center">
-				<text role="omp.picker.title" text={sanitizeDisplaySingleLine(ref.displayName || ref.id)} truncate="end" />
+			<row key="title" role="zeta.hub.title" gap="sm" align="center">
+				<text role="zeta.picker.title" text={sanitizeDisplaySingleLine(ref.displayName || ref.id)} truncate="end" />
 				<badge text={ref.status} tone={STATUS_DOT[ref.status]} />
 			</row>,
 		];
 		if (notice) out.push(<text key="notice" text={notice} tone="error" wrap="word" />);
-		out.push(<kv key="facts" items={facts as TspKvProps["items"]} layout="grid" role="omp.hub.kv" />);
+		out.push(<kv key="facts" items={facts as TspKvProps["items"]} layout="grid" role="zeta.hub.kv" />);
 		if (metrics?.contextTokens !== undefined && metrics.contextWindow) {
 			const ratio = Math.max(0, Math.min(1, metrics.contextTokens / metrics.contextWindow));
 			out.push(
@@ -1064,7 +1064,7 @@ export function AgentHub<T extends AgentRecordLike>(
 			return (
 				<row
 					key={key}
-					role="omp.hub.activity.row"
+					role="zeta.hub.activity.row"
 					gap="sm"
 					align="baseline"
 					actions={{ click: "transcript" }}
@@ -1080,7 +1080,7 @@ export function AgentHub<T extends AgentRecordLike>(
 			);
 		});
 		out.push(
-			<section key="recentActivity" head="Recent activity" role="omp.hub.activity">
+			<section key="recentActivity" head="Recent activity" role="zeta.hub.activity">
 				{recent.length > 0 ? recent : <text spans={[span("No response or tool activity yet", "dim")]} />}
 			</section>,
 		);

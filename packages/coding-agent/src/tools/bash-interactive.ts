@@ -1,6 +1,6 @@
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { type PtyRunResult, PtySession } from "@oh-my-pi/pi-natives";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { type PtyRunResult, PtySession } from "@linxiraos/pi-natives";
 import { Settings } from "../config/settings";
 import { buildNonInteractiveEnv } from "../exec/non-interactive-env";
 import { cfgPtyNotify } from "../modes/settings";
@@ -10,8 +10,8 @@ import { holdBlockedStatus } from "../utils/run-status";
 import { TerminalGraphicsDecoder } from "../utils/terminal-graphics";
 import { appendImageLinks } from "../utils/image-temp";
 import { resolveOutputMaxColumns, resolveOutputSinkArtifactMaxBytes, resolveOutputSinkHeadBytes } from "./output-meta";
-import { createRoot, effect, nativeRendering, untrack } from "@oh-my-pi/pi-tui";
-import { notifyTerminal } from "@oh-my-pi/pi-tui/driver/session";
+import { createRoot, effect, nativeRendering, untrack } from "@linxiraos/pi-tui";
+import { notifyTerminal } from "@linxiraos/pi-tui/driver/session";
 import { CONSOLE_SHEET, PtyConsole, PtyConsoleModel } from "../ui/overlays/panels/pty-console";
 import { sheetView } from "../ui/overlays/sheet";
 

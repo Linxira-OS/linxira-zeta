@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Resolve and Reject: settle a pending proposed action.
  *
@@ -9,8 +9,8 @@
  *
  * Terminal look: `resolve` (`src/ui/styles/tools/resolve.ts`).
  */
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { ToolPresenter, ToolView } from "./contract";
 import { registerToolPresenter } from "./registry";
 

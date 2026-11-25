@@ -7,14 +7,14 @@
  *
  * Its widget routes the pointer to {@link ModelHubState.routeMouse}.
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { defineRolePainter, type Hit, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { defineRolePainter, type Hit, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import {
 	COMPACTION_INPUT_HINT,
 	compactionConfirmPending,

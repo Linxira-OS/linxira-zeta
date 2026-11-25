@@ -21,9 +21,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { CLI_THINKING_LEVELS, parseCliThinkingLevel } from "@oh-my-pi/pi-coding-agent/thinking/levels";
-import { postmortem } from "@oh-my-pi/pi-utils";
-import { discoverSharedInfra } from "@oh-my-pi/typescript-edit-benchmark/in-process-client";
+import { CLI_THINKING_LEVELS, parseCliThinkingLevel } from "@linxiraos/zeta/thinking/levels";
+import { postmortem } from "@linxiraos/pi-utils";
+import { discoverSharedInfra } from "@linxiraos/typescript-edit-benchmark/in-process-client";
 import { BENCH_SETTINGS } from "../../src/bench-settings";
 import { renderComparison, renderReport, type ScopeResult, type ScopeRun, summarize } from "./result";
 import { loadTasks, type ScopeTask } from "./tasks";

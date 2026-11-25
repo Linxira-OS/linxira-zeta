@@ -34,15 +34,15 @@ cp permission-gate.ts ~/.zeta/agent/extensions/
 
 ### Commands & UI
 
-| Extension          | Description                                                                    |
-| ------------------ | ------------------------------------------------------------------------------ |
-| `plan-mode.ts`     | Claude Code-style plan mode for read-only exploration with `/plan` command     |
-| `tools.tsx`        | Interactive `/tools` command to enable/disable tools with session persistence  |
-| `handoff.tsx`      | Transfer context to a new focused session via `/handoff <goal>`                |
-| `qna.tsx`          | Extracts questions from last response into editor via `ctx.ui.setEditorText()` |
-| `status-line.ts`   | Shows turn progress in footer via `ctx.ui.setStatus()` with themed colors      |
+| Extension           | Description                                                                    |
+| ------------------- | ------------------------------------------------------------------------------ |
+| `plan-mode.ts`      | Claude Code-style plan mode for read-only exploration with `/plan` command     |
+| `tools.tsx`         | Interactive `/tools` command to enable/disable tools with session persistence  |
+| `handoff.tsx`       | Transfer context to a new focused session via `/handoff <goal>`                |
+| `qna.tsx`           | Extracts questions from last response into editor via `ctx.ui.setEditorText()` |
+| `status-line.ts`    | Shows turn progress in footer via `ctx.ui.setStatus()` with themed colors      |
 | `thinking-note.tsx` | Adds a display-only pi-tui note below assistant thinking blocks                |
-| `snake.ts`         | Snake game with custom UI, keyboard handling, and session persistence          |
+| `snake.ts`          | Snake game with custom UI, keyboard handling, and session persistence          |
 
 ### Git Integration
 
@@ -53,10 +53,10 @@ cp permission-gate.ts ~/.zeta/agent/extensions/
 
 ### System Prompt & Compaction
 
-| Extension              | Description                                                                |
-| ---------------------- | -------------------------------------------------------------------------- |
-| `pirate.ts`            | Appends to the system prompt when pirate mode is enabled                   |
-| `custom-compaction.ts` | Custom compaction that summarizes entire conversation                      |
+| Extension              | Description                                              |
+| ---------------------- | -------------------------------------------------------- |
+| `pirate.ts`            | Appends to the system prompt when pirate mode is enabled |
+| `custom-compaction.ts` | Custom compaction that summarizes entire conversation    |
 
 ### External Dependencies
 

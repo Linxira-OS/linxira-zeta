@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The /agents hub: every agent definition (project, user, bundled) with its
  * per-agent settings, a scope sidebar, and an AI-drafted "New agent" flow.
@@ -15,9 +15,9 @@
  * the selected agent's summary pinned under it (or the browser / the create
  * flow), and the footer's hints or chip strip.
  */
-import type { Model } from "@oh-my-pi/pi-ai";
-import { computed, type JSXNode, type KeyEvent, signal, type UiEvent, untrack } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { Model } from "@linxiraos/pi-ai";
+import { computed, type JSXNode, type KeyEvent, signal, type UiEvent, untrack } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import type {
 	TspKvProps,
 	TspPickerAction,
@@ -26,7 +26,7 @@ import type {
 	TspPickerProps,
 	TspPickerScope,
 	TspSpan,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 import { sanitizeDisplaySingleLine } from "../../../extensibility/inventory/display-text";
 import {
 	buildBrowserItems,
@@ -961,7 +961,7 @@ export function AgentsHub(props: AgentsHubProps): JSXNode {
 		if (!row) return [];
 		if (row.kind === "new")
 			return [
-				<text text="New agent" role="omp.picker.title" />,
+				<text text="New agent" role="zeta.picker.title" />,
 				<md text="Describe what the agent should do; the architect drafts its name, when to use it and its system prompt." />,
 			];
 		const agent = row.agent;
@@ -983,11 +983,11 @@ export function AgentsHub(props: AgentsHubProps): JSXNode {
 			facts.push({ k: "File", v: [{ t: shortenPath(agent.filePath), s: "path", ...(href ? { href } : {}) }] });
 		}
 		return [
-			<text key="title" text={agent.name} role="omp.picker.title" />,
+			<text key="title" text={agent.name} role="zeta.picker.title" />,
 			<md key="description" text={agent.description} />,
 			<kv key="facts" items={facts} layout="grid" />,
 			agent.systemPrompt.trim() && (
-				<section key="prompt" head="System prompt" role="omp.agents.prompt">
+				<section key="prompt" head="System prompt" role="zeta.agents.prompt">
 					<code text={agent.systemPrompt} lang="md" wrap />
 				</section>
 			),
@@ -1098,7 +1098,7 @@ export function AgentsHub(props: AgentsHubProps): JSXNode {
 			);
 			if (create && !generating)
 				nodes.push(
-					<col role="omp.field">
+					<col role="zeta.field">
 						<editor
 							key="input"
 							text={create.text}
@@ -1210,7 +1210,7 @@ export function AgentsHub(props: AgentsHubProps): JSXNode {
 	};
 
 	const hintsNode = (): JSXNode => (
-		<row key="hints" gap="md" wrap role="omp.overlay.hints">
+		<row key="hints" gap="md" wrap role="zeta.overlay.hints">
 			{hints().map(hint => (
 				<row gap="xs" align="center">
 					{hint.keys.map(key => (
@@ -1442,7 +1442,7 @@ export function AgentsHub(props: AgentsHubProps): JSXNode {
 				}}
 			</picker>
 		) : (
-			<card {...handlers} head="Agents" role="omp.hub.agents">
+			<card {...handlers} head="Agents" role="zeta.hub.agents">
 				{() => {
 					revision();
 					return untrack(cardChildren);

@@ -1,20 +1,22 @@
 ## [Unreleased]
 
 ## [1.5.14] - 2026-11-22
+
 ### Fixed
 
 - Fixed `grep()` with a match limit resolving with a short result when its directory walk panicked; it now rejects with the panic ([#20013](https://github.com/Linxira-OS/linxira-zeta/pull/20013) by [@sjawhar](https://github.com/sjawhar))
 - Fixed a use-after-free in `grep()`, `glob()`, `fuzzyFind()`, `astGrep()` and `astEdit()` when a timeout or an abort cancelled them just after they started ([#20014](https://github.com/Linxira-OS/linxira-zeta/pull/20014) by [@sjawhar](https://github.com/sjawhar))
 - Fixed the `computer` tool on Linux Wayland leaving GTK 3 message dialogs (OK/Cancel and Yes/No boxes) out of `windows()`, so their buttons could not be found or pressed ([#19884](https://github.com/Linxira-OS/linxira-zeta/pull/19884) by [@will-bogusz](https://github.com/will-bogusz))
+
 ## [19.2.0] - 2026-11-25
 
 ### Breaking Changes
 
-- Removed the `watch` and `HEAD_WATCH_INTERVAL_MS` exports from `@oh-my-pi/pi-natives/vcs`; reread repository state when needed instead.
+- Removed the `watch` and `HEAD_WATCH_INTERVAL_MS` exports from `@linxiraos/pi-natives/vcs`; reread repository state when needed instead.
 
 ### Added
 
-- Added `@oh-my-pi/pi-natives/file-poll` with `pollFile(file, onChange, intervalMs)` for detecting file metadata changes, including atomic saves and symlink retargets.
+- Added `@linxiraos/pi-natives/file-poll` with `pollFile(file, onChange, intervalMs)` for detecting file metadata changes, including atomic saves and symlink retargets.
 - Added `truncateToTokens(input, maxTokens)` for safely truncating text to a token budget without splitting UTF-16 surrogate pairs.
 - Added `repairHeredocContinuations(script)` to repair supported shell here-document continuations.
 - Added `commitReconciled()` for publishing private-index commits safely when the shared index is locked.
@@ -41,7 +43,7 @@
 - Fixed `grep()`, `glob()`, `fuzzyFind()`, `astGrep()`, `astEdit()`, and recursive shell search commands occasionally hanging on machines with many CPUs.
 - Fixed cancellation and timeout races in native search, file-matching, fuzzy-search, AST, and editing operations that could cause crashes or use-after-free errors.
 - Fixed `grep()` with a match limit reporting incomplete results instead of rejecting when its directory walk failed.
-- Fixed `@oh-my-pi/pi-natives` failing to load when installed from Bun's cache or when standalone binaries had extracted native addons from another build.
+- Fixed `@linxiraos/pi-natives` failing to load when installed from Bun's cache or when standalone binaries had extracted native addons from another build.
 - Fixed Linux Wayland accessibility and automation support for GTK dialogs, control values, and selected rows, list items, and tabs.
 - Fixed Linux PTY output occasionally including an extra blank line after a command exits.
 - Fixed keypad navigation keys being dropped when NumLock is off under the kitty keyboard protocol.
@@ -1932,7 +1934,7 @@
 
 ### Fixed
 
-- Fixed `<sym> is not a function` crashes on Windows after `bun install -g @linxiraos/pi-coding-agent` updates while an `omp` process was running. Bun cannot overwrite a locked `node_modules/@linxiraos/pi-natives/native/pi_natives.win32-x64.node` and silently keeps the old binary alongside the new ESM wrapper, so the next launch loads mismatched code. The loader now mirrors the addon into `~/.omp/natives/<version>/` on Windows npm installs and prefers that copy at load time — each version gets its own filesystem path, so future updates land in `node_modules` unchallenged. The new version sentinel detects any remaining drift up front.
+- Fixed `<sym> is not a function` crashes on Windows after `bun install -g @linxiraos/zeta` updates while an `omp` process was running. Bun cannot overwrite a locked `node_modules/@linxiraos/pi-natives/native/pi_natives.win32-x64.node` and silently keeps the old binary alongside the new ESM wrapper, so the next launch loads mismatched code. The loader now mirrors the addon into `~/.omp/natives/<version>/` on Windows npm installs and prefers that copy at load time — each version gets its own filesystem path, so future updates land in `node_modules` unchallenged. The new version sentinel detects any remaining drift up front.
 - Fixed `$env:NAME` PowerShell references being collapsed to `:NAME` when brush forwarded a command to a PowerShell (or any) subprocess. `pi-shell` now defines `env=$env` as a non-exported global on every brush session so the bash parameter expansion of `$env` yields the literal `$env`, leaving `$env:NAME` intact. User-driven assignments (`env=prod`) push their own command-scope binding and shadow the fallback, preserving the bash POSIX contract. ([#1079](https://github.com/Linxira-OS/linxira-zeta/issues/1079))
 
 ## [15.0.1] - 2026-05-14

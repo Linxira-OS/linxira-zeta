@@ -14,9 +14,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { roleDefaultModels } from "@oh-my-pi/pi-catalog/compat/behavior";
-import { type GeneratedProvider, getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import { type Api, type Model, modelKind } from "@oh-my-pi/pi-catalog/types";
+import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
+import { type GeneratedProvider, getBundledModels } from "@linxiraos/pi-catalog/models";
+import { type Api, type Model, modelKind } from "@linxiraos/pi-catalog/types";
 import {
 	expandTilde,
 	getAgentDbPath,
@@ -29,9 +29,9 @@ import {
 	logger,
 	MAIN_CONFIG_FILENAMES,
 	procmgr,
-} from "@oh-my-pi/pi-utils";
-import { pollFile } from "@oh-my-pi/pi-natives/file-poll";
-import { withFileLock } from "@oh-my-pi/pi-utils/file-lock";
+} from "@linxiraos/pi-utils";
+import { pollFile } from "@linxiraos/pi-natives/file-poll";
+import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { JSONC, YAML } from "bun";
 import { invalidate as invalidateCapabilityFsCache } from "../capability/fs";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
@@ -41,7 +41,7 @@ import { AgentStorage, type AgentStorageApi } from "../session/agent-storage";
 import { type CompactionMethod, DEFAULT_COMPACTION_METHOD_ORDER } from "../session/compaction-methods";
 import { writeFileAtomically } from "../utils/atomic-file";
 import { isRegisteredSearchEngine } from "../web/search/provider";
-import { stringifyYamlConfig } from "@oh-my-pi/pi-utils/yaml-config";
+import { stringifyYamlConfig } from "@linxiraos/pi-utils/yaml-config";
 import {
 	type AnySetting,
 	all as allSettings,
@@ -1596,6 +1596,24 @@ export class Settings {
 		inheritWarnings(cloned, this);
 		cloned.#validateAll();
 		return cloned;
+	}
+
+	/**
+	 * Settings view for a session rooted at `cwd`: this instance when it already
+	 * covers that directory, otherwise an independent {@link cloneForCwd}.
+	 *
+	 * Session hosts call this instead of `Settings.init({ cwd })` — the init
+	 * singleton is resolved once per process, so reusing it for every session
+	 * would apply the first session's project layer (`.zeta/`, memory backend,
+	 * model roles) to sessions in every other repository. The process singleton
+	 * stays the one that owns process-wide effects and the config-file watcher;
+	 * only the project layer follows the session.
+	 *
+	 * @throws Error when a configured value fails its definition's `validate` check.
+	 */
+	async sessionForCwd(cwd: string): Promise<Settings> {
+		if (path.normalize(cwd) === this.#cwd) return this;
+		return await this.cloneForCwd(cwd);
 	}
 
 	/**
@@ -4518,6 +4536,27 @@ export function isSettingsInitialized(): boolean {
  * extension execution, the most recently constructed matching instance is the
  * best available scope; an unscoped lookup falls back to the global singleton.
  */
+/**
+ * Re-read every live disk-backed settings instance (global singleton and cwd clones).
+ * Hosts that persist settings out of band call this so open sessions observe changes.
+ */
+export async function reloadLiveSettingsInstances(): Promise<void> {
+	const instances = new Set<Settings>();
+	for (const ref of liveSettingsInstances) {
+		const instance = ref.deref();
+		if (instance) instances.add(instance);
+	}
+	await Promise.all(
+		[...instances].map(async instance => {
+			try {
+				await instance.reloadFromDisk();
+			} catch (error) {
+				logger.warn("Settings: failed to reload a live instance", { error: String(error) });
+			}
+		}),
+	);
+}
+
 export function findScopedSettings(cwd?: string, agentDir?: string): Settings | undefined {
 	const active = activeSettingsScope.getStore();
 	if (active) return active;

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { createSessionRuntime } from "../../../../src/autoresearch/state";
 import {
 	AutoresearchSheet,

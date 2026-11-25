@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The Spotlight sheet: how shaping reduced one tool result.
  *
@@ -14,8 +14,8 @@
  * The terminal shows only the head line and how to close; the sheet is a
  * native glass overlay ({@link spotlightOverlay}).
  */
-import { type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import { formatNumber, sanitizeText } from "@oh-my-pi/pi-utils";
+import { type JSXNode, signal } from "@linxiraos/pi-tui";
+import { formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import {
 	type TspCodeFold,
 	type TspCodeMark,
@@ -23,7 +23,7 @@ import {
 	type TspSpan,
 	type TspTone,
 	toolIntentLabel,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 import {
 	rankPartAt,
 	reasonShows,
@@ -168,7 +168,7 @@ function ParamRow(props: { readonly param: Param; readonly expanded: boolean; re
 		spans.push(param.style ? { s: param.style, t } : { t });
 	});
 	return (
-		<row role="omp.spotlight.param" gap="md" align="baseline">
+		<row role="zeta.spotlight.param" gap="md" align="baseline">
 			<text text={param.name} />
 			<text lines={expanded ? 2 : 1} truncate="end" title={values.join("\n")} spans={spans} />
 			{props.toggle}
@@ -183,13 +183,13 @@ function RequestParams(props: { readonly request: SpotlightRequestParams; readon
 	const toggle =
 		rest.length > 0 ? (
 			<text
-				role="omp.spotlight.more"
+				role="zeta.spotlight.more"
 				actions={{ click: "params" }}
 				text={props.expanded ? "fewer ▾" : `${rest.map(p => p.name).join(", ")} ▸`}
 			/>
 		) : undefined;
 	return (
-		<col role="omp.spotlight.params" gap="xs">
+		<col role="zeta.spotlight.params" gap="xs">
 			{(props.expanded ? params : params.slice(0, 1)).map((param, i) => (
 				<ParamRow param={param} expanded={props.expanded} toggle={i === 0 ? toggle : undefined} />
 			))}
@@ -219,7 +219,7 @@ function classOf(original: SpotlightOriginal, i: number): LineClass | undefined 
 
 function LegendKey(props: { readonly swatch: JSXNode; readonly label: string }): JSXNode {
 	return (
-		<row role="omp.spotlight.key" gap="xs" align="center">
+		<row role="zeta.spotlight.key" gap="xs" align="center">
 			{props.swatch}
 			<text spans={[{ s: "muted", t: props.label }]} />
 		</row>
@@ -251,7 +251,7 @@ function Summary(props: {
 			if (n) {
 				keys.push(
 					<LegendKey
-						swatch={<text role="omp.spotlight.swatch" tone={tone} text="■" />}
+						swatch={<text role="zeta.spotlight.swatch" tone={tone} text="■" />}
 						label={`${label} ${thousands(n)}`}
 					/>,
 				);
@@ -263,10 +263,10 @@ function Summary(props: {
 	if (props.shown < props.total) facts.push(`first ${thousands(props.shown)} of ${thousands(props.total)} lines`);
 	if (keys.length === 0 && facts.length === 0) return null;
 	return (
-		<row role="omp.spotlight.summary" gap="md" align="center" wrap>
+		<row role="zeta.spotlight.summary" gap="md" align="center" wrap>
 			{keys}
 			<spacer grow={1} />
-			{facts.length > 0 && <text role="omp.spotlight.budget" spans={[{ s: "muted", t: facts.join(" · ") }]} />}
+			{facts.length > 0 && <text role="zeta.spotlight.budget" spans={[{ s: "muted", t: facts.join(" · ") }]} />}
 		</row>
 	);
 }
@@ -429,7 +429,7 @@ function WindowCode(props: { readonly sheet: Sheet; readonly section: Section })
 	}
 	return (
 		<code
-			role="omp.spotlight.code"
+			role="zeta.spotlight.code"
 			text={lines.join("\n")}
 			path={window.path}
 			start={window.start}
@@ -454,13 +454,13 @@ function WindowSection(props: { readonly sheet: Sheet; readonly section: Section
 				: undefined;
 	const hasHead = path !== undefined || clip !== undefined || rank !== undefined;
 	return (
-		<col role="omp.spotlight.window" gap="xs">
+		<col role="zeta.spotlight.window" gap="xs">
 			{hasHead && (
-				<row role="omp.spotlight.head" gap="md" align="baseline">
+				<row role="zeta.spotlight.head" gap="md" align="baseline">
 					{path !== undefined && <text spans={[{ s: "mono", t: path }]} />}
-					{clip !== undefined && <text role="omp.spotlight.clip" spans={[{ s: "muted", t: clip }]} />}
+					{clip !== undefined && <text role="zeta.spotlight.clip" spans={[{ s: "muted", t: clip }]} />}
 					<spacer grow={1} />
-					{rank && <text role="omp.spotlight.budget" spans={[{ s: "muted", t: rankFacts(rank) }]} />}
+					{rank && <text role="zeta.spotlight.budget" spans={[{ s: "muted", t: rankFacts(rank) }]} />}
 				</row>
 			)}
 			{shown > 0 && <WindowCode sheet={props.sheet} section={section} />}
@@ -478,7 +478,7 @@ function ShapingNotes(props: { readonly sheet: Sheet; readonly heldOut: boolean 
 	});
 	if (notes.length === 0) return null;
 	return (
-		<col role="omp.spotlight.notes" gap="xs">
+		<col role="zeta.spotlight.notes" gap="xs">
 			<text spans={[{ s: "muted", t: props.heldOut ? "notes the model would have seen" : "notes the model saw" }]} />
 			{notes.map(note => (
 				<text spans={[{ s: "muted mono", t: note }]} />
@@ -538,10 +538,10 @@ export function SpotlightSheet(props: SpotlightSheetProps): JSXNode {
 				),
 			)}
 			<ShapingNotes sheet={sheet} heldOut={spotlight.holdout === true || spotlight.gated === true} />
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				{legends.map(label => (
-					<row role="omp.spotlight.legend" align="center">
-						<LegendKey swatch={<text role="omp.spotlight.ramp" text="" />} label={label} />
+					<row role="zeta.spotlight.legend" align="center">
+						<LegendKey swatch={<text role="zeta.spotlight.ramp" text="" />} label={label} />
 					</row>
 				))}
 				<spacer grow={1} />

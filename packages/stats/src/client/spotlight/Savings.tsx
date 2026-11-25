@@ -186,8 +186,7 @@ export function WhereSavingsWent({ stats, stale }: Omit<SavingsProps, "range">) 
 				},
 			);
 		}
-		// What the net does not charge the cuts: their fetch-backs the holdout baseline explains, plus fetch-backs of
-		// results shaping left whole (all of it without holdouts).
+		// Without holdouts there is no baseline to add back: the net is unadjusted.
 		const unadjusted = usd ? compounding.netUsd : clawback.netTokens;
 		const adjustedNet = usd ? adjusted.netUsd.value : adjusted.netTokens.value;
 		if (adjustedNet !== null) {
@@ -204,7 +203,7 @@ export function WhereSavingsWent({ stats, stale }: Omit<SavingsProps, "range">) 
 				value: anyway,
 				color: "var(--spot-anyway)",
 				note: share(anyway),
-				title: "Fetch-backs that are not the cuts' cost: what held-out results (shown whole) show the agent makes regardless, per tool and whether plain capped the result, plus fetch-backs of results shaping left whole",
+				title: "Fetch-backs held-out results (shown whole) show the agent makes regardless, per tool: not the cut's cost",
 			});
 		}
 		const net = adjustedNet ?? unadjusted;
@@ -228,8 +227,8 @@ export function WhereSavingsWent({ stats, stale }: Omit<SavingsProps, "range">) 
 			stale={stale}
 			footer={
 				unit === "usd"
-					? "Recoveries are priced as carried context; extra turns are requests that only recovered; Spotlight cost is its own scoring bill. What comes back anyway is the cuts' recovery $ in proportion to the tokens held-out results fetch regardless, plus the recovery $ of results shaping left whole."
-					: `Recovered tokens are the full results of the recovery calls (estimated as chars ÷ 4 where no exact count exists). What comes back anyway is, per tool, the tokens a held-out result gets fetched back times the cuts, apart for results plain capped and shown whole, plus the recovered tokens of results shaping left whole; while a side with cuts has under ${formatInteger(adjusted.minHoldouts)} held-out results, all the tool's cuts take its pooled rate.`
+					? "Recoveries are priced as carried context; extra turns are requests that only recovered; Spotlight cost is its own scoring bill. What comes back anyway is the recovery $ in proportion to the tokens held-out results fetch regardless."
+					: "Recovered tokens are the full results of the recovery calls (estimated as chars ÷ 4 where no exact count exists). What comes back anyway is, per tool, the tokens a held-out result gets fetched back times the tool's cuts."
 			}
 		>
 			<Waterfall steps={steps} format={unit === "usd" ? formatCost : formatCompact} />
@@ -281,7 +280,7 @@ function ToolNetList({
 							`${formatInteger(row.cuts)} cuts fetched back ${formatCompact(row.recoveredTokens)} tokens`,
 							baseline === null
 								? "No held-out baseline yet"
-								: `${formatInteger(row.holdouts)} held-out results get ${formatCompact(baseline)} each fetched back anyway, pooled (cuts are priced apart by whether plain capped them once each side with cuts has enough held out)`,
+								: `${formatInteger(row.holdouts)} held-out results get ${formatCompact(baseline)} each fetched back anyway`,
 							excessInterval === "" ? "" : `Beyond the baseline: ${excessInterval} (90%)`,
 						]
 							.filter(Boolean)

@@ -4,8 +4,8 @@
  * synchronized output), the scrollback strategy, the live geometry and the
  * environment the detection read.
  */
-import { DEFAULT_CELL } from "@oh-my-pi/pi-tui/driver/images/fit";
-import type { ProcessTerminalDriver } from "@oh-my-pi/pi-tui/driver/index";
+import { DEFAULT_CELL } from "@linxiraos/pi-tui/driver/images/fit";
+import type { ProcessTerminalDriver } from "@linxiraos/pi-tui/driver/index";
 
 /** Terminal capabilities, geometry, and detection environment. */
 export interface TerminalStateInfo {

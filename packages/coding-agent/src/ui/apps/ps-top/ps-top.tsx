@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `omp ps` as a live monitor: a head (title, counts, the scope control,
  * freshness, quit), one section per unit scope with a selectable process
@@ -7,9 +7,9 @@
  *
  * The terminal shows the classic btop-style table (the `omp.app.ps` look).
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { formatDuration } from "@linxiraos/pi-utils";
+import type { TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import {
 	collapseCommand,
 	flagsCell,
@@ -90,7 +90,7 @@ export function PsTop(props: PsTopProps): JSXNode {
 	const model = props.model;
 	return (
 		<col
-			role="omp.app.ps"
+			role="zeta.app.ps"
 			gap="md"
 			term={{ ps: model }}
 			onKey={key => model.key(key.id)}
@@ -108,7 +108,7 @@ export function PsTop(props: PsTopProps): JSXNode {
 				return (
 					model.statusVisible() &&
 					status && (
-						<text key="status" spans={[{ s: status.tone, t: status.text }]} wrap="word" role="omp.app.status" />
+						<text key="status" spans={[{ s: status.tone, t: status.text }]} wrap="word" role="zeta.app.status" />
 					)
 				);
 			}}
@@ -132,25 +132,25 @@ function head(model: PsTopModel): JSXNode {
 		if (stopped > 0) spans.push({ s: "muted", t: ` · ${stopped} stopped` });
 		spans.push({ s: "muted", t: ` · ${scopes} scope${scopes === 1 ? "" : "s"}` });
 		spans.push(daemon ? { s: "muted", t: ` · daemon pid ${daemon.pid}` } : { s: "dim", t: " · daemon not running" });
-		where = [<text text="Processes" role="omp.app.title" />, <text spans={spans} truncate="end" />];
+		where = [<text text="Processes" role="zeta.app.title" />, <text spans={spans} truncate="end" />];
 	} else {
 		const name = row ? unitName(row.unit) : "?";
 		const unit = view === "info" ? model.info()?.unit : row?.unit;
 		const state = model.logsState();
 		where = [
 			<IconButton name="back" act="back" title="Back  esc" aria="Back" />,
-			<text text={view === "logs" ? `Logs · ${name}` : name} role="omp.app.title" truncate="end" />,
+			<text text={view === "logs" ? `Logs · ${name}` : name} role="zeta.app.title" truncate="end" />,
 			unit && <badge text={stateLabel(unit)} tone={unitTone(unit)} />,
 			view === "logs" && state && <text spans={[{ s: "muted", t: state }]} />,
 		];
 	}
 	const last = model.lastRefresh();
 	return (
-		<row key="head" role="omp.app.head" justify="between" align="center">
-			<row role="omp.app.where" gap="sm" align="center">
+		<row key="head" role="zeta.app.head" justify="between" align="center">
+			<row role="zeta.app.where" gap="sm" align="center">
 				{where}
 			</row>
-			<row role="omp.app.tools" gap="md" align="center">
+			<row role="zeta.app.tools" gap="md" align="center">
 				{view === "table" && (
 					<tabs
 						key="scope"
@@ -159,18 +159,18 @@ function head(model: PsTopModel): JSXNode {
 							{ id: "all", label: "All scopes" },
 						]}
 						active={model.all() ? "all" : "current"}
-						role="omp.app.seg"
+						role="zeta.app.seg"
 						variant={segmentedVariant}
 					/>
 				)}
 				{last ? (
-					<row role="omp.app.fresh" gap="xs" align="center">
+					<row role="zeta.app.fresh" gap="xs" align="center">
 						<text spans={[{ s: "dim", t: "updated" }]} />
 						<elapsed age={Date.now() - last} format="short" />
 						<text spans={[{ s: "dim", t: "ago" }]} />
 					</row>
 				) : (
-					<row role="omp.app.fresh" gap="xs" align="center">
+					<row role="zeta.app.fresh" gap="xs" align="center">
 						<spinner style="dots" />
 						<text spans={[{ s: "dim", t: "updating" }]} />
 					</row>
@@ -194,21 +194,21 @@ function table(model: PsTopModel): JSXNode {
 		];
 		if (!all) hint.push({ s: "key", t: "a" }, { s: "muted", t: "." });
 		return (
-			<col key="empty" role="omp.app.empty" gap="xs" align="center">
-				<text text="No units" role="omp.app.empty-title" />
+			<col key="empty" role="zeta.app.empty" gap="xs" align="center">
+				<text text="No units" role="zeta.app.empty-title" />
 				<text spans={hint} />
 			</col>
 		);
 	}
 	const selected = model.current();
 	return (
-		<col key="scopes" role="omp.app.ps.scopes" gap="lg" grow={1}>
+		<col key="scopes" role="zeta.app.ps.scopes" gap="lg" grow={1}>
 			{reports.map(report => (
-				<section key={stableKey(scopeId(report.scope))} head={scopeSpans(report.scope)} role="omp.app.ps.scope">
+				<section key={stableKey(scopeId(report.scope))} head={scopeSpans(report.scope)} role="zeta.app.ps.scope">
 					<list
 						selected={selected && scopeId(selected.scope) === scopeId(report.scope) ? unitKey(selected) : null}
 						empty="No units"
-						role="omp.ps.processes"
+						role="zeta.ps.processes"
 					>
 						{report.units.map(unit => (
 							<UnitItem scope={report.scope} unit={unit} />
@@ -283,9 +283,9 @@ function info(model: PsTopModel): JSXNode {
 	const flags = [proc?.pty && "pty", `hold ${unit.policy.hold}`, `survive ${unit.policy.survive}`].filter(Boolean);
 	items.push({ k: "Flags", v: flags.join(" · ") });
 	return (
-		<col key="info" role="omp.ps.info" gap="md">
+		<col key="info" role="zeta.ps.info" gap="md">
 			{!TERMINAL_STATES[unit.state] && (
-				<row role="omp.app.fresh" gap="xs">
+				<row role="zeta.app.fresh" gap="xs">
 					<text spans={[{ s: "muted", t: "Up for" }]} />
 					<elapsed age={Date.now() - unit.startedAt} format="short" />
 				</row>
@@ -297,8 +297,8 @@ function info(model: PsTopModel): JSXNode {
 
 function logs(model: PsTopModel): JSXNode {
 	const error = model.logsError();
-	if (error) return <text key="logs" spans={[{ s: "error mono", t: error }]} wrap="word" role="omp.ps.logs" />;
-	return <ansi key="logs" text={model.logsLines().join("\n")} follow role="omp.ps.logs" grow={1} />;
+	if (error) return <text key="logs" spans={[{ s: "error mono", t: error }]} wrap="word" role="zeta.ps.logs" />;
+	return <ansi key="logs" text={model.logsLines().join("\n")} follow role="zeta.ps.logs" grow={1} />;
 }
 
 function actions(model: PsTopModel): JSXNode {
@@ -308,7 +308,7 @@ function actions(model: PsTopModel): JSXNode {
 	if (view === "table" && row && confirm !== undefined && confirm === row.unit.id) {
 		const pids = pidsCell(row.unit);
 		return (
-			<row key="actions" role="omp.app.confirm" tone="error" gap="sm" align="center">
+			<row key="actions" role="zeta.app.confirm" tone="error" gap="sm" align="center">
 				<text
 					spans={[
 						{ s: "strong", t: `Kill ${unitName(row.unit)}${pids === "-" ? "" : ` (pid ${pids})`}?` },
@@ -342,7 +342,7 @@ function actions(model: PsTopModel): JSXNode {
 		];
 	}
 	return (
-		<row key="actions" role="omp.actions" gap="sm" align="center">
+		<row key="actions" role="zeta.actions" gap="sm" align="center">
 			{buttons}
 		</row>
 	);

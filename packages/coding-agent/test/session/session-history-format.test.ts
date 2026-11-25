@@ -9,10 +9,10 @@
  * - No system prompt / tool catalog sections.
  */
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { renderAdvisorDeltaChunks } from "@oh-my-pi/pi-coding-agent/advisor/delta-split";
-import { formatSessionHistoryMarkdown } from "@oh-my-pi/pi-coding-agent/session/session-history-format";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { renderAdvisorDeltaChunks } from "@linxiraos/zeta/advisor/delta-split";
+import { formatSessionHistoryMarkdown } from "@linxiraos/zeta/session/session-history-format";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 function buildMessages(): unknown[] {
 	return [

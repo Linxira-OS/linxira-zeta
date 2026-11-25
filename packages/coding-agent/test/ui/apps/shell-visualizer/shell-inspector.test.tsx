@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The bash card's shell inspector in Tern: the card's `shell` node takes the
  * shared shell-viz actions, `inspect` opens the inspector as a page of its
@@ -6,8 +6,8 @@
  * was changed.
  */
 import { describe, expect, it } from "bun:test";
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { ShellVizPresentation } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { ShellVizPresentation } from "@linxiraos/pi-wire";
 import { presentShellInspector } from "../../../../src/ui/apps/shell-visualizer";
 import { Shell } from "../../../../src/ui/shell/shell";
 import "../../../../src/ui/tools";

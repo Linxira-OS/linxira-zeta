@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgMagicKeywordsEnabled } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { imageLinksForMessage } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { presetSymbols } from "@oh-my-pi/pi-tui/theme/symbols";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { cfgMagicKeywordsEnabled } from "@linxiraos/zeta/modes/settings";
+import { imageLinksForMessage } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { presetSymbols } from "@linxiraos/pi-tui/theme/symbols";
 import { chipLabel } from "../../../src/ui/composer/attachments";
 import { enabledMagicKeywords } from "../../../src/ui/composer/magic-keywords";
 import { printRows } from "../../../src/ui/print-rows";

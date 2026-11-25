@@ -11,10 +11,10 @@ import {
 	createAgentSession,
 	SessionManager,
 	type SessionStats,
-} from "@oh-my-pi/pi-coding-agent";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
-import { isEnoent, logger, TempDir } from "@oh-my-pi/pi-utils";
-import type { SharedInfra } from "@oh-my-pi/typescript-edit-benchmark/in-process-client";
+} from "@linxiraos/zeta";
+import type { ConfiguredThinkingLevel } from "@linxiraos/zeta/utils/render-utils";
+import { isEnoent, logger, TempDir } from "@linxiraos/pi-utils";
+import type { SharedInfra } from "@linxiraos/typescript-edit-benchmark/in-process-client";
 import { analyzeCalls, type ToolCallRecord, verifies } from "./checks";
 import type { ScopeRun } from "./result";
 import type { ScopeTask, VerifySpec } from "./tasks";

@@ -1,6 +1,6 @@
 /** The Spotlight sheet in the terminal: its head line and how to close it (the sheet itself is native). */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { truncate } from "@linxiraos/pi-tui/text/width";
 import { termOf } from "./common";
 
 defineRolePainter("col", "omp.spotlight", (node, cx): Block => {

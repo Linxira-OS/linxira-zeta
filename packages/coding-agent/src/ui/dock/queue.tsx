@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Messages queued while the agent works (`pendingMessages` slot): steering
  * messages (Enter) and those waiting for the turn to yield (Ctrl+Q).
@@ -12,8 +12,8 @@
  *   group a muted `Steering · 1` heading over dim numbered rows, then the dim
  *   hint `└ ⌥↑ to edit`; every row cut to one line.
  */
-import { type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import { type JSXNode, signal } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import "../styles/dock";
 import { kbdKeys } from "../keys/format";
 import { formatTooltipKey } from "../keys/hints";
@@ -56,7 +56,7 @@ export function QueuedMessages(props: { readonly model: QueueModel }): JSXNode {
 				const lead = first && count > 1;
 				first = false;
 				pills.push(
-					<row key={`${group.label}/${index}`} role="omp.queue.item" align="center" gap="sm" title={group.label}>
+					<row key={`${group.label}/${index}`} role="zeta.queue.item" align="center" gap="sm" title={group.label}>
 						<icon key="icon" name="corner-down-right" />
 						<text key="text" text={queuedLine(message)} wrap="none" truncate="end" grow={1} />
 						{lead && (
@@ -64,12 +64,12 @@ export function QueuedMessages(props: { readonly model: QueueModel }): JSXNode {
 								key="count"
 								text={`${count} queued`}
 								title={`${count} messages queued`}
-								role="omp.queue.count"
+								role="zeta.queue.count"
 							/>
 						)}
 						<row
 							key="edit"
-							role="omp.queue.edit"
+							role="zeta.queue.edit"
 							gap="xs"
 							align="center"
 							title={title}
@@ -84,7 +84,7 @@ export function QueuedMessages(props: { readonly model: QueueModel }): JSXNode {
 		}
 		return (
 			<col
-				role="omp.queue"
+				role="zeta.queue"
 				gap="xs"
 				term={{ groups, key }}
 				onAction={act => {

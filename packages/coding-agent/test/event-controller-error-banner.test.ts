@@ -8,18 +8,18 @@
  * pin a banner.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { workingMessage, type WorkingSpec } from "../src/ui/dock/working";
 import { initTheme } from "../src/ui/theme/service";
 import { blockText } from "./helpers/transcript-text";
-import { PREVIEW_LIMITS, TRUNCATE_LENGTHS } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
+import { PREVIEW_LIMITS, TRUNCATE_LENGTHS } from "@linxiraos/zeta/utils/render-utils";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
-import { cfgDisplaySmoothStreaming } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgDisplaySmoothStreaming } from "@linxiraos/zeta/modes/settings";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {

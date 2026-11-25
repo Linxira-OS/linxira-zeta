@@ -12,8 +12,8 @@
  * `models.json` holds a corrected value.
  */
 import { expect, test } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 test("Bedrock Kimi K3.1 resolves to the 131072-token output cap and keeps its window", () => {
 	const spec: ModelSpec<"bedrock-converse-stream"> = {

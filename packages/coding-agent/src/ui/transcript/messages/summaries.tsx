@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * History-collapse points: compaction, handoff and branch summaries. Each is
  * a collapsible `section` headed by its label with the summary under it; a
@@ -8,10 +8,10 @@
  * Terminal look: `omp.compaction` / `omp.handoff` / `omp.branch`
  * (`src/ui/styles/messages/summary.ts`).
  */
-import { type JSXNode, type Reactive, read } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatNumber } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { cardExpansion } from "../expansion";
 import { Notice } from "./notices";
 
@@ -120,7 +120,7 @@ export function CompactionSummaryBlock(props: {
 		: name;
 	return (
 		<SummaryDivider
-			role="omp.compaction"
+			role="zeta.compaction"
 			head={head}
 			expanded={props.expanded}
 			onToggle={props.onToggle}
@@ -131,7 +131,7 @@ export function CompactionSummaryBlock(props: {
 				detail: compactionDetail(message),
 			})}
 		>
-			<text propKey="caption" role="omp.compaction.caption" spans={[{ t: caption, s: "dim" }]} />
+			<text propKey="caption" role="zeta.compaction.caption" spans={[{ t: caption, s: "dim" }]} />
 			{message.warning && <Notice tone="warning" nodeKey="warning" message={message.warning} />}
 			<md propKey="summary" text={message.summary} />
 		</SummaryDivider>
@@ -163,7 +163,7 @@ export function HandoffSummaryBlock(props: {
 	const detail = `**Handoff context**\n\n${handoffDocument(contentText(props.content)) || "_No handoff content._"}`;
 	return (
 		<SummaryDivider
-			role="omp.handoff"
+			role="zeta.handoff"
 			head={[{ t: "Handed off", s: "muted" }]}
 			expanded={props.expanded}
 			onToggle={props.onToggle}
@@ -183,7 +183,7 @@ export function BranchSummaryBlock(props: {
 	const detail = `**Branch summary**\n\n${props.summary}`;
 	return (
 		<SummaryDivider
-			role="omp.branch"
+			role="zeta.branch"
 			head={[{ t: "Branch summarized", s: "muted" }]}
 			expanded={props.expanded}
 			onToggle={props.onToggle}

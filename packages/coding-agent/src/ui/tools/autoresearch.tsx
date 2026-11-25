@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Autoresearch tools: `init_experiment`, `log_experiment`, `run_experiment`
  * and `update_notes`. Calls are one header (`log_experiment keep faster
@@ -7,8 +7,8 @@
  *
  * Terminal look: `autoresearch` (`src/ui/styles/tools/autoresearch.ts`).
  */
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
 import { registerToolPresenter } from "./registry";

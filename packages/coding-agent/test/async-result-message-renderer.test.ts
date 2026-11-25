@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { jsx } from "@oh-my-pi/pi-tui";
+import { jsx } from "@linxiraos/pi-tui";
 import "../src/ui/styles/messages";
 import { printRows } from "../src/ui/print-rows";
 import { AsyncResult } from "../src/ui/transcript/messages/async-cards";

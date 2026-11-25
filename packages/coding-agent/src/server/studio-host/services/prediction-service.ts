@@ -7,7 +7,7 @@ import {
 	WordCompletionProvider,
 	type WordPredictionBackend,
 	type WordCompletionEngine,
-} from "@linxiraos/pi-tui/prompt/word-completion";
+} from "../../../modes/view-model/prompt/word-completion";
 import { sanitizeText } from "@linxiraos/pi-utils";
 import { cfgSpellingAutocomplete } from "../../../modes/settings";
 import { resolveTextPredictMethod } from "../../../predict/client";

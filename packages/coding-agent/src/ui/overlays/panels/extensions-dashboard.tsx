@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The extension control center as a `picker` sheet: provider scopes, the
  * inventory as rows grouped by kind (a kind column once filtered or scoped
@@ -7,8 +7,8 @@
  * `omp.extensions`); the list and the inspector also draw alone.
  */
 import * as os from "node:os";
-import type { JSXNode, UiNode } from "@oh-my-pi/pi-tui";
-import type { TspPickerAction, TspPickerScope, TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import type { JSXNode, UiNode } from "@linxiraos/pi-tui";
+import type { TspPickerAction, TspPickerScope, TspSpan, TspText } from "@linxiraos/pi-wire";
 import {
 	sanitizeDisplayField,
 	sanitizeDisplayLine,
@@ -356,7 +356,7 @@ export function inspectorPreview(
 		],
 	];
 	const out: JSXNode[] = [
-		<text key="title" text={name} role="omp.picker.title" scroll={scroll} />,
+		<text key="title" text={name} role="zeta.picker.title" scroll={scroll} />,
 		subtitle && subtitle !== name && <text key="subtitle" spans={[{ s: "muted", t: subtitle }]} />,
 		<Facts nodeKey="facts" pairs={facts} />,
 		shortText(description, "description"),

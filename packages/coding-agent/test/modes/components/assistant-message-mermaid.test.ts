@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AssistantThinkingRenderer } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/render-types";
-import { signal } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { AssistantThinkingRenderer } from "@linxiraos/zeta/extensibility/extensions/render-types";
+import { signal } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import "../../../src/ui/styles/messages";
 import { printRows } from "../../../src/ui/print-rows";
 import {
 	AssistantMessageBlock,
 	type AssistantMessageModel,
 } from "../../../src/ui/transcript/messages/assistant-message";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

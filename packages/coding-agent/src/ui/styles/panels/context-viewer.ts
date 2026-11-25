@@ -7,9 +7,9 @@
  * its metadata and content, scrolled. Short terminals keep the top border,
  * the hints and the bottom border, in that priority.
  */
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { padTo, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { padTo, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import {
 	CONTEXT_PRESENTATION,
 	type ContextPresentationId,

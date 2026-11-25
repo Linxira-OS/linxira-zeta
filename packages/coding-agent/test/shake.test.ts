@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentMessage, RESCUE_SHAKE_CONFIG, Tokenizer } from "@oh-my-pi/pi-agent-core";
-import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
+import { type } from "@linxiraos/zeta-schema";
+import { Agent, type AgentMessage, RESCUE_SHAKE_CONFIG, Tokenizer } from "@linxiraos/pi-agent-core";
+import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import type {
 	AssistantMessage,
 	ImageContent,
@@ -11,23 +11,23 @@ import type {
 	ProviderSessionState,
 	ToolResultMessage,
 	UserMessage,
-} from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildResponsesInput } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+} from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildResponsesInput } from "@linxiraos/pi-ai/providers/openai-shared";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	convertToLlm,
 	INTERRUPTED_THINKING_MESSAGE_TYPE,
 	USER_INTERRUPT_LABEL,
-} from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { SessionStatsTracker } from "@oh-my-pi/pi-coding-agent/session/session-stats";
-import { formatShakeSummary } from "@oh-my-pi/pi-coding-agent/session/shake-types";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { SessionStatsTracker } from "@linxiraos/zeta/session/session-stats";
+import { formatShakeSummary } from "@linxiraos/zeta/session/shake-types";
+import { TempDir } from "@linxiraos/pi-utils";
 
 import {
 	cfgCompactionDropUseless,
@@ -36,7 +36,7 @@ import {
 	cfgCompactionThresholdPercent,
 	cfgCompactionThresholdTokens,
 	cfgContextPromotionEnabled,
-} from "@oh-my-pi/pi-coding-agent/session/context-settings";
+} from "@linxiraos/zeta/session/context-settings";
 
 const usage = {
 	input: 16,

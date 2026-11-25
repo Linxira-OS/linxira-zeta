@@ -3,20 +3,20 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildDiscoveredModel, buildModel } from "@oh-my-pi/pi-catalog/build";
-import { isOfficialAnthropicApiUrl } from "@oh-my-pi/pi-catalog/compat/anthropic";
-import { resolveModelPolicy } from "@oh-my-pi/pi-catalog/compat/resolve";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { defaultSupportedEffort } from "@oh-my-pi/pi-catalog/model-thinking";
-import { readModelCache, writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { fingerprintStaticModels, resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { getBundledModel, getBundledModels, getBundledModelSlice } from "@oh-my-pi/pi-catalog/models";
-import { toModelSpec } from "@oh-my-pi/pi-catalog/provider-models/bundled-references";
+import { buildDiscoveredModel, buildModel } from "@linxiraos/pi-catalog/build";
+import { isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { defaultSupportedEffort } from "@linxiraos/pi-catalog/model-thinking";
+import { readModelCache, writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { fingerprintStaticModels, resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { getBundledModel, getBundledModels, getBundledModelSlice } from "@linxiraos/pi-catalog/models";
+import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
 import {
 	deepinfraModelManagerOptions,
 	openrouterModelManagerOptions,
-} from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import type { Api, Model, ModelSpec } from "@oh-my-pi/pi-catalog/types";
+} from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import type { Api, Model, ModelSpec } from "@linxiraos/pi-catalog/types";
 
 function completionsSpec(overrides: Partial<ModelSpec<"openai-completions">> = {}): ModelSpec<"openai-completions"> {
 	return {

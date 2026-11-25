@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Vim in the hook editor's box (upstream's HookEditorComponent `vimMode`): Escape leaves Insert
  * mode before it cancels the dialog, Normal-mode commands edit the box, `u` and Ctrl+R step its
  * own undo history, and the box opens in the start mode.
  */
 import { describe, expect, test } from "bun:test";
-import { createRoot, resolveChildren, type UiNode } from "@oh-my-pi/pi-tui";
-import { decodeInput } from "@oh-my-pi/pi-tui/driver/input/decoder";
+import { createRoot, resolveChildren, type UiNode } from "@linxiraos/pi-tui";
+import { decodeInput } from "@linxiraos/pi-tui/driver/input/decoder";
 import type { DialogVim } from "../../../../src/ui/composer/vim-editor";
 import { HookEditor } from "../../../../src/ui/overlays/panels/hook-dialogs";
 import { sendKey } from "../../composer/harness";

@@ -4,11 +4,11 @@
  * the cell's language icon, status, `[i/n]` index and title, tinted by state.
  * Shared by the read and eval looks.
  */
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import type { PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { highlightCode } from "@oh-my-pi/pi-tui/text/highlight";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { formatDuration } from "@linxiraos/pi-utils";
+import type { PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { highlightCode } from "@linxiraos/pi-tui/text/highlight";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { expandHint, frameInner, frameRows, hangingWrap, statusIcon } from "./frame";
 
 /** A cell's state. */

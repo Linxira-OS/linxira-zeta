@@ -3,9 +3,9 @@
  *
  * Shows how to select a specific model and thinking level.
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { createAgentSession, discoverAuthStorage, ModelRegistry } from "@oh-my-pi/pi-coding-agent";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { createAgentSession, discoverAuthStorage, ModelRegistry } from "@linxiraos/zeta";
 
 // Set up auth storage and model registry
 const authStorage = await discoverAuthStorage();

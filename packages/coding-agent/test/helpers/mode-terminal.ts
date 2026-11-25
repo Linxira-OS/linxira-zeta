@@ -5,10 +5,10 @@
  * writes feed kitty's VT engine, so assertions read the screen and scrollback a
  * user would see.
  */
-import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { memoryTerminal, type MemoryTerminal } from "@oh-my-pi/pi-tui/testing/memory-terminal";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { Settings } from "@linxiraos/zeta/config/settings";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { memoryTerminal, type MemoryTerminal } from "@linxiraos/pi-tui/testing/memory-terminal";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { Key, type KeyModifiers, KittyTerminal, loadModuleSync, type MouseEventSpec } from "kitty-vt-wasm";
 import { AppFrame } from "../../src/modes/interactive/frame";
 import type { Shell } from "../../src/ui/shell";

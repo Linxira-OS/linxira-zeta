@@ -3,11 +3,11 @@
  * deliver each event the way the terminal backend does, to the widget of
  * the node whose painted hit region holds the cell (at width 80).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { decodeMouse } from "@oh-my-pi/pi-tui/driver/input/mouse";
-import { paintNode } from "@oh-my-pi/pi-tui/term/paint";
-import { widgetFor, widgetState } from "@oh-my-pi/pi-tui/term/widgets";
-import { signal, type Signal } from "@oh-my-pi/pi-tui";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { decodeMouse } from "@linxiraos/pi-tui/driver/input/mouse";
+import { paintNode } from "@linxiraos/pi-tui/term/paint";
+import { widgetFor, widgetState } from "@linxiraos/pi-tui/term/widgets";
+import { signal, type Signal } from "@linxiraos/pi-tui";
 import type { AppDriver } from "../harness";
 
 const WIDTH = 80;

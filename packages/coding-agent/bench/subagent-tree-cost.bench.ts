@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Model } from "@oh-my-pi/pi-ai";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
 import { SessionObserverRegistry } from "../src/task/session-observer-registry";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";

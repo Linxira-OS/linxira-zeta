@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AssistantView, InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { splitReaction } from "@oh-my-pi/pi-coding-agent/session/transcript/reaction";
-import { jsx } from "@oh-my-pi/pi-tui/jsx-runtime";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { AssistantView, InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { splitReaction } from "@linxiraos/zeta/session/transcript/reaction";
+import { jsx } from "@linxiraos/pi-tui/jsx-runtime";
 import { createInteractiveModeContext, renderTranscript } from "../../helpers/interactive-mode-context";
 import { blockText } from "../../helpers/transcript-text";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

@@ -1,4 +1,4 @@
-import type { ToolTier } from "@oh-my-pi/pi-agent-core";
+import type { ToolTier } from "@linxiraos/pi-agent-core";
 
 /** One tool command invocation inside a bash run, as recorded on the bash result. */
 export interface ToolCommandRenderDispatch {

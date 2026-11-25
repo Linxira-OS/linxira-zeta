@@ -5,11 +5,11 @@
  * caps in its color around ` label ` filled with it, the label bold in black
  * or white by the fill's luma. Two spaces part the chip from its neighbours.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { terminalPaddingX } from "../terminal-padding";
 import { propsOf } from "../messages/fill";
 

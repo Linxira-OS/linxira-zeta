@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { formatBytes, isRecord, postmortem, Snowflake, untilAborted, withTimeout } from "@oh-my-pi/pi-utils";
-import type { HTMLElement } from "@oh-my-pi/pi-utils/dom";
+import { formatBytes, isRecord, postmortem, Snowflake, untilAborted, withTimeout } from "@linxiraos/pi-utils";
+import type { HTMLElement } from "@linxiraos/pi-utils/dom";
 import type {
 	Accessibility,
 	Browser,

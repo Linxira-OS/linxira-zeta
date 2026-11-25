@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import {
 	pickRecentFocusableAgentId,
 	SessionFocusController,
-} from "@oh-my-pi/pi-coding-agent/modes/controllers/session-focus-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID, type AgentRef } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+} from "@linxiraos/zeta/modes/controllers/session-focus-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID, type AgentRef } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 
 interface SessionStub {
 	session: AgentSession;

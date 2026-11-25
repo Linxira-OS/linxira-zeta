@@ -4,6 +4,8 @@ import type { Model } from "@linxiraos/pi-ai";
 import { resolveDelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
 import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@linxiraos/pi-utils";
 import { reset as resetCapabilities } from "../capability";
+import { stripXdUrlPrefix, XD_URL_PREFIX } from "../tools/xd-url";
+import xdevMountNoticePrompt from "../prompts/system/xdev-mount-notice.md" with { type: "text" };
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldInlineToolDescriptors } from "../config/inline-tool-descriptors-mode";
 import type { ModelRegistry } from "../config/model-registry";
@@ -109,7 +111,7 @@ import {
 	cfgToolsXdevInlineDevices,
 	cfgToolsXdevNotices,
 } from "../tools/settings";
-import type { LocalProtocolOptions } from "../internal-urls";
+
 import { SPECIAL_TOOL_NAMES, specialToolApplies } from "../tools";
 
 /** Capabilities borrowed from the owning AgentSession. */
@@ -186,8 +188,10 @@ export interface SettingsGatedToolDelta {
 	readonly added: readonly { readonly name: string; readonly builtIn: boolean; readonly activate: boolean }[];
 	/** Names whose registry entries were removed. */
 	readonly removed: readonly string[];
-	/** `xd://` state after following `tools.xdev`; undefined while mounting is off. */
-	readonly xdev: XdevState | undefined;
+	/** Tool command state after following `tools.commands`; undefined while mounting is off. */
+	readonly toolCommands: ToolCommandState | undefined;
+	/** `xd://` state after following `tools.xdev`; Zeta's device-only transport alongside tool commands. */
+	readonly xdev?: XdevState | undefined;
 }
 
 /**
@@ -234,6 +238,10 @@ interface SessionToolsOptions {
 	rebuildSystemPrompt?: SystemPromptRebuilder;
 	getMcpServerInstructions?: () => Map<string, string> | undefined;
 	xdev?: XdevState;
+	/** Tool command state while the active `bash` tool runs the commands. */
+	toolCommands?: ToolCommandState;
+	/** MCP tools presented as eval namespace methods (`mcp.evalNamespaces`). */
+	evalBoundToolNames?: readonly string[];
 	setActiveToolNames?: (names: Iterable<string>) => void;
 	baseSystemPrompt: string[];
 	systemPromptSources?: SystemPromptSources;
@@ -263,18 +271,18 @@ export interface MountedMCPToolRoute {
 	readonly name: string;
 }
 
-export interface MCPXdevGuidanceMapping extends MountedMCPToolRoute {
+export interface MCPToolCommandGuidanceMapping extends MountedMCPToolRoute {
 	readonly label: string;
 	readonly path: string;
 }
 
-export interface MCPXdevGuidanceProjection {
-	readonly mappings: readonly MCPXdevGuidanceMapping[];
+export interface MCPToolCommandGuidanceProjection {
+	readonly mappings: readonly MCPToolCommandGuidanceMapping[];
 	readonly hasOmittedMappings: boolean;
 }
 
-const MAX_MCP_XDEV_GUIDANCE_MAPPING_DATA_LENGTH = 4000;
-const MAX_MCP_XDEV_GUIDANCE_MAPPINGS = 64;
+const MAX_MCP_TOOL_COMMAND_GUIDANCE_MAPPING_DATA_LENGTH = 4000;
+const MAX_MCP_TOOL_COMMAND_GUIDANCE_MAPPINGS = 64;
 
 /** Yield exact mounted MCP ownership and route metadata. */
 export function* collectMountedMCPToolRoutes(
@@ -290,7 +298,7 @@ export function* collectMountedMCPToolRoutes(
 	}
 }
 
-function formatMCPXdevGuidanceLabel(label: string): string {
+function formatMCPToolCommandGuidanceLabel(label: string): string {
 	return (JSON.stringify(label) ?? '""')
 		.replaceAll("`", "\\u0060")
 		.replaceAll("\u2028", "\\u2028")
@@ -301,17 +309,22 @@ function formatMCPXdevGuidanceLabel(label: string): string {
  * Project exact live MCP routes into the bounded, Markdown-safe mapping data
  * rendered by the static MCP guidance prompt.
  */
-export function projectMountedMCPXdevGuidance(routes: Iterable<MountedMCPToolRoute>): MCPXdevGuidanceProjection {
-	const mappings: MCPXdevGuidanceMapping[] = [];
-	let remainingMappingDataLength = MAX_MCP_XDEV_GUIDANCE_MAPPING_DATA_LENGTH;
+export function projectMountedMCPToolCommandGuidance(
+	routes: Iterable<MountedMCPToolRoute>,
+): MCPToolCommandGuidanceProjection {
+	const mappings: MCPToolCommandGuidanceMapping[] = [];
+	let remainingMappingDataLength = MAX_MCP_TOOL_COMMAND_GUIDANCE_MAPPING_DATA_LENGTH;
 	let hasOmittedMappings = false;
 	for (const route of routes) {
 		const rawMappingDataLength = route.mcpToolName.length + XD_URL_PREFIX.length + route.name.length;
-		if (mappings.length >= MAX_MCP_XDEV_GUIDANCE_MAPPINGS || rawMappingDataLength > remainingMappingDataLength) {
+		if (
+			mappings.length >= MAX_MCP_TOOL_COMMAND_GUIDANCE_MAPPINGS ||
+			rawMappingDataLength > remainingMappingDataLength
+		) {
 			hasOmittedMappings = true;
 			continue;
 		}
-		const label = formatMCPXdevGuidanceLabel(route.mcpToolName);
+		const label = formatMCPToolCommandGuidanceLabel(route.mcpToolName);
 		const path = `${XD_URL_PREFIX}${route.name}`;
 		const mappingDataLength = label.length + path.length;
 		if (mappingDataLength > remainingMappingDataLength) {
@@ -352,6 +365,16 @@ function samePromptBlocks(left: readonly string[], right: readonly string[]): bo
 }
 
 /** The digest a branch entry records, `undefined` for a malformed record, or `null` when it is not a record. */
+/**
+ * Registered tools a mode may activate mid-session that `active` leaves out, for
+ * `Agent.setStandbyTools`: goal mode activates `goal`, and declaring it only then re-writes
+ * Anthropic's cached prompt.
+ */
+export function standbyTools(registry: ReadonlyMap<string, AgentTool>, active: readonly string[]): AgentTool[] {
+	const goal = active.includes("goal") ? undefined : registry.get("goal");
+	return goal ? [goal] : [];
+}
+
 export function promptDigestOfEntry(entry: SessionEntry): string | undefined | null {
 	if (entry.type !== "custom" || entry.customType !== SYSTEM_PROMPT_DIGEST_CUSTOM_TYPE) return null;
 	return typeof entry.data === "string" ? entry.data : undefined;
@@ -466,6 +489,10 @@ export class SessionTools {
 	#analysisSuppressedNativeTools = new Set<string>();
 	#analysisSelectedNativeTools = new Set<string>();
 	#xdev: XdevState | undefined;
+	#toolCommands: ToolCommandState | undefined;
+	#evalBoundNames = new Set<string>();
+	/** Eval prelude names called in this session; drives first-call guides and prompt hints. */
+	readonly #evalPreludesCalled = new Set<string>();
 	#pendingToolRosterDelta: { added: Set<string>; removed: Set<string> } | undefined;
 	#pendingToolRosterDeltaAfterBase: { added: Set<string>; removed: Set<string> } | undefined;
 	#pendingXdevMountDelta: { added: Set<string>; removed: Set<string> } | undefined;
@@ -527,7 +554,7 @@ export class SessionTools {
 	#enabledToolNames = new Set<string>();
 	/**
 	 * `xd://` device names the current base system prompt renders in its catalog
-	 * (the last rebuild's {@link BuildSystemPromptResult.xdevCatalogNames}). Consulted
+	 * (the last rebuild's {@link BuildSystemPromptResult.toolCommandCatalogNames}). Consulted
 	 * when a pending mount notice is delivered: a device the outgoing prompt already
 	 * lists is recorded as announced without a redundant notice line. Empty when the
 	 * prompt carries no catalog (no mounts, or a custom prompt that omits the section).
@@ -637,6 +664,12 @@ export class SessionTools {
 		this.#reconcileSettingsGatedTools = options.reconcileSettingsGatedTools;
 		this.#rebuildSystemPrompt = options.rebuildSystemPrompt;
 		this.#getMcpServerInstructions = options.getMcpServerInstructions;
+		this.#toolCommands = options.toolCommands;
+		if (this.#toolCommands && this.#toolCommands.tools !== this.#toolRegistry) {
+			throw new Error("tool command state must reference the canonical session tool map");
+		}
+		if (this.#toolCommands) this.#toolCommands.decorateExecution = tool => this.#wrapToolForAcpPermission(tool);
+		for (const name of options.evalBoundToolNames ?? []) this.#evalBoundNames.add(name);
 		this.#xdev = options.xdev;
 		if (this.#xdev && this.#xdev.tools !== this.#toolRegistry) {
 			throw new Error("xd:// state must reference the canonical session tool map");
@@ -664,6 +697,8 @@ export class SessionTools {
 		// no tools and the prompt rebuild without `read` empties the skill list.
 		for (const tool of host.agent.state.tools) this.#enabledToolNames.add(tool.name);
 		for (const name of this.#xdev?.mountedNames ?? []) this.#enabledToolNames.add(name);
+		for (const name of this.#toolCommands?.mountedNames ?? []) this.#enabledToolNames.add(name);
+		for (const name of this.#evalBoundNames) this.#enabledToolNames.add(name);
 		this.#promptSurface = this.#derivePromptSurface();
 		this.#basePromptRoutedXdevNames = this.#routedSummaryXdevNames();
 		this.#promptModelKey = this.#currentPromptModelKey();
@@ -899,6 +934,16 @@ export class SessionTools {
 			),
 		};
 	}
+	/** Record that an eval prelude was called; its first-call guide follows the current tool batch. */
+	noteEvalPreludeCall(name: string): void {
+		this.#evalPreludesCalled.add(name);
+	}
+
+	/** Drop recorded eval prelude calls (session reset/compaction boundaries). */
+	clearEvalPreludeCalls(): void {
+		this.#evalPreludesCalled.clear();
+	}
+
 	/** Drops cached per-session ACP `allow_always`/`reject_always` decisions. */
 	clearAcpPermissionDecisions(): void {
 		this.#acpPermissionDecisions.clear();
@@ -927,9 +972,10 @@ export class SessionTools {
 		// Union live xd:// mounts so devices mounted out-of-band (plugins writing
 		// to xdev state directly) survive the next apply.
 		const mountedNames = this.#xdev?.mountedNames;
+		const commandNames = this.#toolCommands?.mountedNames;
 		const base = this.#enabledToolNames.size > 0 ? [...this.#enabledToolNames] : this.getActiveToolNames();
-		if (!mountedNames || mountedNames.size === 0) return base;
-		return [...new Set([...base, ...mountedNames])];
+		if ((!mountedNames || mountedNames.size === 0) && (!commandNames || commandNames.size === 0)) return base;
+		return [...new Set([...base, ...(mountedNames ?? []), ...(commandNames ?? [])])];
 	}
 
 	/** Tool command state while the active `bash` tool runs the commands; undefined while tools present top-level. */
@@ -943,6 +989,11 @@ export class SessionTools {
 	/** Names currently presented as tool commands. */
 	getMountedToolCommandNames(): string[] {
 		return [...(this.#toolCommands?.mountedNames ?? [])];
+	}
+
+	/** Names currently presented as `xd://` devices. */
+	getMountedXdevToolNames(): string[] {
+		return [...(this.#xdev?.mountedNames ?? [])];
 	}
 
 	/** Enabled MCP tools presented as eval namespace methods (`mcp.evalNamespaces`); the SDK builds their preludes. */
@@ -1600,6 +1651,10 @@ export class SessionTools {
 			const tool = this.#toolRegistry.get(name);
 			return tool ? [{ name, tool }] : [];
 		});
+		const xdevReadAvailable = this.#builtInToolNames.has("read") && selectedTools.some(({ name }) => name === "read");
+		const xdevWriteAvailable =
+			builtInWriteAvailable &&
+			(selectedTools.some(({ name }) => name === "write") || this.#deviceOnlyWriteTransportAvailable);
 		// Tool commands run inside the `bash` tool: mounting engages only while it
 		// is enabled and a tool that can run them is still there; every mountable
 		// tool presents top-level otherwise.
@@ -1731,7 +1786,7 @@ export class SessionTools {
 					rebuiltSources = built.sources;
 					if (!forcePromptRefresh) implicitRebuildSignature = triggerSignature;
 					rebuiltSignature = signature;
-					rebuiltXdevCatalogNames = built.xdevCatalogNames;
+					rebuiltXdevCatalogNames = built.toolCommandCatalogNames;
 					candidateSurface = candidate;
 				}
 			}
@@ -1835,7 +1890,7 @@ export class SessionTools {
 			cfgToolsXdevInlineDevices.get(this.#host.settings),
 		);
 		return new Set(
-			projectMountedMCPXdevGuidance(collectMountedMCPToolRoutes(listXdevTools(this.#xdev)))
+			projectMountedMCPToolCommandGuidance(collectMountedMCPToolRoutes(listXdevTools(this.#xdev)))
 				.mappings.filter(mapping => docsPlan.catalog.has(mapping.name))
 				.map(mapping => mapping.name),
 		);
@@ -2646,12 +2701,24 @@ export class SessionTools {
 				this.setToolBuiltIn(name, builtIn);
 				if (activate) enabled.add(name);
 			}
-			const xdevChanged = delta.xdev !== this.#xdev;
+			const commandsChanged = delta.toolCommands !== this.#toolCommands;
+			if (commandsChanged) {
+				this.#toolCommands = delta.toolCommands;
+				if (delta.toolCommands) delta.toolCommands.decorateExecution = tool => this.#wrapToolForAcpPermission(tool);
+			}
+			const xdevChanged = delta.xdev !== undefined && delta.xdev !== this.#xdev;
 			if (xdevChanged) {
 				this.#xdev = delta.xdev;
 				if (delta.xdev) delta.xdev.decorateExecution = tool => this.#wrapToolForAcpPermission(tool);
 			}
-			if (!refreshPrompt && !toolCommandChanged && delta.added.length === 0 && delta.removed.length === 0) return;
+			if (
+				!refreshPrompt &&
+				!commandsChanged &&
+				!xdevChanged &&
+				delta.added.length === 0 &&
+				delta.removed.length === 0
+			)
+				return;
 			await this.#applyActiveToolsByName([...enabled], refreshPrompt);
 		});
 	}
@@ -2716,7 +2783,7 @@ export class SessionTools {
 				this.#baseSystemPrompt = built.systemPrompt;
 				this.#systemPromptSources = built.sources;
 				this.#promptSurface = candidate;
-				this.#setBasePromptXdevNames(built.xdevCatalogNames);
+				this.#setBasePromptXdevNames(built.toolCommandCatalogNames);
 				this.#host.clearMemoryPromotionSnapshot();
 				if (!samePromptBlocks(previousBaseSystemPrompt, this.#baseSystemPrompt)) {
 					this.#host.clearInheritedProviderPromptCacheKey();
@@ -2894,7 +2961,7 @@ export class SessionTools {
 		const describeTool = (tool: AgentTool): string =>
 			`${tool.name}=${tool.label ?? ""}|${tool.description ?? ""}|${tool.customWireName ?? ""}|${toolReadsSkillUris(tool)}`;
 		const descriptionSegment = tools.map(describeTool).join("\u0002");
-		const mountedMCPProjection = projectMountedMCPXdevGuidance(
+		const mountedMCPProjection = projectMountedMCPToolCommandGuidance(
 			collectMountedMCPToolRoutes(this.#xdev ? listXdevTools(this.#xdev) : []),
 		);
 		const mountedMCPRouteSegment =

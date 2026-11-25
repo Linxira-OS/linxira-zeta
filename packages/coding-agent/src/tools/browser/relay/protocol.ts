@@ -245,6 +245,10 @@ export type ExtToRelayMessage =
 			attachedTabIds: number[];
 			/** Present when snapshots include Chrome's discarded state. Absent in older extensions. */
 			discardedTabsProtocol?: number;
+			/** Runtime version stamped into the extension; absent on older extensions. */
+			ompVersion?: string;
+			/** Runtime build stamped into the extension; absent on older extensions. */
+			ompBuild?: string;
 			/**
 			 * Stable per-install browser identity (persisted in `chrome.storage.local`).
 			 * Lets the relay serve several browsers at once: tabs are namespaced per
@@ -300,12 +304,12 @@ export type ExtToRelayMessage =
 			error?: string;
 	  };
 
-/** Native messaging host name registered by `omp browser-relay install`. */
-export const NATIVE_HOST = "sh.omp.browser";
+/** Native messaging host name registered by `zetacode browser-relay install`. */
+export const NATIVE_HOST = "sh.zeta.browser";
 
 /**
  * Extension → native host. The first message picks what the port is for:
- * - `open`: a chat. The host starts `omp --mode rpc` in `cwd`; then `rpc` carries its stdin lines.
+ * - `open`: a chat. The host starts `zetacode --mode rpc` in `cwd`; then `rpc` carries its stdin lines.
  * - `link`: the browser relay. The host serves the relay for this browser (or joins the one another browser's host
  *   serves); then `relay` carries the extension's relay protocol messages ({@link ExtToRelayMessage} JSON).
  */

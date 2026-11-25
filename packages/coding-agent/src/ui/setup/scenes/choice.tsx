@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The shape most setup scenes share: a short intro over a numbered list of
  * choices. Up/Down move the highlight (wrapping), a digit jumps to its row,
  * Enter commits the highlighted choice, Escape skips the step. Moving the
  * highlight may preview the choice live.
  */
-import { batch, For, type JSXNode, type KeyEvent, signal, untrack } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { batch, For, type JSXNode, type KeyEvent, signal, untrack } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { formatKey } from "../../keys/format";
 import type { SceneContext } from "../types";
 import { listKeyId } from "../../../config/keybindings/matchers";
@@ -116,7 +116,7 @@ export class ChoiceModel<T extends string> {
 export function ChoiceList<T extends string>(props: { readonly model: ChoiceModel<T> }): JSXNode {
 	const model = props.model;
 	return (
-		<col role="omp.select" term={{ pointer: listPointer() }}>
+		<col role="zeta.select" term={{ pointer: listPointer() }}>
 			<list
 				key="list"
 				empty="No items"

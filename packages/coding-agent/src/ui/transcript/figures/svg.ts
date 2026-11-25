@@ -7,9 +7,9 @@
  * terminal's device pixels per px, and padded with transparency to whole
  * cells so a terminal places it 1:1.
  */
-import { rasterizeSvg } from "@oh-my-pi/pi-natives";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { rasterizeSvg } from "@linxiraos/pi-natives";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 /** CSS px per terminal row. */
 export const PX_PER_ROW = 16;

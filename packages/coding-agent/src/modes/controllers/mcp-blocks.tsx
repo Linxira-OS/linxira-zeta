@@ -1,7 +1,7 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** Transcript blocks the `/mcp` command controller mounts (OAuth prompt, connection spinner, test hint). */
-import { type Accessor, type JSXNode, onCleanup, signal } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { type Accessor, type JSXNode, onCleanup, signal } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { AnsiText } from "../../ui/transcript/ansi-text";
 import { McpAuthorizationLink } from "../../ui/transcript/messages/mcp-auth";
 

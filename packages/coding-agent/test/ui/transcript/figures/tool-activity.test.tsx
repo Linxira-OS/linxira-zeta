@@ -1,5 +1,5 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
 import { ToolActivity } from "../../../../src/ui/transcript/messages/panel";
 import { single } from "../messages/harness";
 import { figureSuite } from "./harness";

@@ -5,8 +5,8 @@
  * way on short screens (the head keeps its title and first link row, the
  * tail the live step).
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { wrap } from "@linxiraos/pi-tui/text/width";
 
 /** One status line under the sheet. */
 export interface SignInLine {

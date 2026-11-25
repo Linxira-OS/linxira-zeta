@@ -1,7 +1,7 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { describe, expect, test } from "bun:test";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import type { ModelHubRegistry, ModelHubSource } from "../../../../src/modes/view-model/overlays/model-hub";
 import { ModelHub } from "../../../../src/ui/overlays/pickers/model-hub";
 import { ModelHubState } from "../../../../src/ui/overlays/pickers/model-hub-state";

@@ -1,24 +1,20 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import * as themeService from "@oh-my-pi/pi-coding-agent/ui/theme/service";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import * as themeService from "@linxiraos/zeta/ui/theme/service";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createModeTerminal, type ModeTerminal } from "../helpers/mode-terminal";
 
-import {
-	cfgStatusLineContextLine,
-	cfgStatusLineLeftSegments,
-	cfgSymbolPreset,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { cfgHideThinkingBlock } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { cfgStatusLineContextLine, cfgStatusLineLeftSegments, cfgSymbolPreset } from "@linxiraos/zeta/modes/settings";
+import { cfgHideThinkingBlock } from "@linxiraos/zeta/session/settings";
 
 describe("InteractiveMode live settings", () => {
 	let tempDir: TempDir;

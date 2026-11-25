@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Shell calls (`bash`, and shell-like tools built with {@link shellPresenter}):
  * one run box with the command line (`cd <dir> && NAME="…" command`), the
@@ -6,11 +6,11 @@
  *
  * Terminal look: `bash` (`src/ui/styles/tools/bash.ts`), fed by {@link BashTerm}.
  */
-import { INTENT_FIELD, toolIntentLabel } from "@oh-my-pi/pi-wire";
-import { sanitizeText, spillUrl } from "@oh-my-pi/pi-utils";
-import type { JSXNode, UiEvent } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { ShellVizPresentation } from "@oh-my-pi/pi-wire";
+import { INTENT_FIELD, toolIntentLabel } from "@linxiraos/pi-wire";
+import { sanitizeText, spillUrl } from "@linxiraos/pi-utils";
+import type { JSXNode, UiEvent } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { ShellVizPresentation } from "@linxiraos/pi-wire";
 import type { OutputMeta } from "../../tools/output-meta-format";
 import { stripOutputNotice, stripTrailingNotice } from "../../tools/output-meta-format";
 import { resultText } from "./default";
@@ -400,7 +400,7 @@ function ShellInput(props: {
 	return (
 		<shell
 			key="input"
-			role="omp.tool.bash.command"
+			role="zeta.tool.bash.command"
 			presentation={props.presentation}
 			lang="bash"
 			replayEpoch={props.context.shellReplayEpoch}
@@ -454,7 +454,7 @@ export function shellPresenter<TArgs>(config: ShellConfig<TArgs>): ToolPresenter
 								stream={!state.argsComplete && state.cancelled !== true}
 							/>
 						) : (
-							<RunInput source={cmd.text} role="omp.tool.bash.command" lang="bash" wrap />
+							<RunInput source={cmd.text} role="zeta.tool.bash.command" lang="bash" wrap />
 						)}
 						{started && <RunFoot state={state.cancelled ? "cancelled" : "running"} elapsedMs={state.elapsedMs} />}
 					</RunBox>
@@ -520,11 +520,11 @@ export function shellPresenter<TArgs>(config: ShellConfig<TArgs>): ToolPresenter
 							cwd={displayWorkdir(config.cwd?.(args))}
 						/>
 					) : (
-						<RunInput source={cmd.text} role="omp.tool.bash.command" lang="bash" wrap />
+						<RunInput source={cmd.text} role="zeta.tool.bash.command" lang="bash" wrap />
 					)}
 					{commandNodes}
 					{!sole && output.trim().length > 0 && (
-						<RunOutput output={output} role="omp.tool.bash.output" previewLines={previewLines} />
+						<RunOutput output={output} role="zeta.tool.bash.output" previewLines={previewLines} />
 					)}
 					<RunFoot
 						state={runStateValue}

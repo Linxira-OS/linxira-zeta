@@ -1,9 +1,9 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
-import { Ellipsis } from "@oh-my-pi/pi-natives";
-import { expandWindowsLongPath, getWindowsShortPath } from "@oh-my-pi/pi-natives/path";
-import { pluralize, sanitizeText } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
+import { Ellipsis } from "@linxiraos/pi-natives";
+import { expandWindowsLongPath, getWindowsShortPath } from "@linxiraos/pi-natives/path";
+import { pluralize, sanitizeText } from "@linxiraos/pi-utils";
 import { replaceTabs, truncateToWidth } from "./text-width";
 
 /** A thinking selector configured as a concrete level or automatic selection. */

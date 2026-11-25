@@ -4,7 +4,7 @@
  * (table, info, logs), the transient status line and the pointer kill
  * confirmation. Keys and native events run through here.
  */
-import { type Accessor, batch, type Signal, signal } from "@oh-my-pi/pi-tui";
+import { type Accessor, batch, type Signal, signal } from "@linxiraos/pi-tui";
 import type { UnitScope, UnitSnapshot } from "../../../daemon/daemon-types";
 import { type PsBoard, type PsScopeReport, type PsTarget, unitLabel, unitName } from "../../../cli/ps-model";
 import type { PsTopHost, PsUnitInfo } from "../../../modes/view-model/apps/ps-top";

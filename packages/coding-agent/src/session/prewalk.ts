@@ -117,9 +117,10 @@ export interface PrewalkCoordinatorHost {
 		registeredToolNames: readonly string[],
 	): Promise<void>;
 	getAllToolNames(): string[];
+	getMountedToolCommandNames?(): string[];
 	getActiveToolNames(): string[];
 	getEnabledToolNames(): string[];
-	getMountedXdevToolNames(): string[];
+	getMountedXdevToolNames?(): string[];
 	hasBuiltInTool(name: string): boolean;
 	getPlanModeState(): PlanModeState | undefined;
 	setPlanModeState(state: PlanModeState | undefined): void;
@@ -736,7 +737,7 @@ export class PrewalkCoordinator {
 		if (!this.#planYolo || this.#planYoloArmed) return;
 		this.#planYoloArmed = true;
 		const previousEnabledTools = this.#host.getEnabledToolNames();
-		const previousMountedTools = this.#host.getMountedXdevToolNames();
+		const previousMountedTools = this.#host.getMountedXdevToolNames?.() ?? [];
 		const previousRegisteredTools = this.#host.getAllToolNames();
 		const previousPlanModeState = this.#host.getPlanModeState();
 		const planModeState: PlanModeState = {

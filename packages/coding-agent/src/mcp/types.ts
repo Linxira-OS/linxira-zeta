@@ -526,3 +526,5 @@ export function toJsonRpcError(error: unknown): JsonRpcError {
 	}
 	return { code: -32603, message: "Internal error" };
 }
+
+export type { MCPProgress } from "../tools/mcp-progress";

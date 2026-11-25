@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@linxiraos/pi-coding-agent"><img src="https://img.shields.io/npm/v/@linxiraos/pi-coding-agent?style=flat&colorA=222222&colorB=CB3837" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@linxiraos/zeta"><img src="https://img.shields.io/npm/v/@linxiraos/zeta?style=flat&colorA=222222&colorB=CB3837" alt="npm version"></a>
   <a href="https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-keep-E05735?style=flat&colorA=222222" alt="Changelog"></a>
   <a href="https://github.com/Linxira-OS/linxira-zeta/actions"><img src="https://img.shields.io/github/actions/workflow/status/Linxira-OS/linxira-zeta/ci.yml?style=flat&colorA=222222&colorB=3FB950" alt="CI"></a>
   <a href="https://github.com/Linxira-OS/linxira-zeta/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Linxira-OS/linxira-zeta?style=flat&colorA=222222&colorB=58A6FF" alt="License"></a>
@@ -54,7 +54,7 @@ brew install can1357/tap/zeta
 **Bun（推荐）**
 
 ```sh
-bun install -g @linxiraos/pi-coding-agent
+bun install -g @linxiraos/zeta
 ```
 
 **Nix**
@@ -513,12 +513,12 @@ TUI 是默认界面。工具调用渲染为卡片，编辑在写入磁盘前可�
 
 ### SDK——嵌入 Node
 
-`@linxiraos/pi-coding-agent`
+`@linxiraos/zeta`
 
 Node 和 TypeScript 宿主可以直接引入引擎。该包导出 `ModelRegistry`、`SessionManager`、`createAgentSession` 和 `discoverAuthStorage`；会话会发出带类型的事件供你订阅。
 
 ```ts
-import { ModelRegistry, SessionManager, createAgentSession, discoverAuthStorage } from "@linxiraos/pi-coding-agent";
+import { ModelRegistry, SessionManager, createAgentSession, discoverAuthStorage } from "@linxiraos/zeta";
 
 const auth = await discoverAuthStorage();
 const models = new ModelRegistry(auth);
@@ -657,15 +657,15 @@ bun dev -- --version
 | **[@linxiraos/pi-ai](packages/ai)**                                            | 支持流式输出和模型/提供商集成的多提供商 LLM 客户端         |
 | **[@linxiraos/pi-catalog](packages/catalog)**                                  | 模型目录：内置模型数据库、提供商描述符和模型身份识别       |
 | **[@linxiraos/pi-agent-core](packages/agent)**                                 | 支持工具调用和状态管理的智能体运行时                       |
-| **[@linxiraos/pi-coding-agent](packages/coding-agent)**                        | 交互式编程智能体 CLI 和 SDK                                |
+| **[@linxiraos/zeta](packages/coding-agent)**                        | 交互式编程智能体 CLI 和 SDK                                |
 | **[@linxiraos/pi-tui](packages/tui)**                                          | 支持差分渲染的终端 UI 库                                   |
 | **[@linxiraos/pi-natives](packages/natives)**                                  | 用于 grep、shell、图像、文本、语法高亮等功能的 N-API 绑定  |
 | **[@linxiraos/zeta-stats](packages/stats)**                                     | AI 使用统计的本地可观测性面板                              |
-| **[@linxiraos/omptype](packages/omptype)**                                     | 兼容 ArkType、带惰性 JIT 编译的 schema 校验库              |
+| **[@linxiraos/zeta-schema](packages/omptype)**                                     | 兼容 ArkType、带惰性 JIT 编译的 schema 校验库              |
 | **[@linxiraos/pi-utils](packages/utils)**                                      | 共享工具库（日志、流、目录/环境/进程辅助函数）             |
 | **[@linxiraos/pi-wire](packages/wire)**                                        | 协作实时会话共享的协议类型和中继常量                       |
 | **[@linxiraos/pi-mnemopi](packages/mnemopi)**                                  | 面向 zeta 智能体的本地 SQLite 记忆引擎                      |
-| **[@linxiraos/snapcompact](packages/snapcompact)**                             | 位图帧上下文压缩包及 SQuAD 评测套件                        |
+| **[@linxiraos/zeta-compact](packages/snapcompact)**                             | 位图帧上下文压缩包及 SQuAD 评测套件                        |
 | **[@linxiraos/browser-relay](packages/browser-relay)**                         | 让 Eval 浏览器 API 驱动你现有标签页的 Chrome 扩展          |
 | **[@linxiraos/pi-metaharness](packages/metaharness)**                          | 统一的基准测试运行器、Harbor 运行存储、REST/SSE API、实时面板 |
 | **[@linxiraos/typescript-edit-benchmark](packages/typescript-edit-benchmark)** | 基于 TypeScript 源码变异构建的编辑基准测试套件             |
@@ -705,6 +705,6 @@ _为常开的终端而生_
 - [Stencil Labs](https://stencil.so)
 - [GitHub](https://github.com/Linxira-OS/linxira-zeta)
 - [变更日志](https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/CHANGELOG.md)
-- [npm](https://www.npmjs.com/package/@linxiraos/pi-coding-agent)
+- [npm](https://www.npmjs.com/package/@linxiraos/zeta)
 - [Discord](https://discord.gg/4NMW9cdXZa)
 - [MIT](https://github.com/Linxira-OS/linxira-zeta/blob/main/LICENSE)

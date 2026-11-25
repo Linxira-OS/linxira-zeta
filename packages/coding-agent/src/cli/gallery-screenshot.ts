@@ -14,10 +14,10 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which } from "@oh-my-pi/pi-utils";
+import { $which } from "@linxiraos/pi-utils";
 import { quotePosixArgument } from "../utils/shell-quote";
 import type { GallerySection } from "./gallery-cli";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 /** Nerd Font family so the gallery's icon glyphs (PUA) render instead of tofu. */
 export const DEFAULT_SCREENSHOT_FONT = "JetBrainsMono Nerd Font";

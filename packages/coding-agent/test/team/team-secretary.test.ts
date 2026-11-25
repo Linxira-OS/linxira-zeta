@@ -21,7 +21,7 @@ import { AgentRegistry } from "../../src/registry/agent-registry";
 import { SessionManager } from "../../src/session/session-manager";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { localSession } from "../helpers/local-session";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import type { SingleResult } from "@linxiraos/zeta/task/task-details";
 import { getBundledAgent } from "../../src/task/agents";
 import * as executorModule from "../../src/task/executor";
 import * as structuredSubagent from "../../src/task/structured-subagent";

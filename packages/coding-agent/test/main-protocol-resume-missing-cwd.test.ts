@@ -12,17 +12,17 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readlinePromises from "node:readline/promises";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import * as rpcInputModule from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-input";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import type { SessionHeader } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createSessionWorktree } from "@oh-my-pi/pi-coding-agent/session/session-worktree";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import * as rpcInputModule from "@linxiraos/zeta/modes/rpc/rpc-input";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { SessionHeader } from "@linxiraos/zeta/session/session-entries";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createSessionWorktree } from "@linxiraos/zeta/session/session-worktree";
 import * as themeService from "../src/ui/theme/service";
 import {
 	__resetDirsFromEnvForTests,
@@ -34,7 +34,7 @@ import {
 	setInteractiveHost,
 	setProjectDir,
 	TempDir,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { $ } from "bun";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 import { makeAssistantMessage } from "./session-manager/helpers";

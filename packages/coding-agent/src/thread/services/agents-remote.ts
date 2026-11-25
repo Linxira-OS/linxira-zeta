@@ -10,7 +10,7 @@
  * asynchronously after the main-side change.
  */
 import type { IrcDeliveryReceipt, IrcMessage } from "../../irc/irc-types";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import type { AgentAwaitsApi, AwaitHoldOptions, AwaitWaiter } from "../../registry/agent-awaits";
 import type {
 	AdoptOptions,
@@ -113,6 +113,18 @@ export class RemoteAgentRegistry implements AgentRegistryApi {
 
 	register(input: RegisterInput): AgentRef {
 		return this.#remote.callSync("register", input);
+	}
+
+	registerRoot(input: Omit<RegisterInput, "id"> & { id?: string; sessionId: string }): AgentRef {
+		return this.#remote.callSync("registerRoot", input);
+	}
+
+	workspaceMain(workspaceId: string | undefined): AgentRef | undefined {
+		return this.#remote.callSync("workspaceMain", workspaceId);
+	}
+
+	resolveMainAlias(requested: string, callerId: string): string | undefined {
+		return this.#remote.callSync("resolveMainAlias", requested, callerId);
 	}
 
 	registerIfAvailable(input: RegisterInput, expected: AgentRef | null): AgentRef | undefined {
@@ -282,6 +294,10 @@ export class RemoteIrcBus implements IrcBusApi {
 
 	unreadCount(agentId: string): number {
 		return this.#remote.callSync("unreadCount", agentId);
+	}
+
+	inbox(agentId: string, opts?: { peek?: boolean }): IrcMessage[] {
+		return this.#remote.callSync("inbox", agentId, opts);
 	}
 
 	recordReply(from: string, to: string): void {

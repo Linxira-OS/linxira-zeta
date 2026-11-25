@@ -1,10 +1,5 @@
-import { TERMINAL_STATES } from "@linxiraos/pi-tui/apps/ps-data";
-import {
-	type LaunchParams,
-	type LaunchToolDetails,
-	readyPendingSummary,
-	waitPendingSummary,
-} from "@linxiraos/pi-tui/tools/hub";
+import { TERMINAL_STATES } from "../../cli/ps-model";
+import { type LaunchParams, type LaunchToolDetails, readyPendingSummary, waitPendingSummary } from "./protocol";
 /**
  * Hub launch half — supervision of project-scoped long-running processes
  * (dev servers, watchers, debuggers, REPLs) through the shared daemon broker.
@@ -18,14 +13,16 @@ import { sanitizeText } from "@linxiraos/pi-utils";
 
 import { type DaemonBrokerClient, DaemonBrokerRejectedError, daemonClientForProject } from "../../launch/client";
 import type { DaemonOperation, DaemonRpcResult } from "../../launch/protocol";
-import type { DaemonSnapshot, DaemonSpec } from "@linxiraos/pi-tui/tools/hub";
+import type { DaemonSnapshot, DaemonSpec } from "./protocol";
 import { renderTerminalOutputIsolated } from "../../launch/terminal-output-worker-client";
 
 import type { ToolSession } from "..";
 import { resolveToCwd } from "../path-utils";
-import { formatDuration, replaceTabs, shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { formatDuration } from "@linxiraos/pi-tui/term/painters/elapsed";
+import { shortenPath } from "../../utils/render-utils";
+import { replaceTabs } from "../../utils/text-width";
 
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tool-errors";
 
 interface CompletionRegistration {
 	inFlight: number;

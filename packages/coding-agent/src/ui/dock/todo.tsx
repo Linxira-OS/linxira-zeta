@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The todo HUD: the session's plan, docked above the composer.
  *
@@ -16,8 +16,8 @@
  *   {@link TodoChecklist}, a `checklist` HUD pill holding the whole plan, or
  *   on a host without `checklist` {@link TodoHud}'s tree with a progress bar.
  */
-import { type Accessor, computed, type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import type { TspChecklistItem, TspChecklistPhase, TspSpan, TspTreeNode } from "@oh-my-pi/pi-wire";
+import { type Accessor, computed, type JSXNode, signal } from "@linxiraos/pi-tui";
+import type { TspChecklistItem, TspChecklistPhase, TspSpan, TspTreeNode } from "@linxiraos/pi-wire";
 import {
 	formatPhaseDisplayName,
 	isClosedTodo,
@@ -236,7 +236,7 @@ export function TodoHud(props: { readonly model: TodoHudModel }): JSXNode {
 		const view = model.window();
 		if (!view) return undefined;
 		return (
-			<col key="todo" role="omp.hud.todo" term={{ todo: model }}>
+			<col key="todo" role="zeta.hud.todo" term={{ todo: model }}>
 				<row gap="sm" align="center">
 					<text spans={[{ t: "TODO", s: "accent strong" }]} />
 					<progress value={view.closed / view.total} label={`${view.closed}/${view.total}`} />
@@ -253,6 +253,6 @@ export function TodoChecklist(props: { readonly model: TodoHudModel }): JSXNode 
 	return () => {
 		const view = model.window();
 		if (!view) return undefined;
-		return <checklist key="todo" phases={todoChecklistPhases(view)} mode="hud" role="omp.hud.todo" />;
+		return <checklist key="todo" phases={todoChecklistPhases(view)} mode="hud" role="zeta.hud.todo" />;
 	};
 }

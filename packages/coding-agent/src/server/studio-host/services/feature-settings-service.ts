@@ -51,11 +51,11 @@ import {
 } from "../../../session/settings";
 import {
 	cfgAsyncWidgets,
-	cfgComputerBackgroundFallback,
 	cfgComputerDisplay,
 	cfgComputerEnabled,
 	cfgComputerMaxHeight,
 	cfgComputerMaxWidth,
+	cfgComputerTakeover,
 	cfgOutEnabled,
 	cfgToolsRestrictedFolders,
 	cfgToolsXdevNotices,
@@ -145,7 +145,7 @@ const HANDLES: Record<FeatureSettingKey, AnySetting> = {
 	"computer.display": cfgComputerDisplay,
 	"computer.maxWidth": cfgComputerMaxWidth,
 	"computer.maxHeight": cfgComputerMaxHeight,
-	"computer.backgroundFallback": cfgComputerBackgroundFallback,
+	"computer.takeover": cfgComputerTakeover,
 	"tools.restrictedFolders": cfgToolsRestrictedFolders,
 	"extensionHandlers.modeControl": cfgExtensionHandlersModeControl,
 	"recap.enabled": cfgRecapEnabled,

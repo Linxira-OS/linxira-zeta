@@ -1,11 +1,11 @@
-import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@linxiraos/pi-tui/overlays/copy-targets";
-import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
+import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "../modes/view-model/overlays/copy-targets";
+import { sanitizeDisplayLine } from "../extensibility/inventory/display-text";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
-import { theme } from "@linxiraos/pi-tui/theme";
+import { shortenPath, TRUNCATE_LENGTHS } from "../utils/render-utils";
+import { truncateToWidth } from "../utils/text-width";
 import { clearSubmittedText } from "./helpers/draft";
 import { cfgShareRedactSecrets } from "../commands/settings";
 import { settings } from "../config/settings";
@@ -23,8 +23,7 @@ import { refreshStatusLine } from "./builtin-modes";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import { formatDumpArchiveReport } from "../session/session-dump-format";
 import type { SlashCommandSpec } from "./types";
-import { Spacer } from "@linxiraos/pi-tui";
-import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
+import { formatKeyHint } from "../ui/keys/hints";
 import { CLI_BIN_NAME, formatAge } from "@linxiraos/pi-utils";
 
 /**

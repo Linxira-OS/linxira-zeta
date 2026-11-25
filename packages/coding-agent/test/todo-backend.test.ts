@@ -5,28 +5,28 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	SESSION_SHUTDOWN_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
 	testSetSessionShutdownHandlerTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import type { ExtensionFactory, TodoBackendDefinition } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { type CreateAgentSessionOptions, createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { cfgTodoBackend } from "@oh-my-pi/pi-coding-agent/tools/settings";
-import { USER_TODO_EDIT_CUSTOM_TYPE } from "@oh-my-pi/pi-coding-agent/tools/todo";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { createRoot } from "@oh-my-pi/pi-tui";
-import { jsx } from "@oh-my-pi/pi-tui/jsx-runtime";
-import * as themeLoader from "@oh-my-pi/pi-tui/theme/loader";
+} from "@linxiraos/zeta/extensibility/extensions/runner";
+import type { ExtensionFactory, TodoBackendDefinition } from "@linxiraos/zeta/extensibility/extensions/types";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { type CreateAgentSessionOptions, createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { cfgTodoBackend } from "@linxiraos/zeta/tools/settings";
+import { USER_TODO_EDIT_CUSTOM_TYPE } from "@linxiraos/zeta/tools/todo";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { createRoot } from "@linxiraos/pi-tui";
+import { jsx } from "@linxiraos/pi-tui/jsx-runtime";
+import * as themeLoader from "@linxiraos/pi-tui/theme/loader";
 import * as settingsWindowModule from "../src/ui/overlays/settings/settings";
-import type { TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/details/todo";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { TodoPhase } from "@linxiraos/zeta/tools/details/todo";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 

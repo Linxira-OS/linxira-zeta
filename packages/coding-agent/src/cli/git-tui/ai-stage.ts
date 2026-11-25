@@ -9,11 +9,11 @@
  * and binary files are staged whole.
  */
 import * as path from "node:path";
-import { judgeQuestions } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import type { VcsHunkSelection } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { isEnoent, logger, toError } from "@oh-my-pi/pi-utils";
+import { judgeQuestions } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import type { VcsHunkSelection } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { isEnoent, logger, toError } from "@linxiraos/pi-utils";
 import { parseFileDiffs, parseFileHunks } from "../../commit/git/diff";
 import { openStandaloneJudge } from "../../judgment/standalone";
 import questionFile from "../../prompts/judge/git-stage.json" with { type: "json" };

@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import { replaceTabs, truncateToWidth } from "../../../utils/text-width";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { shortenEmbeddedPaths, TRUNCATE_LENGTHS } from "../../../utils/render-utils";
 
 /**

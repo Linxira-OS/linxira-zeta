@@ -1,4 +1,4 @@
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { AUTO_THINKING, parseThinkingLevel } from "../thinking/levels";
 import { type ConfiguredThinkingLevel } from "../utils/render-utils";
 

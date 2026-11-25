@@ -8,8 +8,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { VcsGitRepo, VcsReconciledCommit } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import type { VcsGitRepo, VcsReconciledCommit } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import { shortenPath } from "../../utils/render-utils";
 import type { Draft, SelectedChange } from "./draft";
 import type { ChangeJournal, JournalAgent } from "./journal";

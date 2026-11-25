@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The HUD pills row (`pills` slot, native only), right-aligned above the
  * activity line: one running-work counter (`omp.hud.pill`) with an agents
@@ -14,8 +14,8 @@
  * sheet). A text terminal draws nothing here (the status line counts agents
  * and jobs; the subagents HUD lists agents).
  */
-import { computed, createRoot, type JSXNode, resolveChildren, signal, type UiNode, untrack } from "@oh-my-pi/pi-tui";
-import type { TspPropNode, TspSpan } from "@oh-my-pi/pi-wire";
+import { computed, createRoot, type JSXNode, resolveChildren, signal, type UiNode, untrack } from "@linxiraos/pi-tui";
+import type { TspPropNode, TspSpan } from "@linxiraos/pi-wire";
 import {
 	type JobWidgetEntry,
 	type JobWidgetSparkBlock,
@@ -115,7 +115,7 @@ function jobsHovercard(entries: readonly JobWidgetEntry[]): TspPropNode | undefi
 	const rest = entries.length - tiles.length;
 	return createRoot(dispose => {
 		const card = (
-			<col role="omp.jobs.hovercard" gap="md">
+			<col role="zeta.jobs.hovercard" gap="md">
 				<JobTiles tiles={tiles} />
 				{rest > 0 && (
 					<text
@@ -125,7 +125,7 @@ function jobsHovercard(entries: readonly JobWidgetEntry[]): TspPropNode | undefi
 								s: "dim",
 							},
 						]}
-						role="omp.jobs.hovercard.more"
+						role="zeta.jobs.hovercard.more"
 						wrap="none"
 					/>
 				)}
@@ -157,7 +157,7 @@ export function MiniSpark(props: { readonly spark: JobWidgetSparkBlock }): JSXNo
 	return (
 		<chart
 			key="spark"
-			role="omp.hud.spark"
+			role="zeta.hud.spark"
 			kind="spark"
 			size="sm"
 			series={spark.values.map(value => ({ value }))}
@@ -176,7 +176,7 @@ function AgentsSegment(props: { readonly running: number; readonly inSession: nu
 		return (
 			<row
 				key="agents"
-				role="omp.hud.seg"
+				role="zeta.hud.seg"
 				gap="xs"
 				align="center"
 				title={`${label}  ${shortcut}`}
@@ -191,7 +191,7 @@ function AgentsSegment(props: { readonly running: number; readonly inSession: nu
 	return (
 		<row
 			key="agents"
-			role="omp.hud.seg"
+			role="zeta.hud.seg"
 			gap="xs"
 			align="center"
 			title={`${label}  ${shortcut}`}
@@ -218,7 +218,7 @@ function JobsSegment(props: { readonly running: number; readonly entries: readon
 	return (
 		<row
 			key="jobs"
-			role="omp.hud.seg"
+			role="zeta.hud.seg"
 			gap="xs"
 			align="center"
 			title={title}
@@ -228,7 +228,7 @@ function JobsSegment(props: { readonly running: number; readonly entries: readon
 		>
 			<icon key="icon" name="job" tone="warning" />
 			<text key="count" spans={[{ t: String(props.running), s: "num" }]} wrap="none" />
-			{glance && <text key="glance" role="omp.hud.glance" spans={glance} wrap="none" />}
+			{glance && <text key="glance" role="zeta.hud.glance" spans={glance} wrap="none" />}
 			{spark && <MiniSpark spark={spark} />}
 		</row>
 	);
@@ -251,14 +251,14 @@ export function HudPills(props: { readonly model: HudPillsModel }): JSXNode {
 		else if (act === "jobs.open") model.onOpenJobs?.();
 	};
 	return () => {
-		if (model.trayHost()) return <row role="omp.hud" justify="end" hidden={true} />;
+		if (model.trayHost()) return <row role="zeta.hud" justify="end" hidden={true} />;
 		const a = agents();
 		const j = jobs();
 		const empty = !a && !j;
 		return (
-			<row role="omp.hud" justify="end" hidden={empty || undefined} onAction={onAction}>
+			<row role="zeta.hud" justify="end" hidden={empty || undefined} onAction={onAction}>
 				{!empty && (
-					<row key="running" role="omp.hud.pill" align="center">
+					<row key="running" role="zeta.hud.pill" align="center">
 						{a && <AgentsSegment running={a.running} inSession={a.inSession} />}
 						{j && <JobsSegment running={j.running} entries={j.entries} />}
 					</row>

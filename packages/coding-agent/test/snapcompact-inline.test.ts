@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { Tokenizer } from "@oh-my-pi/pi-agent-core";
+import { Tokenizer } from "@linxiraos/pi-agent-core";
 import type {
 	AssistantMessage,
 	Context,
@@ -8,19 +8,19 @@ import type {
 	Model,
 	TextContent,
 	ToolResultMessage,
-} from "@oh-my-pi/pi-ai";
-import { transformMessages } from "@oh-my-pi/pi-ai/providers/transform-messages";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+} from "@linxiraos/pi-ai";
+import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import toolResultNote from "../src/prompts/system/snapcompact-toolresult-note.md" with { type: "text" };
 import {
 	estimateInlineSavings,
 	planInlineSwaps,
 	type SnapcompactInlineOptions,
 	SnapcompactInlineTransformer,
-} from "@oh-my-pi/pi-coding-agent/session/snapcompact-inline";
-import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/read";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+} from "@linxiraos/zeta/session/snapcompact-inline";
+import type { ReadToolDetails } from "@linxiraos/zeta/tools/details/read";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 /**

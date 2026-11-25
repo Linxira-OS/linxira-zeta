@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { ToolCall } from "../../src/ui/transcript/tool-block";
 import { toolCallText, toolText } from "../helpers/tool-text";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));
@@ -119,7 +119,7 @@ describe("apply_patch rendering", () => {
 					op: "update",
 					diff: [
 						" 10|}",
-						'+11|import { CODEX_INSTRUCTIONS } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";',
+						'+11|import { CODEX_INSTRUCTIONS } from "@linxiraos/pi-ai/providers/openai-codex-responses";',
 						" 12|\t$env,",
 						" 228|\toutput_format: typeof OPENAI_IMAGE_OUTPUT_FORMAT;",
 						"+235|\tinstructions?: string;",

@@ -10,7 +10,7 @@
  * event time.
  */
 
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { type SessionEntry, type SessionHeader, TAN_FORK_BOUNDARY_CUSTOM_TYPE } from "../session/session-entries";
 import { type HindsightMessage, hasSubstantiveContent } from "./content";
 

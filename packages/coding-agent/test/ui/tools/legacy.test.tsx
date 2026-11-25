@@ -1,7 +1,7 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { describe, expect, it, vi } from "bun:test";
-import { createRoot, isUiNode, type UiNode } from "@oh-my-pi/pi-tui";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import { createRoot, isUiNode, type UiNode } from "@linxiraos/pi-tui";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import "../../../src/ui/styles/tools";
 import "../../../src/ui/tools";
 import type { ExtensionTheme } from "../../../src/extensibility/extensions/render-types";

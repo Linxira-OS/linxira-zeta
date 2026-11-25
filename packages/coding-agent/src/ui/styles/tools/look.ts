@@ -11,9 +11,9 @@
  * Looks read the node's props and its children's props directly: the body's
  * nodes carry the data, the look decides the rows.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import type { TspTone, TspToolProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import type { TspTone, TspToolProps } from "@linxiraos/pi-wire";
 
 /** Terminal-only facts on a `tool` node's `term` prop (the tool block's plus the view's). */
 export interface ToolTerm {

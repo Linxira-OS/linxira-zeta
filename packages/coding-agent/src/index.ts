@@ -1,9 +1,9 @@
 // Core session management
 
-export * as zod from "@oh-my-pi/omptype/zod";
-export { z } from "@oh-my-pi/omptype/zod";
+export * as zod from "@linxiraos/zeta-schema/zod";
+export { z } from "@linxiraos/zeta-schema/zod";
 // Logging
-export { getAgentDir, logger, VERSION } from "@oh-my-pi/pi-utils";
+export { getAgentDir, logger, VERSION } from "@linxiraos/pi-utils";
 export {
 	type AppKeybinding,
 	getDefaultPasteImageKeys,

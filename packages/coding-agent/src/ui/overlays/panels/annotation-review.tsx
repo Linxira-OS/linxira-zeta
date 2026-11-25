@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The annotation review sheet: for a diff, the file rail (totals over the
  * changed files) beside the current file's head and its lines (text: its
@@ -9,13 +9,13 @@
  * The terminal draws it as one box (role look `omp.annotationReview`)
  * driven by keys: see {@link AnnotationReviewModel}.
  */
-import { computed, type JSXNode, type KeyEvent, type UiNode, untrack } from "@oh-my-pi/pi-tui";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { computed, type JSXNode, type KeyEvent, type UiNode, untrack } from "@linxiraos/pi-tui";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { ReviewDiffFile } from "../../../extensibility/custom-commands/bundled/annotate/annotation-types";
 import { findNode } from "../../styles/panels/common";
 import "../../styles/panels/annotation-review";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import { statusText } from "./annotation-review-frame";
 import {
 	type AnnotationReviewModel,
@@ -136,7 +136,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 			icon="pen"
 			disabled
 			tone="warning"
-			role="omp.review.note"
+			role="zeta.review.note"
 		/>
 	);
 
@@ -239,14 +239,14 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 	};
 
 	const head = () => (
-		<row key="head" role="omp.review.head" gap="sm" align="center">
+		<row key="head" role="zeta.review.head" gap="sm" align="center">
 			{() => {
 				rev();
 				if (model.textSource) {
 					const count = model.textNotes.length;
 					return [
 						<text grow={1} wrap="none" spans={[{ t: plural(model.textLines.length, "line") }]} />,
-						count > 0 && <text role="omp.review.count" wrap="none" spans={[{ t: plural(count, "note") }]} />,
+						count > 0 && <text role="zeta.review.count" wrap="none" spans={[{ t: plural(count, "note") }]} />,
 					];
 				}
 				const file = model.currentFile();
@@ -267,7 +267,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 					<text truncate="middle" min={{ w: 0 }} spans={[{ s: "path", t: statusText(fileLabel(file)) }]} />,
 					what && (
 						<text
-							role="omp.review.status"
+							role="zeta.review.status"
 							tone={STATUS_TONE[status]}
 							truncate="end"
 							min={{ w: 0 }}
@@ -275,7 +275,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 						/>
 					),
 					<spacer grow={1} />,
-					count > 0 && <text role="omp.review.count" wrap="none" spans={[{ t: plural(count, "note") }]} />,
+					count > 0 && <text role="zeta.review.count" wrap="none" spans={[{ t: plural(count, "note") }]} />,
 					!file.isBinary && <text wrap="none" spans={changeSpans(file.linesAdded, file.linesRemoved)} />,
 				];
 			}}
@@ -283,8 +283,8 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 	);
 
 	const rail = () => (
-		<col key="rail" role="omp.review.rail">
-			<row key="total" role="omp.review.total" gap="sm" align="center">
+		<col key="rail" role="zeta.review.rail">
+			<row key="total" role="zeta.review.total" gap="sm" align="center">
 				{() => {
 					rev();
 					let added = 0;
@@ -296,7 +296,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 					return [
 						<text grow={1} wrap="none" spans={[{ t: plural(model.files.length, "file") }]} />,
 						model.notes.length > 0 && (
-							<text role="omp.review.count" wrap="none" spans={[{ t: plural(model.notes.length, "note") }]} />
+							<text role="zeta.review.count" wrap="none" spans={[{ t: plural(model.notes.length, "note") }]} />
 						),
 						<text wrap="none" spans={changeSpans(added, removed)} />,
 					];
@@ -307,7 +307,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 				actions={{ click: "select", dblclick: "activate" }}
 				empty={[{ s: "muted", t: "No files" }]}
 				max={() => ({ lines: model.nativeBodyRows() })}
-				role="omp.review.files"
+				role="zeta.review.files"
 				selected={() => (rev(), model.files.length > 0 ? `f${model.fileIndex}` : null)}
 				tone={() => (rev(), model.focus === "files" && !editing() ? "accent" : undefined)}
 			>
@@ -348,7 +348,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 		switch (composerMode()) {
 			case "chooser":
 				return (
-					<col key="chooser" role="omp.review.composer">
+					<col key="chooser" role="zeta.review.composer">
 						<text key="caption" spans={[{ s: "strong", t: "Edit which note?" }]} />
 						<list
 							key="chooser"
@@ -391,9 +391,9 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 				);
 			case "note":
 				return (
-					<col key="composer" role="omp.review.composer">
+					<col key="composer" role="zeta.review.composer">
 						<text key="caption" truncate="end" spans={() => (rev(), captionSpans())} />
-						<col role="omp.field">
+						<col role="zeta.field">
 							<editor
 								key="input"
 								text={() => (rev(), model.draft.text)}
@@ -486,7 +486,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 	);
 
 	const footer = () => (
-		<row key="actions" role="omp.actions" gap="sm" align="center">
+		<row key="actions" role="zeta.actions" gap="sm" align="center">
 			<KeycapHints nodeKey="hints" hints={hints} />
 			<FooterButton act="close" label={() => "Cancel"} title={() => "Cancel  esc"} keys={["escape"]} />
 			<FooterButton
@@ -519,7 +519,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 	);
 
 	const pane = () => (
-		<col key="pane" role="omp.review.pane" grow={1} min={{ w: 0 }}>
+		<col key="pane" role="zeta.review.pane" grow={1} min={{ w: 0 }}>
 			{head()}
 			{lines()}
 			{() => composer()}
@@ -556,7 +556,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 			{model.textSource ? (
 				pane()
 			) : (
-				<row key="split" role="omp.review.split">
+				<row key="split" role="zeta.review.split">
 					{rail()}
 					{pane()}
 				</row>

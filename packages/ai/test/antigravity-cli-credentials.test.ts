@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isFileLockHeld } from "@oh-my-pi/pi-utils";
+import { isFileLockHeld } from "@linxiraos/pi-utils";
 import { isDefinitiveOAuthFailure } from "../src/error";
 import {
 	AGY_OAUTH_CLIENT_ID,

@@ -1,14 +1,11 @@
 import { describe, expect, setSystemTime, test } from "bun:test";
-import { Agent, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import {
-	createModelMentionSource,
-	getModelMentionSuggestions,
-} from "@oh-my-pi/pi-coding-agent/autocomplete/model-mention";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { createModelMentionSource, getModelMentionSuggestions } from "@linxiraos/zeta/autocomplete/model-mention";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	buildBrowserItems,
 	buildSearchAffinity,
@@ -16,11 +13,11 @@ import {
 	rankModelItems,
 	resolveRoleAssignments,
 	sortModelItems,
-} from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/model-browser";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/modes/view-model/overlays/model-browser";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { ModelBrowser, modelPreview } from "../src/ui/overlays/pickers/model-browser";
 import { isSeparator, ModelBrowserState } from "../src/ui/overlays/pickers/model-browser-state";

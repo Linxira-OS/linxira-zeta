@@ -27,6 +27,7 @@ import {
 	withLoopPhase,
 } from "@linxiraos/pi-utils";
 import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "../task/task-details";
+import { splitCardTitle } from "../utils/title-card";
 import type { ConfiguredThinkingLevel } from "../utils/render-utils";
 import { isUserRequestEntry } from "./transcript/transcript-entry";
 import type { SessionTreePosition } from "../modes/view-model/status-line/host";

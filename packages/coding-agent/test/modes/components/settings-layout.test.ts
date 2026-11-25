@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { all } from "@oh-my-pi/pi-coding-agent/config/registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { all } from "@linxiraos/zeta/config/registry";
 
-import { getSettingsForTab, SETTING_TABS, TAB_GROUPS } from "@oh-my-pi/pi-coding-agent/config/settings-defs";
-import { createSettingsHost } from "@oh-my-pi/pi-coding-agent/config/settings-ui";
+import { getSettingsForTab, SETTING_TABS, TAB_GROUPS } from "@linxiraos/zeta/config/settings-defs";
+import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
 import { settingsScreen, setupSettingsWindow } from "../../helpers/settings-window";
-import { cfgRetryUsageAwareFallback } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { cfgAdvisorEnabled } from "@oh-my-pi/pi-coding-agent/advisor/settings";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { cfgRetryUsageAwareFallback } from "@linxiraos/zeta/session/settings";
+import { cfgAdvisorEnabled } from "@linxiraos/zeta/advisor/settings";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

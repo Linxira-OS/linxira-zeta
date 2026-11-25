@@ -1,8 +1,8 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /** The plugin selector capture builder (`settings-overlays/plugin-selector.ts`) on pi-tui. */
-import { bubbleEvent } from "@oh-my-pi/pi-tui/dispatch";
-import { batch, createRoot, type UiEvent, type UiNode } from "@oh-my-pi/pi-tui";
-import type { PaintEnvironment } from "@oh-my-pi/pi-tui/term/paint";
+import { bubbleEvent } from "@linxiraos/pi-tui/dispatch";
+import { batch, createRoot, type UiEvent, type UiNode } from "@linxiraos/pi-tui";
+import type { PaintEnvironment } from "@linxiraos/pi-tui/term/paint";
 import { type PluginItem, PluginSelector } from "../../../src/ui/overlays/plugins/selector";
 import { type Driven, sendInput } from "../settings/harness";
 

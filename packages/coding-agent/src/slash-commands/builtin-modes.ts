@@ -368,6 +368,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: "Have the agent interview you in chat, then set up goal mode",
 		inlineHint: "[rough objective]",
 		allowArgs: true,
+		handle: async (command, runtime) => {
+			await runtime.session.startGuidedGoal({
+				initial: command.args || undefined,
+				images: runtime.images,
+			});
+			return commandConsumed({ agentInvoked: true });
+		},
 		handleTui: async (command, runtime) => {
 			await runWithDetachedDraft(command, runtime, () =>
 				runtime.ctx.handleGuidedGoalCommand(command.args || undefined, runtime.input),

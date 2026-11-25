@@ -6,8 +6,8 @@
  * chips. Looks ask only when the terminal draws links, so a terminal without
  * them never writes blobs.
  */
-import { getBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import { logger } from "@oh-my-pi/pi-utils";
+import { getBlob } from "@linxiraos/pi-tui/native/blobs";
+import { logger } from "@linxiraos/pi-utils";
 import { blobExtensionForImageMimeType } from "../../utils/image-format";
 
 /**

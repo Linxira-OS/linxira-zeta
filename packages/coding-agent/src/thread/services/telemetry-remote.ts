@@ -2,7 +2,7 @@
  * Worker half of the telemetry bridge (see `./telemetry`): a `Tracer` whose
  * spans are started, mutated, and ended on the main thread's real tracer.
  */
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import type * as OtelApi from "@opentelemetry/api";
 import type {
 	Context,

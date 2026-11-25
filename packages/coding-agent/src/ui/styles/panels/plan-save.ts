@@ -2,10 +2,10 @@
  * The plan-save prompt's terminal look: a box titled `Save plan` holding the
  * path field (the suggested path dimmed while it is empty) and the keys.
  */
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { inputLine } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { TspInputProps } from "@oh-my-pi/pi-wire";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { inputLine } from "@linxiraos/pi-tui/term/painters/prefs";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { TspInputProps } from "@linxiraos/pi-wire";
 import { bindingGlyph, boxRows, propsOf, termOf } from "./common";
 
 defineRolePainter("col", "omp.planSave", (node, cx): Block => {

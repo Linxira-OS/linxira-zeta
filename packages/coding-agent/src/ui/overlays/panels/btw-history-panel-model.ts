@@ -12,8 +12,8 @@
  * transcription at the caret, the mic glyph in the caret's cell, and commits
  * it on release) and attaches pasted image paths.
  */
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { type KeyEvent, type ScrollRequest, signal, untrack } from "@oh-my-pi/pi-tui";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { type KeyEvent, type ScrollRequest, signal, untrack } from "@linxiraos/pi-tui";
 import { holdText, SpaceHoldGesture, type SpaceHoldHandler } from "../../../config/keybindings/space-hold";
 import type { BtwInjectState } from "../../../modes/view-model/overlays/btw-inject";
 import { compactImageMarkers, formatVisionMarker } from "../../../modes/view-model/prompt/composer-attachments";

@@ -22,7 +22,6 @@ import {
 import type { ToolSession } from "./index";
 import { formatPathRelativeToCwd } from "./path-utils";
 import { maybeWriteSnapshotHeader, stripWriteContent } from "./write-content";
-import { PREVIEW_LIMITS } from "../utils/render-utils";
 
 /** Raw `conflict://<N>[/<scope>]` content for the shared read selector pipeline. */
 export interface ConflictRegionRead {

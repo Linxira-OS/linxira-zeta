@@ -14,7 +14,7 @@
  * grant nothing. `task.perCallModelAllow`, when set, narrows the result to the
  * exact models it lists.
  */
-import type { Api, Model } from "@oh-my-pi/pi-ai";
+import type { Api, Model } from "@linxiraos/pi-ai";
 import type { AgentSource } from "./task-details";
 import { MAX_THINKING_SUFFIX_OPTIONS, splitThinkingSuffix } from "../config/model-selector";
 import type { ModelRegistry } from "../config/model-registry";

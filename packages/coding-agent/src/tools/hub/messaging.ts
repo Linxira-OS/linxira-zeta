@@ -1,6 +1,6 @@
 import { cfgIrcTimeoutMs } from "../settings";
 import { cfgTaskMaxRecursionDepth } from "../../task/settings";
-import { LIST_STATUS_ORDER } from "@linxiraos/pi-tui/tools/hub";
+import { LIST_STATUS_ORDER } from "./protocol";
 /**
  * Hub messaging half — agent-to-agent messaging over the process-global IrcBus.
  *
@@ -21,7 +21,7 @@ import { IrcAwaitTargetStopped, IrcBus } from "../../irc/bus";
 import { getMeshNode } from "../../mesh/global";
 import { isWorkspaceAddress } from "../../mesh/envelope";
 import { raceMutualWait, type MutualWaitStatus } from "../../mesh/mutual-wait";
-import { type IrcMessage } from "@linxiraos/pi-tui/tools/hub";
+import { type IrcMessage } from "./protocol";
 
 import { type AgentRegistryApi, MAIN_AGENT_ID } from "../../registry/agent-registry";
 import { ensurePersistedRoster, isCurrentSessionRosterRef } from "../../registry/persisted-agents";
@@ -33,7 +33,7 @@ import {
 	type HubListStatus,
 	type HubRosterCounts,
 	MAX_HUB_LIST_LIMIT,
-} from "@linxiraos/pi-tui/tools/hub";
+} from "./protocol";
 import { hubErrorResult } from "./types";
 
 export const DEFAULT_IRC_TIMEOUT_MS = 120_000;

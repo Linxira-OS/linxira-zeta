@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { exec } from "@oh-my-pi/pi-utils/ptree";
+import { exec } from "@linxiraos/pi-utils/ptree";
 
 const NAME = "OMP_PTREE_ENV_PROBE";
 

@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { MAIN_AGENT_RULE_NAME, SUB_AGENT_RULE_NAME } from "../capability/rule";
 import { validateAgentAccountPools } from "../config/account-pools";
-import type { Model } from "@oh-my-pi/pi-ai";
+import type { Model } from "@linxiraos/pi-ai";
 import { assertModelSupportsEffortCeiling } from "../thinking/levels";
 import type { ModelRegistry } from "../config/model-registry";
 import {

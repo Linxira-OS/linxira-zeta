@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { ADVISOR_TRANSCRIPT_FILENAME, isAdvisorTranscriptName } from "../advisor/transcript-names";
 import { resolveExplicitModelRole } from "../config/model-resolver";
 import { assistantTurnProducedOutput, usageContextTokens } from "../session/messages";
@@ -453,17 +453,23 @@ export async function scanPersistedSubagents(
 	let vibeOwnedIds: Promise<Set<string>> | undefined;
 	const vibeOwned = () => (vibeOwnedIds ??= readPersistedVibeChildIds(sessionFile, shouldContinue));
 	const root = sessionFile.slice(0, -6);
+	// Attribute restored children/advisors to THIS transcript's root, not to the
+	// constant main id: a process can host several top-level sessions, and each
+	// keeps its own subagent parentage (and advisor ids) under its own id.
+	const ownerId = options.ownerId ?? registry.list().find(ref => ref.sessionFile === sessionFile)?.id;
 	const transcripts: PersistedTranscript[] = [];
 	await registerPersistedSubagentsFromDir(
 		registry,
 		root,
-		undefined,
+		ownerId,
 		vibeOwned,
 		transcripts,
 		shouldContinue,
 		sessionFile,
 		options.owned,
 		options.onCopiedRef,
+		options.replaceForeignParked ?? true,
+		options.onSubagentTranscript,
 	);
 	if (!hydrateHistory || !shouldContinue()) return;
 	let nextTranscript = 0;
@@ -497,6 +503,8 @@ async function registerPersistedSubagentsFromDir(
 	rootSessionFile: string,
 	owned?: Map<string, string>,
 	onCopiedRef?: (ref: AgentRef) => void,
+	replaceForeignParked = true,
+	onSubagentTranscript?: (id: string, sessionFile: string) => void,
 ): Promise<void> {
 	if (!shouldContinue()) return;
 	let entries: fs.Dirent[];
@@ -574,6 +582,7 @@ async function registerPersistedSubagentsFromDir(
 			continue;
 		}
 		const id = entry.name.slice(0, -6);
+		onSubagentTranscript?.(id, sessionFile);
 		const existing = registry.get(id);
 		if (existing?.sessionFile !== sessionFile && (await vibeOwned()).has(id)) continue;
 		let tombstoned = false;
@@ -588,6 +597,7 @@ async function registerPersistedSubagentsFromDir(
 		}
 		if (!shouldContinue()) return;
 		const replaceable =
+			replaceForeignParked &&
 			existing !== undefined &&
 			existing.kind === "sub" &&
 			existing.status === "parked" &&
@@ -677,6 +687,8 @@ async function registerPersistedSubagentsFromDir(
 				rootSessionFile,
 				owned,
 				onCopiedRef,
+				replaceForeignParked,
+				onSubagentTranscript,
 			);
 		}
 	}

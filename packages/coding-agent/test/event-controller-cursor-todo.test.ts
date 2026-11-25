@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { initTheme } from "../src/ui/theme/service";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { TRUNCATE_LENGTHS } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { isSettled } from "@oh-my-pi/pi-tui";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { TRUNCATE_LENGTHS } from "@linxiraos/zeta/utils/render-utils";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { isSettled } from "@linxiraos/pi-tui";
 import type { TranscriptBlock } from "../src/ui/shell";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 import { blockText } from "./helpers/transcript-text";

@@ -1,7 +1,7 @@
 import { expect, setSystemTime, test } from "bun:test";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import type { PsBoard } from "../../../../src/cli/ps-model";
 import type { ProcSpec, UnitScope, UnitSnapshot } from "../../../../src/daemon/daemon-types";
 import type { PsTopHost } from "../../../../src/modes/view-model/apps/ps-top";

@@ -3,7 +3,7 @@ import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionHandle } from "../session/agent-session-handle";
 import { clearApprovalGrants } from "../tools/approval-cache";
 import { clearSubmittedText } from "./helpers/draft";
-import { shutdownHandlerTui } from "./builtin-lifecycle";
+import { shutdownHandlerTui } from "./helpers/shutdown";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
 import { agentPauseGate } from "@linxiraos/pi-agent-core";

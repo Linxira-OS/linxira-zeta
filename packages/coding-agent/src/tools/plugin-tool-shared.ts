@@ -9,7 +9,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { getPluginsPackageJson, isEnoent } from "@linxiraos/pi-utils";
 import type { InstalledPlugin } from "../extensibility/plugins/types";
 

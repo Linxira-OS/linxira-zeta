@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Tool commands: a mounted tool invoked inside a bash run (`<tool> …`,
  * `<tool> --help`), recorded on the bash result as dispatches.
@@ -9,10 +9,10 @@
  *
  * Terminal look: `tool-command` (`src/ui/styles/tools/tool-command.ts`).
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import type { ToolPresenter, ToolResult, ToolView, ToolViewState } from "./contract";
 import { defaultPresenter } from "./default";
 import { type LegacyToolRenderer, legacyParts, legacyView, type ToolRenderPart } from "./legacy";
@@ -188,14 +188,14 @@ export function ToolCommandNode(props: {
 	return (
 		<col
 			key={props.nodeKey}
-			role="omp.tool.bash.command-tool"
+			role="zeta.tool.bash.command-tool"
 			gap="sm"
 			// The wrapped look's own facts win: its painter draws the nested card from them.
 			term={{ title: view.head?.title, target: view.head?.target, tone: view.tone, ...view.term }}
 		>
 			<text
 				key="head"
-				role="omp.tool.bash.command-tool.head"
+				role="zeta.tool.bash.command-tool.head"
 				spans={typeof head === "string" ? [{ t: head }] : head}
 				wrap="none"
 				truncate="end"

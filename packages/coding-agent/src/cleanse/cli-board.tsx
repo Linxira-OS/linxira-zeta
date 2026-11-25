@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The stdout board of `omp cleanse`.
  *
@@ -10,7 +10,7 @@
  * Non-TTY output keeps the plain-line protocol (`[start]`/`[done]`/`[fail]`),
  * so scripted callers see unchanged output.
  */
-import { untrack } from "@oh-my-pi/pi-tui";
+import { untrack } from "@linxiraos/pi-tui";
 import { sanitizeDisplaySingleLine } from "../extensibility/inventory/display-text";
 import type { CleanseStatusBoard } from "../modes/view-model/apps/cleanse-board";
 import { createLiveBoard, type LiveBoardOutput } from "../modes/view-model/chrome/live-board";

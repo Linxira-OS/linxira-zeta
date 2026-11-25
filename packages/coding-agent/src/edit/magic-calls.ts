@@ -1,5 +1,5 @@
-import { type ToolCall, toolWireSchema } from "@oh-my-pi/pi-ai";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { type ToolCall, toolWireSchema } from "@linxiraos/pi-ai";
+import { isRecord } from "@linxiraos/pi-utils";
 import { APPLY_TOOLS } from "./magic-tools";
 
 interface WrittenToolCall {

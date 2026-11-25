@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Debug (DAP): `Debug launch ./a.out` for calls; results show the session
  * snapshot (adapter, status, stop reason, location) and the debuggee's
@@ -7,9 +7,9 @@
  * Terminal look: `debug` (`src/ui/styles/tools/debug.ts`): one line while
  * pending, then a card with Session and Output sections.
  */
-import type { TspSpan } from "@oh-my-pi/pi-wire";
-import { stripControl } from "@oh-my-pi/pi-tui/text/sanitize";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { TspSpan } from "@linxiraos/pi-wire";
+import { stripControl } from "@linxiraos/pi-tui/text/sanitize";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import type { ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
 import { registerToolPresenter } from "./registry";
@@ -136,7 +136,7 @@ export const debugPresenter: ToolPresenter<DebugArgs, DebugDetails> = {
 			return {
 				label,
 				tone: "error",
-				body: <text role="omp.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
+				body: <text role="zeta.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
 				term: {
 					look: "debug",
 					result: true,

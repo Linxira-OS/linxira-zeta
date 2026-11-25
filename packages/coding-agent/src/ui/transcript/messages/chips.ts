@@ -14,8 +14,8 @@
  * Natively each token is an `md` mark styled as the composer decorates it;
  * the terminal colors attachment chips with their composer identity color.
  */
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { type ChipKind, chipColor, chipLabel } from "../../composer/attachments";
 
 const VISION_MARKER = /\[(Image|Video) #([1-9]\d*)(?:,[^\]\n]*)?\](?: attachment:\/\/\2)?/g;

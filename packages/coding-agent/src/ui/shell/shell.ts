@@ -30,11 +30,11 @@ import {
 	startHost,
 	type UiNode,
 	untrack,
-} from "@oh-my-pi/pi-tui";
-import type { InputEvent, TerminalDriverOptions } from "@oh-my-pi/pi-tui/driver/index";
-import type { MouseTracking } from "@oh-my-pi/pi-tui/driver/io";
-import { staticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { renderBlock } from "@oh-my-pi/pi-tui/term/render";
+} from "@linxiraos/pi-tui";
+import type { InputEvent, TerminalDriverOptions } from "@linxiraos/pi-tui/driver/index";
+import type { MouseTracking } from "@linxiraos/pi-tui/driver/io";
+import { staticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { renderBlock } from "@linxiraos/pi-tui/term/render";
 
 let terminalStylesLoaded = false;
 /**
@@ -47,7 +47,7 @@ function ensureTerminalStylesLoaded(): void {
 	terminalStylesLoaded = true;
 	require("../styles");
 }
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { Dock, type DockSlot, NATIVE_DOCK, NATIVE_TAIL, TERMINAL_DOCK } from "./dock";
 import { Overlays } from "./overlays";
 import { Transcript } from "./transcript";

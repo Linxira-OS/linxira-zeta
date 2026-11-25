@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The status line's facts inside the native composer, where no status strip
  * is drawn: the context meter along the field's top edge
@@ -13,9 +13,9 @@
  * the brand (pi). The branch and changes (git) come from Tern's own
  * composer-bar chip while it shows the checkout, when the facts carry none.
  */
-import { type Accessor, computed, For, type JSXNode, Show } from "@oh-my-pi/pi-tui";
-import { formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspMeterMark, TspPropNode, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { type Accessor, computed, For, type JSXNode, Show } from "@linxiraos/pi-tui";
+import { formatNumber } from "@linxiraos/pi-utils";
+import type { TspMeterMark, TspPropNode, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import type { StatusLineSegmentId } from "../../config/status-line-schema";
 import { sanitizeStatusText } from "../../modes/view-model/chrome/shared";
 import type { PromptCacheStatus } from "../../modes/view-model/status-line/host";
@@ -236,7 +236,7 @@ export function composerFacts(props: {
 		context: (
 			<meter
 				key="context"
-				role="omp.composer.context"
+				role="zeta.composer.context"
 				style="bar"
 				value={() => meter().value}
 				thresholds={() => meter().thresholds}
@@ -249,7 +249,7 @@ export function composerFacts(props: {
 			/>
 		),
 		extras: (
-			<status key="extras" role="omp.composer.extras" transparent grow={1}>
+			<status key="extras" role="zeta.composer.extras" transparent grow={1}>
 				<For each={keys}>
 					{key => {
 						const fact = () => byKey().get(key);
@@ -277,7 +277,7 @@ export function composerFacts(props: {
 		usage: (
 			<text
 				key="usage"
-				role="omp.composer.usage"
+				role="zeta.composer.usage"
 				text={cost}
 				wrap="none"
 				title={() => (cost() ? `Session cost ${cost()}` : undefined)}
@@ -347,16 +347,16 @@ export function StatusBarPreview(props: {
 			push("jobs", "right", 0, { spans: [{ t: `${state.jobs}`, s: "statusLineSubagents" }], icon: "job" });
 		collect("right", settings.rightSegments);
 		const bar = (
-			<status key="bar" role="omp.status" transparent={settings.transparent === true}>
+			<status key="bar" role="zeta.status" transparent={settings.transparent === true}>
 				{segs}
 			</status>
 		);
 		if (!(props.settings().showHookStatus ?? true) || state.hooks.length === 0) return bar;
 		return (
-			<col role="omp.status.panel">
+			<col role="zeta.status.panel">
 				{bar}
 				{state.hooks.map((status, index) => (
-					<text key={`hook-${index}`} role="omp.status.hook" text={sanitizeStatusText(status)} wrap="none" />
+					<text key={`hook-${index}`} role="zeta.status.hook" text={sanitizeStatusText(status)} wrap="none" />
 				))}
 			</col>
 		);

@@ -1,29 +1,29 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Message, Model } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockHandler, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EVAL_STATE_CONTEXT_TYPE } from "@oh-my-pi/pi-coding-agent/eval/state";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { ProcProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/proc-protocol";
-import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { type } from "@linxiraos/zeta-schema";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Message, Model } from "@linxiraos/pi-ai";
+import { createMockModel, type MockHandler, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { EVAL_STATE_CONTEXT_TYPE } from "@linxiraos/zeta/eval/state";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { ProcProtocolHandler } from "@linxiraos/zeta/internal-urls/proc-protocol";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	createInterruptedToolResults,
 	createInterruptedTurnAbortMessage,
 	hasRestorableTurn,
 	INTERRUPTED_TURN_ERROR,
 	SESSION_EXIT_CUSTOM_TYPE,
-} from "@oh-my-pi/pi-coding-agent/session/exit-diagnostics";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { WaitTool } from "@oh-my-pi/pi-coding-agent/tools/wait";
-import { postmortem, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/session/exit-diagnostics";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { WaitTool } from "@linxiraos/zeta/tools/wait";
+import { postmortem, TempDir } from "@linxiraos/pi-utils";
 
 const zeroUsage = {
 	input: 0,

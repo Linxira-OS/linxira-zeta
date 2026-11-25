@@ -1,6 +1,6 @@
 import { vi } from "bun:test";
-import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getAgentDir, getProjectDir, setAgentDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { getAgentDir, getProjectDir, setAgentDir, setProjectDir } from "@linxiraos/pi-utils";
 
 export interface SettingsTestState {
 	agentDir: string;

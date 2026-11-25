@@ -4,9 +4,9 @@ import {
 	createOAuthProvenance,
 	refreshReasonFor,
 	resolveAfterRotation,
-} from "@oh-my-pi/pi-ai/auth-retry";
-import type { AuthApiKeyOptions, AuthStorage } from "@oh-my-pi/pi-ai/auth-storage";
-import type { Api, Model } from "@oh-my-pi/pi-ai/types";
+} from "@linxiraos/pi-ai/auth-retry";
+import type { AuthApiKeyOptions, AuthStorage } from "@linxiraos/pi-ai/auth-storage";
+import type { Api, Model } from "@linxiraos/pi-ai/types";
 
 /** Model slice accepted by the model-form `resolver(model, sessionId)` overload. */
 export type ApiKeyResolverModel = Pick<Model<Api>, "provider" | "baseUrl" | "id">;

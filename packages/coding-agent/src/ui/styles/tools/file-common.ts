@@ -4,12 +4,12 @@
  * the OSC 8 links every tool look draws on them, and which result images a
  * card draws as pictures.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { terminalIdentity } from "@oh-my-pi/pi-tui/driver/session";
-import { type PaintContext, roleOf } from "@oh-my-pi/pi-tui/term/paint";
-import { hyperlink } from "@oh-my-pi/pi-tui/text/osc";
-import { visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { terminalIdentity } from "@linxiraos/pi-tui/driver/session";
+import { type PaintContext, roleOf } from "@linxiraos/pi-tui/term/paint";
+import { hyperlink } from "@linxiraos/pi-tui/text/osc";
+import { visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { diagnosticOrder, type FileDiagnostics, type ParsedDiagnostic, parseDiagnostic } from "../../tools/file-common";
 import { fileUriForTerminal } from "../../../utils/file-links";
 import { imageLinkTarget, READ_IMAGE_ROLE, RESULT_IMAGE_ROLE } from "../../transcript/image-links";

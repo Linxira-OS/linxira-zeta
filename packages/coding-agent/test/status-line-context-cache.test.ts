@@ -10,10 +10,10 @@
  * previously froze large sessions.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ContextUsage } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { statusLineHost } from "@oh-my-pi/pi-coding-agent/modes/status-line-host";
-import type { StatusLineSettings } from "@oh-my-pi/pi-coding-agent/ui/status/facts";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { ContextUsage } from "@linxiraos/zeta/extensibility/extensions/types";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import type { StatusLineSettings } from "@linxiraos/zeta/ui/status/facts";
 import {
 	disposeStatusLines,
 	flushStatus,

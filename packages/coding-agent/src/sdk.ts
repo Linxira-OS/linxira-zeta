@@ -367,6 +367,7 @@ import { createComputerPrelude } from "./tools/computer";
 import { createRatchetPrelude } from "./ratchet/prelude-definition";
 import { createArchivePrelude } from "./archive/prelude-definition";
 import { ToolContextStore } from "./tools/context";
+import { IrcBus } from "./irc/bus";
 import { isIrcEnabled } from "./irc/messaging";
 import { imageGenTool } from "./tools/image-gen";
 import { wrapToolWithMetaNotice } from "./tools/output-meta";
@@ -926,6 +927,15 @@ export interface CreateAgentSessionOptions {
 	lspReadOnly?: boolean;
 	/** Whether this invocation may expose IRC. `false` removes it even for subagents. */
 	enableIrc?: boolean;
+	/**
+	 * IM channel hook backing the `channel_send` tool: the session's outlet for
+	 * messaging users on the channel that spawned it. Absent in CLI mode.
+	 */
+	channelSend?: ToolSession["channelSend"];
+	/** Team workspace hook backing the `workspace_run` tool. */
+	workspaceRun?: ToolSession["workspaceRun"];
+	/** IM control hook backing the `im_control` tool. */
+	imControl?: ToolSession["imControl"];
 	/** Skip subprocess-kernel availability checks and prelude warmup */
 	skipPythonPreflight?: boolean;
 	/** Tool names explicitly requested (enables disabled-by-default tools) */
@@ -1056,6 +1066,11 @@ export interface CreateAgentSessionOptions {
 	 * Print, RPC, ACP and subagent sessions read replies as text. Default: false.
 	 */
 	tuiTranscript?: boolean;
+	/**
+	 * Web chat transcript: draw ```svg replies even though `tuiTranscript` is off.
+	 * Zeta 19.1 contract kept for the web gateway; ignored for subagents. Default: false.
+	 */
+	chatSvgRendering?: boolean;
 	/**
 	 * Name the unnamed session from the operator's messages once each reply begins
 	 * (see `title.generator`). Only the interactive TUI sets this; ignored for subagents. Default: false.
@@ -1471,6 +1486,10 @@ export interface BuildSystemPromptOptions {
 	securityEnabled?: boolean;
 	/** Eval preludes to advertise; each contributes its `guidance` block. Default: none. */
 	evalPreludes?: readonly Pick<EvalPreludeDefinition, "name" | "guidance">[];
+	/** Zeta 19.1 name for mounted `xd://` commands; forwarded as `mountedCommands`. */
+	xdevTools?: Array<{ name: string; summary: string; dynamic?: boolean }>;
+	/** Zeta 19.1 name for the mounted-command catalog docs; forwarded as `toolCommandDocs`. */
+	xdevDocs?: string;
 }
 
 /**
@@ -1499,6 +1518,8 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		includeWorkspaceTree: options.includeWorkspaceTree,
 		securityEnabled: options.securityEnabled,
 		evalPreludes: options.evalPreludes,
+		mountedCommands: options.xdevTools,
+		toolCommandDocs: options.xdevDocs,
 		toolNames,
 		tools: promptTools,
 	});
@@ -2201,6 +2222,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	const agentKind: AgentKind = isSubagentSession ? SUB_AGENT_RULE_NAME : MAIN_AGENT_RULE_NAME;
 	// Visuals (Mermaid, SVG figures, table charts) are drawn only in the top-level TUI transcript.
 	const tuiTranscript = options.tuiTranscript === true && !isSubagentSession;
+	const chatSvgRendering = options.chatSvgRendering === true && !isSubagentSession;
 	const resolvedAgentName = (options.agentName ?? agentKind).trim().toLowerCase();
 	const rawRulesPromise =
 		options.rules !== undefined
@@ -2709,6 +2731,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			enableLsp,
 			lspReadOnly,
 			enableIrc: restrictToolNames ? false : options.enableIrc,
+			channelSend: options.channelSend,
+			workspaceRun: options.workspaceRun,
+			imControl: options.imControl,
 			/**
 			 * Frozen at the last system-prompt rebuild: a mid-session `/skillful`
 			 * toggle rides the next turn's notice, never the tool prefix. The
@@ -2871,7 +2896,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			setPlanProposalHandler: handler => session.setPlanProposalHandler(handler),
 			allocateOutputArtifact: async () => {
 				try {
-					return await sessionManager.allocateArtifactPath();
+					return await sessionManager.allocateArtifactPath("output");
 				} catch {
 					return {};
 				}
@@ -2938,7 +2963,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			}
 			const enabled = getEnabledEvalPreludes(builtins);
 			if (!mcpNamespaces || !bindsMcpToEval()) return enabled;
-			const evalBound = (hasSession ? session.getEvalBoundToolNames() : initialEvalBoundToolNames).flatMap(name => {
+			const evalBound = (hasSession ? session.getEvalBridgeToolNames() : initialEvalBoundToolNames).flatMap(name => {
 				const tool = toolRegistry.get(name);
 				return tool ? [tool] : [];
 			});
@@ -3982,6 +4007,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				...(options.parentAgentId ? { parentId: options.parentAgentId } : {}),
 			}),
 			createAnnotationsAPI,
+			agentRegistry,
+			IrcBus.global(),
 		);
 		// A dialog waits for the user, not the agent: the session lets the display sleep while one is open.
 		const trackUserWait: UserWaitTracker = dialog => (hasSession ? session.waitForUser(dialog) : dialog());
@@ -4678,7 +4705,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				personality: agentKind === "sub" ? "none" : cfgPersonality.get(settings),
 				subagent: agentKind === "sub",
 				renderMermaid: tuiTranscript && cfgTuiRenderMermaid.get(settings),
-				renderSvg: tuiTranscript && cfgTuiRenderSvg.get(settings),
+				renderSvg: (tuiTranscript || chatSvgRendering) && cfgTuiRenderSvg.get(settings),
 				renderEmbeds: tuiTranscript && cfgTuiRenderEmbeds.get(settings),
 				autoGraph: tuiTranscript && cfgTuiAutoGraph.get(settings) !== "off",
 				reactions: agentKind === "main" && options.hasUI === true && cfgTuiReactions.get(settings),

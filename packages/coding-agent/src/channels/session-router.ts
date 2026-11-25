@@ -32,7 +32,7 @@ import { Settings, type SettingProvenance } from "../config/settings";
 import { hasWorkspacePersona } from "../default-workspace";
 import { cfgChannelsReportPolicy } from "../tools/settings";
 import { cfgMemoryBackend } from "../memory-backend/settings";
-import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
+import type { IrcMessage } from "../tools/hub/protocol";
 import { IrcBus } from "../irc/bus";
 import { getMeshNode } from "../mesh/global";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";

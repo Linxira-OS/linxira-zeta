@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The status line: a `status` bar (`omp.status`) of the configured segments
  * — preset or custom, each a `seg` keyed by its id with its side and drop
@@ -13,11 +13,11 @@
  *
  * Terminal look: `src/ui/styles/status/status-line.ts`.
  */
-import { type Accessor, computed, For, Index, type JSXNode, Show, type UiNode } from "@oh-my-pi/pi-tui";
-import type { PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { sparkline } from "@oh-my-pi/pi-tui/term/painters/chart";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { type Accessor, computed, For, Index, type JSXNode, Show, type UiNode } from "@linxiraos/pi-tui";
+import type { PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { sparkline } from "@linxiraos/pi-tui/term/painters/chart";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import { sanitizeHookStatusText, sanitizeStatusText } from "../../modes/view-model/chrome/shared";
 import type { StatusLineSettings } from "../../modes/view-model/status-line/types";
 import type { ContextLineMode, StatusLineSegmentId, StatusLineSeparatorStyle } from "../../config/status-line-schema";
@@ -237,7 +237,7 @@ export function createStatusLine(props: StatusLineProps): {
 				faint: facts.focusedAgentId !== undefined,
 			};
 		};
-		return (<status role="omp.status.top" term={look} />) as UiNode;
+		return (<status role="zeta.status.top" term={look} />) as UiNode;
 	};
 	const tops: Record<StatusAttachment, UiNode> = {
 		"top-border": top("top-border"),
@@ -245,7 +245,7 @@ export function createStatusLine(props: StatusLineProps): {
 		"top-rule-chip": top("top-rule-chip"),
 	};
 	const bottom = (groups: StatusBarLook["groups"]): UiNode =>
-		(<status role="omp.status" term={(): StatusBarLook => ({ groups, segs: barSegs() })} />) as UiNode;
+		(<status role="zeta.status" term={(): StatusBarLook => ({ groups, segs: barSegs() })} />) as UiNode;
 	const bottoms = { full: bottom("both"), left: bottom("left") };
 	const chrome: StatusChrome = {
 		composerStatus(cx, attachment, width) {
@@ -255,13 +255,13 @@ export function createStatusLine(props: StatusLineProps): {
 		bottomBar: (cx, groups, width) => cx.paint(bottoms[groups], width).rows[0] ?? "",
 	};
 	const panel = (
-		<col role="omp.status.panel" term={(): StatusPanelLook => ({ placement: props.placement() })}>
+		<col role="zeta.status.panel" term={(): StatusPanelLook => ({ placement: props.placement() })}>
 			<status
 				key="bar"
 				ref={node => {
 					bar = node;
 				}}
-				role="omp.status"
+				role="zeta.status"
 				transparent={() => props.settings().transparent === true}
 				term={(): StatusBarLook => ({ groups: props.placement().bar === "left" ? "left" : "both" })}
 			>
@@ -294,7 +294,7 @@ export function createStatusLine(props: StatusLineProps): {
 				{(status, index) => (
 					<text
 						key={`hook-${index}`}
-						role="omp.status.hook"
+						role="zeta.status.hook"
 						text={() => sanitizeStatusText(status())}
 						wrap="none"
 						term={(): StatusHookLook => ({ ansi: sanitizeHookStatusText(status()) })}

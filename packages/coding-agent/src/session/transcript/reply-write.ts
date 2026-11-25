@@ -1,5 +1,5 @@
-import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
+import { isRecord } from "@linxiraos/pi-utils";
 import { InternalUrlRouter } from "../../internal-urls/router";
 import { splitUrlScheme } from "../../internal-urls/url-scheme";
 

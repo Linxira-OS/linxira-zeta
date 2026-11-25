@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
 import {
 	isPreviewResolutionToolCall,
 	isProposeToolCall,
@@ -8,15 +8,15 @@ import {
 	proposeDispatchDetails,
 	resolveDispatchDetails,
 	specialToolCommands,
-} from "@oh-my-pi/pi-coding-agent/tools/resolve";
-import type { ToolCommandDispatch } from "@oh-my-pi/pi-coding-agent/tools/tool-commands";
+} from "@linxiraos/zeta/tools/resolve";
+import type { ToolCommandDispatch } from "@linxiraos/zeta/tools/tool-commands";
 import {
 	PROPOSE_COMMAND_NAME,
 	REJECT_COMMAND_NAME,
 	RESOLVE_COMMAND_NAME,
 	type ResolveDetails,
-} from "@oh-my-pi/pi-coding-agent/tools/details/resolve";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+} from "@linxiraos/zeta/tools/details/resolve";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

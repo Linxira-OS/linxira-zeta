@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The ctrl+p role-cycle track (`modelCycle` slot): the cycled roles in a row,
  * each in its position's theme color, the active one filled as a chip. It
@@ -12,9 +12,9 @@
  *   chip (`◀ slow ▶`) in its color with a contrasting bold label, padded by
  *   two spaces instead of separators.
  */
-import { computed, type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { computed, type JSXNode, signal } from "@linxiraos/pi-tui";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import "../styles/dock";
 
 /** The track shown: role labels and the active one. */
@@ -89,7 +89,7 @@ export function ModelCycleTrack(props: { readonly model: ModelCycleModel }): JSX
 		if (!track) return undefined;
 		const colors = palette();
 		return (
-			<row role="omp.track" gap="sm" align="center" term={{ track }}>
+			<row role="zeta.track" gap="sm" align="center" term={{ track }}>
 				{track.segments.map((label, index) => (
 					<text
 						key={`${index}`}

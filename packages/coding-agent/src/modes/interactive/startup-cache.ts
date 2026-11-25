@@ -20,13 +20,13 @@
 import type { Database, Statement } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ResizeScrollback } from "@oh-my-pi/pi-tui/driver/index";
-import { isRecord } from "@oh-my-pi/pi-utils";
-import { getComposerCacheDbPath } from "@oh-my-pi/pi-utils/dirs";
-import { isBunTestRuntime } from "@oh-my-pi/pi-utils/env";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
-import { openSqliteDatabaseSync } from "@oh-my-pi/pi-utils/sqlite";
+import type { ResizeScrollback } from "@linxiraos/pi-tui/driver/index";
+import { isRecord } from "@linxiraos/pi-utils";
+import { getComposerCacheDbPath } from "@linxiraos/pi-utils/dirs";
+import { isBunTestRuntime } from "@linxiraos/pi-utils/env";
+import * as logger from "@linxiraos/pi-utils/logger";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import { openSqliteDatabaseSync } from "@linxiraos/pi-utils/sqlite";
 import type { ComposerThemePreferences } from "../view-model/prompt/composer-cache";
 import { parseStatusPrediction, type StatusPrediction } from "./status-prediction";
 

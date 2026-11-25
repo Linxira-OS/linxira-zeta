@@ -13,13 +13,13 @@ duplicating prose that goes stale.
 
 Run from `packages/coding-agent/` (or add `--cwd=packages/coding-agent`):
 
-| Task                           | Command               |
-| ------------------------------ | --------------------- |
-| Typecheck + lint (the gate)    | `bun run check`       |
-| Types only                     | `bun run check:types` |
-| Lint only                      | `bun run lint`        |
-| Tests                          | `bun run test`        |
-| Autofix: lint + format prompts | `bun run fix`         |
+| Task                               | Command               |
+| ---------------------------------- | --------------------- |
+| Typecheck + lint (the gate)        | `bun run check`       |
+| Types only                         | `bun run check:types` |
+| Lint only                          | `bun run lint`        |
+| Tests                              | `bun run test`        |
+| Autofix: lint + format prompts     | `bun run fix`         |
 | Build the local `dist/zeta` binary | `bun run build`       |
 
 Never invoke `tsc`/`npx tsc` directly — `bun run check` is the typecheck gate. After
@@ -71,26 +71,26 @@ Top-level entry modules: `cli.ts`, `main.ts`, `sdk.ts`, `index.ts` (SDK barrel),
 `config.ts`, `system-prompt.ts`, `workspace-tree.ts`,
 `cli-commands.ts`, `telemetry-export.ts`.
 
-| Directory                                                | Responsibility                                               | Reference                                                                                                                                                    |
-| -------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `cli/`, `commands/`, `commit/`, `export/`                | Command-line adapters and concrete subcommands               | —                                                                                                                                                            |
-| `modes/`                                                 | Interactive TUI, print, and RPC runtimes                     | [rpc.md](../../docs/rpc.md), [sdk.md](../../docs/sdk.md)                                                                                                     |
-| `session/`                                               | `AgentSession`, JSONL session tree, storage, history         | [session.md](../../docs/session.md), [session-tree.md](../../document/session-tree.md)                                                                      |
-| `config/`, `registry/`, `secrets/`                       | Settings, model/provider registry, secret obfuscation        | [settings.md](../../docs/settings.md), [config-usage.md](../../docs/config-usage.md), [models.md](../../docs/models.md), [secrets.md](../../docs/secrets.md) |
-| `tools/`                                                 | Built-in tool implementations + render/meta helpers          | [custom-tools.md](../../docs/custom-tools.md), [`tools/`](../../docs/tools/)                                                                                 |
-| `exec/`, `eval/`, `ssh/`, `dap/`, `debug/`               | Execution backends (shell, py/js kernels, ssh, debugger)     | [bash-tool-runtime.md](../../docs/bash-tool-runtime.md), [python-repl.md](../../docs/python-repl.md)                                                         |
-| `lsp/`                                                   | Language-server client/runtime                               | [lsp-config.md](../../docs/lsp-config.md), [tools/lsp.md](../../docs/tools/lsp.md)                                                                           |
-| `task/`, `irc/`, `goals/`, `plan-mode/`                  | Subagent delegation, inter-agent IRC, plan mode              | [task-agent-discovery.md](../../docs/task-agent-discovery.md), [tools/task.md](../../docs/tools/task.md)                                                     |
-| `web/`, `exa/`                                           | Fetch, browser automation, search providers, scrapers        | [tools/web_search.md](../../docs/tools/web_search.md), [tools/browser.md](../../docs/tools/browser.md)                                                       |
-| `mcp/`                                                   | MCP transport / manager / loader / tool bridge               | [mcp-config.md](../../docs/mcp-config.md), [mcp-runtime-lifecycle.md](../../docs/mcp-runtime-lifecycle.md)                                                   |
-| `extensibility/`, `slash-commands/`                      | Extensions, hooks, custom tools/commands, skills, plugins    | [extensions.md](../../docs/extensions.md), [hooks.md](../../docs/hooks.md), [skills.md](../../docs/skills.md)                                                |
-| `capability/`, `discovery/`                              | Capability registry + provider discovery modules             | [extension-loading.md](../../docs/extension-loading.md), [context-files.md](../../docs/context-files.md)                                                     |
-| `advisor/`, `autolearn/`, `autoresearch/`                | Advisor/watchdog, managed skills, background research        | [advisor-watchdog.md](../../docs/advisor-watchdog.md), [autoresearch.md](../../docs/autoresearch.md)                                                         |
-| `memories/`, `memory-backend/`, `mnemopi/`, `hindsight/` | Memory subsystems and backends                               | [memory.md](../../docs/memory.md), [mnemosyne-memory-backend.md](../../docs/mnemosyne-memory-backend.md)                                                     |
-| `internal-urls/`                                         | Router + handlers (`agent://`, `zeta://`, `rule://`, …)       | [tools/read.md](../../docs/tools/read.md#internal-urls), [tools/write.md](../../docs/tools/write.md#writable-internal-resources-and-tool-devices)            |
-| `tts/`, `stt/`                                           | Text-to-speech / speech-to-text                              | —                                                                                                                                                            |
-| `tiny/`, `auto-thinking/`                                | Embedded tiny-model experiments, auto thinking level         | [local-models.md](../../docs/local-models.md)                                                                                                                |
-| `async/`, `lib/`, `utils/`, `prompts/`, `edit/`          | Shared plumbing, prompt assets, patch/diff engine            | [tools/edit.md](../../docs/tools/edit.md)                                                                                                                    |
+| Directory                                                | Responsibility                                            | Reference                                                                                                                                                    |
+| -------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cli/`, `commands/`, `commit/`, `export/`                | Command-line adapters and concrete subcommands            | —                                                                                                                                                            |
+| `modes/`                                                 | Interactive TUI, print, and RPC runtimes                  | [rpc.md](../../docs/rpc.md), [sdk.md](../../docs/sdk.md)                                                                                                     |
+| `session/`                                               | `AgentSession`, JSONL session tree, storage, history      | [session.md](../../docs/session.md), [session-tree.md](../../document/session-tree.md)                                                                       |
+| `config/`, `registry/`, `secrets/`                       | Settings, model/provider registry, secret obfuscation     | [settings.md](../../docs/settings.md), [config-usage.md](../../docs/config-usage.md), [models.md](../../docs/models.md), [secrets.md](../../docs/secrets.md) |
+| `tools/`                                                 | Built-in tool implementations + render/meta helpers       | [custom-tools.md](../../docs/custom-tools.md), [`tools/`](../../docs/tools/)                                                                                 |
+| `exec/`, `eval/`, `ssh/`, `dap/`, `debug/`               | Execution backends (shell, py/js kernels, ssh, debugger)  | [bash-tool-runtime.md](../../docs/bash-tool-runtime.md), [python-repl.md](../../docs/python-repl.md)                                                         |
+| `lsp/`                                                   | Language-server client/runtime                            | [lsp-config.md](../../docs/lsp-config.md), [tools/lsp.md](../../docs/tools/lsp.md)                                                                           |
+| `task/`, `irc/`, `goals/`, `plan-mode/`                  | Subagent delegation, inter-agent IRC, plan mode           | [task-agent-discovery.md](../../docs/task-agent-discovery.md), [tools/task.md](../../docs/tools/task.md)                                                     |
+| `web/`, `exa/`                                           | Fetch, browser automation, search providers, scrapers     | [tools/web_search.md](../../docs/tools/web_search.md), [tools/browser.md](../../docs/tools/browser.md)                                                       |
+| `mcp/`                                                   | MCP transport / manager / loader / tool bridge            | [mcp-config.md](../../docs/mcp-config.md), [mcp-runtime-lifecycle.md](../../docs/mcp-runtime-lifecycle.md)                                                   |
+| `extensibility/`, `slash-commands/`                      | Extensions, hooks, custom tools/commands, skills, plugins | [extensions.md](../../docs/extensions.md), [hooks.md](../../docs/hooks.md), [skills.md](../../docs/skills.md)                                                |
+| `capability/`, `discovery/`                              | Capability registry + provider discovery modules          | [extension-loading.md](../../docs/extension-loading.md), [context-files.md](../../docs/context-files.md)                                                     |
+| `advisor/`, `autolearn/`, `autoresearch/`                | Advisor/watchdog, managed skills, background research     | [advisor-watchdog.md](../../docs/advisor-watchdog.md), [autoresearch.md](../../docs/autoresearch.md)                                                         |
+| `memories/`, `memory-backend/`, `mnemopi/`, `hindsight/` | Memory subsystems and backends                            | [memory.md](../../docs/memory.md), [mnemosyne-memory-backend.md](../../docs/mnemosyne-memory-backend.md)                                                     |
+| `internal-urls/`                                         | Router + handlers (`agent://`, `zeta://`, `rule://`, …)   | [tools/read.md](../../docs/tools/read.md#internal-urls), [tools/write.md](../../docs/tools/write.md#writable-internal-resources-and-tool-devices)            |
+| `tts/`, `stt/`                                           | Text-to-speech / speech-to-text                           | —                                                                                                                                                            |
+| `tiny/`, `auto-thinking/`                                | Embedded tiny-model experiments, auto thinking level      | [local-models.md](../../docs/local-models.md)                                                                                                                |
+| `async/`, `lib/`, `utils/`, `prompts/`, `edit/`          | Shared plumbing, prompt assets, patch/diff engine         | [tools/edit.md](../../docs/tools/edit.md)                                                                                                                    |
 
 ## Subsystem reference
 

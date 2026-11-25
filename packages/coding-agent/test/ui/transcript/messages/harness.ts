@@ -23,16 +23,16 @@ import {
 	resolveChildren,
 	setNativeRenderingForTest,
 	type UiNode,
-} from "@oh-my-pi/pi-tui";
-import { paintNode, type StaticEnvironment } from "@oh-my-pi/pi-tui/term/paint";
-import { firstCellDiff } from "@oh-my-pi/pi-tui/testing/cells";
+} from "@linxiraos/pi-tui";
+import { paintNode, type StaticEnvironment } from "@linxiraos/pi-tui/term/paint";
+import { firstCellDiff } from "@linxiraos/pi-tui/testing/cells";
 import {
 	CORPUS_DIR,
 	type CorpusCase,
 	corpusEnvironment,
 	describeTree,
 	stageNative,
-} from "@oh-my-pi/pi-tui/testing/corpus";
+} from "@linxiraos/pi-tui/testing/corpus";
 import "../../../../src/ui/styles/messages";
 import { captureStage, skipsAt } from "../../deviations";
 

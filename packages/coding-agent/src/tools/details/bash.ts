@@ -1,6 +1,6 @@
 import { type OutputMeta } from "../output-meta-format";
 import type { RenderResultOptions } from "./renderer";
-import { type ShellTrace } from "@oh-my-pi/pi-wire";
+import { type ShellTrace } from "@linxiraos/pi-wire";
 import type { SpotlightDetails } from "./spotlight";
 import { type ToolCommandRenderDispatch } from "./tool-commands";
 

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A titled card over a list of options, shown in the composer's place (the
  * debug tools menu): `card` > `spacer`, `omp.select` (`list` of `item`s, then
@@ -11,7 +11,7 @@
  * highlight stays on its option while it still matches). A click on an option
  * picks it. Focus the `list`.
  */
-import { batch, computed, For, type JSXNode, type KeyEvent, signal } from "@oh-my-pi/pi-tui";
+import { batch, computed, For, type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
 import { matchesSelectCancel, selectKeyId } from "../../../config/keybindings/matchers";
 import { sanitizeStatusText } from "../../../modes/view-model/chrome/shared";
 import { fuzzyFilter } from "../../../utils/fuzzy";
@@ -135,7 +135,7 @@ export function SelectCard(props: SelectCardProps): JSXNode {
 	return (
 		<card role={props.role ?? "omp.overlay"} head={sanitizeStatusText(props.title)} onKey={onKey}>
 			<spacer size="sm" />
-			<col role="omp.select">
+			<col role="zeta.select">
 				<list
 					key="list"
 					selected={selected}

@@ -1,5 +1,5 @@
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import type { ASIData, ASIValue, NumericMetricMap } from "@linxiraos/pi-tui/tools/autoresearch";
+import type { ASIData, ASIValue, NumericMetricMap } from "./tool-details";
 
 export const METRIC_LINE_PREFIX = "METRIC";
 export const ASI_LINE_PREFIX = "ASI";

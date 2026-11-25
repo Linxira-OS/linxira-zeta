@@ -7,9 +7,9 @@
  * marks, `█░` bars, stats joined by ` · `, `● name` grid cells (`◌` while in
  * progress) and dim text lines.
  */
-import type { TspTone } from "@oh-my-pi/pi-wire";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { TspTone } from "@linxiraos/pi-wire";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import type {
 	JobWidgetBlock,
 	JobWidgetGridBlock,

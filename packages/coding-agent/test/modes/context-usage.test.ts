@@ -1,11 +1,11 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { Tokenizer } from "@oh-my-pi/pi-agent-core";
+import { Tokenizer } from "@linxiraos/pi-agent-core";
 import {
 	computeNonMessageBreakdown,
 	estimateToolSchemaTokens,
 	invalidateToolSchemaMetadata,
 	toolSchemaFragments,
-} from "@oh-my-pi/pi-coding-agent/session/context-usage";
+} from "@linxiraos/zeta/session/context-usage";
 import { applyToolProxy } from "../../src/extensibility/tool-proxy";
 
 const tokenizer = new Tokenizer();

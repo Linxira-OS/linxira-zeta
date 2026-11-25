@@ -6,13 +6,13 @@
  * the send failure, the draft in a rounded field, the stats, the key hints
  * and a closing rule. The wheel scrolls three rows a notch.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
 import { sanitizeErrorLine } from "../../../modes/view-model/chrome/error-block";
 import type {
 	AgentTranscriptViewerModel,

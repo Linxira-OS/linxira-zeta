@@ -67,11 +67,6 @@ _QUEUE_MODE_VALUES: Final[frozenset[str]] = frozenset({"all", "one-at-a-time"})
 _decode_queue_mode = cast("Decoder[QueueMode]", literal(_QUEUE_MODE_VALUES))
 
 
-SessionModeId: TypeAlias = Literal["plan", "goal", "vibe"]
-_SESSION_MODE_ID_VALUES: Final[frozenset[str]] = frozenset({"plan", "goal", "vibe"})
-_decode_session_mode_id = cast("Decoder[SessionModeId]", literal(_SESSION_MODE_ID_VALUES))
-
-
 InterruptMode: TypeAlias = Literal["immediate", "wait"]
 _INTERRUPT_MODE_VALUES: Final[frozenset[str]] = frozenset({"immediate", "wait"})
 _decode_interrupt_mode = cast("Decoder[InterruptMode]", literal(_INTERRUPT_MODE_VALUES))
@@ -98,13 +93,13 @@ _MESSAGE_UPDATES_VALUES: Final[frozenset[str]] = frozenset({"full", "delta"})
 _decode_message_updates = cast("Decoder[MessageUpdates]", literal(_MESSAGE_UPDATES_VALUES))
 
 
-TodoStatus: TypeAlias = Literal["pending", "in_progress", "completed", "abandoned", "blocked"]
-_TODO_STATUS_VALUES: Final[frozenset[str]] = frozenset({"pending", "in_progress", "completed", "abandoned", "blocked"})
+TodoStatus: TypeAlias = Literal["pending", "in_progress", "completed", "abandoned"]
+_TODO_STATUS_VALUES: Final[frozenset[str]] = frozenset({"pending", "in_progress", "completed", "abandoned"})
 _decode_todo_status = cast("Decoder[TodoStatus]", literal(_TODO_STATUS_VALUES))
 
 
-GoalOp: TypeAlias = Literal["get", "create", "resume", "pause", "drop", "budget"]
-_GOAL_OP_VALUES: Final[frozenset[str]] = frozenset({"get", "create", "resume", "pause", "drop", "budget"})
+GoalOp: TypeAlias = Literal["get", "create", "resume", "pause", "drop"]
+_GOAL_OP_VALUES: Final[frozenset[str]] = frozenset({"get", "create", "resume", "pause", "drop"})
 _decode_goal_op = cast("Decoder[GoalOp]", literal(_GOAL_OP_VALUES))
 
 
@@ -122,11 +117,6 @@ SubagentSubscriptionLevel: TypeAlias = Literal["off", "progress", "events"]
 """Forwarded subagent frames: none, lifecycle and progress, or also raw session events."""
 _SUBAGENT_SUBSCRIPTION_LEVEL_VALUES: Final[frozenset[str]] = frozenset({"off", "progress", "events"})
 _decode_subagent_subscription_level = cast("Decoder[SubagentSubscriptionLevel]", literal(_SUBAGENT_SUBSCRIPTION_LEVEL_VALUES))
-
-
-ComponentId: TypeAlias = Literal["zetacode", "zetawork", "zetawork-gui", "zetaide"]
-_COMPONENT_ID_VALUES: Final[frozenset[str]] = frozenset({"zetacode", "zetawork", "zetawork-gui", "zetaide"})
-_decode_component_id = cast("Decoder[ComponentId]", literal(_COMPONENT_ID_VALUES))
 
 
 AgentSource: TypeAlias = Literal["bundled", "user", "project"]
@@ -156,21 +146,6 @@ _AUTO_COMPACTION_REASON_VALUES: Final[frozenset[str]] = frozenset({"threshold", 
 _decode_auto_compaction_reason = cast("Decoder[AutoCompactionReason]", literal(_AUTO_COMPACTION_REASON_VALUES))
 
 
-CompactionTriggerType: TypeAlias = Literal["manual", "auto", "speculation"]
-_COMPACTION_TRIGGER_TYPE_VALUES: Final[frozenset[str]] = frozenset({"manual", "auto", "speculation"})
-_decode_compaction_trigger_type = cast("Decoder[CompactionTriggerType]", literal(_COMPACTION_TRIGGER_TYPE_VALUES))
-
-
-CompactionPhaseName: TypeAlias = Literal["plan", "summarize", "archive", "commit", "failed", "aborted"]
-_COMPACTION_PHASE_NAME_VALUES: Final[frozenset[str]] = frozenset({"plan", "summarize", "archive", "commit", "failed", "aborted"})
-_decode_compaction_phase_name = cast("Decoder[CompactionPhaseName]", literal(_COMPACTION_PHASE_NAME_VALUES))
-
-
-CompactionPhaseMethod: TypeAlias = Literal["remote", "snapcompact", "handoff", "shake", "soft", "experimental", "extension"]
-_COMPACTION_PHASE_METHOD_VALUES: Final[frozenset[str]] = frozenset({"remote", "snapcompact", "handoff", "shake", "soft", "experimental", "extension"})
-_decode_compaction_phase_method = cast("Decoder[CompactionPhaseMethod]", literal(_COMPACTION_PHASE_METHOD_VALUES))
-
-
 AutoCompactionAction: TypeAlias = Literal["context-full", "remote", "handoff", "shake", "snapcompact"]
 _AUTO_COMPACTION_ACTION_VALUES: Final[frozenset[str]] = frozenset({"context-full", "remote", "handoff", "shake", "snapcompact"})
 _decode_auto_compaction_action = cast("Decoder[AutoCompactionAction]", literal(_AUTO_COMPACTION_ACTION_VALUES))
@@ -194,6 +169,21 @@ _decode_cache_warming_outcome = cast("Decoder[CacheWarmingOutcome]", literal(_CA
 NotifyType: TypeAlias = Literal["info", "warning", "error"]
 _NOTIFY_TYPE_VALUES: Final[frozenset[str]] = frozenset({"info", "warning", "error"})
 _decode_notify_type = cast("Decoder[NotifyType]", literal(_NOTIFY_TYPE_VALUES))
+
+
+CompactionTrigger: TypeAlias = Literal["manual", "auto", "speculation"]
+_COMPACTION_TRIGGER_VALUES: Final[frozenset[str]] = frozenset({"manual", "auto", "speculation"})
+_decode_compaction_trigger = cast("Decoder[CompactionTrigger]", literal(_COMPACTION_TRIGGER_VALUES))
+
+
+CompactionPhase: TypeAlias = Literal["plan", "summarize", "archive", "commit", "failed", "aborted"]
+_COMPACTION_PHASE_VALUES: Final[frozenset[str]] = frozenset({"plan", "summarize", "archive", "commit", "failed", "aborted"})
+_decode_compaction_phase = cast("Decoder[CompactionPhase]", literal(_COMPACTION_PHASE_VALUES))
+
+
+CompactionPhaseMethod: TypeAlias = Literal["remote", "snapcompact", "handoff", "shake", "soft", "experimental", "extension"]
+_COMPACTION_PHASE_METHOD_VALUES: Final[frozenset[str]] = frozenset({"remote", "snapcompact", "handoff", "shake", "soft", "experimental", "extension"})
+_decode_compaction_phase_method = cast("Decoder[CompactionPhaseMethod]", literal(_COMPACTION_PHASE_METHOD_VALUES))
 
 
 PromptStatus: TypeAlias = Literal["completed", "aborted", "error"]
@@ -585,23 +575,9 @@ class ModelInfo:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
-class ComponentInfo:
-    """A companion binary shipped with the product (desktop app, IDE, workbench, runtime)."""
-    id: ComponentId
-    command: str
-    openable: bool
-    path: str | None = None
-    """Resolved absolute executable; absent when not installed."""
-    reason: str | None = None
-    """Why `component_open` refuses this component."""
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
 class TodoItem:
     content: str
     status: TodoStatus
-    blocker: str | None = None
-    """What a `blocked` task is waiting on."""
     details: str | None = None
     notes: tuple[str, ...] | None = None
 
@@ -650,31 +626,6 @@ class Goal:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
-class PlanModeState:
-    """Session plan mode: enabled, where its plan lives, and who armed it."""
-    enabled: bool
-    plan_file_path: str
-    workflow: Literal["parallel", "iterative", "ultra"] | None = None
-    reentry: bool | None = None
-    entered_by: Literal["user", "agent"] | None = None
-    objective: str | None = None
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class VibeModeState:
-    """Session vibe mode."""
-    enabled: bool
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class ModeStates:
-    """Every mode's state, the snapshot a client renders its mode banners from."""
-    plan: PlanModeState | None = None
-    goal: GoalModeState | None = None
-    vibe: VibeModeState | None = None
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
 class GoalModeState:
     """Session goal mode; `mode` is `"exiting"` while a completed goal unwinds."""
     enabled: bool
@@ -718,7 +669,7 @@ class SessionState:
     configured_thinking_level: ConfiguredThinkingLevel | None = None
     """The user's thinking selector: `auto` while auto mode picks the effort, else `thinkingLevel`."""
     thinking_levels: tuple[ConfiguredThinkingLevel, ...] | None = None
-    """Selectors the active model accepts, as omp's thinking selector lists them: `off`, `auto`, then its efforts."""
+    """Selectors the active model accepts, as zeta's thinking selector lists them: `off`, `auto`, then its efforts."""
     is_streaming: bool = False
     is_compacting: bool = False
     steering_mode: QueueMode = "one-at-a-time"
@@ -753,25 +704,7 @@ class SessionState:
     goal: GoalModeState | None = None
     """Current goal mode; null when the session has no goal."""
     guided_goal_interview: bool = False
-    """`/guided-goal` interview is active; the client must treat bare "c" as text."""
-    modes: ModeStates | None = None
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class PythonResult:
-    output: str
-    cancelled: bool
-    truncated: bool
-    total_lines: int
-    total_bytes: int
-    output_lines: int
-    output_bytes: int
-    exit_code: int | None = None
-    artifact_id: str | None = None
-    artifact_elided_bytes: int | None = None
-    artifact_error: JsonObject | None = None
-    display_outputs: tuple[JsonObject, ...] | None = None
-    stdin_requested: bool | None = None
+    """True while the guided-goal interview is open."""
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -856,7 +789,7 @@ class ModelPickerRole:
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class ModelPickerRow:
-    """One row of omp's session model picker."""
+    """One row of zeta's session model picker."""
     provider: str
     id: str
     name: str
@@ -1132,23 +1065,41 @@ class PromptAck:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
-class CompactionFidelityCounts:
-    qa: int
-    paths: int
-    ids: int
-    constraints: int
-    unfinished: int
+class CompactionFidelity:
+    qa: float
+    paths: float
+    ids: float
+    constraints: float
+    unfinished: float
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class CompactionPhaseDetail:
-    tokens_before: int | None = None
-    tokens_after: int | None = None
+    tokens_before: float | None = None
+    tokens_after: float | None = None
     entry_id: str | None = None
-    duration_ms: int | None = None
-    summary_chars: int | None = None
+    duration_ms: float | None = None
+    summary_chars: float | None = None
     error_message: str | None = None
-    fidelity: CompactionFidelityCounts | None = None
+    fidelity: CompactionFidelity | None = None
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class CompactionPhaseEvent:
+    type: Literal["compaction_phase"] = "compaction_phase"
+    pass_id: str
+    trigger: CompactionTrigger
+    phase: CompactionPhase
+    at: float
+    method: CompactionPhaseMethod | None = None
+    reason: str | None = None
+    detail: CompactionPhaseDetail | None = None
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class StateVersionChangedEvent:
+    type: Literal["state_version_changed"] = "state_version_changed"
+    state_version: float
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -1252,22 +1203,6 @@ class AutoCompactionStartEvent:
     type: Literal["auto_compaction_start"] = "auto_compaction_start"
     reason: AutoCompactionReason
     action: AutoCompactionAction
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class CompactionPhaseEvent:
-    """Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`."""
-    type: Literal["compaction_phase"] = "compaction_phase"
-    pass_id: str
-    """Stable per compaction pass; constant across method fallbacks."""
-    trigger: CompactionTriggerType
-    phase: CompactionPhaseName
-    """`plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only."""
-    at: int
-    """Emission time (epoch ms)."""
-    method: CompactionPhaseMethod | None = None
-    reason: str | None = None
-    detail: CompactionPhaseDetail | None = None
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -1448,13 +1383,6 @@ class QueueUpdateEvent:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
-class StateVersionChangedEvent:
-    """Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`)."""
-    type: Literal["state_version_changed"] = "state_version_changed"
-    state_version: float
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
 class ReadyEvent:
     """First frame after startup; transport fields are absent on servers without protocol v2."""
     type: Literal["ready"] = "ready"
@@ -1471,12 +1399,12 @@ class PromptError:
     """Failure detail of a `prompt_result` with `status: "error"`."""
     message: str
     retryable: bool
-    """Transient: resubmitting later may succeed (Zeta's own retries are exhausted)."""
+    """Transient: resubmitting later may succeed (omp's own retries are exhausted)."""
     provider: str | None = None
     model: str | None = None
     http_status: int | None = None
     code: Literal["cost_cap"] | None = None
-    """`cost_cap`: the session reached `session.maxCost` (`--max-cost`) and Zeta did not send the next request."""
+    """`cost_cap`: the session reached `session.maxCost` (`--max-cost`) and omp did not send the next request."""
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -1899,55 +1827,14 @@ class AbortAndDeliverQueueResult:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
-class ChangeCwdResult:
-    cwd: str
+class GuidedGoalResult:
+    started: bool | None = None
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class LiveConnectResult:
     voice: str
     sdp_answer: str
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class LoopStartResult:
-    state: JsonValue
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class LoopStopResult:
-    state: JsonValue
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class LoopPauseResult:
-    state: JsonValue
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class LoopResumeResult:
-    state: JsonValue
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class LoopStatusResult:
-    state: JsonValue
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class GetToolsResult:
-    all: tuple[str, ...]
-    active: tuple[str, ...]
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class ComponentListResult:
-    components: tuple[ComponentInfo, ...]
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class ComponentOpenResult:
-    pid: int
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -1979,7 +1866,7 @@ UsageLimitState: TypeAlias = UsageLimitLowPriority | UsageLimitWrapUp
 """Provider-neutral state of an account past its usage limit, discriminated by `stage`."""
 
 
-RpcAgentEvent: TypeAlias = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | CompactionPhaseEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent
+RpcAgentEvent: TypeAlias = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | CompactionPhaseEvent | StateVersionChangedEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent
 """A session event, discriminated by `type`; `set_event_filter` selects which are sent."""
 
 
@@ -2200,23 +2087,11 @@ def parse_model_info(value: object, path: str = "ModelInfo") -> ModelInfo:
     )
 
 
-def parse_component_info(value: object, path: str = "ComponentInfo") -> ComponentInfo:
-    payload = expect_object(value, path)
-    return ComponentInfo(
-        id=required(payload, "id", _decode_component_id, path),
-        command=required(payload, "command", decode_str, path),
-        openable=required(payload, "openable", decode_bool, path),
-        path=optional(payload, "path", decode_str, path),
-        reason=optional(payload, "reason", decode_str, path),
-    )
-
-
 def parse_todo_item(value: object, path: str = "TodoItem") -> TodoItem:
     payload = expect_object(value, path)
     return TodoItem(
         content=required(payload, "content", decode_str, path),
         status=required(payload, "status", _decode_todo_status, path),
-        blocker=optional(payload, "blocker", decode_str, path),
         details=optional(payload, "details", decode_str, path),
         notes=optional(payload, "notes", array(decode_str), path),
     )
@@ -2269,34 +2144,6 @@ def parse_goal(value: object, path: str = "Goal") -> Goal:
         created_at=required(payload, "createdAt", decode_int, path),
         updated_at=required(payload, "updatedAt", decode_int, path),
         token_budget=optional(payload, "tokenBudget", decode_int, path),
-    )
-
-
-def parse_plan_mode_state(value: object, path: str = "PlanModeState") -> PlanModeState:
-    payload = expect_object(value, path)
-    return PlanModeState(
-        enabled=required(payload, "enabled", decode_bool, path),
-        plan_file_path=required(payload, "planFilePath", decode_str, path),
-        workflow=optional(payload, "workflow", cast('Decoder[Literal["parallel", "iterative", "ultra"]]', literal(frozenset({"parallel", "iterative", "ultra"}))), path),
-        reentry=optional(payload, "reentry", decode_bool, path),
-        entered_by=optional(payload, "enteredBy", cast('Decoder[Literal["user", "agent"]]', literal(frozenset({"user", "agent"}))), path),
-        objective=optional(payload, "objective", decode_str, path),
-    )
-
-
-def parse_vibe_mode_state(value: object, path: str = "VibeModeState") -> VibeModeState:
-    payload = expect_object(value, path)
-    return VibeModeState(
-        enabled=required(payload, "enabled", decode_bool, path),
-    )
-
-
-def parse_mode_states(value: object, path: str = "ModeStates") -> ModeStates:
-    payload = expect_object(value, path)
-    return ModeStates(
-        plan=optional(payload, "plan", parse_plan_mode_state, path),
-        goal=optional(payload, "goal", parse_goal_mode_state, path),
-        vibe=optional(payload, "vibe", parse_vibe_mode_state, path),
     )
 
 
@@ -2370,26 +2217,6 @@ def parse_session_state(value: object, path: str = "SessionState") -> SessionSta
         context_usage=optional(payload, "contextUsage", parse_context_usage, path),
         goal=defaulted(payload, "goal", nullable(parse_goal_mode_state), path, None),
         guided_goal_interview=defaulted(payload, "guidedGoalInterview", decode_bool, path, False),
-        modes=optional(payload, "modes", parse_mode_states, path),
-    )
-
-
-def parse_python_result(value: object, path: str = "PythonResult") -> PythonResult:
-    payload = expect_object(value, path)
-    return PythonResult(
-        output=required(payload, "output", decode_str, path),
-        cancelled=required(payload, "cancelled", decode_bool, path),
-        truncated=required(payload, "truncated", decode_bool, path),
-        total_lines=required(payload, "totalLines", decode_int, path),
-        total_bytes=required(payload, "totalBytes", decode_int, path),
-        output_lines=required(payload, "outputLines", decode_int, path),
-        output_bytes=required(payload, "outputBytes", decode_int, path),
-        exit_code=optional(payload, "exitCode", decode_int, path),
-        artifact_id=optional(payload, "artifactId", decode_str, path),
-        artifact_elided_bytes=optional(payload, "artifactElidedBytes", decode_int, path),
-        artifact_error=optional(payload, "artifactError", decode_json_object, path),
-        display_outputs=optional(payload, "displayOutputs", array(decode_json_object), path),
-        stdin_requested=optional(payload, "stdinRequested", decode_bool, path),
     )
 
 
@@ -2775,27 +2602,49 @@ def parse_prompt_ack(value: object, path: str = "PromptAck") -> PromptAck:
     )
 
 
-def parse_compaction_fidelity_counts(value: object, path: str = "CompactionFidelityCounts") -> CompactionFidelityCounts:
+def parse_compaction_fidelity(value: object, path: str = "CompactionFidelity") -> CompactionFidelity:
     payload = expect_object(value, path)
-    return CompactionFidelityCounts(
-        qa=required(payload, "qa", decode_int, path),
-        paths=required(payload, "paths", decode_int, path),
-        ids=required(payload, "ids", decode_int, path),
-        constraints=required(payload, "constraints", decode_int, path),
-        unfinished=required(payload, "unfinished", decode_int, path),
+    return CompactionFidelity(
+        qa=required(payload, "qa", decode_float, path),
+        paths=required(payload, "paths", decode_float, path),
+        ids=required(payload, "ids", decode_float, path),
+        constraints=required(payload, "constraints", decode_float, path),
+        unfinished=required(payload, "unfinished", decode_float, path),
     )
 
 
 def parse_compaction_phase_detail(value: object, path: str = "CompactionPhaseDetail") -> CompactionPhaseDetail:
     payload = expect_object(value, path)
     return CompactionPhaseDetail(
-        tokens_before=optional(payload, "tokensBefore", decode_int, path),
-        tokens_after=optional(payload, "tokensAfter", decode_int, path),
+        tokens_before=optional(payload, "tokensBefore", decode_float, path),
+        tokens_after=optional(payload, "tokensAfter", decode_float, path),
         entry_id=optional(payload, "entryId", decode_str, path),
-        duration_ms=optional(payload, "durationMs", decode_int, path),
-        summary_chars=optional(payload, "summaryChars", decode_int, path),
+        duration_ms=optional(payload, "durationMs", decode_float, path),
+        summary_chars=optional(payload, "summaryChars", decode_float, path),
         error_message=optional(payload, "errorMessage", decode_str, path),
-        fidelity=optional(payload, "fidelity", parse_compaction_fidelity_counts, path),
+        fidelity=optional(payload, "fidelity", parse_compaction_fidelity, path),
+    )
+
+
+def parse_compaction_phase_event(value: object, path: str = "CompactionPhaseEvent") -> CompactionPhaseEvent:
+    payload = expect_object(value, path)
+    required(payload, "type", cast('Decoder[Literal["compaction_phase"]]', literal(frozenset({"compaction_phase"}))), path)
+    return CompactionPhaseEvent(
+        pass_id=required(payload, "passId", decode_str, path),
+        trigger=required(payload, "trigger", _decode_compaction_trigger, path),
+        phase=required(payload, "phase", _decode_compaction_phase, path),
+        at=required(payload, "at", decode_float, path),
+        method=optional(payload, "method", _decode_compaction_phase_method, path),
+        reason=optional(payload, "reason", decode_str, path),
+        detail=optional(payload, "detail", parse_compaction_phase_detail, path),
+    )
+
+
+def parse_state_version_changed_event(value: object, path: str = "StateVersionChangedEvent") -> StateVersionChangedEvent:
+    payload = expect_object(value, path)
+    required(payload, "type", cast('Decoder[Literal["state_version_changed"]]', literal(frozenset({"state_version_changed"}))), path)
+    return StateVersionChangedEvent(
+        state_version=required(payload, "stateVersion", decode_float, path),
     )
 
 
@@ -2914,20 +2763,6 @@ def parse_auto_compaction_start_event(value: object, path: str = "AutoCompaction
     return AutoCompactionStartEvent(
         reason=required(payload, "reason", _decode_auto_compaction_reason, path),
         action=required(payload, "action", _decode_auto_compaction_action, path),
-    )
-
-
-def parse_compaction_phase_event(value: object, path: str = "CompactionPhaseEvent") -> CompactionPhaseEvent:
-    payload = expect_object(value, path)
-    required(payload, "type", cast('Decoder[Literal["compaction_phase"]]', literal(frozenset({"compaction_phase"}))), path)
-    return CompactionPhaseEvent(
-        pass_id=required(payload, "passId", decode_str, path),
-        trigger=required(payload, "trigger", _decode_compaction_trigger_type, path),
-        phase=required(payload, "phase", _decode_compaction_phase_name, path),
-        at=required(payload, "at", decode_int, path),
-        method=optional(payload, "method", _decode_compaction_phase_method, path),
-        reason=optional(payload, "reason", decode_str, path),
-        detail=optional(payload, "detail", parse_compaction_phase_detail, path),
     )
 
 
@@ -3128,14 +2963,6 @@ def parse_queue_update_event(value: object, path: str = "QueueUpdateEvent") -> Q
         steering=required(payload, "steering", array(decode_str), path),
         follow_up=required(payload, "followUp", array(decode_str), path),
         live_steered=defaulted(payload, "liveSteered", decode_int, path, 0),
-    )
-
-
-def parse_state_version_changed_event(value: object, path: str = "StateVersionChangedEvent") -> StateVersionChangedEvent:
-    payload = expect_object(value, path)
-    required(payload, "type", cast('Decoder[Literal["state_version_changed"]]', literal(frozenset({"state_version_changed"}))), path)
-    return StateVersionChangedEvent(
-        state_version=required(payload, "stateVersion", decode_float, path),
     )
 
 
@@ -3632,10 +3459,10 @@ def parse_abort_and_deliver_queue_result(value: object, path: str = "AbortAndDel
     )
 
 
-def parse_change_cwd_result(value: object, path: str = "ChangeCwdResult") -> ChangeCwdResult:
+def parse_guided_goal_result(value: object, path: str = "GuidedGoalResult") -> GuidedGoalResult:
     payload = expect_object(value, path)
-    return ChangeCwdResult(
-        cwd=required(payload, "cwd", decode_str, path),
+    return GuidedGoalResult(
+        started=optional(payload, "started", decode_bool, path),
     )
 
 
@@ -3644,63 +3471,6 @@ def parse_live_connect_result(value: object, path: str = "LiveConnectResult") ->
     return LiveConnectResult(
         voice=required(payload, "voice", decode_str, path),
         sdp_answer=required(payload, "sdpAnswer", decode_str, path),
-    )
-
-
-def parse_loop_start_result(value: object, path: str = "LoopStartResult") -> LoopStartResult:
-    payload = expect_object(value, path)
-    return LoopStartResult(
-        state=required(payload, "state", decode_json, path),
-    )
-
-
-def parse_loop_stop_result(value: object, path: str = "LoopStopResult") -> LoopStopResult:
-    payload = expect_object(value, path)
-    return LoopStopResult(
-        state=required(payload, "state", decode_json, path),
-    )
-
-
-def parse_loop_pause_result(value: object, path: str = "LoopPauseResult") -> LoopPauseResult:
-    payload = expect_object(value, path)
-    return LoopPauseResult(
-        state=required(payload, "state", decode_json, path),
-    )
-
-
-def parse_loop_resume_result(value: object, path: str = "LoopResumeResult") -> LoopResumeResult:
-    payload = expect_object(value, path)
-    return LoopResumeResult(
-        state=required(payload, "state", decode_json, path),
-    )
-
-
-def parse_loop_status_result(value: object, path: str = "LoopStatusResult") -> LoopStatusResult:
-    payload = expect_object(value, path)
-    return LoopStatusResult(
-        state=required(payload, "state", decode_json, path),
-    )
-
-
-def parse_get_tools_result(value: object, path: str = "GetToolsResult") -> GetToolsResult:
-    payload = expect_object(value, path)
-    return GetToolsResult(
-        all=required(payload, "all", array(decode_str), path),
-        active=required(payload, "active", array(decode_str), path),
-    )
-
-
-def parse_component_list_result(value: object, path: str = "ComponentListResult") -> ComponentListResult:
-    payload = expect_object(value, path)
-    return ComponentListResult(
-        components=required(payload, "components", array(parse_component_info), path),
-    )
-
-
-def parse_component_open_result(value: object, path: str = "ComponentOpenResult") -> ComponentOpenResult:
-    payload = expect_object(value, path)
-    return ComponentOpenResult(
-        pid=required(payload, "pid", decode_int, path),
     )
 
 
@@ -3755,10 +3525,11 @@ _RPC_AGENT_EVENT_CASES: Final[dict[str, Decoder[RpcAgentEvent]]] = {
         "tool_stream_update": parse_tool_stream_update_event,
         "tool_execution_end": parse_tool_execution_end_event,
         "auto_compaction_start": parse_auto_compaction_start_event,
-        "compaction_phase": parse_compaction_phase_event,
         "auto_compaction_end": parse_auto_compaction_end_event,
         "manual_compaction_start": parse_manual_compaction_start_event,
         "manual_compaction_end": parse_manual_compaction_end_event,
+        "compaction_phase": parse_compaction_phase_event,
+        "state_version_changed": parse_state_version_changed_event,
         "auto_retry_start": parse_auto_retry_start_event,
         "auto_retry_end": parse_auto_retry_end_event,
         "cache_warming_start": parse_cache_warming_start_event,
@@ -3777,7 +3548,6 @@ _RPC_AGENT_EVENT_CASES: Final[dict[str, Decoder[RpcAgentEvent]]] = {
         "thinking_level_changed": parse_thinking_level_changed_event,
         "goal_updated": parse_goal_updated_event,
         "queue_update": parse_queue_update_event,
-        "state_version_changed": parse_state_version_changed_event,
 }
 
 
@@ -3816,10 +3586,11 @@ _RPC_NOTIFICATION_CASES: Final[dict[str, Decoder[RpcNotification]]] = {
         "tool_stream_update": parse_rpc_agent_event,
         "tool_execution_end": parse_rpc_agent_event,
         "auto_compaction_start": parse_rpc_agent_event,
-        "compaction_phase": parse_rpc_agent_event,
         "auto_compaction_end": parse_rpc_agent_event,
         "manual_compaction_start": parse_rpc_agent_event,
         "manual_compaction_end": parse_rpc_agent_event,
+        "compaction_phase": parse_rpc_agent_event,
+        "state_version_changed": parse_rpc_agent_event,
         "auto_retry_start": parse_rpc_agent_event,
         "auto_retry_end": parse_rpc_agent_event,
         "cache_warming_start": parse_rpc_agent_event,
@@ -3838,7 +3609,6 @@ _RPC_NOTIFICATION_CASES: Final[dict[str, Decoder[RpcNotification]]] = {
         "thinking_level_changed": parse_rpc_agent_event,
         "goal_updated": parse_rpc_agent_event,
         "queue_update": parse_rpc_agent_event,
-        "state_version_changed": parse_rpc_agent_event,
 }
 
 
@@ -3919,12 +3689,6 @@ class WireClient:
             params["modelId"] = model_id
         return parse_open_session_result(self._command("open_session", params), "open_session")
 
-    def change_cwd(self, cwd: str) -> ChangeCwdResult:
-        """Move the session working directory."""
-        params: dict[str, object] = {}
-        params["cwd"] = cwd
-        return parse_change_cwd_result(self._command("change_cwd", params), "change_cwd")
-
     def get_state(self) -> SessionState:
         """Snapshot the session state."""
         params: dict[str, object] = {}
@@ -3942,14 +3706,14 @@ class WireClient:
         params["enabled"] = enabled
         return required(expect_object(self._command("set_slow_mode", params), "set_slow_mode"), "enabled", decode_bool, "set_slow_mode")
 
-    def guided_goal(self, *, message: str | None = None, images: Sequence[ImageContent] | None = None) -> bool:
-        """Start the /guided-goal interview in this backend session (same kickoff as the TUI command)."""
+    def guided_goal(self, *, message: str | None = None, images: Sequence[ImageContent] | None = None) -> GuidedGoalResult:
+        """Start the guided-goal interview, optionally with an initial message and images."""
         params: dict[str, object] = {}
         if message is not None:
             params["message"] = message
         if images is not None:
             params["images"] = list(images)
-        return required(expect_object(self._command("guided_goal", params), "guided_goal"), "started", decode_bool, "guided_goal")
+        return parse_guided_goal_result(self._command("guided_goal", params), "guided_goal")
 
     def goal(self, op: GoalOp, *, objective: str | None = None, token_budget: int | None = None) -> GoalResult:
         """Read or change goal mode with the lifecycle of the interactive `/goal` command."""
@@ -4146,78 +3910,6 @@ class WireClient:
         params["enabled"] = enabled
         self._command("set_auto_compaction", params)
 
-    def mode_enter(self, mode: SessionModeId, *, options: JsonValue | None = None) -> None:
-        """Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run."""
-        params: dict[str, object] = {}
-        params["mode"] = mode
-        if options is not None:
-            params["options"] = options
-        self._command("mode_enter", params)
-
-    def mode_exit(self, mode: SessionModeId, *, options: JsonValue | None = None) -> None:
-        """Leave a session mode."""
-        params: dict[str, object] = {}
-        params["mode"] = mode
-        if options is not None:
-            params["options"] = options
-        self._command("mode_exit", params)
-
-    def loop_start(self, args: str | None = None) -> LoopStartResult:
-        """Start or replace the backend session's `/loop` (args use the TUI's `/loop` grammar)."""
-        params: dict[str, object] = {}
-        if args is not None:
-            params["args"] = args
-        return parse_loop_start_result(self._command("loop_start", params), "loop_start")
-
-    def loop_stop(self) -> LoopStopResult:
-        """Disable the backend session's loop."""
-        params: dict[str, object] = {}
-        return parse_loop_stop_result(self._command("loop_stop", params), "loop_stop")
-
-    def loop_pause(self) -> LoopPauseResult:
-        """Pause a backend loop and drop its captured prompt."""
-        params: dict[str, object] = {}
-        return parse_loop_pause_result(self._command("loop_pause", params), "loop_pause")
-
-    def loop_resume(self) -> LoopResumeResult:
-        """Resume a paused backend loop with its captured prompt."""
-        params: dict[str, object] = {}
-        return parse_loop_resume_result(self._command("loop_resume", params), "loop_resume")
-
-    def loop_status(self) -> LoopStatusResult:
-        """Read the backend session's loop state."""
-        params: dict[str, object] = {}
-        return parse_loop_status_result(self._command("loop_status", params), "loop_status")
-
-    def get_tools(self) -> GetToolsResult:
-        """List every tool the session knows and the subset that is active."""
-        params: dict[str, object] = {}
-        return parse_get_tools_result(self._command("get_tools", params), "get_tools")
-
-    def set_tools(self, tool_names: Sequence[str]) -> None:
-        """Replace the active tool set by name."""
-        params: dict[str, object] = {}
-        params["toolNames"] = list(tool_names)
-        self._command("set_tools", params)
-
-    def reload(self) -> None:
-        """Reload the session's agent, tools and settings."""
-        params: dict[str, object] = {}
-        self._command("reload", params)
-
-    def component_list(self) -> ComponentListResult:
-        """List the companion components and whether each is installed on this host."""
-        params: dict[str, object] = {}
-        return parse_component_list_result(self._command("component_list", params), "component_list")
-
-    def component_open(self, component: ComponentId, *, args: Sequence[str] | None = None) -> ComponentOpenResult:
-        """Launch a GUI companion (desktop app or IDE) as a detached process; returns its pid."""
-        params: dict[str, object] = {}
-        params["component"] = component
-        if args is not None:
-            params["args"] = list(args)
-        return parse_component_open_result(self._command("component_open", params), "component_open")
-
     def set_cache_warming(self, mode: CacheWarmingMode) -> CacheWarmingMode:
         """Override cache warming for this session only; returns the effective mode."""
         params: dict[str, object] = {}
@@ -4242,14 +3934,6 @@ class WireClient:
         if exclude_from_context is not None:
             params["excludeFromContext"] = exclude_from_context
         return parse_bash_result(self._command("bash", params), "bash")
-
-    def python(self, code: str, *, exclude_from_context: bool | None = None) -> PythonResult:
-        """Run Python code in the session kernel."""
-        params: dict[str, object] = {}
-        params["code"] = code
-        if exclude_from_context is not None:
-            params["excludeFromContext"] = exclude_from_context
-        return parse_python_result(self._command("python", params), "python")
 
     def abort_bash(self) -> None:
         """Abort the running shell command."""
@@ -4549,10 +4233,6 @@ class WireClient:
         """Subscribe to `auto_compaction_start` frames."""
         return self._listen("auto_compaction_start", listener)
 
-    def on_compaction_phase(self, listener: Callable[[CompactionPhaseEvent], None]) -> Callable[[], None]:
-        """Subscribe to `compaction_phase`: Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`."""
-        return self._listen("compaction_phase", listener)
-
     def on_auto_compaction_end(self, listener: Callable[[AutoCompactionEndEvent], None]) -> Callable[[], None]:
         """Subscribe to `auto_compaction_end` frames."""
         return self._listen("auto_compaction_end", listener)
@@ -4564,6 +4244,14 @@ class WireClient:
     def on_manual_compaction_end(self, listener: Callable[[ManualCompactionEndEvent], None]) -> Callable[[], None]:
         """Subscribe to `manual_compaction_end`: Outcome of the compaction announced by the matching `manual_compaction_start`."""
         return self._listen("manual_compaction_end", listener)
+
+    def on_compaction_phase(self, listener: Callable[[CompactionPhaseEvent], None]) -> Callable[[], None]:
+        """Subscribe to `compaction_phase` frames."""
+        return self._listen("compaction_phase", listener)
+
+    def on_state_version_changed(self, listener: Callable[[StateVersionChangedEvent], None]) -> Callable[[], None]:
+        """Subscribe to `state_version_changed` frames."""
+        return self._listen("state_version_changed", listener)
 
     def on_auto_retry_start(self, listener: Callable[[AutoRetryStartEvent], None]) -> Callable[[], None]:
         """Subscribe to `auto_retry_start` frames."""
@@ -4637,10 +4325,6 @@ class WireClient:
         """Subscribe to `queue_update`: Coalesced snapshot of the displayable steering/follow-up queue, sent whenever it changes."""
         return self._listen("queue_update", listener)
 
-    def on_state_version_changed(self, listener: Callable[[StateVersionChangedEvent], None]) -> Callable[[], None]:
-        """Subscribe to `state_version_changed`: Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`)."""
-        return self._listen("state_version_changed", listener)
-
 
 __all__ = [
     "AbortAndDeliverQueueResult",
@@ -4699,20 +4383,15 @@ __all__ = [
     "CacheWarmingStartEvent",
     "CancelUiRequest",
     "CancellationResult",
-    "ChangeCwdResult",
     "CommandOutputEvent",
-    "CompactionFidelityCounts",
+    "CompactionFidelity",
+    "CompactionPhase",
     "CompactionPhaseDetail",
     "CompactionPhaseEvent",
     "CompactionPhaseMethod",
-    "CompactionPhaseName",
     "CompactionResult",
     "CompactionSummaryMessage",
-    "CompactionTriggerType",
-    "ComponentId",
-    "ComponentInfo",
-    "ComponentListResult",
-    "ComponentOpenResult",
+    "CompactionTrigger",
     "ConfigUpdateEvent",
     "ConfigWarningsChangedEvent",
     "ConfiguredThinkingLevel",
@@ -4734,13 +4413,13 @@ __all__ = [
     "FileMentionMessage",
     "FormUiRequest",
     "GetSessionLeaseResult",
-    "GetToolsResult",
     "Goal",
     "GoalModeState",
     "GoalOp",
     "GoalResult",
     "GoalStatus",
     "GoalUpdatedEvent",
+    "GuidedGoalResult",
     "HandoffResult",
     "HookMessage",
     "HostToolDefinition",
@@ -4760,11 +4439,6 @@ __all__ = [
     "LoginProvider",
     "LogoutAccount",
     "LogoutResult",
-    "LoopPauseResult",
-    "LoopResumeResult",
-    "LoopStartResult",
-    "LoopStatusResult",
-    "LoopStopResult",
     "ManualCompactionEndEvent",
     "ManualCompactionStartEvent",
     "MessageContent",
@@ -4773,7 +4447,6 @@ __all__ = [
     "MessageUpdateEvent",
     "MessageUpdates",
     "MessagesPage",
-    "ModeStates",
     "ModelChangedEvent",
     "ModelCost",
     "ModelCycleResult",
@@ -4789,14 +4462,12 @@ __all__ = [
     "OpenSessionResult",
     "OpenUrlUiRequest",
     "ParentIrc",
-    "PlanModeState",
     "PromoteQueuedMessageResult",
     "PromptAck",
     "PromptError",
     "PromptResultEvent",
     "PromptStatus",
     "PythonExecutionMessage",
-    "PythonResult",
     "QueueMode",
     "QueueUpdateEvent",
     "QueuedMessageQueue",
@@ -4815,7 +4486,6 @@ __all__ = [
     "SessionCredits",
     "SessionEntries",
     "SessionInfoUpdateEvent",
-    "SessionModeId",
     "SessionSettledEvent",
     "SessionState",
     "SessionStats",
@@ -4873,7 +4543,6 @@ __all__ = [
     "UsageLimitWrapUp",
     "UserContent",
     "UserMessage",
-    "VibeModeState",
     "WidgetPlacement",
     "parse_abort_and_deliver_queue_result",
     "parse_abort_and_restore_queue_result",
@@ -4922,16 +4591,12 @@ __all__ = [
     "parse_cache_warming_start_event",
     "parse_cancel_ui_request",
     "parse_cancellation_result",
-    "parse_change_cwd_result",
     "parse_command_output_event",
-    "parse_compaction_fidelity_counts",
+    "parse_compaction_fidelity",
     "parse_compaction_phase_detail",
     "parse_compaction_phase_event",
     "parse_compaction_result",
     "parse_compaction_summary_message",
-    "parse_component_info",
-    "parse_component_list_result",
-    "parse_component_open_result",
     "parse_config_update_event",
     "parse_config_warnings_changed_event",
     "parse_confirm_ui_request",
@@ -4950,11 +4615,11 @@ __all__ = [
     "parse_file_mention_message",
     "parse_form_ui_request",
     "parse_get_session_lease_result",
-    "parse_get_tools_result",
     "parse_goal",
     "parse_goal_mode_state",
     "parse_goal_result",
     "parse_goal_updated_event",
+    "parse_guided_goal_result",
     "parse_handoff_result",
     "parse_hook_message",
     "parse_host_tool_definition",
@@ -4971,18 +4636,12 @@ __all__ = [
     "parse_login_provider",
     "parse_logout_account",
     "parse_logout_result",
-    "parse_loop_pause_result",
-    "parse_loop_resume_result",
-    "parse_loop_start_result",
-    "parse_loop_status_result",
-    "parse_loop_stop_result",
     "parse_manual_compaction_end_event",
     "parse_manual_compaction_start_event",
     "parse_message_end_event",
     "parse_message_start_event",
     "parse_message_update_event",
     "parse_messages_page",
-    "parse_mode_states",
     "parse_model_changed_event",
     "parse_model_cost",
     "parse_model_cycle_result",
@@ -4998,13 +4657,11 @@ __all__ = [
     "parse_open_session_result",
     "parse_open_url_ui_request",
     "parse_parent_irc",
-    "parse_plan_mode_state",
     "parse_promote_queued_message_result",
     "parse_prompt_ack",
     "parse_prompt_error",
     "parse_prompt_result_event",
     "parse_python_execution_message",
-    "parse_python_result",
     "parse_queue_update_event",
     "parse_queued_messages_state",
     "parse_ready_event",
@@ -5067,5 +4724,4 @@ __all__ = [
     "parse_usage_limit_wrap_up",
     "parse_user_content",
     "parse_user_message",
-    "parse_vibe_mode_state",
 ]

@@ -1,6 +1,6 @@
-import { type } from "@oh-my-pi/omptype";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { getWebKitHostPath, isRecord, logger, untilAborted } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/zeta-schema";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { getWebKitHostPath, isRecord, logger, untilAborted } from "@linxiraos/pi-utils";
 import type { EvalPreludeContext, HostEvalPreludeDefinition } from "../eval/preludes";
 import type { ToolSession } from "../sdk";
 import { enforceInlineByteCap } from "./streaming-output";
@@ -104,6 +104,7 @@ export {
 	type SnapshotPostProcessOptions,
 } from "./browser/snapshot-plus";
 export { isRelayOnly, type RelayKind, resolveRelayKind } from "./browser/relay/kind";
+export { DEFAULT_RELAY_URL } from "../collab/protocol";
 export { type TernKind, resolveTernKind } from "./browser/tern/kind";
 export { resolveWebKitKind, type WebKitKind } from "./browser/webkit/kind";
 export type { Observation, ObservationEntry } from "./browser/tab-protocol";

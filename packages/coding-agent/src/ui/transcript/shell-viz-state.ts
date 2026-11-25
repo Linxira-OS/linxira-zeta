@@ -7,8 +7,8 @@
  * `play`, `pause`, `step`, `reset`, `live`, `seek:3`, `speed:2`,
  * `select:<node>`, `expand:<node>`).
  */
-import { batch, type Signal, signal } from "@oh-my-pi/pi-tui";
-import type { ShellTrace, ShellVizPreferences } from "@oh-my-pi/pi-wire";
+import { batch, type Signal, signal } from "@linxiraos/pi-tui";
+import type { ShellTrace, ShellVizPreferences } from "@linxiraos/pi-wire";
 import { defaultShellVizPreferences } from "../../tools/shell-viz";
 import { applyShellVizAction } from "../apps/shell-visualizer/model";
 

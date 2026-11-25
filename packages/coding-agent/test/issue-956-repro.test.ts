@@ -2,12 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi }
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as mcpClient from "@oh-my-pi/pi-coding-agent/mcp/client";
-import * as mcpConfigWriter from "@oh-my-pi/pi-coding-agent/mcp/config-writer";
-import { HostLink } from "@oh-my-pi/pi-coding-agent/mcp/link";
-import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { getConfigRootDir, getProjectDir, removeWithRetries, setAgentDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import * as mcpClient from "@linxiraos/zeta/mcp/client";
+import * as mcpConfigWriter from "@linxiraos/zeta/mcp/config-writer";
+import { HostLink } from "@linxiraos/zeta/mcp/link";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { getConfigRootDir, getProjectDir, removeWithRetries, setAgentDir, setProjectDir } from "@linxiraos/pi-utils";
 import { initTheme } from "../src/ui/theme/service";
 import {
 	type ContextOverrides,

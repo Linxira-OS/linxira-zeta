@@ -1,10 +1,10 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Composer shape: pick the prompt and status-line layout. The highlighted
  * shape previews below the list (natively the preview is the composer's own
  * rendering, sent as `ansi` at 80 columns).
  */
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import "../../styles/setup";
 import { composerShape } from "../../styles/composer/shapes";
 import { composerShapePreviewRows } from "../../styles/overlays/composer-shape-preview";
@@ -41,7 +41,7 @@ export const composerScene: SetupScene = {
 		return {
 			body: (
 				<col
-					role="omp.setup.composer"
+					role="zeta.setup.composer"
 					gap="sm"
 					term={() => ({ maxLines: context.maxLines() })}
 					onKey={key => model.key(key)}

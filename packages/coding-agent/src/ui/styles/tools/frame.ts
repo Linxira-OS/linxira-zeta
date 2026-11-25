@@ -4,12 +4,12 @@
  * edge; status glyphs (spinner while running); the expand hints collapsed
  * bodies end with.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-tui/term/painters/spinner";
-import { padTo, replaceTabs, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/term/painters/spinner";
+import { padTo, replaceTabs, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import { expandKeyLabel } from "../../keys/hints";
 import { type ToolProps, toolProps } from "./look";
 

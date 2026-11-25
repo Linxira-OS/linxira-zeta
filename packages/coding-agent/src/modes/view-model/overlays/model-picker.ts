@@ -1,6 +1,6 @@
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { clampThinkingLevelForModel, getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { type KeyId } from "../../../config/keybindings/key-id";
 import { AUTO_THINKING } from "../../../thinking/levels";
 import { type ConfiguredThinkingLevel } from "../../../utils/render-utils";

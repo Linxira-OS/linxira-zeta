@@ -9,12 +9,12 @@
  *
  * Reads the run box (`code#input`, `ansi#output`) and {@link BashTerm}.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { ansiLines } from "@oh-my-pi/pi-tui/term/painters/ansi";
-import { highlightCode } from "@oh-my-pi/pi-tui/text/highlight";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import type { ShellVizPresentation } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { ansiLines } from "@linxiraos/pi-tui/term/painters/ansi";
+import { highlightCode } from "@linxiraos/pi-tui/text/highlight";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import type { ShellVizPresentation } from "@linxiraos/pi-wire";
 import type { BashStat, BashTerm } from "../../tools/bash";
 import { resultPictures, withoutDrawnPlaceholders } from "./file-common";
 import {

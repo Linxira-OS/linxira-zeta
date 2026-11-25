@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { kStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { InteractiveModeContext, TranscriptEntry } from "@oh-my-pi/pi-coding-agent/modes/types";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { kStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { InteractiveModeContext, TranscriptEntry } from "@linxiraos/zeta/modes/types";
 import type { TranscriptBlock } from "../../../src/ui/shell";
 import { initTheme } from "../../../src/ui/theme/service";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";

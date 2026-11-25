@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { untilAborted } from "@oh-my-pi/pi-utils";
+import { untilAborted } from "@linxiraos/pi-utils";
 import type { HTTPRequest, HTTPResponse, Page } from "puppeteer-core";
 import { ToolError } from "../tool-errors";
 

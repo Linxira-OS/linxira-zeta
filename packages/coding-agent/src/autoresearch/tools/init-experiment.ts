@@ -1,9 +1,4 @@
-import {
-	HARNESS_FILENAME,
-	DEFAULT_HARNESS_COMMAND,
-	type InitExperimentDetails,
-} from "@linxiraos/pi-tui/tools/autoresearch";
-import { initExperimentToolRenderer } from "@linxiraos/pi-tui/tools/autoresearch";
+import { HARNESS_FILENAME, DEFAULT_HARNESS_COMMAND, type InitExperimentDetails } from "../tool-details";
 import * as path from "node:path";
 import { type } from "@linxiraos/zeta-schema";
 import * as vcs from "@linxiraos/pi-natives/vcs";
@@ -36,7 +31,6 @@ export function createInitExperimentTool(
 	options: AutoresearchToolFactoryOptions,
 ): ToolDefinition<typeof initExperimentSchema, InitExperimentDetails> {
 	return {
-		...initExperimentToolRenderer,
 		name: "init_experiment",
 		label: "Init Experiment",
 		description:

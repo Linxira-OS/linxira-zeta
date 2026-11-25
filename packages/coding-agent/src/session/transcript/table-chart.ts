@@ -13,7 +13,6 @@ import { lexMarkdown, type Token, type Tokens } from "@linxiraos/pi-tui/text/mar
 import { buildChart, type ChartPlan, planChart, shouldJudge, worthCharting } from "../../auto-graph/chart-plan";
 import { renderChartSvg } from "../../auto-graph/chart-svg";
 import { analyzeTable, type TableAnalysis } from "../../auto-graph/table-data";
-import type { Token, Tokens } from "@linxiraos/pi-utils/marked";
 
 /**
  * `smart`: a model refines the local guess where meaning decides (kind,

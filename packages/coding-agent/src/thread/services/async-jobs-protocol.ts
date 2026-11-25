@@ -15,7 +15,7 @@
  * `ASYNC_JOB_MANAGER_SHUTDOWN_REASON` to a plain sentinel and
  * {@link fromWireReason} maps it back on the receiving thread.
  */
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import type { JobWidgetView } from "../../tools/details/job-widget";
 import {
 	ASYNC_JOB_MANAGER_SHUTDOWN_REASON,
@@ -146,6 +146,10 @@ export type AsyncJobManagerProtocol = {
 	cancel: RpcMethod<[id: string, filter: AsyncJobFilter | undefined], boolean>;
 	getJob: RpcMethod<[id: string], AsyncJobWire | undefined>;
 	getRunningJobs: RpcMethod<[filter: AsyncJobFilter | undefined], AsyncJobWire[]>;
+	/** Next adaptive wait window for a hub `wait`; see the poll ladder. */
+	nextPollWaitMs: RpcMethod<[ownerId: string | undefined, now: number | undefined], number>;
+	/** Record that a poll wait returned, resetting a long-gap ladder. */
+	recordPollWaitEnd: RpcMethod<[ownerId: string | undefined, now: number | undefined], void>;
 	getRecentJobs: RpcMethod<[limit: number | undefined, filter: AsyncJobFilter | undefined], AsyncJobWire[]>;
 	getAllJobs: RpcMethod<[filter: AsyncJobFilter | undefined], AsyncJobWire[]>;
 	backgroundJob: RpcMethod<[jobId: string], boolean>;

@@ -117,7 +117,7 @@ const create = async (
 		enableLsp: false,
 		enableIrc: true,
 		skipPythonPreflight: true,
-		cacheWarming: false,
+		cacheWarming: "off",
 		toolNames: tools,
 		restrictToolNames: true,
 	});

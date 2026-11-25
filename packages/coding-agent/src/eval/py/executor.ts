@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { getProjectDir, isRecord, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { getProjectDir, isRecord, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { ArtifactAllocator, OutputArtifactError } from "../../tools/streaming-output";
 import type { ToolSession } from "../../tools";
 import {
@@ -62,6 +62,8 @@ export interface PythonToolInvokeOptions {
 }
 
 export interface PythonExecutorOptions {
+	/** Tool call id of the outer agent tool invocation that owns this cell (nested eval bridge). */
+	outerToolCallId?: string;
 	/** Working directory for command execution */
 	cwd?: string;
 	/** Source filename for file-backed execution and tracebacks. */

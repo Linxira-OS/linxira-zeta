@@ -1,5 +1,5 @@
 // Gallery fixtures for agentic orchestration (task, wait, goal, yield).
-import type { Usage } from "@oh-my-pi/pi-ai";
+import type { Usage } from "@linxiraos/pi-ai";
 import type { TaskToolDetails, YieldItem } from "../../task/task-details";
 import type { GalleryFixture } from "./types";
 

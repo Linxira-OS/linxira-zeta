@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { createRoot, effect, runWithOwner } from "@oh-my-pi/pi-tui";
+/** @jsxImportSource @linxiraos/pi-tui */
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { createRoot, effect, runWithOwner } from "@linxiraos/pi-tui";
 import { generateGitCommit } from "../commit/conventional/service";
 import type { ModelUsageLedger } from "../session/model-usage-journal";
 import { type FullscreenShell, presentFullscreen, withStandaloneShell } from "../ui/apps/fullscreen";

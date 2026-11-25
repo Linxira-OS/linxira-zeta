@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/session` info: the session report as structured groups (identity fields
  * with copy buttons, the context-window meter, message/token/cost columns,
@@ -8,11 +8,11 @@
  * The report arrives as styled text (`Key: value` lines with a dim key, bold
  * section heads); {@link parseSessionReport} reads it back into groups.
  */
-import { type Accessor, type JSXNode, signal, untrack } from "@oh-my-pi/pi-tui";
-import { stripEscapes } from "@oh-my-pi/pi-tui/text/ansi";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspKvProps, TspSpan } from "@oh-my-pi/pi-wire";
+import { type Accessor, type JSXNode, signal, untrack } from "@linxiraos/pi-tui";
+import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { formatNumber } from "@linxiraos/pi-utils";
+import type { TspKvProps, TspSpan } from "@linxiraos/pi-wire";
 import "../../styles/panels/session-info";
 import { matchesSelectCancel, selectKeyId } from "../../../config/keybindings/matchers";
 import { actionKeyId, cancelKbd } from "../../keys/hints";
@@ -129,12 +129,12 @@ function IdentityField(props: {
 }): JSXNode {
 	const shown = <text grow={1} shrink={1} truncate="middle" spans={[{ s: props.style, t: props.text }]} />;
 	return (
-		<row key={IDENTITY_KEYS[props.label]} role="omp.info.field" align="center" gap="md">
-			<text role="omp.info.label" shrink={0} wrap="none" spans={[{ t: props.label }]} />
+		<row key={IDENTITY_KEYS[props.label]} role="zeta.info.field" align="center" gap="md">
+			<text role="zeta.info.label" shrink={0} wrap="none" spans={[{ t: props.label }]} />
 			{props.copy ? (
 				<row
 					key="value"
-					role="omp.info.copy"
+					role="zeta.info.copy"
 					align="center"
 					gap="sm"
 					grow={1}
@@ -143,7 +143,7 @@ function IdentityField(props: {
 					actions={{ click: "copy" }}
 				>
 					{shown}
-					<icon role="omp.info.copy.ic" name="copy" aria={props.copy} />
+					<icon role="zeta.info.copy.ic" name="copy" aria={props.copy} />
 				</row>
 			) : (
 				shown
@@ -156,8 +156,8 @@ function ContextMeter(props: { readonly usage: SessionContextUsage }): JSXNode {
 	const { tokens, contextWindow, percent } = props.usage;
 	const title = `${tokens.toLocaleString("en-US")} of ${contextWindow.toLocaleString("en-US")} tokens`;
 	return (
-		<col key="context" role="omp.info.context" title={title}>
-			<row key="head" role="omp.info.contextHead" align="baseline">
+		<col key="context" role="zeta.info.context" title={title}>
+			<row key="head" role="zeta.info.contextHead" align="baseline">
 				<text grow={1} shrink={1} truncate="end" spans={[{ t: "Context window" }]} />
 				<text
 					shrink={0}
@@ -197,7 +197,7 @@ function entryRows(entries: readonly ReportEntry[], mono: boolean): JSXNode[] {
 	for (const entry of entries) {
 		if (!("key" in entry)) {
 			flush();
-			out.push(<text role="omp.info.note" wrap="word" spans={entry.line} />);
+			out.push(<text role="zeta.info.note" wrap="word" spans={entry.line} />);
 			continue;
 		}
 		const v = mono ? entry.value.map(part => ({ ...part, s: part.s ? `${part.s} mono` : "mono" })) : entry.value;
@@ -230,18 +230,18 @@ function StatColumns(props: { readonly groups: readonly StatGroup[] }): JSXNode 
 		const column = columns[0]!.lines === 0 || columns[0]!.lines < columns[1]!.lines ? columns[0]! : columns[1]!;
 		column.lines += group.items.length + 2;
 		column.children.push(
-			<section key={group.key} role="omp.info.group" head={sentenceCase(group.head)}>
-				<kv role="omp.info.nums" layout="grid" items={items} />
-				{total && <kv role="omp.info.total" layout="grid" items={[total]} />}
+			<section key={group.key} role="zeta.info.group" head={sentenceCase(group.head)}>
+				<kv role="zeta.info.nums" layout="grid" items={items} />
+				{total && <kv role="zeta.info.total" layout="grid" items={[total]} />}
 			</section>,
 		);
 	}
 	return (
-		<row key="stats" role="omp.info.stats" align="start" wrap>
+		<row key="stats" role="zeta.info.stats" align="start" wrap>
 			{columns
 				.filter(column => column.children.length > 0)
 				.map((column, index) => (
-					<col key={`c${index}`} role="omp.info.column">
+					<col key={`c${index}`} role="zeta.info.column">
 						{column.children}
 					</col>
 				))}
@@ -282,7 +282,7 @@ function reportGroups(parsed: readonly ReportSection[], context: SessionContextU
 			const identity: JSXNode[] = [];
 			const rest: JSXNode[] = [];
 			for (const entry of entries) {
-				if (!("key" in entry)) rest.push(<text role="omp.info.note" wrap="word" spans={entry.line} />);
+				if (!("key" in entry)) rest.push(<text role="zeta.info.note" wrap="word" spans={entry.line} />);
 				else if (entry.key === "ID")
 					identity.unshift(<IdentityField label="ID" text={entry.text} style="mono" copy="Copy session ID" />);
 				else if (entry.key === "File")
@@ -297,11 +297,11 @@ function reportGroups(parsed: readonly ReportSection[], context: SessionContextU
 					identity.push(
 						<IdentityField label="Local" text={entry.text} style="path" copy={`Copy ${entry.text}`} />,
 					);
-				else rest.push(<kv role="omp.info.kv" items={[{ k: entry.key, v: entry.value }]} />);
+				else rest.push(<kv role="zeta.info.kv" items={[{ k: entry.key, v: entry.value }]} />);
 			}
 			if (identity.length > 0) {
 				out.push(
-					<col key="identity" role="omp.info.identity">
+					<col key="identity" role="zeta.info.identity">
 						{identity}
 					</col>,
 				);
@@ -331,7 +331,7 @@ function reportGroups(parsed: readonly ReportSection[], context: SessionContextU
 		}
 		flushStats();
 		out.push(
-			<section key={`s${index}`} role="omp.info.group" head={sentenceCase(head)}>
+			<section key={`s${index}`} role="zeta.info.group" head={sentenceCase(head)}>
 				{entryRows(entries, head === "Provider")}
 			</section>,
 		);
@@ -409,7 +409,7 @@ export function SessionInfo(props: SessionInfoProps): JSXNode {
 			}}
 		>
 			{reportGroups(report, props.context)}
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<ActionButton
 					id="close"

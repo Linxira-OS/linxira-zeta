@@ -11,13 +11,13 @@
  * its result images as placeholders but for those the tool block draws as
  * pictures under the card.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { padTo, truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { padTo, truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { argsSummaryCells, visibleArgKeys } from "../../tools/args";
-import { ansiLines } from "@oh-my-pi/pi-tui/term/painters/ansi";
+import { ansiLines } from "@linxiraos/pi-tui/term/painters/ansi";
 import { resultPictures } from "./file-common";
 import { expandHint, isActive, moreLinesHint, statusGlyph } from "./frame";
 import { jsonTreeRows } from "./json-tree";

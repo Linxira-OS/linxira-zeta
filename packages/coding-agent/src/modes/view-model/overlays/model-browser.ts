@@ -3,16 +3,16 @@
  * order, search ranking, and the price/mark facts every model list shows
  * (the alt+p picker, the /models hub, setup, RPC `get_model_picker`).
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
 import {
 	getEffectiveTokenCost,
 	getFactoryDroidCreditRate,
 	getModelPricingStatus,
 	modelsAreEqual,
-} from "@oh-my-pi/pi-catalog/models";
-import { type ModelKind, type ModelPricingStatus, modelKind } from "@oh-my-pi/pi-catalog/types";
-import type { TspPickerColumn, TspPickerMark } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-catalog/models";
+import { type ModelKind, type ModelPricingStatus, modelKind } from "@linxiraos/pi-catalog/types";
+import type { TspPickerColumn, TspPickerMark } from "@linxiraos/pi-wire";
 import { AUTO_THINKING, parseConfiguredThinkingLevel } from "../../../thinking/levels";
 import { type FuzzyFilterResult, type FuzzyMatch, FuzzyQuery, FuzzyText, fuzzyRank } from "../../../utils/fuzzy";
 import { type ConfiguredThinkingLevel } from "../../../utils/render-utils";

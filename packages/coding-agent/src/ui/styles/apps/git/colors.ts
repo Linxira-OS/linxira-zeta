@@ -4,8 +4,8 @@
  * line background), filled pills pick their label contrast from the fill's
  * luminance.
  */
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { colorLuma, hexToRgb, mixHex } from "@oh-my-pi/pi-utils/color";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { colorLuma, hexToRgb, mixHex } from "@linxiraos/pi-utils/color";
 
 const RESET = "\x1b[0m";
 

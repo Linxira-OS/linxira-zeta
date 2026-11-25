@@ -39,3 +39,5 @@ export type {
 	MCPResourceLinkContent,
 	MCPContent,
 } from "../tools/details/mcp";
+
+export { DeferredMCPTool } from "./tool-bridge";

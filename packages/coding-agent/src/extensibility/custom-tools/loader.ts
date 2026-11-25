@@ -1,16 +1,16 @@
 /**
  * Custom tool loader - loads TypeScript tool modules through the same loader
- * as extensions, so `@oh-my-pi/*` imports resolve to the host's bundled copy
+ * as extensions, so `@linxiraos/*` imports resolve to the host's bundled copy
  * (in the compiled binary there is no other copy to resolve).
  *
  * Dependencies are also injected through CustomToolAPI so tools loaded from
  * user directories need no workspace module resolution.
  */
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import * as zod from "@oh-my-pi/omptype/zod";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { logger } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/zeta-schema";
+import * as zod from "@linxiraos/zeta-schema/zod";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { logger } from "@linxiraos/pi-utils";
 import { toolCapability } from "../../capability/tool";
 import type { EffectiveExtensionRoots } from "../../capability/types";
 import { type CustomTool, loadCapability } from "../../discovery";

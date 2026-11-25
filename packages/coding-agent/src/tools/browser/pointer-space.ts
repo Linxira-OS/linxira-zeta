@@ -16,7 +16,7 @@
  * A frame belongs to the viewport size it pictured. Once the tab is known to have another size, image
  * positions throw rather than land somewhere else, until a new screenshot replaces the frame.
  */
-import type { ImageSize } from "@oh-my-pi/pi-catalog/compat/image-tokenization";
+import type { ImageSize } from "@linxiraos/pi-catalog/compat/image-tokenization";
 import { ToolError } from "../tool-errors";
 
 /** Where a viewport lies on the screenshot of it the model was shown. */

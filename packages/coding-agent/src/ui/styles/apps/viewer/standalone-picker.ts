@@ -4,9 +4,9 @@
  * rows gets the scrollbar and, under the rows, the search line: muted
  * `  Type to search`, or `  Search: ` and the query with a block caret.
  */
-import { definePickerLook, paintPickerList, pickerTerm } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
+import { definePickerLook, paintPickerList, pickerTerm } from "@linxiraos/pi-tui/term/painters/picker";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
 
 /** The look id of the standalone select prompt. */
 export const STANDALONE_LOOK = "omp.standalone";

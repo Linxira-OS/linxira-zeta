@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { AgentTool, AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import { type MCPToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/mcp";
+import type { AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
+import { TempDir } from "@linxiraos/pi-utils";
+import { type MCPToolDetails } from "@linxiraos/zeta/tools/details/mcp";
 
 import { resetSettingsForTest, Settings } from "../../src/config/settings";
 import type { CustomToolContext, CustomToolResult } from "../../src/extensibility/custom-tools/types";
@@ -12,7 +12,7 @@ import type { MCPServerConnection, MCPToolCallParams, MCPToolCallResult, MCPTool
 import { SessionManager } from "../../src/session/session-manager";
 import { wrapToolWithMetaNotice } from "../../src/tools/output-meta";
 import { toolText } from "../helpers/tool-text";
-import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme, setCurrentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));

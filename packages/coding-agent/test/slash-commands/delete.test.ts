@@ -13,7 +13,6 @@ function createRuntimeHarness() {
 		handleDeleteCommand,
 		runtime: {
 			ctx: {
-				editor: { setText } as unknown as InteractiveModeContext["editor"],
 				showError,
 				handleDeleteCommand,
 				sessionManager: {

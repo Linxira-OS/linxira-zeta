@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/debug`: the debug tools menu (profiling, report bundles, log and raw SSE
  * viewers, system/terminal state, the terminal protocol probe, the JS remote
@@ -10,11 +10,11 @@
  */
 import * as fs from "node:fs/promises";
 import * as url from "node:url";
-import { getWorkProfile } from "@oh-my-pi/pi-natives";
-import { type JSXNode, nativeRendering, signal } from "@oh-my-pi/pi-tui";
-import { isNotificationSuppressed, type TerminalNotification } from "@oh-my-pi/pi-tui/driver/notify";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
-import { formatBytes, getSessionsDir } from "@oh-my-pi/pi-utils";
+import { getWorkProfile } from "@linxiraos/pi-natives";
+import { type JSXNode, nativeRendering, signal } from "@linxiraos/pi-tui";
+import { isNotificationSuppressed, type TerminalNotification } from "@linxiraos/pi-tui/driver/notify";
+import type { TspSpan } from "@linxiraos/pi-wire";
+import { formatBytes, getSessionsDir } from "@linxiraos/pi-utils";
 import { getKeybindings } from "../config/keybindings/keybindings";
 import type { Settings } from "../config/settings";
 import { buildSampleImage } from "../modes/view-model/apps/debug/protocol-probe";

@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The user's turn: a head-less user-toned card holding the prompt as
  * Markdown under its attached images.
@@ -15,9 +15,9 @@
  *
  * Terminal look: `omp.user` (`src/ui/styles/messages/user.ts`).
  */
-import { For, type JSXNode, type Reactive, read, Show } from "@oh-my-pi/pi-tui";
-import { formatBytes } from "@oh-my-pi/pi-utils";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { For, type JSXNode, type Reactive, read, Show } from "@linxiraos/pi-tui";
+import { formatBytes } from "@linxiraos/pi-utils";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { type GlowingKeyword, magicKeywordLetters } from "../../composer/magic-keywords";
 import { cardExpansion } from "../expansion";
 import { chipMarks, chipText, termChips } from "./chips";
@@ -71,11 +71,11 @@ function timeOf(at: number, hour12: boolean | undefined): { short: string; full:
 function UserTools(props: { model: UserMessageModel }): JSXNode {
 	const { model } = props;
 	return (
-		<row key="tools" gap="xs" align="center" role="omp.user.tools">
+		<row key="tools" gap="xs" align="center" role="zeta.user.tools">
 			<icon
 				key="copy"
 				name="copy"
-				role="omp.user.tool"
+				role="zeta.user.tool"
 				title="Copy message"
 				aria="Copy message"
 				actions={{ click: "copy-message" }}
@@ -83,7 +83,7 @@ function UserTools(props: { model: UserMessageModel }): JSXNode {
 			<icon
 				key="edit"
 				name="edit"
-				role="omp.user.tool"
+				role="zeta.user.tool"
 				title="Edit & resend: rewind to before this message and put it in the composer"
 				aria="Edit & resend"
 				actions={{ click: "edit-turn" }}
@@ -91,7 +91,7 @@ function UserTools(props: { model: UserMessageModel }): JSXNode {
 			{model.timestamp !== undefined && [
 				<text key="dot" text="·" />,
 				<text
-					role="omp.user.time"
+					role="zeta.user.time"
 					spans={() => [
 						{
 							t: timeOf(model.timestamp!, read(model.hour12)).short,
@@ -143,7 +143,7 @@ export function SyntheticMessage(props: {
 	};
 	return (
 		<card
-			role="omp.user.synthetic"
+			role="zeta.user.synthetic"
 			tone="muted"
 			head={[{ t: syntheticSummary(props.text), s: "dim" }]}
 			collapsible
@@ -212,7 +212,7 @@ export function UserMessage(props: { model: UserMessageModel }): JSXNode {
 				<UserTools model={model} />
 			</Show>
 			{thumbs.length > 0 && (
-				<row gap="sm" wrap align="start" role="omp.user.images">
+				<row gap="sm" wrap align="start" role="zeta.user.images">
 					{thumbs.map(({ image, i }) => (
 						<ImageNode
 							image={image}
@@ -226,13 +226,13 @@ export function UserMessage(props: { model: UserMessageModel }): JSXNode {
 			)}
 			<md text={display.text} marks={marks} term={() => ({ chips, synthetic, keywords: keywords() })} />
 			<Show when={() => badges().length > 0}>
-				<row key="badges" gap="xs" justify="end" role="omp.user.badges">
+				<row key="badges" gap="xs" justify="end" role="zeta.user.badges">
 					<For each={badges}>
 						{badge =>
 							badge.steered ? (
 								<badge text="steered" tone="accent" title="Delivered into the response that was streaming" />
 							) : (
-								<badge text={badge.text} role="omp.reaction" />
+								<badge text={badge.text} role="zeta.reaction" />
 							)
 						}
 					</For>

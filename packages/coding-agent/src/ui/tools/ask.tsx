@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `ask`: an HTML form the model asks the user with. While it waits, the ask
  * panel over the composer owns the questions (the transcript shows nothing);
@@ -7,9 +7,9 @@
  *
  * Terminal look: `ask` (`src/ui/styles/tools/ask.ts`), fed by {@link AskTerm}.
  */
-import { formatCount, isRecord, sanitizeText } from "@oh-my-pi/pi-utils";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import { formatCount, isRecord, sanitizeText } from "@linxiraos/pi-utils";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import { type FormAnswer, fieldQuestions, type OptionNote } from "../../tools/html-form/data";
 import { type HtmlForm, parseHtmlForm } from "../../tools/html-form/parse";
 import type { ToolHead, ToolPresenter, ToolView } from "./contract";
@@ -131,12 +131,12 @@ function AnswerSection(props: {
 		<section key={props.nodeKey}>
 			<text spans={[{ t: oneLine(props.question) }]} wrap="word" />
 			{props.shown ? (
-				<row gap="sm" align="baseline" role="omp.tool.answer">
+				<row gap="sm" align="baseline" role="zeta.tool.answer">
 					<icon name="check" tone="success" />
 					<text spans={[{ t: props.shown, s: "toolOutput" }]} wrap="word" />
 				</row>
 			) : (
-				<text spans={[{ t: NO_ANSWER, s: "dim" }]} role="omp.tool.answer.off" />
+				<text spans={[{ t: NO_ANSWER, s: "dim" }]} role="zeta.tool.answer.off" />
 			)}
 			{props.notes.map(note => (
 				<text
@@ -145,7 +145,7 @@ function AnswerSection(props: {
 						{ t: `${oneLine(note.option)}: ${clean(note.text)}`, s: "em" },
 					]}
 					wrap="word"
-					role="omp.tool.answer.note"
+					role="zeta.tool.answer.note"
 				/>
 			))}
 		</section>
@@ -196,7 +196,7 @@ export const askPresenter: ToolPresenter<AskArgs, AskDetails> = {
 						notes={notesOf(answer)}
 					/>
 				)),
-				timedOut && <text spans={[{ t: TIMED_OUT_NOTE, s: "muted" }]} wrap="word" role="omp.tool.notice" />,
+				timedOut && <text spans={[{ t: TIMED_OUT_NOTE, s: "muted" }]} wrap="word" role="zeta.tool.notice" />,
 			],
 			term: {
 				look: "ask",

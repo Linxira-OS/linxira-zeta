@@ -62,11 +62,11 @@ import {
 	hubFallbackStatsSession,
 	hubRowMetrics,
 	progressMetrics,
-	STATUS_ORDER,
-} from "@linxiraos/pi-tui/overlays/agent-hub-projection";
-import type { AgentMetricsSummary, AgentRecordLike, AgentStatus } from "@linxiraos/pi-tui/overlays/agent-hub-types";
-import type { ObservableSession } from "@linxiraos/pi-tui/overlays/session-observer-registry";
-import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
+} from "../../modes/view-model/overlays/agent-hub-projection";
+import type { AgentMetricsSummary, AgentRecordLike, AgentStatus } from "../../registry/agent-hub-types";
+import { STATUS_ORDER } from "../../ui/overlays/pickers/agent-hub-model";
+import type { ObservableSession } from "../../task/session-observer-registry";
+import type { AgentProgress } from "../../task/task-details";
 import { getDefault } from "../../config/settings-schema";
 import { readRpcSubagentTranscript, RpcSubagentRegistry } from "../../modes/rpc/rpc-subagents";
 import type { RpcSubagentFrame, RpcSubagentSnapshot } from "../../modes/rpc/rpc-types";
@@ -421,7 +421,7 @@ function rowMetricsFor(ref: AgentRef, progress: AgentProgress | undefined): Agen
 	// once the run ended — is deliberately not reported.
 	const { metrics } = aggregateMetrics<AgentRecordLike>({
 		rows: [ref as unknown as AgentRecordLike],
-		observedById: new Map<string, ObservableSession>(),
+		observedById: new Map<string, ObservableSession>() as ReadonlyMap<string, ObservableSession>,
 		metricsFor: (row, observed) => hubRowMetrics(row, observed, fallbackSessionMetrics),
 		fallbackStatsSession: hubFallbackStatsSession,
 		sessionMetrics: fallbackSessionMetrics,

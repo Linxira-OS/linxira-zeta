@@ -2,7 +2,7 @@
  * A turn's long-press menu (`actions.hold`): what a phone offers on a prompt
  * or an answer. A desktop ignores it and keeps the hover controls.
  */
-import type { TspMenuEntry } from "@oh-my-pi/pi-wire";
+import type { TspMenuEntry } from "@linxiraos/pi-wire";
 
 /** The hold-menu entries of a turn: its copy entry, Edit & resend (prompts only), Retry, Rewind and Fork. */
 export function turnHoldEntries(role: "user" | "assistant", copy: TspMenuEntry): TspMenuEntry[] {

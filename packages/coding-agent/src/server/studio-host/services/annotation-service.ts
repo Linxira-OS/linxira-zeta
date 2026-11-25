@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { open, realpath } from "node:fs/promises";
 import * as path from "node:path";
-import type { TextReviewAnnotation } from "@linxiraos/pi-tui/overlays/annotation-types";
+import type { TextReviewAnnotation } from "../../../extensibility/custom-commands/bundled/annotate/annotation-types";
 import { buildTextReviewPrompt } from "../../../extensibility/custom-commands/bundled/annotate/text-review.js";
 import { buildReviewPrompt } from "../../../extensibility/custom-commands/bundled/review/prompt.js";
 import {

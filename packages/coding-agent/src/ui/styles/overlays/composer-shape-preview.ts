@@ -5,10 +5,10 @@
  * its top chrome as the shape attaches it — and the shape's bottom status
  * bar, after a blank row when the shape asks for one.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, type PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { spaces, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, type PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { spaces, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { PREVIEW_PROMPT, type ComposerShapePreviewLook } from "../../overlays/composer-shape-preview";
 import {
 	type ComposerChromeContext,

@@ -6,6 +6,11 @@ export interface PersistedScanOptions {
 	shouldContinue?: () => boolean;
 	hydrateHistory?: boolean;
 	/**
+	 * Known root owner when scanning a subagent's own transcript tree; defaults
+	 * to the registry ref whose sessionFile is the scanned transcript.
+	 */
+	ownerId?: string;
+	/**
 	 * When supplied, every (id → sessionFile) pair this scan restores or
 	 * confirms as this root's parked ref is recorded here: the narrowest
 	 * root-ownership token `ensurePersistedRoster` validates settled latches
@@ -14,6 +19,13 @@ export interface PersistedScanOptions {
 	owned?: Map<string, string>;
 	/** Observe refs already registered from a different root whose transcript is also present in this root. */
 	onCopiedRef?: (ref: AgentRef) => void;
+	/**
+	 * Whether a same-id parked ref owned by another root may be reclaimed by
+	 * this scan; defaults true.
+	 */
+	replaceForeignParked?: boolean;
+	/** Observe every source-tree transcript, even one whose id collides with a foreign ref. */
+	onSubagentTranscript?: (id: string, sessionFile: string) => void;
 }
 
 /**

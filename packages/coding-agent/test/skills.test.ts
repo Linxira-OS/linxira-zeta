@@ -2,21 +2,21 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, spyOn } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disableUserSource, enableUserSource } from "@oh-my-pi/pi-coding-agent/capability";
-import { type Skill as CapabilitySkill, skillCapability } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import { getCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { getWslWindowsHomeCandidate, runHostProbe } from "@oh-my-pi/pi-coding-agent/discovery/agents";
+import { disableUserSource, enableUserSource } from "@linxiraos/zeta/capability";
+import { type Skill as CapabilitySkill, skillCapability } from "@linxiraos/zeta/capability/skill";
+import { getCapability } from "@linxiraos/zeta/discovery";
+import { getWslWindowsHomeCandidate, runHostProbe } from "@linxiraos/zeta/discovery/agents";
 import {
 	type LoadSkillsResult,
 	loadSkills,
 	loadSkillsFromDir,
 	parseSkillInvocation,
-} from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/skill-protocol";
-import { buildSystemPrompt } from "@oh-my-pi/pi-coding-agent/system-prompt";
-import { CombinedAutocompleteProvider } from "@oh-my-pi/pi-coding-agent/autocomplete/autocomplete";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/skills";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { SkillProtocolHandler } from "@linxiraos/zeta/internal-urls/skill-protocol";
+import { buildSystemPrompt } from "@linxiraos/zeta/system-prompt";
+import { CombinedAutocompleteProvider } from "@linxiraos/zeta/autocomplete/autocomplete";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");

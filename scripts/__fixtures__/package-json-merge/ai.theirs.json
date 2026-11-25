@@ -2,34 +2,20 @@
 	"name": "@linxiraos/pi-ai",
 	"version": "18.10.0",
 	"description": "Unified LLM API with automatic model discovery and provider configuration",
-	"keywords": [
-		"ai",
-		"anthropic",
-		"api",
-		"gemini",
-		"llm",
-		"openai",
-		"unified"
-	],
+	"keywords": ["ai", "anthropic", "api", "gemini", "llm", "openai", "unified"],
 	"homepage": "https://omp.sh",
 	"bugs": {
 		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
 	},
 	"license": "MIT",
 	"author": { "name": "Stencil Labs, Inc.", "url": "https://stencil.so" },
-	"contributors": [
-		"Mario Zechner"
-	],
+	"contributors": ["Mario Zechner"],
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/ai"
 	},
-	"files": [
-		"src",
-		"README.md",
-		"CHANGELOG.md"
-	],
+	"files": ["src", "README.md", "CHANGELOG.md"],
 	"type": "module",
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",

@@ -19,8 +19,8 @@
  * @example
  * configureProviderSlotBroker(new DaemonProviderSlots());
  */
-import type { ProviderSlotBroker } from "@oh-my-pi/pi-ai/stream";
-import { getConfigRootDir, isBunTestRuntime, isRecord, logger, toError } from "@oh-my-pi/pi-utils";
+import type { ProviderSlotBroker } from "@linxiraos/pi-ai/stream";
+import { getConfigRootDir, isBunTestRuntime, isRecord, logger, toError } from "@linxiraos/pi-utils";
 import { lineReader } from "../../irc/mesh-protocol";
 import { daemonClient, openTunnel } from "../client";
 import type { DaemonModule, ModuleTunnel, ModuleUnit } from "../module";

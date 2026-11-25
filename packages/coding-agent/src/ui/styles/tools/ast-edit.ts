@@ -7,9 +7,9 @@
  * bottom edge. No replacements: a warning head line, or a card listing the
  * parse issues. Reads {@link AstEditTerm}.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, truncate, wrap } from "@linxiraos/pi-tui/text/width";
 import { AST_EDIT_PREVIEW_ROWS, type AstEditTerm } from "../../tools/ast-edit";
 import {
 	classifyGroupedLines,

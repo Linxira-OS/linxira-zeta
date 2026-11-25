@@ -1,4 +1,4 @@
-import { RunTrace, ShellVisualization, type ShellVizOptions } from "@linxiraos/pi-natives";
+import { type PipeStreams, RunTrace, ShellVisualization, type ShellVizOptions } from "@linxiraos/pi-natives";
 import { logger } from "@linxiraos/pi-utils";
 import type {
 	ShellTrace,
@@ -8,30 +8,49 @@ import type {
 	ShellVizSegment,
 	ShellVizWatch,
 } from "@linxiraos/pi-wire";
+import { nativeShellStreams, type ShellStream } from "./shell-steps";
 
 /** Native live-run or restored-trace owner; the UI never holds shell syntax. */
 export type ShellVisualizationSource = RunTrace | ShellVisualization;
+/** Each snapshot's native owner; `null` marks one the engine rejected, so it is not restored again per paint. */
+const visualizations = new WeakMap<ShellTrace, ShellVisualizationSource | null>();
 
-/** A snapshot's native owner; `null` marks one the engine rejected, so it is not restored again per paint. */
-const kVisualization = Symbol("shellTrace.visualization");
+/** A live snapshot's run streams: the pipes and files its steps write, read while the run's card is drawn. */
+const kRunStreams = Symbol("shellTrace.streams");
 
-interface VisualizedShellTrace extends ShellTrace {
-	[kVisualization]?: ShellVisualizationSource | null;
-}
-
-/** Bind a live run's snapshot to the run before publishing it, so paints present the run itself. */
-export function attachShellTrace(snapshot: ShellTrace, trace: RunTrace): void {
-	(snapshot as VisualizedShellTrace)[kVisualization] = trace;
+/** A snapshot possibly bound to its run's streams by {@link attachShellTrace}. */
+interface LiveShellTrace extends ShellTrace {
+	[kRunStreams]?: PipeStreams;
 }
 
 /**
- * The native owner of `snapshot`: the live run it was bound to, else its
- * canonical archive restored once. Undefined when the engine rejects it
- * (e.g. a `tool_result` hook rewrote `script`).
+ * Bind the immutable snapshot before publishing it; live paints borrow the
+ * actual run, and with `streams` the run's tapped pipes and redirected files.
+ */
+export function attachShellTrace(snapshot: ShellTrace, trace: RunTrace, streams?: PipeStreams): void {
+	visualizations.set(snapshot, trace);
+	const live: LiveShellTrace = snapshot;
+	if (streams) live[kRunStreams] = streams;
+}
+
+/**
+ * The streams of the run `snapshot` was taken from, now; undefined for a
+ * snapshot not bound to a live run's streams (a reloaded trace, or a run
+ * without taps), whose steps write only into its own output.
+ */
+export function shellTraceStreams(snapshot: ShellTrace): ShellStream[] | undefined {
+	const live: LiveShellTrace = snapshot;
+	const streams = live[kRunStreams];
+	return streams && nativeShellStreams(streams);
+}
+
+/**
+ * Historical traces restore their canonical native archive only once per snapshot.
+ * `undefined` when the engine rejects the snapshot (e.g. a `tool_result` hook rewrote
+ * `script`); callers then render the plain command and output.
  */
 export function shellVisualization(snapshot: ShellTrace): ShellVisualizationSource | undefined {
-	const held = snapshot as VisualizedShellTrace;
-	let visualization = held[kVisualization];
+	let visualization = visualizations.get(snapshot);
 	if (visualization === undefined) {
 		try {
 			visualization = new ShellVisualization(JSON.stringify(snapshot));
@@ -41,7 +60,7 @@ export function shellVisualization(snapshot: ShellTrace): ShellVisualizationSour
 			});
 			visualization = null;
 		}
-		held[kVisualization] = visualization;
+		visualizations.set(snapshot, visualization);
 	}
 	return visualization ?? undefined;
 }
@@ -82,36 +101,28 @@ export function readShellPresentation(
 function record(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-
 function finite(value: unknown): value is number {
 	return typeof value === "number" && Number.isFinite(value);
 }
-
 function string(value: unknown): value is string {
 	return typeof value === "string";
 }
-
 function boolean(value: unknown): value is boolean {
 	return typeof value === "boolean";
 }
-
 /** Node keys are opaque; validation must never invent or reinterpret engine identity. */
 export function isShellVizNode(value: unknown): value is string {
 	return typeof value === "string" && /^(0|[1-9][0-9]*):(0|[1-9][0-9]*):(0|[1-9][0-9]*)$/.test(value);
 }
-
 function optional(value: Record<string, unknown>, key: string, valid: (value: unknown) => boolean): boolean {
 	return value[key] === undefined || valid(value[key]);
 }
-
 function range(value: unknown): boolean {
 	return Array.isArray(value) && value.length === 2 && value.every(finite) && value[0] >= 0 && value[1] >= value[0];
 }
-
 function state(value: unknown): boolean {
 	return value === "pending" || value === "running" || value === "ok" || value === "fail" || value === "skipped";
 }
-
 function preferences(value: unknown): value is ShellVizPreferences {
 	if (!record(value) || !record(value.layers)) return false;
 	const layers = value.layers;
@@ -127,7 +138,6 @@ function preferences(value: unknown): value is ShellVizPreferences {
 		value.expandedNodes.every(isShellVizNode)
 	);
 }
-
 function watch(value: unknown): value is ShellVizWatch {
 	return (
 		record(value) &&
@@ -141,7 +151,6 @@ function watch(value: unknown): value is ShellVizWatch {
 		optional(value, "setterSeq", finite)
 	);
 }
-
 function segment(value: unknown): value is ShellVizSegment {
 	return (
 		record(value) &&
@@ -159,7 +168,6 @@ function segment(value: unknown): value is ShellVizSegment {
 		optional(value, "language", string)
 	);
 }
-
 function row(value: unknown): value is ShellVizRow {
 	return (
 		record(value) &&
@@ -188,7 +196,6 @@ function row(value: unknown): value is ShellVizRow {
 		optional(value, "annotations", annotations => Array.isArray(annotations) && annotations.every(watch))
 	);
 }
-
 function presentation(value: unknown): value is ShellVizPresentation {
 	if (!record(value) || !record(value.timeline)) return false;
 	const timeline = value.timeline;

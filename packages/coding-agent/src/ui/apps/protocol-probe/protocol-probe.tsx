@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/debug protocols`: one sample of every special terminal protocol (SGR
  * styling, OSC 8 links, OSC 66 text sizing, inline graphics, the desktop
@@ -7,11 +7,11 @@
  * The terminal frames the panel between two rules and draws the underline
  * and 24-bit sweep of the styling sample (see the `omp.app.probe` look).
  */
-import { type JSXNode, nativeRendering } from "@oh-my-pi/pi-tui";
-import { registerBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import { textSized } from "@oh-my-pi/pi-tui/text/osc";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { type JSXNode, nativeRendering } from "@linxiraos/pi-tui";
+import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
+import { textSized } from "@linxiraos/pi-tui/text/osc";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { SampleImage } from "../../../modes/view-model/apps/debug/protocol-probe";
 import "../../styles/apps/protocol-probe/look";
 import { imageLinkTarget } from "../../transcript/image-links";

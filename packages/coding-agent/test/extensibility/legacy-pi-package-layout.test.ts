@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	collectBundledPiEntries,
 	createLegacyPiVirtualModulePlugin,
@@ -9,14 +9,14 @@ import {
 
 /** The bundled packages as they ship on npm: scope directory name and published name. */
 const NPM_PACKAGES: readonly (readonly [npmDir: string, name: string])[] = [
-	["pi-agent-core", "@oh-my-pi/pi-agent-core"],
-	["pi-ai", "@oh-my-pi/pi-ai"],
-	["pi-catalog", "@oh-my-pi/pi-catalog"],
-	["pi-coding-agent", "@oh-my-pi/pi-coding-agent"],
-	["pi-natives", "@oh-my-pi/pi-natives"],
-	["pi-tui", "@oh-my-pi/pi-tui"],
-	["pi-utils", "@oh-my-pi/pi-utils"],
-	["omptype", "@oh-my-pi/omptype"],
+	["pi-agent-core", "@linxiraos/pi-agent-core"],
+	["pi-ai", "@linxiraos/pi-ai"],
+	["pi-catalog", "@linxiraos/pi-catalog"],
+	["pi-coding-agent", "@linxiraos/zeta"],
+	["pi-natives", "@linxiraos/pi-natives"],
+	["pi-tui", "@linxiraos/pi-tui"],
+	["pi-utils", "@linxiraos/pi-utils"],
+	["omptype", "@linxiraos/zeta-schema"],
 ];
 
 /** The shims the collector points at inside the installed coding-agent package. */
@@ -44,14 +44,14 @@ async function writeInstalledPackage(dir: string, name: string, marker: string =
 	await Bun.write(path.join(dir, "src/sub/helper.ts"), "export const helper = 1;\n");
 }
 
-/** The installed `@oh-my-pi/pi-coding-agent` package: manifest plus the shims it ships. */
+/** The installed `@linxiraos/zeta` package: manifest plus the shims it ships. */
 async function writeInstalledCodingAgent(packageDir: string): Promise<void> {
 	// The published package exports its root, which is also what lets Node
 	// resolve the package by its own name from inside itself.
 	await Bun.write(
 		path.join(packageDir, "package.json"),
 		JSON.stringify({
-			name: "@oh-my-pi/pi-coding-agent",
+			name: "@linxiraos/zeta",
 			version: "0.0.0",
 			exports: { ".": "./src/index.ts" },
 		}),
@@ -68,9 +68,9 @@ async function bundleLegacyPiModules(layout: LegacyPiLayout, host: string): Prom
 	await Bun.write(
 		entry,
 		[
-			'import { BUNDLED_PI_MODULE_LOADERS } from "omp-legacy-pi-modules";',
-			'export const loadAgent = BUNDLED_PI_MODULE_LOADERS["@oh-my-pi/pi-agent-core"];',
-			'export const loadOauth = BUNDLED_PI_MODULE_LOADERS["@oh-my-pi/pi-agent-core/oauth"];',
+			'import { BUNDLED_PI_MODULE_LOADERS } from "zeta-legacy-pi-modules";',
+			'export const loadAgent = BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-agent-core"];',
+			'export const loadOauth = BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-agent-core/oauth"];',
 		].join("\n"),
 	);
 	const result = await Bun.build({
@@ -93,7 +93,7 @@ async function bundleLegacyPiModules(layout: LegacyPiLayout, host: string): Prom
 describe("legacy pi virtual module package layout (issue #15208)", () => {
 	it("resolves the bundled packages from a hoisted npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-hoisted-");
-		const scopeDir = path.join(temp.path(), "node_modules", "@oh-my-pi");
+		const scopeDir = path.join(temp.path(), "node_modules", "@linxiraos");
 		for (const [npmDir, name] of NPM_PACKAGES) {
 			await writeInstalledPackage(path.join(scopeDir, npmDir), name);
 		}
@@ -107,24 +107,24 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 
 		// The agent package ships as `pi-agent-core`, so its directory name in
 		// the install is not the monorepo's `packages/agent`.
-		expect(keys).toContain("@oh-my-pi/pi-agent-core");
-		expect(keys).toContain("@oh-my-pi/pi-agent-core/oauth");
+		expect(keys).toContain("@linxiraos/pi-agent-core");
+		expect(keys).toContain("@linxiraos/pi-agent-core/oauth");
 		// A wildcard export expands against the resolved package root, so the
 		// key can only exist when that root was read from the install.
-		expect(keys).toContain("@oh-my-pi/pi-agent-core/sub/helper");
+		expect(keys).toContain("@linxiraos/pi-agent-core/sub/helper");
 		// Shims stay inside the installed coding-agent package.
-		expect(entries.find(entry => entry.key === "@oh-my-pi/pi-ai")?.importSpecifier).toBe(
+		expect(entries.find(entry => entry.key === "@linxiraos/pi-ai")?.importSpecifier).toBe(
 			path.join(layout.packageDir, "src", "extensibility", "legacy-pi-ai-shim.ts"),
 		);
 	});
 
 	it("resolves the bundled packages from a nested npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-nested-");
-		const packageDir = path.join(temp.path(), "node_modules", "@oh-my-pi", "pi-coding-agent");
+		const packageDir = path.join(temp.path(), "node_modules", "@linxiraos", "pi-coding-agent");
 		// `--install-strategy=nested` keeps the dependencies inside the package
 		// that needs them, so no sibling copy exists to fall back to.
 		for (const [npmDir, name] of NPM_PACKAGES) {
-			await writeInstalledPackage(path.join(packageDir, "node_modules", "@oh-my-pi", npmDir), name);
+			await writeInstalledPackage(path.join(packageDir, "node_modules", "@linxiraos", npmDir), name);
 		}
 		const layout: LegacyPiLayout = {
 			packageDir,
@@ -133,22 +133,22 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 
 		const keys = (await collectBundledPiEntries(layout)).map(entry => entry.key);
 
-		expect(keys).toContain("@oh-my-pi/pi-agent-core");
-		expect(keys).toContain("@oh-my-pi/pi-agent-core/sub/helper");
+		expect(keys).toContain("@linxiraos/pi-agent-core");
+		expect(keys).toContain("@linxiraos/pi-agent-core/sub/helper");
 	});
 
 	// The generated loaders import the bundled packages by their bare names, so
 	// the bundler resolves them against the importing module's directory. The
 	// virtual module therefore has to live inside the installed package: a
 	// host project has no copy of the Pi packages when npm keeps them nested,
-	// and the build then failed with `Could not resolve: "@oh-my-pi/pi-agent-core"`.
+	// and the build then failed with `Could not resolve: "@linxiraos/pi-agent-core"`.
 	it("bundles the packages of a nested npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-nested-build-");
 		const host = temp.path();
-		const packageDir = path.join(host, "node_modules", "@oh-my-pi", "pi-coding-agent");
+		const packageDir = path.join(host, "node_modules", "@linxiraos", "pi-coding-agent");
 		for (const [npmDir, name] of NPM_PACKAGES) {
 			await writeInstalledPackage(
-				path.join(packageDir, "node_modules", "@oh-my-pi", npmDir),
+				path.join(packageDir, "node_modules", "@linxiraos", npmDir),
 				name,
 				`nested:${npmDir}`,
 			);
@@ -165,9 +165,9 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 	it("bundles the packages of a hoisted npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-hoisted-build-");
 		const host = temp.path();
-		const packageDir = path.join(host, "node_modules", "@oh-my-pi", "pi-coding-agent");
+		const packageDir = path.join(host, "node_modules", "@linxiraos", "pi-coding-agent");
 		for (const [npmDir, name] of NPM_PACKAGES) {
-			await writeInstalledPackage(path.join(host, "node_modules", "@oh-my-pi", npmDir), name, `hoisted:${npmDir}`);
+			await writeInstalledPackage(path.join(host, "node_modules", "@linxiraos", npmDir), name, `hoisted:${npmDir}`);
 		}
 		await writeInstalledCodingAgent(packageDir);
 		const layout: LegacyPiLayout = { packageDir, repoRoot: path.join(host, "node_modules") };

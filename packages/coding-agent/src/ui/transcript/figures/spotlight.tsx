@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The Spotlight notice under a shaped tool result: one native line (role
  * `omp.tool.spotlight`, key `spotlight:<toolCallId>`) saying what shaping
@@ -7,9 +7,9 @@
  * original, accent with a pulsing star for an applied one. The terminal
  * shows nothing.
  */
-import { formatNumber } from "@oh-my-pi/pi-utils";
-import { type JSXNode, type Reactive, read } from "@oh-my-pi/pi-tui";
-import type { TspPropNode, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { formatNumber } from "@linxiraos/pi-utils";
+import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
+import type { TspPropNode, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import type { SpotlightDetails, SpotlightOriginal, SpotlightReason } from "../../../tools/details/spotlight";
 
 /** The notice's action: open the result's Spotlight sheet. */
@@ -121,7 +121,7 @@ export function SpotlightNotice(props: {
 		spotlight.plainTokens === undefined ? spotlight.savedTokens : spotlight.plainTokens - spotlight.outTokens;
 	return (
 		<text
-			role="omp.tool.spotlight"
+			role="zeta.tool.spotlight"
 			propKey={`spotlight:${props.toolCallId}`}
 			tone={spotlight.original && !heldBack ? "accent" : "muted"}
 			spans={noticeSpans(spotlight, saving)}

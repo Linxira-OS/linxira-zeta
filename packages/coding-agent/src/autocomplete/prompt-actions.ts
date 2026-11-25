@@ -1,4 +1,4 @@
-import { untilAborted } from "@oh-my-pi/pi-utils/abortable";
+import { untilAborted } from "@linxiraos/pi-utils/abortable";
 import type { Keybinding } from "../config/keybindings/app-keybindings";
 import type { KeybindingsManager } from "../config/keybindings/keybindings";
 import {

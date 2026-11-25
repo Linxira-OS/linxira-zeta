@@ -1,7 +1,7 @@
-import type { AssistantMessage, completeSimple } from "@oh-my-pi/pi-ai";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ImageDescriptions } from "@oh-my-pi/pi-coding-agent/utils/image-vision-fallback";
+import type { AssistantMessage, completeSimple } from "@linxiraos/pi-ai";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { Settings } from "@linxiraos/zeta/config/settings";
+import { ImageDescriptions } from "@linxiraos/zeta/utils/image-vision-fallback";
 
 /**
  * The image descriptions the SDK installs, for tests that build `Agent` and `AgentSession` directly: pass

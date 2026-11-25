@@ -3,9 +3,9 @@
  * blank row, and a dim notice where the sample would be (the terminal
  * backend does not draw images inside panels).
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { truncate } from "@oh-my-pi/pi-tui/text/width";
-import type { TspTextProps } from "@oh-my-pi/pi-wire";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { truncate } from "@linxiraos/pi-tui/text/width";
+import type { TspTextProps } from "@linxiraos/pi-wire";
 import { plainText, propsOf, termOf } from "./common";
 
 const NOTICES: Readonly<Record<string, string>> = {

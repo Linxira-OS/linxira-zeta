@@ -2,8 +2,8 @@
  * A request's usage in the terminal: a blank row, then the metrics (`⤵ 18K
  * ⤴ 640  💾 12K`) two spaces apart, dim, with the standard horizontal padding.
  */
-import { type Block, defineRolePainter } from "@oh-my-pi/pi-tui/term/paint";
-import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
+import { wrap } from "@linxiraos/pi-tui/text/width";
 import { terminalPaddingX } from "../terminal-padding";
 import type { UsageMetric } from "../../overlays/panels/usage-row";
 import { termOf } from "./common";

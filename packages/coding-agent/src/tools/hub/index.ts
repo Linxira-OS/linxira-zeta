@@ -46,7 +46,7 @@ import {
 } from "./jobs";
 
 import { executeLaunch } from "./launch";
-import { type LaunchParams } from "@linxiraos/pi-tui/tools/hub";
+import { type LaunchParams } from "./protocol";
 import {
 	drainPendingInbox,
 	executeInbox,
@@ -56,10 +56,10 @@ import {
 	messageResult,
 } from "./messaging";
 
-import { DEFAULT_HUB_LIST_LIMIT, type HubDetails, MAX_HUB_LIST_LIMIT } from "@linxiraos/pi-tui/tools/hub";
+import { DEFAULT_HUB_LIST_LIMIT, type HubDetails, MAX_HUB_LIST_LIMIT } from "./protocol";
 import { hubErrorResult } from "./types";
 
-export type { LaunchParams, LaunchToolDetails } from "@linxiraos/pi-tui/tools/hub";
+export type { LaunchParams, LaunchToolDetails } from "./protocol";
 export { isIrcEnabled } from "./messaging";
 export * from "./types";
 

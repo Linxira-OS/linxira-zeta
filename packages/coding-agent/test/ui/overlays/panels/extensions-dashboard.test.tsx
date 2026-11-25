@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal, type UiEvent } from "@oh-my-pi/pi-tui";
-import { corpusEnvironment } from "@oh-my-pi/pi-tui/testing/corpus";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal, type UiEvent } from "@linxiraos/pi-tui";
+import { corpusEnvironment } from "@linxiraos/pi-tui/testing/corpus";
 import type { ExtensionDashboardRuntime } from "../../../../src/extensibility/inventory/extension-dashboard";
 import type {
 	MCPConnectionDisplay,

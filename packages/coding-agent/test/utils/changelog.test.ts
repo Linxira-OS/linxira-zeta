@@ -14,7 +14,7 @@ import { Buffer } from "node:buffer";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries, VERSION } from "@oh-my-pi/pi-utils";
+import { removeWithRetries, VERSION } from "@linxiraos/pi-utils";
 import { lookup } from "../../src/config/registry";
 import { Settings } from "../../src/config/settings";
 import {
@@ -36,7 +36,7 @@ import {
 	writeLastChangelogVersion,
 } from "../../src/utils/changelog";
 
-import { cfgStartupChangelogMode } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgStartupChangelogMode } from "@linxiraos/zeta/modes/settings";
 
 const CURRENT_VERSION = "2.0.0";
 function release(major: number, minor: number, patch: number, body: string): ChangelogEntry {

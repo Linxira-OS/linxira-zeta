@@ -66,7 +66,7 @@ import { unwrapHashlineHeaderPath } from "./hashline-header-path";
 import { outputMeta } from "./output-meta";
 import { formatPathRelativeToCwd, probeLiteralPathExists, resolveToCwd, specialFileKind } from "./path-utils";
 import { splitPathAndSel } from "./details/read";
-import { enforcePlanModeWrite, resolvePlanPath, targetsLocalSandbox} from "./plan-mode-guard";
+import { enforcePlanModeWrite, resolvePlanPath, targetsLocalSandbox } from "./plan-mode-guard";
 import { decodeUtf8Text } from "./read-format";
 import { routeReadThroughBridge } from "./read-summary";
 import { shortenPath } from "../utils/render-utils";

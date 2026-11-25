@@ -5,12 +5,12 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDir, getProjectDir, isEnoent } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { getAgentDir, getProjectDir, isEnoent } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { YAML } from "bun";
 import { loadBundledAgents } from "../task/agents";
 import type { AgentDefinition } from "../task/types";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 
 export type AgentsAction = "unpack";
 

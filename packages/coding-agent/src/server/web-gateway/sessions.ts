@@ -17,7 +17,7 @@ import * as path from "node:path";
 // through the pi-vcs native addon (crates/pi-vcs, exposed via pi-natives/vcs).
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getBlobsDir, logger } from "@linxiraos/pi-utils";
-import { parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
+import { parseModelString } from "../../config/model-selector";
 import { type BotSessionEntry, WebConfig } from "../../config/web-config";
 import { exportFromFile } from "../../export/html";
 import type { SessionEntry as RuntimeSessionEntry } from "../../session/session-entries";

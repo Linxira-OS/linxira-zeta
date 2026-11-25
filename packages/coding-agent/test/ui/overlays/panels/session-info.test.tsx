@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { signal } from "@oh-my-pi/pi-tui";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { signal } from "@linxiraos/pi-tui";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
 import { type SessionContextUsage, SessionInfo } from "../../../../src/ui/overlays/panels/session-info";
 import { panelSuite } from "./harness";
 

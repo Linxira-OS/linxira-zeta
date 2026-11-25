@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ## [1.5.14] - 2026-11-22
+
 ## [19.2.0] - 2026-11-25
 
 ### Added
@@ -94,7 +95,7 @@
 
 ### Changed
 
-- Deprecated `createFileOps`, `computeFileLists`, `formatFileOperations`, `upsertFileOperations`, `isUrlSchemePath` and `FileOperations` in `@linxiraos/pi-agent-core/compaction`; they now re-export `@linxiraos/snapcompact`, which callers should import directly
+- Deprecated `createFileOps`, `computeFileLists`, `formatFileOperations`, `upsertFileOperations`, `isUrlSchemePath` and `FileOperations` in `@linxiraos/pi-agent-core/compaction`; they now re-export `@linxiraos/zeta-compact`, which callers should import directly
 
 ### Fixed
 
@@ -1373,11 +1374,11 @@
 
 ### Changed
 
-- Forked to @oh-my-pi scope with unified versioning across all packages
+- Forked to @linxiraos scope with unified versioning across all packages
 
 ## [1.337.0] - 2026-01-02
 
-Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.5.13] - 2026-11-21
 

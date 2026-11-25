@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { Message, UserMessage } from "@oh-my-pi/pi-ai";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Message, UserMessage } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import { ADVISOR_TRANSCRIPT_FILENAME, JSONL_SUFFIX } from "./transcript-names";
 import { SessionManager } from "../session/session-manager";
 import { fingerprintMessage } from "./message-fingerprint";

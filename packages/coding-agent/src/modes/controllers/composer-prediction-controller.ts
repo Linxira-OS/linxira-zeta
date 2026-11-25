@@ -45,7 +45,7 @@ const NON_WORD = /[^\p{L}\p{N}]+/gu;
  * card. Silent advisor notes and rows kept out of context (an extension's stats line sent with
  * `excludeFromContext`) land after the turn without changing what the user would reply to.
  */
-function predictionAnchor(session: AgentViewSession): AgentMessage | undefined {
+export function predictionAnchor(session: AgentViewSession): AgentMessage | undefined {
 	const messages = session.messages;
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const message = messages[i];
@@ -78,7 +78,12 @@ interface Prediction {
 	rank: number | undefined;
 }
 
-type PredictionContext = Pick<InteractiveModeContext, "settings" | "viewSession" | "focusedAgentId" | "composer">;
+type PredictionContext = Pick<InteractiveModeContext, "settings" | "viewSession" | "focusedAgentId"> & {
+	/** The live draft source: the interactive composer, or a private prediction channel's text. */
+	readonly editor: { getText(): string };
+	/** Repaint hook for hosts whose surface is not the composer's reactive signal (Studio). */
+	readonly ui?: { requestRender(): void };
+};
 
 /**
  * Normalize a prediction reply to the single line the composer shows, or
@@ -169,7 +174,7 @@ export class ComposerPredictionController {
 		// prediction), and a compaction would rewrite the history the prediction reads: skip the
 		// billed request either way.
 		const model = session.model;
-		if (!model || session.isStreaming || session.isCompacting || this.#ctx.composer.text()) return;
+		if (!model || session.isStreaming || session.isCompacting || this.#ctx.editor.getText()) return;
 		const abort = new AbortController();
 		this.#abort = abort;
 		const source: PredictionSource = {
@@ -232,6 +237,7 @@ export class ComposerPredictionController {
 			);
 		}
 		this.#prediction.set(undefined);
+		this.#ctx.ui?.requestRender();
 	}
 
 	async #run(source: PredictionSource, abort: AbortController, alternatives: boolean): Promise<void> {
@@ -269,6 +275,7 @@ export class ComposerPredictionController {
 		if (!choices) return "skipped";
 		// Counted as shown by the composer's first frame that paints it (`shown()`), not here.
 		this.#prediction.set({ choices, source, shownAt: undefined, acceptDelayMs: undefined, rank: undefined });
+		this.#ctx.ui?.requestRender();
 		return "offered";
 	}
 

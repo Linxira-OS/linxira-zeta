@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
-import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
+import { visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { McpAuthorizationLink } from "../../../src/ui/transcript/messages/mcp-auth";
 
 /** The block's terminal rows at `width` (with escapes), on a terminal that draws hyperlinks. */

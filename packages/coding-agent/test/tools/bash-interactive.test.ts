@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runInteractiveBashPty } from "@oh-my-pi/pi-coding-agent/tools/bash-interactive";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
-import type { ExtensionUiHost } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/render-types";
-import type { ExtensionCustomFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { ensureTheme } from "@oh-my-pi/pi-coding-agent/ui/theme/service";
-import { createRoot, type UiNode } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { runInteractiveBashPty } from "@linxiraos/zeta/tools/bash-interactive";
+import { KeybindingsManager } from "@linxiraos/zeta/config/keybindings/keybindings";
+import type { ExtensionUiHost } from "@linxiraos/zeta/extensibility/extensions/render-types";
+import type { ExtensionCustomFactory } from "@linxiraos/zeta/extensibility/extensions/types";
+import { ensureTheme } from "@linxiraos/zeta/ui/theme/service";
+import { createRoot, type UiNode } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { TempDir } from "@linxiraos/pi-utils";
 import { extensionTheme } from "../../src/ui/extensions/render-output";
 import { keyEvent } from "../helpers/input-harness";
 

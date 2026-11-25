@@ -1,6 +1,6 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
-import { decodeMouse } from "@oh-my-pi/pi-tui/driver/input/mouse";
-import { CORPUS_NOW } from "@oh-my-pi/pi-tui/testing/corpus";
+/** @jsxImportSource @linxiraos/pi-tui */
+import { decodeMouse } from "@linxiraos/pi-tui/driver/input/mouse";
+import { CORPUS_NOW } from "@linxiraos/pi-tui/testing/corpus";
 import type { BtwHistoryRecord } from "../../../../src/session/btw-history-model";
 import { BtwHistoryPanel } from "../../../../src/ui/overlays/panels/btw-history-panel";
 import { BtwHistoryModel } from "../../../../src/ui/overlays/panels/btw-history-panel-model";

@@ -2,29 +2,29 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CfgProtocolHandler, setCfgApprovalHost } from "@oh-my-pi/pi-coding-agent/internal-urls/cfg-protocol";
-import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
-import { type MCPAuthHandler, MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import { ExtensionUiController } from "@oh-my-pi/pi-coding-agent/modes/controllers/extension-ui-controller";
-import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { __resetAutoQaConsentForTests, resolveAutoQaConsent } from "@oh-my-pi/pi-coding-agent/tools/report-tool-issue";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { CfgProtocolHandler, setCfgApprovalHost } from "@linxiraos/zeta/internal-urls/cfg-protocol";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { type MCPAuthHandler, MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
+import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { __resetAutoQaConsentForTests, resolveAutoQaConsent } from "@linxiraos/zeta/tools/report-tool-issue";
 import {
 	cfgMarketplaceAutoUpdate,
 	cfgStartupChangelogMode,
 	cfgStartupCheckUpdate,
 	cfgStartupSetupWizard,
 	cfgStartupShowSplash,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
-import { closeSessionIndex } from "@oh-my-pi/pi-coding-agent/session/session-index";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+} from "@linxiraos/zeta/modes/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 import { initTheme } from "../src/ui/theme/service";
-import { getProjectDir, setProjectDir, Snowflake } from "@oh-my-pi/pi-utils";
-import * as utils from "@oh-my-pi/pi-utils";
+import { getProjectDir, setProjectDir, Snowflake } from "@linxiraos/pi-utils";
+import * as utils from "@linxiraos/pi-utils";
 import { createModeTerminal } from "./helpers/mode-terminal";
 import { createTestSession, type TestSessionContext } from "./utilities";
 

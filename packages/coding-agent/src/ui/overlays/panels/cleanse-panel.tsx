@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The `/cleanse` sheet: a run that checks the workspace, repairs what the
  * checkers report with parallel agents, and verifies again.
@@ -9,10 +9,10 @@
  * lanes), and the footer: escape cancels while running and dismisses once
  * the run ended. {@link CleanseRun} is the board the cleanse command drives.
  */
-import { type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { type JSXNode, signal } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatNumber } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import { sanitizeDisplayText } from "../../../extensibility/inventory/display-text";
 import type {
 	CleanseAgentOutcome,
@@ -225,10 +225,10 @@ function RepairHead(props: { readonly repair: RepairState; readonly now: number 
 	if (repair.tokens > 0) facts.push(`${formatNumber(repair.tokens)} tok`);
 	if (repair.cost > 0) facts.push(`$${repair.cost.toFixed(3)}`);
 	return (
-		<row key="repair" role="omp.cleanse.head" align="center" gap="sm">
+		<row key="repair" role="zeta.cleanse.head" align="center" gap="sm">
 			<spinner tone="accent" label="Repairing" />
 			<meter
-				role="omp.cleanse.meter"
+				role="zeta.cleanse.meter"
 				style="bar"
 				size="md"
 				value={total > 0 ? repair.finished / total : 0}
@@ -261,7 +261,7 @@ export function CleanseLive(props: { readonly run: CleanseRun }): JSXNode {
 		if (phase === undefined && checkers.length === 0 && !repair) return null;
 		const now = run.now();
 		return (
-			<col key="live" role="omp.cleanse.live" gap="sm">
+			<col key="live" role="zeta.cleanse.live" gap="sm">
 				{phase !== undefined && <spinner key="phase" tone="warning" label={phase} />}
 				{checkers.map(checker => (
 					<row key={`checker-${stableKey(checker.id)}`} gap="sm">
@@ -271,11 +271,11 @@ export function CleanseLive(props: { readonly run: CleanseRun }): JSXNode {
 				))}
 				{repair && <RepairHead repair={repair} now={now} />}
 				{repair && (
-					<col key="lanes" role="omp.cleanse.lanes" gap="sm">
+					<col key="lanes" role="zeta.cleanse.lanes" gap="sm">
 						{repair.lanes.map(lane => (
 							<agent
 								key={`agent-${stableKey(lane.name)}`}
-								role="omp.cleanse.lane"
+								role="zeta.cleanse.lane"
 								name={lane.name}
 								status="running"
 								task={[{ s: "path", t: assignmentLabel(lane.assignment) }]}
@@ -312,7 +312,7 @@ export function CleansePanel(props: CleansePanelProps): JSXNode {
 	};
 	return (
 		<col
-			role="omp.overlay.cleanse"
+			role="zeta.overlay.cleanse"
 			gap="sm"
 			tone={() => ending()?.tone}
 			term={{ title: `/cleanse${request?.trim() ? ` ${request.replace(/\s+/g, " ").trim()}` : ""}` }}
@@ -323,7 +323,7 @@ export function CleansePanel(props: CleansePanelProps): JSXNode {
 				return true;
 			}}
 		>
-			<row key="head" role="omp.sheet.head" align="center" gap="sm">
+			<row key="head" role="zeta.sheet.head" align="center" gap="sm">
 				{() => !run.ending$() && <spinner />}
 				<text lines={1} truncate="end" spans={head} />
 			</row>

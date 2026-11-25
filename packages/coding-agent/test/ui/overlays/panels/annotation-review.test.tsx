@@ -1,8 +1,8 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { expect, it } from "bun:test";
-import type { UiEvent } from "@oh-my-pi/pi-tui";
-import { corpusEnvironment } from "@oh-my-pi/pi-tui/testing/corpus";
-import { createTestTerminal } from "@oh-my-pi/pi-tui/testing/terminal";
+import type { UiEvent } from "@linxiraos/pi-tui";
+import { corpusEnvironment } from "@linxiraos/pi-tui/testing/corpus";
+import { createTestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import type {
 	ReviewDiffFile,
 	TextReviewSource,

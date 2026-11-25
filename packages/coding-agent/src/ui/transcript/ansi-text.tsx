@@ -1,11 +1,11 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Pre-styled command text (SGR colors baked in by the theme's `fg`/`bg`) as
  * word-wrapped terminal rows: `/session`, `/jobs`, `/advisor status` and the
  * other command reports built as ANSI strings. `padX` blank cells pad each
  * side in the standard layout, `padY` blank rows above and below.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { JSXNode } from "@linxiraos/pi-tui";
 import { wrapTextWithAnsi } from "../../utils/text-width";
 import { terminalPaddingX } from "../styles/terminal-padding";
 

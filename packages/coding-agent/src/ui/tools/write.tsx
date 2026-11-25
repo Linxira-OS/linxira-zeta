@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Write: the file's content as numbered code under `Write path · N lines`
  * (executable and diagnostics chips once written), a drawing for figure
@@ -10,10 +10,10 @@
  * `src/ui/styles/tools/write.ts`.
  */
 import * as path from "node:path";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { shortenHome } from "@oh-my-pi/pi-tui/text/sanitize";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { shortenHome } from "@linxiraos/pi-tui/text/sanitize";
+import { formatDuration } from "@linxiraos/pi-utils";
 import type {
 	ToolActivity,
 	ToolFigure,
@@ -156,7 +156,7 @@ function toolHead(title: string, ...parts: (TspSpan | string | undefined)[]): Ts
 
 function QuotedPreview(props: { readonly body: string }): JSXNode {
 	if (!props.body.trim()) return undefined;
-	return <text role="omp.tool.proc.preview" spans={[{ s: "muted", t: cleanText(props.body) }]} wrap="word" />;
+	return <text role="zeta.tool.proc.preview" spans={[{ s: "muted", t: cleanText(props.body) }]} wrap="word" />;
 }
 
 const RECEIPT_TONE: Record<string, TspTone> = {
@@ -208,7 +208,7 @@ function messageView(target: string, body: string, result: ToolResult<WriteDetai
 				<NoteText message={resultText(result) || "No live peers to broadcast to."} />
 			) : undefined,
 			receipts.length > 1 || failed > 0 ? (
-				<list role="omp.tool.irc.receipts">
+				<list role="zeta.tool.irc.receipts">
 					{receipts.map(receipt => (
 						<item
 							key={receipt.to}
@@ -271,7 +271,7 @@ function CancelledJobs(props: { readonly details: ProcDetails }): JSXNode {
 	if (props.details.op !== "cancel" || outcomes.length === 0) return undefined;
 	const jobs = props.details.jobs ?? [];
 	return (
-		<list role="omp.tool.proc.cancelled">
+		<list role="zeta.tool.proc.cancelled">
 			{outcomes.map(outcome => {
 				const job = jobs.find(item => item.id === outcome.id);
 				const tone: TspTone = outcome.status === "cancelled" ? "warning" : "error";
@@ -428,7 +428,7 @@ function Figure(props: { readonly figure?: ToolFigure }): JSXNode {
 	const figure = props.figure;
 	if (!figure || (figure.lang === "mermaid" && !figure.closed)) return undefined;
 	const text = `\`\`\`${figure.lang}\n${figure.source}${figure.closed ? `${figure.source.endsWith("\n") ? "" : "\n"}\`\`\`` : ""}`;
-	return <md key="figure" role="omp.tool.write.figure" text={text} stream={!figure.closed} />;
+	return <md key="figure" role="zeta.tool.write.figure" text={text} stream={!figure.closed} />;
 }
 
 function Source(props: { readonly path: string; readonly content: string }): JSXNode {

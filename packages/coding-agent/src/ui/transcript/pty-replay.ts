@@ -4,8 +4,8 @@
  * cursor movement, `\r` progress lines and colors come out as a terminal
  * drew them.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
-import type { BufferCell, Terminal } from "@oh-my-pi/pi-utils/vterm";
+import { sanitizeText } from "@linxiraos/pi-utils";
+import type { BufferCell, Terminal } from "@linxiraos/pi-utils/vterm";
 
 const RESET = "\x1b[0m";
 const SGR = /\x1b\[([0-9;]*)m/g;
@@ -18,7 +18,7 @@ let vterm: Promise<typeof Terminal> | undefined;
 
 /** The headless terminal, loaded on the first replay so startup never evaluates it. */
 function loadTerminal(): Promise<typeof Terminal> {
-	vterm ??= import("@oh-my-pi/pi-utils/vterm").then(module => module.Terminal);
+	vterm ??= import("@linxiraos/pi-utils/vterm").then(module => module.Terminal);
 	return vterm;
 }
 

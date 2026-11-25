@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * MCP tools: the server/tool label as the title, a one-line args summary as
  * the target; the result's JSON as a tree, other output as raw text, the
@@ -128,7 +128,7 @@ export function mcpPresenter(
 					...base,
 					tone: "error",
 					body: [
-						<text role="omp.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
+						<text role="zeta.tool.error" spans={[{ s: "error", t: message }]} wrap="word" />,
 						record ? <ArgsSection args={record} /> : undefined,
 					],
 					term: {

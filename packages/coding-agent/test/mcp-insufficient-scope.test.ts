@@ -7,16 +7,16 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import * as mcpClient from "@oh-my-pi/pi-coding-agent/mcp/client";
-import { disposeLocalMcpHost } from "@oh-my-pi/pi-coding-agent/mcp/host/local";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import * as oauthDiscovery from "@oh-my-pi/pi-coding-agent/mcp/oauth-discovery";
-import { type MCPStoredOAuthCredential, mcpOAuthCredentialId } from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
-import { MCPOAuthCancelledError, reauthorizeMcpServer } from "@oh-my-pi/pi-coding-agent/mcp/oauth-reauth";
-import type { MCPTool } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
-import type { MCPAuthChallenge, MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import * as mcpClient from "@linxiraos/zeta/mcp/client";
+import { disposeLocalMcpHost } from "@linxiraos/zeta/mcp/host/local";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import * as oauthDiscovery from "@linxiraos/zeta/mcp/oauth-discovery";
+import { type MCPStoredOAuthCredential, mcpOAuthCredentialId } from "@linxiraos/zeta/mcp/oauth-flow";
+import { MCPOAuthCancelledError, reauthorizeMcpServer } from "@linxiraos/zeta/mcp/oauth-reauth";
+import type { MCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
+import type { MCPAuthChallenge, MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const STEP_UP_CHALLENGE =
 	'Bearer error="insufficient_scope", scope="cabinet:write", resource_metadata="https://jug.example/.well-known/oauth-protected-resource/mcp"';

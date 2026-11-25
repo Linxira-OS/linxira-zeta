@@ -8,7 +8,7 @@
  */
 
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { type } from "@linxiraos/zeta-schema";
 import localRoomPostDescription from "../prompts/tools/local-room-post.md" with { type: "text" };
 import localRoomReadDescription from "../prompts/tools/local-room-read.md" with { type: "text" };

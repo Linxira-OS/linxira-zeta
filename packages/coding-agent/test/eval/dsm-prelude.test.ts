@@ -2,7 +2,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IpcConnection, IpcServer, ipcEndpoint } from "@oh-my-pi/pi-natives";
+import { IpcConnection, IpcServer, ipcEndpoint } from "@linxiraos/pi-natives";
 import { Settings } from "../../src/config/settings";
 import * as daemon from "../../src/daemon/client";
 import type { DaemonClient, DaemonTunnel, UnitRef } from "../../src/daemon/protocol";

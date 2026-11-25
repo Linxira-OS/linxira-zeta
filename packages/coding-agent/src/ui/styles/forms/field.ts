@@ -8,7 +8,7 @@
  * before the control is the label, other texts before it the description,
  * an error-styled text after it the error, other texts after it the hint.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
+import type { UiNode } from "@linxiraos/pi-tui";
 import {
 	type Block,
 	defineRolePainter,
@@ -16,13 +16,13 @@ import {
 	type Hit,
 	type PaintContext,
 	roleOf,
-} from "@oh-my-pi/pi-tui/term/paint";
-import { styledText } from "@oh-my-pi/pi-tui/term/painters/layout";
-import { definePickerLook, type PickerTerm, pickerTerm } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { inputLine, selectList } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
-import { truncate, visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
+} from "@linxiraos/pi-tui/term/paint";
+import { styledText } from "@linxiraos/pi-tui/term/painters/layout";
+import { definePickerLook, type PickerTerm, pickerTerm } from "@linxiraos/pi-tui/term/painters/picker";
+import { inputLine, selectList } from "@linxiraos/pi-tui/term/painters/prefs";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { truncate, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import type {
 	TspInputProps,
 	TspItemProps,
@@ -30,7 +30,7 @@ import type {
 	TspPickerProps,
 	TspSpan,
 	TspTextProps,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 
 /** What a text child of a field is. */
 export type FieldSlot =

@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The account picker `/logout` opens once the provider is chosen.
  *
  * A row click highlights an account; activating it (Enter, a second click,
  * `Sign out`) logs it out.
  */
-import { type JSXNode, signal } from "@oh-my-pi/pi-tui";
-import type { TspPickerAction, TspSpan } from "@oh-my-pi/pi-wire";
+import { type JSXNode, signal } from "@linxiraos/pi-tui";
+import type { TspPickerAction, TspSpan } from "@linxiraos/pi-wire";
 import type { LogoutAccount } from "../../../modes/view-model/overlays/logout-account-selector";
 import { closeAction, PICKER_KEY, pickerAction } from "./select-sheet";
 import { confirmKbd } from "../../keys/hints";

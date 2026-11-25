@@ -5,8 +5,8 @@
  * sources (MCP manager, session tools).
  */
 import * as path from "node:path";
-import { arkToWireSchema, isArkSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { normalizePathForComparison } from "@oh-my-pi/pi-utils";
+import { arkToWireSchema, isArkSchema } from "@linxiraos/pi-ai/utils/schema";
+import { normalizePathForComparison } from "@linxiraos/pi-utils";
 import {
 	sanitizeDisplayField,
 	sanitizeDisplayLine,

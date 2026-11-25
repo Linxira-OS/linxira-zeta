@@ -7,9 +7,9 @@
  * matches: a warning head and, with parse issues, a mis-scoped hint and the
  * issue list. Reads {@link AstGrepTerm}.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, truncate, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, truncate, wrap } from "@linxiraos/pi-tui/text/width";
 import { AST_GREP_PREVIEW_ROWS, type AstGrepTerm, astGrepLimitAdvice } from "../../tools/ast-grep";
 import {
 	classifyGroupedLines,

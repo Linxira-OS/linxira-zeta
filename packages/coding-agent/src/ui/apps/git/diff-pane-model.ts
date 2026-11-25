@@ -8,9 +8,9 @@
  * width the pane was last painted at (the terminal look reports it through
  * {@link DiffPaneModel.measure}).
  */
-import { batch, signal, untrack } from "@oh-my-pi/pi-tui";
-import { Highlighter, type HighlightedLine } from "@oh-my-pi/pi-tui/text/highlight";
-import { languageFromPath } from "@oh-my-pi/pi-tui/text/lang";
+import { batch, signal, untrack } from "@linxiraos/pi-tui";
+import { Highlighter, type HighlightedLine } from "@linxiraos/pi-tui/text/highlight";
+import { languageFromPath } from "@linxiraos/pi-tui/text/lang";
 import type { DiffDocument, HunkBlock } from "../../../cli/git-tui/model/diff-pane";
 import type { FileAssetSide, FileStreamUpdate } from "../../../cli/git-tui/model/state";
 import { type DiffRow, displayLine } from "./document";

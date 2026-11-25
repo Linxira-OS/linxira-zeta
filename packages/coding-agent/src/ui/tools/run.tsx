@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * One run of a command or code cell as one box (`omp.run`): its input, its
  * output, and a foot naming the state with the run time. Shared by the
@@ -6,10 +6,10 @@
  * card (`src/ui/styles/tools/run.ts`).
  */
 import * as path from "node:path";
-import { formatBytes, getProjectDir, parseSpillUrl, sanitizeText, spillUrl } from "@oh-my-pi/pi-utils";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { formatBytes, getProjectDir, parseSpillUrl, sanitizeText, spillUrl } from "@linxiraos/pi-utils";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import {
 	formatArtifactErrorNotice,
 	formatTruncationMetaNotice,
@@ -74,15 +74,15 @@ export function RunFoot(props: RunFootProps): JSXNode {
 	const ms = props.elapsedMs === undefined ? undefined : Math.max(0, Math.round(props.elapsedMs));
 	const live = props.state === "running" || props.state === "background";
 	return (
-		<row key="foot" role="omp.run.foot" gap="sm" align="center">
-			<text key="state" role="omp.run.state" spans={[{ t: state.word }]} tone={state.tone} />
+		<row key="foot" role="zeta.run.foot" gap="sm" align="center">
+			<text key="state" role="zeta.run.state" spans={[{ t: state.word }]} tone={state.tone} />
 			{ms !== undefined &&
 				(live ? (
-					<elapsed key="time" role="omp.run.time" age={ms} format="short" />
+					<elapsed key="time" role="zeta.run.time" age={ms} format="short" />
 				) : (
-					<elapsed key="time" role="omp.run.time" age={ms} stopped={ms} format="short" />
+					<elapsed key="time" role="zeta.run.time" age={ms} stopped={ms} format="short" />
 				))}
-			{factSpans.length > 0 && <text key="facts" role="omp.run.facts" spans={factSpans} wrap="word" />}
+			{factSpans.length > 0 && <text key="facts" role="zeta.run.facts" spans={factSpans} wrap="word" />}
 		</row>
 	);
 }
@@ -131,7 +131,7 @@ export function RunBox(props: {
 	readonly children?: JSXNode;
 }): JSXNode {
 	return (
-		<col key={props.nodeKey} role="omp.run" gap="none" tone={props.tone}>
+		<col key={props.nodeKey} role="zeta.run" gap="none" tone={props.tone}>
 			{props.children}
 		</col>
 	);

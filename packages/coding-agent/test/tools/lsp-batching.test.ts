@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createLspWritethrough } from "@oh-my-pi/pi-coding-agent/lsp";
-import { FileFormatResult } from "@oh-my-pi/pi-coding-agent/tools/details/lsp";
-import * as lspConfig from "@oh-my-pi/pi-coding-agent/lsp/config";
-import type { LinterClient, ServerConfig } from "@oh-my-pi/pi-coding-agent/lsp/types";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { DeferredDiagnosticsEntry, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { addFileWriteFallback } from "@oh-my-pi/pi-coding-agent/tools/file-write-fallback";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createLspWritethrough } from "@linxiraos/zeta/lsp";
+import { FileFormatResult } from "@linxiraos/zeta/tools/details/lsp";
+import * as lspConfig from "@linxiraos/zeta/lsp/config";
+import type { LinterClient, ServerConfig } from "@linxiraos/zeta/lsp/types";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { DeferredDiagnosticsEntry, ToolSession } from "@linxiraos/zeta/tools";
+import { addFileWriteFallback } from "@linxiraos/zeta/tools/file-write-fallback";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function createFormatter(format: (filePath: string, content: string) => Promise<string>): ServerConfig {
 	return {

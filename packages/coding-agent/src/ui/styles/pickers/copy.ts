@@ -8,11 +8,11 @@
  * (`i/n · label · N lines  ⧉ copy  ↗ open`), the focused one boxed; the
  * wheel scrolls the view.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { definePickerLook, type PickerTerm, sheetHit } from "@oh-my-pi/pi-tui/term/painters/picker";
-import { defineRoleWidget } from "@oh-my-pi/pi-tui/term/widgets";
-import { truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { definePickerLook, type PickerTerm, sheetHit } from "@linxiraos/pi-tui/term/painters/picker";
+import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
+import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import { expandKeyLabel } from "../../keys/hints";
 import { termOf } from "../panels/common";
 import { type LaneItem, laneRows, transcriptScreen, wheelTranscriptView } from "./transcript-view";

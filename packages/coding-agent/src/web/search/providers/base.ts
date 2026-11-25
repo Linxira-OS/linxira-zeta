@@ -73,6 +73,8 @@ export interface SearchParams {
 	modelRegistry: ModelRegistry;
 	/** Whether the selected model came from an explicit role-chain entry. */
 	explicit?: boolean;
+	/** Exact active model identifier, when the caller has trusted session metadata. */
+	modelName?: string;
 	/**
 	 * Optional session id used as the round-robin / sticky key when selecting
 	 * among multiple credentials for the same provider. Pass through from the

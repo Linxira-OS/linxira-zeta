@@ -3,8 +3,8 @@
  * (`strong`, `em`, `underline`, `strike`, `inverse`, `faint`); colors are a
  * terminal look and are dropped.
  */
-import { sgrParams, tokens } from "@oh-my-pi/pi-tui/text/ansi";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { sgrParams, tokens } from "@linxiraos/pi-tui/text/ansi";
+import type { TspSpan } from "@linxiraos/pi-wire";
 
 const ATTRIBUTE_TOKENS: Readonly<Record<number, string>> = {
 	1: "strong",

@@ -19,8 +19,8 @@ import {
 	type SpotlightDetails,
 	type SpotlightOriginal,
 	type SpotlightWindow,
-} from "@linxiraos/pi-tui/chat/spotlight";
-import { formatOutputNotice, type OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+} from "../tools/details/spotlight";
+import { formatOutputNotice, type OutputMeta } from "../tools/output-meta-format";
 import { isRecord, logger } from "@linxiraos/pi-utils";
 import type { ToolSession } from "../tools";
 import { buildCallContext, callSummary } from "./context";

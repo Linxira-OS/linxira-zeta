@@ -1,12 +1,12 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * `/hotkeys` under a native terminal: one `section` per shortcut group, each a
  * two-column table whose key cells carry `key` spans holding the key id
  * (`ctrl+r`; Tern draws them as keycaps), then Close. Esc or Close dismisses
  * it. A terminal drawing rows gets the markdown report instead.
  */
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import type { KeybindingsManager } from "../../../config/keybindings/keybindings";
 import { matchesSelectCancel } from "../../../config/keybindings/matchers";
 import { type HotkeyPart, hotkeyGroups } from "../../keys/hotkeys";
@@ -61,9 +61,9 @@ export function HotkeysSheet(props: HotkeysSheetProps): JSXNode {
 			}}
 		>
 			{hotkeyGroups(props.keybindings).map((group, index) => (
-				<section key={`g${index}`} head={group.title} role="omp.hotkeys.group">
+				<section key={`g${index}`} head={group.title} role="zeta.hotkeys.group">
 					<table
-						role="omp.hotkeys.table"
+						role="zeta.hotkeys.table"
 						cols={[
 							{ id: "keys", head: "Key" },
 							{ id: "action", head: "Action", grow: 1 },
@@ -75,7 +75,7 @@ export function HotkeysSheet(props: HotkeysSheetProps): JSXNode {
 					/>
 				</section>
 			))}
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<spacer grow={1} />
 				<ActionButton id="close" label="Close" title="Close  esc" keys={["escape"]} />
 			</row>

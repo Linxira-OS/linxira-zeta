@@ -1,11 +1,7 @@
 import { isRecord } from "@linxiraos/pi-utils";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { isShellTrace, type ShellTrace, type ShellVizPreferences } from "@linxiraos/pi-wire";
-import {
-	defaultShellVizPreferences,
-	readShellPresentation,
-	shellVisualization,
-} from "@linxiraos/pi-tui/tools/shell-viz";
+import { defaultShellVizPreferences, readShellPresentation, shellVisualization } from "../../../tools/shell-viz";
 import { formatModelStringWithRouting } from "../../../config/model-resolver.js";
 import type { AgentSession } from "../../../session/agent-session.js";
 import { isAgentViewSession, type AgentViewSession } from "../../../session/agent-session-handle.js";

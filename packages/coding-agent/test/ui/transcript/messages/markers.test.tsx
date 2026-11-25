@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { CacheMissMarker, MessageDivider, ServedModelMarker } from "../../../../src/ui/transcript/messages/markers";
 import { screenSuite, single } from "./harness";
 

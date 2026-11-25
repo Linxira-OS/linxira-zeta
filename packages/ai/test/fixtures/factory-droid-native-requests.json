@@ -1176,9 +1176,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "high",
 						"summary": "auto"
@@ -1189,9 +1187,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1209,9 +1205,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "high",
 						"summary": "auto"
@@ -1222,9 +1216,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1258,9 +1250,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1287,9 +1277,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1314,9 +1302,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "high",
 						"summary": "auto"
@@ -1326,9 +1312,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1346,9 +1330,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "high",
 						"summary": "auto"
@@ -1358,9 +1340,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1393,9 +1373,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1421,9 +1399,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1456,9 +1432,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1484,9 +1458,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1511,9 +1483,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "medium",
 						"summary": "auto"
@@ -1525,9 +1495,7 @@
 					},
 					"safety_identifier": "<session>",
 					"service_tier": "priority",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1545,9 +1513,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "medium",
 						"summary": "auto"
@@ -1559,9 +1525,7 @@
 					},
 					"safety_identifier": "<session>",
 					"service_tier": "priority",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1593,9 +1557,7 @@
 					"text": {
 						"verbosity": "low"
 					},
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1620,9 +1582,7 @@
 					"text": {
 						"verbosity": "low"
 					},
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1654,9 +1614,7 @@
 					"text": {
 						"verbosity": "low"
 					},
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1681,9 +1639,7 @@
 					"text": {
 						"verbosity": "low"
 					},
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1716,9 +1672,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1744,9 +1698,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1771,9 +1723,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "max",
 						"summary": "auto"
@@ -1784,9 +1734,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1804,9 +1752,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "max",
 						"summary": "auto"
@@ -1817,9 +1763,7 @@
 						"verbosity": "low"
 					},
 					"safety_identifier": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1844,9 +1788,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "medium",
 						"summary": "auto"
@@ -1858,9 +1800,7 @@
 					},
 					"safety_identifier": "<session>",
 					"service_tier": "priority",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1878,9 +1818,7 @@
 					"stream": true,
 					"tool_choice": "auto",
 					"parallel_tool_calls": true,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "medium",
 						"summary": "auto"
@@ -1892,9 +1830,7 @@
 					},
 					"safety_identifier": "<session>",
 					"service_tier": "priority",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1929,9 +1865,7 @@
 					},
 					"safety_identifier": "<session>",
 					"service_tier": "priority",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -1959,9 +1893,7 @@
 					},
 					"safety_identifier": "<session>",
 					"service_tier": "priority",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -1986,16 +1918,12 @@
 					"stream": true,
 					"parallel_tool_calls": true,
 					"max_output_tokens": 63356,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "high"
 					},
 					"prompt_cache_key": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			},
 			{
@@ -2013,16 +1941,12 @@
 					"stream": true,
 					"parallel_tool_calls": true,
 					"max_output_tokens": 63356,
-					"include": [
-						"reasoning.encrypted_content"
-					],
+					"include": ["reasoning.encrypted_content"],
 					"reasoning": {
 						"effort": "high"
 					},
 					"prompt_cache_key": "<session>",
-					"<tool-keys>": [
-						"strict"
-					]
+					"<tool-keys>": ["strict"]
 				}
 			}
 		]
@@ -2053,9 +1977,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2079,9 +2001,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2164,9 +2084,7 @@
 						"budget_tokens": 24576
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2187,9 +2105,7 @@
 						"budget_tokens": 24576
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2262,9 +2178,7 @@
 					"model": "claude-sonnet-4-5-20250929",
 					"max_tokens": 32000,
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2281,9 +2195,7 @@
 					"model": "claude-sonnet-4-5-20250929",
 					"max_tokens": 32000,
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2313,9 +2225,7 @@
 						"effort": "max"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2338,9 +2248,7 @@
 						"effort": "max"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2371,9 +2279,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2397,9 +2303,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2426,9 +2330,7 @@
 						"type": "disabled"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2448,9 +2350,7 @@
 						"type": "disabled"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2478,9 +2378,7 @@
 						"type": "disabled"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					],
+					"<tool-keys>": ["eager_input_streaming"],
 					"<history-thinking>": false
 				}
 			}
@@ -2512,9 +2410,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2538,9 +2434,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2615,9 +2509,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2640,9 +2532,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2729,9 +2619,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2758,9 +2646,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2799,9 +2685,7 @@
 						}
 					],
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2833,9 +2717,7 @@
 						}
 					],
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2869,9 +2751,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2898,9 +2778,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -2934,9 +2812,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -2963,9 +2839,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -3004,9 +2878,7 @@
 						}
 					],
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -3038,9 +2910,7 @@
 						}
 					],
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -3074,9 +2944,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -3103,9 +2971,7 @@
 						"effort": "high"
 					},
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -3141,9 +3007,7 @@
 						}
 					],
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -3172,9 +3036,7 @@
 						}
 					],
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]
@@ -3209,9 +3071,7 @@
 					},
 					"speed": "fast",
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			},
 			{
@@ -3239,9 +3099,7 @@
 					},
 					"speed": "fast",
 					"stream": true,
-					"<tool-keys>": [
-						"eager_input_streaming"
-					]
+					"<tool-keys>": ["eager_input_streaming"]
 				}
 			}
 		]

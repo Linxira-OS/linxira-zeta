@@ -3,8 +3,8 @@
  * may ask of the host (saving settings, signing in, model discovery) and
  * how it reports that it is finished.
  */
-import type { AuthStorage, Model } from "@oh-my-pi/pi-ai";
-import type { Accessor, JSXNode, UiNode } from "@oh-my-pi/pi-tui";
+import type { AuthStorage, Model } from "@linxiraos/pi-ai";
+import type { Accessor, JSXNode, UiNode } from "@linxiraos/pi-tui";
 import type { ModelBrowserSource } from "../../modes/view-model/overlays/model-browser";
 
 /** How a scene ended: its choice was saved, or the user moved on without one. */

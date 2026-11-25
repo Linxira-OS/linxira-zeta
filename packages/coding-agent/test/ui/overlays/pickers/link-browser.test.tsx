@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 import { LinkBrowser, type LinkReply } from "../../../../src/ui/overlays/pickers/link-browser";
 import { pickerSuite } from "./harness";
 

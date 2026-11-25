@@ -21,12 +21,12 @@
  */
 import * as os from "node:os";
 import * as path from "node:path";
-import type { UsageReport } from "@oh-my-pi/pi-ai";
-import { getNextTimeBasedPricingTransition, getTimeBasedPricingPeriod } from "@oh-my-pi/pi-catalog/models";
-import type { ModelCost } from "@oh-my-pi/pi-catalog/types";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { type Accessor, computed, type Signal, signal } from "@oh-my-pi/pi-tui";
-import { getActiveProfile, getProjectDir } from "@oh-my-pi/pi-utils";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import { getNextTimeBasedPricingTransition, getTimeBasedPricingPeriod } from "@linxiraos/pi-catalog/models";
+import type { ModelCost } from "@linxiraos/pi-catalog/types";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { type Accessor, computed, type Signal, signal } from "@linxiraos/pi-tui";
+import { getActiveProfile, getProjectDir } from "@linxiraos/pi-utils";
 import type { AgentViewSession } from "../../session/agent-session-handle";
 import { latestJobWidget } from "../../tools/details/job-widget";
 import { BRAND_FADE_MS, type StatusFacts, type StatusLineSettings } from "../../ui/status/facts";

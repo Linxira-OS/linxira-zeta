@@ -9,9 +9,9 @@
  * demotes changed blocks that only move whitespace around, or only touch
  * import statements (ts/js, rust, go), to context.
  */
-import { diffWords, type PatchHunk, structuredPatchHunks } from "@oh-my-pi/pi-natives";
-import { replaceTabs, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { diffWords, type PatchHunk, structuredPatchHunks } from "@linxiraos/pi-natives";
+import { replaceTabs, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { DiffBuildOptions, DiffDocument, HunkBlock } from "../../../cli/git-tui/model/diff-pane";
 import { DIFF_CONTEXT_LINES } from "../../../cli/git-tui/model/state";
 

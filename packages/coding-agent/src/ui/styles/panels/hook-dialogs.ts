@@ -7,13 +7,13 @@
  * - hook editor: the text in a rounded composer box, or after `> ` in the
  *   prompt style.
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import { type Block, defineRolePainter, EMPTY_BLOCK } from "@oh-my-pi/pi-tui/term/paint";
-import { inputLine } from "@oh-my-pi/pi-tui/term/painters/prefs";
-import { visibleWidth, wrap } from "@oh-my-pi/pi-tui/text/width";
-import type { TspEditorProps, TspInputProps } from "@oh-my-pi/pi-wire";
+import type { UiNode } from "@linxiraos/pi-tui";
+import { type Block, defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
+import { inputLine } from "@linxiraos/pi-tui/term/painters/prefs";
+import { visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
+import type { TspEditorProps, TspInputProps } from "@linxiraos/pi-wire";
 import { type ComposerChromeContext, composerShape } from "../composer/shapes";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 import { keyLabel } from "../../keys/hints";
 import { bindingGlyph, boxRows, findNode, keyLabels, propsOf, termOf } from "./common";
 import { appExternalEditorKeys, appFollowUpKeys, appInterruptKeys } from "../../../config/keybindings/matchers";

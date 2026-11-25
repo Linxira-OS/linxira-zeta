@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { PROPOSE_COMMAND_NAME } from "@oh-my-pi/pi-coding-agent/tools/details/resolve";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { PROPOSE_COMMAND_NAME } from "@linxiraos/zeta/tools/details/resolve";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 import { initTheme } from "../../../src/ui/theme/service";
 

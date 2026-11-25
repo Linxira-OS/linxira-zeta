@@ -4,9 +4,9 @@
  * snapshot and the output (three lines collapsed under `… N more lines`,
  * twelve expanded).
  */
-import type { UiNode } from "@oh-my-pi/pi-tui";
-import type { Block, PaintContext } from "@oh-my-pi/pi-tui/term/paint";
-import { replaceTabs, wrap } from "@oh-my-pi/pi-tui/text/width";
+import type { UiNode } from "@linxiraos/pi-tui";
+import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";
+import { replaceTabs, wrap } from "@linxiraos/pi-tui/text/width";
 import type { DebugTerm } from "../../tools/debug";
 import { expandHint, type FrameSection, frameRows, spinnerGlyph } from "./frame";
 import { defineToolLook, toolProps } from "./look";

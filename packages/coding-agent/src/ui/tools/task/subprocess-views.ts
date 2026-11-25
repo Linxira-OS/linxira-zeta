@@ -9,7 +9,7 @@
  * agent below a `Tool: <name>` label. Both return text (styled spans), never
  * rows.
  */
-import type { TspText } from "@oh-my-pi/pi-wire";
+import type { TspText } from "@linxiraos/pi-wire";
 
 /** The task card's view of one tool's extracted data. */
 export interface SubprocessToolView<TData = unknown> {

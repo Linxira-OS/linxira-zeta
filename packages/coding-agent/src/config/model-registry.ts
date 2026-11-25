@@ -1,15 +1,15 @@
 import { deserialize, serialize } from "bun:jsc";
 import * as path from "node:path";
-import type { ApiKeyResolver, FetchImpl, ResolvedApiKey, UsageProvider } from "@oh-my-pi/pi-ai";
-import { type AuthApiKeyOptions, type AuthPeekOptions, oauthAccountKey } from "@oh-my-pi/pi-ai/auth-storage";
-import { registerCustomApi, unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { getProviderHooks, type ProviderHooks, setProviderHooks } from "@oh-my-pi/pi-ai/provider-hooks";
-import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/oauth/types";
-import { setCodexAttestationProvider } from "@oh-my-pi/pi-ai/providers/openai-codex-attestation";
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
-import { getEnvApiKey } from "@oh-my-pi/pi-ai/env-api-key";
-import { OAuthRefreshUnavailableError } from "@oh-my-pi/pi-ai/error";
+import type { ApiKeyResolver, FetchImpl, ResolvedApiKey, UsageProvider } from "@linxiraos/pi-ai";
+import { type AuthApiKeyOptions, type AuthPeekOptions, oauthAccountKey } from "@linxiraos/pi-ai/auth-storage";
+import { registerCustomApi, unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { getProviderHooks, type ProviderHooks, setProviderHooks } from "@linxiraos/pi-ai/provider-hooks";
+import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
+import { setCodexAttestationProvider } from "@linxiraos/pi-ai/providers/openai-codex-attestation";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
+import { OAuthRefreshUnavailableError } from "@linxiraos/pi-ai/error";
 import type {
 	Api,
 	Context,
@@ -19,28 +19,28 @@ import type {
 	SimpleStreamOptions,
 	StreamOptions,
 	ThinkingConfig,
-} from "@oh-my-pi/pi-ai/types";
+} from "@linxiraos/pi-ai/types";
 import type {
 	ImageGenerationOptions,
 	ImageGenerationRequest,
 	ImageGenerationResult,
-} from "@oh-my-pi/pi-ai/images/types";
-import type { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { litellmUsageProvider } from "@oh-my-pi/pi-ai/usage/litellm";
-import { buildDiscoveredModel, buildModel, nextBuildPriceChange } from "@oh-my-pi/pi-catalog/build";
+} from "@linxiraos/pi-ai/images/types";
+import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { litellmUsageProvider } from "@linxiraos/pi-ai/usage/litellm";
+import { buildDiscoveredModel, buildModel, nextBuildPriceChange } from "@linxiraos/pi-catalog/build";
 import {
 	cascadeRulesRevision,
 	hasRuntimeProviderRules,
 	setRuntimeProviderRule,
-} from "@oh-my-pi/pi-catalog/compat/cascade";
-import { collapseBuiltVariants } from "@oh-my-pi/pi-catalog/compat/collapse";
+} from "@linxiraos/pi-catalog/compat/cascade";
+import { collapseBuiltVariants } from "@linxiraos/pi-catalog/compat/collapse";
 import {
 	clampCodexContextWindow,
 	clampsContextOverride,
 	resolveMaxContextWindow,
-} from "@oh-my-pi/pi-catalog/compat/context-window";
-import { getBundledModelReferenceIndex } from "@oh-my-pi/pi-catalog/identity/bundled";
-import { applyCatalogMetrics, CatalogMetricsIndex, catalogMetricsOf } from "@oh-my-pi/pi-catalog/identity/metrics";
+} from "@linxiraos/pi-catalog/compat/context-window";
+import { getBundledModelReferenceIndex } from "@linxiraos/pi-catalog/identity/bundled";
+import { applyCatalogMetrics, CatalogMetricsIndex, catalogMetricsOf } from "@linxiraos/pi-catalog/identity/metrics";
 import {
 	type ComposedCatalogDescriptor,
 	getModelCacheWriteStats,
@@ -50,19 +50,19 @@ import {
 	retainModelCacheConnection,
 	staticCatalogSources,
 	writeComposedCatalog,
-} from "@oh-my-pi/pi-catalog/model-cache";
+} from "@linxiraos/pi-catalog/model-cache";
 import {
 	createModelManager,
 	fingerprintStaticModels,
 	type ModelManagerOptions,
 	type ModelRefreshStrategy,
-} from "@oh-my-pi/pi-catalog/model-manager";
+} from "@linxiraos/pi-catalog/model-manager";
 import {
 	getBundledCatalogHash,
 	getBundledModels,
 	getBundledModelSlice,
 	getBundledProviders,
-} from "@oh-my-pi/pi-catalog/models";
+} from "@linxiraos/pi-catalog/models";
 import {
 	googleAntigravityModelManagerOptions,
 	isCredentialScopedModelCacheProvider,
@@ -75,12 +75,12 @@ import {
 	resolveModelCacheProviderId,
 	resolveOllamaModelCacheProviderId,
 	resolvePiNativeModelCacheProviderId,
-} from "@oh-my-pi/pi-catalog/provider-models";
-import { toModelSpec } from "@oh-my-pi/pi-catalog/provider-models/bundled-references";
-import { withThinkingCapability } from "@oh-my-pi/pi-catalog/thinking-capability";
-import { apiServesKind, modelKind, type ModelKind } from "@oh-my-pi/pi-catalog/types";
-import { isOfficialCodexApiUrl } from "@oh-my-pi/pi-catalog/wire/codex";
-import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/provider-models";
+import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
+import { withThinkingCapability } from "@linxiraos/pi-catalog/thinking-capability";
+import { apiServesKind, modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
+import { isOfficialCodexApiUrl } from "@linxiraos/pi-catalog/wire/codex";
+import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@linxiraos/pi-utils";
 import { groupModelCandidates, resolveProviderModelReference } from "../config/model-resolver";
 import { generateCodexAttestation } from "../live/attestation";
 import type { AuthStorage } from "../session/auth-storage";
@@ -479,6 +479,8 @@ function selectProviderModels<T extends { provider: string }>(models: T[], provi
  */
 export interface ModelRegistryRefreshOptions {
 	refreshCommandCredentials?: boolean;
+	/** Force a static refresh even when no config file changed. */
+	forceStatic?: boolean;
 	/** Keep the cooldowns {@link ModelRegistry.suppressSelector} recorded instead of clearing them. */
 	keepSuppressedSelectors?: boolean;
 }
@@ -2732,7 +2734,8 @@ export class ModelRegistry {
 			};
 		}
 
-		for (const keyPath of getUnknownCompatKeys(value)) {
+		for (const entry of getUnknownCompatKeys(value)) {
+			const keyPath = entry.paths[0] ?? entry.key;
 			if (this.#warnedCompatKeys.has(keyPath)) continue;
 			this.#warnedCompatKeys.add(keyPath);
 			this.#configWarnings.push(

@@ -6,10 +6,10 @@
  * both read {@link UsageDashboardModel}.
  */
 import * as os from "node:os";
-import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@oh-my-pi/pi-ai";
-import { signal, untrack } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
-import { formatDuration, sanitizeText } from "@oh-my-pi/pi-utils";
+import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@linxiraos/pi-ai";
+import { signal, untrack } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
+import { formatDuration, sanitizeText } from "@linxiraos/pi-utils";
 import type { UnavailableUsageAccount } from "../../../modes/view-model/overlays/usage-dashboard";
 import { formatProviderName } from "../../../modes/view-model/chrome/format";
 import { formatRemainingOnlyTotal, isUsedOnlyAbsoluteAmount } from "../../../slash-commands/helpers/usage-amounts";

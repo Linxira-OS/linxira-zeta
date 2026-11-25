@@ -20,7 +20,7 @@
  *   bun scripts/gen-clippy-bazelrc.ts --coverage      # coverage only
  *   bun scripts/gen-clippy-bazelrc.ts --root <dir>    # operate on another tree
  */
-import { isEnoent } from "@oh-my-pi/pi-utils/fs-error";
+import { isEnoent } from "@linxiraos/pi-utils/fs-error";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 

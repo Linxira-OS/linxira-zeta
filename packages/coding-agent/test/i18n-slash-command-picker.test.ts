@@ -61,7 +61,12 @@ function paletteRuntime(): { ctx: InteractiveModeContext } {
 
 /** Descriptions the picker list actually shows, per command name. */
 function paletteDescriptions(snapshot: SlashCommandSnapshot<TuiBuiltinSlashCommand>): Map<string, string> {
-	return new Map(snapshot.commands.map(command => [command.name, command.description]));
+	return new Map(
+		snapshot.commands.map(command => [
+			command.name,
+			typeof command.description === "function" ? command.description() : command.description,
+		]),
+	);
 }
 
 /**

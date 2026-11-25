@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The Agent Hub's transcript viewer: the agent's meta (status, kind, model)
  * and Close, its transcript, a send failure, the message draft (revive or
@@ -8,10 +8,10 @@
  * rules around the header and the footer, the transcript scrolled between
  * them (j/k, g/G, PgUp/PgDn, the wheel) and following its end.
  */
-import { For, type JSXNode, untrack } from "@oh-my-pi/pi-tui";
-import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
-import { formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { For, type JSXNode, untrack } from "@linxiraos/pi-tui";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { formatDuration, formatNumber } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import { sanitizeErrorLine } from "../../../modes/view-model/chrome/error-block";
 import { formatContextUsage } from "../../status/format";
 import "../../styles/panels/agent-transcript-viewer";
@@ -146,7 +146,7 @@ export function AgentTranscriptViewer(props: { readonly model: AgentTranscriptVi
 			}}
 		/>
 	);
-	const field = <col role="omp.field">{editor}</col>;
+	const field = <col role="zeta.field">{editor}</col>;
 	/** A part of the card rebuilt whenever the model changes. */
 	const part = (build: () => JSXNode) => () => {
 		model.rev();
@@ -154,7 +154,7 @@ export function AgentTranscriptViewer(props: { readonly model: AgentTranscriptVi
 	};
 	return (
 		<card
-			role="omp.hub.transcript"
+			role="zeta.hub.transcript"
 			head={[
 				{ s: "accent", t: "Agent Hub" },
 				{ s: "dim", t: ` ${SEP} ` },

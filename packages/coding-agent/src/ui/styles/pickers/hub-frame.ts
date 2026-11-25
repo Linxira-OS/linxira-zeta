@@ -4,8 +4,8 @@
  * pane (`│ sidebar │ body │`, a `┬`/`┴` over the split), a divider and one
  * footer row (key hints or a chip strip).
  */
-import { padTo, truncate, visibleWidth } from "@oh-my-pi/pi-tui/text/width";
-import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { padTo, truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 /** A sidebar entry as the frame measures and draws it. */
 export interface HubSidebarEntry {

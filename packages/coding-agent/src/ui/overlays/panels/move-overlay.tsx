@@ -1,11 +1,11 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Move the session to another directory: a path field with directory
  * suggestions under it. Typing filters them, ↑/↓ choose, Tab accepts the
  * highlighted suggestion into the field, Enter confirms the highlighted
  * suggestion (the typed path when none match), ctrl+g cancels.
  */
-import { type JSXNode, signal, untrack } from "@oh-my-pi/pi-tui";
+import { type JSXNode, signal, untrack } from "@linxiraos/pi-tui";
 import type {
 	MoveDirectoryEntry,
 	MoveDirectorySource,
@@ -63,7 +63,7 @@ export function MoveOverlay(props: MoveOverlayProps): JSXNode {
 	};
 	return (
 		<card
-			role="omp.dialog.move"
+			role="zeta.dialog.move"
 			head="Move to directory"
 			onKey={key => {
 				if (matchesSelectCancel(key) || key.id === "ctrl+g") {
@@ -103,7 +103,7 @@ export function MoveOverlay(props: MoveOverlayProps): JSXNode {
 				else if (act === "cancel") props.onDone(undefined);
 			}}
 		>
-			<col role="omp.form.field" gap="sm">
+			<col role="zeta.form.field" gap="sm">
 				<input
 					prompt="Path: "
 					sendable={false}
@@ -135,7 +135,7 @@ export function MoveOverlay(props: MoveOverlayProps): JSXNode {
 			</list>
 			<row align="center" gap="md" wrap>
 				<text spans={[{ s: "dim", t: "Type to filter" }]} />
-				<row key="hints" role="omp.overlay.hints" gap="md" wrap>
+				<row key="hints" role="zeta.overlay.hints" gap="md" wrap>
 					<row align="center" gap="xs">
 						<kbd keys={actionKbd("tui.select.up", "up")} />
 						<kbd keys={actionKbd("tui.select.down", "down")} />
@@ -143,7 +143,7 @@ export function MoveOverlay(props: MoveOverlayProps): JSXNode {
 					</row>
 				</row>
 			</row>
-			<row key="actions" role="omp.actions" align="center" gap="sm">
+			<row key="actions" role="zeta.actions" align="center" gap="sm">
 				<ActionButton id="accept" label="Accept" title="Accept  ⇥" keys={["tab"]} />
 				<spacer grow={1} />
 				<ActionButton

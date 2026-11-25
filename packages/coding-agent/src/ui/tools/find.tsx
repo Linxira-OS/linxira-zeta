@@ -1,4 +1,4 @@
-/** @jsxImportSource @oh-my-pi/pi-tui */
+/** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Find (semantic search): `Find “retry budget”  12 hits · 2 files`, then the
  * hits by relevance: a score bar, the file, how much was judged, and the
@@ -8,9 +8,9 @@
  * Terminal look: `find` (`src/ui/styles/tools/find.ts`).
  */
 import * as nodePath from "node:path";
-import type { TspText, TspTone } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
-import { replaceTabs } from "@oh-my-pi/pi-tui/text/width";
+import type { TspText, TspTone } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
+import { replaceTabs } from "@linxiraos/pi-tui/text/width";
 import { splitUrlScheme } from "../../internal-urls/url-scheme";
 import type { ToolHead, ToolPresenter, ToolView } from "./contract";
 import { resultText } from "./default";
@@ -146,8 +146,8 @@ function Hit(props: { readonly hit: FindHit; readonly cwd?: string; readonly ran
 			: undefined;
 	const spans = pathSpans(hit.rel, href);
 	return (
-		<col key={hit.rel} role="omp.tool.find.hit" gap="xs">
-			<row key="hit" role="omp.tool.file">
+		<col key={hit.rel} role="zeta.tool.find.hit" gap="xs">
+			<row key="hit" role="zeta.tool.file">
 				<progress value={hit.contentScore} tone={tone} title={`score ${score}`} max={{ w: 40 }} />
 				<text spans={spans} title={hit.rel} truncate="middle" lines={1} shrink={1} />
 				<text
@@ -206,7 +206,7 @@ export const findPresenter: ToolPresenter<FindArgs, FindDetails> = {
 		const warningMeta = warnings.map((text): TspText => [{ s: "warning", t: text }]);
 		const failures = stats?.failures ?? [];
 		const failureNodes = failures.map((failure, i) => (
-			<text key={`fail${i}`} role="omp.tool.notice" spans={[{ s: "warning", t: failure }]} wrap="word" />
+			<text key={`fail${i}`} role="zeta.tool.notice" spans={[{ s: "warning", t: failure }]} wrap="word" />
 		));
 		const cost = stats ? `$${stats.cost.toFixed(4)}` : undefined;
 		const took = details.elapsedMs !== undefined ? `${(details.elapsedMs / 1000).toFixed(1)}s` : undefined;
@@ -270,7 +270,7 @@ export const findPresenter: ToolPresenter<FindArgs, FindDetails> = {
 				footText ? (
 					<text
 						key="foot"
-						role="omp.tool.stats"
+						role="zeta.tool.stats"
 						spans={[{ s: "muted", t: footText }]}
 						title={statsText.join(" · ")}
 						wrap="word"

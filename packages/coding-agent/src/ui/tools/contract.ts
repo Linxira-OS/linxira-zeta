@@ -8,8 +8,8 @@
  * with the `omp.tool.*` styles (`src/ui/styles/tools/*`). A presenter never
  * draws rows, measures widths or picks colors.
  */
-import type { TspPickerAction, TspPreview, TspText, TspTone, TspToolProps } from "@oh-my-pi/pi-wire";
-import type { JSXNode } from "@oh-my-pi/pi-tui";
+import type { TspPickerAction, TspPreview, TspText, TspTone, TspToolProps } from "@linxiraos/pi-wire";
+import type { JSXNode } from "@linxiraos/pi-tui";
 
 /** What the transcript knows about a call while presenting it. */
 export interface ToolViewState {

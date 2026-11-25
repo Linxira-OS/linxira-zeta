@@ -13,7 +13,7 @@
  * second layer: the layer is the last rank component, so a runtime rule wins
  * a tie with a bundled rule and still loses to a more specific one.
  */
-import { LRUCache } from "@oh-my-pi/pi-utils/lru";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { compileRuleDirectives } from "./axes";
 import { parseRevision, type Revision, type RevisionTerm, revisionSatisfies } from "./revision";
 import rules from "./rules.json";

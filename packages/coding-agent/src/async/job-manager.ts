@@ -1,10 +1,10 @@
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import type { PipeStreams } from "@oh-my-pi/pi-natives";
-import { isRecord, logger, truncate } from "@oh-my-pi/pi-utils";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import type { PipeStreams } from "@linxiraos/pi-natives";
+import { isRecord, logger, truncate } from "@linxiraos/pi-utils";
 import { collapseCommand } from "../cli/ps-model";
 import type { StructuredSubagentOutput } from "../task/task-details";
 import type { OutputMeta } from "../tools/output-meta-format";
-import type { ShellTrace } from "@oh-my-pi/pi-wire";
+import type { ShellTrace } from "@linxiraos/pi-wire";
 import { IrcBus } from "../irc/bus";
 import { yieldQueueStaleMessage } from "../session/yield-queue";
 import type { JobWidgetInputs, JobWidgetRegistry } from "../job-widgets/types";
@@ -25,6 +25,25 @@ export const ASYNC_JOB_LABEL_MAX_CHARS = 120;
 /** Format a command into a single-line bounded label stored on a managed job row. */
 export function formatAsyncJobLabel(command: string): string {
 	return truncate(collapseCommand(command), ASYNC_JOB_LABEL_MAX_CHARS, "...");
+}
+
+/**
+ * Adaptive backoff ladder for the hub tool's `wait` action: a wait that returns
+ * quickly escalates, a gap long enough to mean real work resets to the floor.
+ */
+export const POLL_WAIT_LADDER_MS = [5_000, 10_000, 30_000, 60_000, 300_000] as const;
+
+/** A gap at least this long means the agent left the loop; reset to the floor. */
+const POLL_ESCALATION_RESET_MS = 60_000;
+
+/** Map key standing in for waits that have no owner id. */
+const OWNERLESS_POLL_KEY = "\u0000ownerless";
+
+interface PollEscalationState {
+	/** Index into POLL_WAIT_LADDER_MS used for the most recent wait. */
+	level: number;
+	/** Timestamp (ms) when the most recent wait returned. */
+	lastPollEndAt: number;
 }
 /**
  * A settled job row whose result was already consumed — auto-delivered to its
@@ -170,6 +189,11 @@ export interface AsyncJob {
 	structured?: StructuredSubagentOutput;
 	/** Latest progress text the running job reported (a bash job's output tail). */
 	progressText?: string;
+	/**
+	 * Transcript that owns this job's completion; see {@link AsyncJobOrigin}.
+	 * Absent for jobs the owner session must bind at its first switch.
+	 */
+	origin?: AsyncJobOrigin;
 	/** Latest tool-render details reported by the running job. */
 	latestDetails?: AsyncJobDetails;
 	/**
@@ -248,6 +272,20 @@ export interface AsyncJobProcess {
 
 /** Delivery callback for a settled job's result text. */
 export type AsyncJobDeliverySink = (jobId: string, text: string, job?: AsyncJob) => void | Promise<void>;
+
+/**
+ * Transcript that owns a job's completion when the owner session navigates
+ * away. A job without an explicit origin belongs to the session that was
+ * active when it was registered; the owner session binds those jobs at the
+ * switch, while bodies that keep running from a previously pinned transcript
+ * state the origin at registration.
+ */
+export interface AsyncJobOrigin {
+	/** Session id of the transcript this job's completion belongs to. */
+	sessionId: string;
+	/** Session file of that transcript; null for an in-memory session. */
+	sessionFile: string | null;
+}
 
 export interface AsyncJobManagerOptions {
 	/**
@@ -349,6 +387,8 @@ export interface AsyncJobRegisterOptions {
 	request?: string;
 	/** See {@link AsyncJob.widgetInputs}. */
 	widgetInputs?: JobWidgetInputs;
+	/** See {@link AsyncJob.origin}. */
+	origin?: AsyncJobOrigin;
 }
 
 /**
@@ -392,6 +432,10 @@ export interface AsyncJobManagerApi {
 	 * background, had its result consumed, or was evicted. Pass ids to watch only those jobs.
 	 */
 	onJobsChanged(listener: () => void, ids?: readonly string[]): () => void;
+	/** Next adaptive wait window for `ownerId`; see the poll ladder. */
+	nextPollWaitMs(ownerId: string | undefined, now?: number): number;
+	/** Record that a poll wait for `ownerId` returned, resetting a long-gap ladder. */
+	recordPollWaitEnd(ownerId: string | undefined, now?: number): void;
 	/** Start tracking `run` as a job; returns its id. */
 	register(type: AsyncJobType, label: string, run: AsyncJobRun, options?: AsyncJobRegisterOptions): string;
 	/** Deliver an already-completed result without consuming a running-job slot. */
@@ -399,14 +443,14 @@ export interface AsyncJobManagerApi {
 		type: AsyncJobType,
 		label: string,
 		result: AsyncJobRunResult,
-		options: { id?: string; ownerId?: string; agentId?: string },
+		options: { id?: string; ownerId?: string; agentId?: string; origin?: AsyncJobOrigin },
 	): string;
 	/** Deliver an already-failed result without consuming a running-job slot. */
 	publishFailed(
 		type: AsyncJobType,
 		label: string,
 		errorText: string,
-		options: { id?: string; ownerId?: string; agentId?: string },
+		options: { id?: string; ownerId?: string; agentId?: string; origin?: AsyncJobOrigin },
 	): string;
 	/** Cancel one running job; a filter whose owner does not match reads as not-found. */
 	cancel(id: string, filter?: AsyncJobFilter): boolean;
@@ -529,6 +573,34 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 		};
 	}
 
+	/** Per-owner adaptive-wait state; see {@link POLL_WAIT_LADDER_MS}. */
+	readonly #pollEscalation = new Map<string, PollEscalationState>();
+
+	/**
+	 * Next wait window for `ownerId`, escalating while waits keep returning
+	 * quickly and resetting to the ladder floor once a gap of at least
+	 * {@link POLL_ESCALATION_RESET_MS} suggests the agent left the loop.
+	 */
+	nextPollWaitMs(ownerId: string | undefined, now: number = Date.now()): number {
+		const key = ownerId ?? OWNERLESS_POLL_KEY;
+		const prev = this.#pollEscalation.get(key);
+		const reset = !prev || now - prev.lastPollEndAt >= POLL_ESCALATION_RESET_MS;
+		const level = reset ? 0 : Math.min(prev.level + 1, POLL_WAIT_LADDER_MS.length - 1);
+		this.#pollEscalation.set(key, { level, lastPollEndAt: prev?.lastPollEndAt ?? now });
+		return POLL_WAIT_LADDER_MS[level];
+	}
+
+	/**
+	 * Mark a blocking wait as finished so the idle-reset window is measured from
+	 * now. Waiting again before {@link POLL_ESCALATION_RESET_MS} elapses keeps
+	 * climbing the ladder; a longer gap resets it to the floor.
+	 */
+	recordPollWaitEnd(ownerId: string | undefined, now: number = Date.now()): void {
+		const key = ownerId ?? OWNERLESS_POLL_KEY;
+		const prev = this.#pollEscalation.get(key);
+		this.#pollEscalation.set(key, { level: prev?.level ?? 0, lastPollEndAt: now });
+	}
+
 	#notifyJobsChanged(jobId: string): void {
 		for (const listener of this.#changeListeners) {
 			try {
@@ -621,6 +693,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 			label,
 			...(options?.intent ? { intent: options.intent } : {}),
 			...(options?.request ? { request: options.request } : {}),
+			...(options?.origin ? { origin: options.origin } : {}),
 			abortController,
 			promise: Promise.resolve(),
 			ownerId: options?.ownerId,
@@ -712,7 +785,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 		type: AsyncJobType,
 		label: string,
 		result: AsyncJobRunResult,
-		options: { id?: string; ownerId?: string; agentId?: string },
+		options: { id?: string; ownerId?: string; agentId?: string; origin?: AsyncJobOrigin },
 	): string {
 		if (this.#disposed) throw new Error("Async job manager is disposed");
 		const id = this.#claimJobId(options.id);
@@ -731,6 +804,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 			resultText: result.text,
 			structured: result.structured,
 			agentOutputPublished: result.agentOutputPublished,
+			...(options.origin ? { origin: options.origin } : {}),
 		};
 		return this.#publishSettled(job, result.text);
 	}
@@ -743,7 +817,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 		type: AsyncJobType,
 		label: string,
 		errorText: string,
-		options: { id?: string; ownerId?: string; agentId?: string },
+		options: { id?: string; ownerId?: string; agentId?: string; origin?: AsyncJobOrigin },
 	): string {
 		if (this.#disposed) throw new Error("Async job manager is disposed");
 		const id = this.#claimJobId(options.id);

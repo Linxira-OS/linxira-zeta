@@ -3,7 +3,7 @@
  * form that walks focus between fields. Components (`./field.tsx`) render
  * these; hosts drive them with keys and calls (`setValue`, `submit`, …).
  */
-import { batch, computed, type KeyEvent, type Signal, signal, untrack } from "@oh-my-pi/pi-tui";
+import { batch, computed, type KeyEvent, type Signal, signal, untrack } from "@linxiraos/pi-tui";
 import { fuzzyFilter } from "../../utils/fuzzy";
 import { editLine, type LineState } from "../overlays/settings/line-edit";
 import { listKeyId, matchesSelectCancel } from "../../config/keybindings/matchers";
