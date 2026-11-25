@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/wavetermdev/waveterm/pkg/acp"
 	"github.com/wavetermdev/waveterm/pkg/aiusechat/uctypes"
 	"github.com/wavetermdev/waveterm/pkg/baseds"
 	"github.com/wavetermdev/waveterm/pkg/blockcontroller"
@@ -41,6 +42,9 @@ var WaveEventDataTypes = map[string]reflect.Type{
 	wps.Event_AIModeConfig:        reflect.TypeOf(wconfig.AIModeConfigUpdate{}),
 	wps.Event_BlockJobStatus:      reflect.TypeOf(wshrpc.BlockJobStatusData{}),
 	wps.Event_Badge:               reflect.TypeOf(baseds.BadgeEvent{}),
+	wps.Event_AgentStatus:         reflect.TypeOf((*acp.StatusData)(nil)),
+	wps.Event_AgentPermission:     reflect.TypeOf((*acp.PermissionRequestData)(nil)),
+	wps.Event_AgentConfig:         reflect.TypeOf((*acp.ConfigData)(nil)),
 }
 
 func getWaveEventDataTSType(eventName string, tsTypesMap map[reflect.Type]string) string {

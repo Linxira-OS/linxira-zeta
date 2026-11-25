@@ -77,6 +77,10 @@ const (
 	MetaKey_AiFileDiffChatId                 = "aifilediff:chatid"
 	MetaKey_AiFileDiffToolCallId             = "aifilediff:toolcallid"
 
+	MetaKey_AgentClear                       = "agent:*"
+	MetaKey_AgentSessionId                   = "agent:sessionid"
+	MetaKey_AgentCwd                         = "agent:cwd"
+
 	MetaKey_EditorClear                      = "editor:*"
 	MetaKey_EditorMinimapEnabled             = "editor:minimapenabled"
 	MetaKey_EditorStickyScrollEnabled        = "editor:stickyscrollenabled"

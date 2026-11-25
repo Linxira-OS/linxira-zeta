@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/wavetermdev/waveterm/pkg/service/agentservice"
 	"github.com/wavetermdev/waveterm/pkg/service/blockservice"
 	"github.com/wavetermdev/waveterm/pkg/service/clientservice"
 	"github.com/wavetermdev/waveterm/pkg/service/objectservice"
@@ -28,6 +29,7 @@ var ServiceMap = map[string]any{
 	"window":    &windowservice.WindowService{},
 	"workspace": &workspaceservice.WorkspaceService{},
 	"userinput": &userinputservice.UserInputService{},
+	"agent":     agentservice.AgentServiceInstance,
 }
 
 var contextRType = reflect.TypeOf((*context.Context)(nil)).Elem()

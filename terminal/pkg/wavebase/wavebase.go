@@ -45,6 +45,7 @@ const (
 	BlockFile_Cache = "cache:term:full" // for cached block
 	BlockFile_VDom  = "vdom"            // used for alt html layout
 	BlockFile_Env   = "env"
+	BlockFile_Agent = "agent" // newline-delimited ACP UI stream
 )
 
 const NeedJwtConst = "NEED-JWT"

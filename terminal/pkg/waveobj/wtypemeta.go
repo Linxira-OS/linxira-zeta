@@ -79,6 +79,10 @@ type MetaTSType struct {
 	AiFileDiffChatId     string `json:"aifilediff:chatid,omitempty"`
 	AiFileDiffToolCallId string `json:"aifilediff:toolcallid,omitempty"`
 
+	AgentClear     bool   `json:"agent:*,omitempty"`
+	AgentSessionId string `json:"agent:sessionid,omitempty"`
+	AgentCwd       string `json:"agent:cwd,omitempty"`
+
 	EditorClear               bool    `json:"editor:*,omitempty"`
 	EditorMinimapEnabled      bool    `json:"editor:minimapenabled,omitempty"`
 	EditorStickyScrollEnabled bool    `json:"editor:stickyscrollenabled,omitempty"`
@@ -102,8 +106,8 @@ type MetaTSType struct {
 	BgActiveBorderColor string  `json:"bg:activebordercolor,omitempty"` // frame:activebordercolor
 
 	// for workspace
-	LayoutVTabBarWidth      int  `json:"layout:vtabbarwidth,omitempty"`
-	LayoutWidgetsVisible    *bool `json:"layout:widgetsvisible,omitempty"`
+	LayoutVTabBarWidth   int   `json:"layout:vtabbarwidth,omitempty"`
+	LayoutWidgetsVisible *bool `json:"layout:widgetsvisible,omitempty"`
 
 	// for tabs+waveai
 	WaveAiPanelOpen     bool   `json:"waveai:panelopen,omitempty"`
