@@ -11,6 +11,7 @@ import {
 } from "@/app/element/markdown-util";
 import remarkMermaidToTag from "@/app/element/remark-mermaid-to-tag";
 import { boundNumber, useAtomValueSafe, cn } from "@/util/util";
+import { useI18n } from "../../i18n";
 import clsx from "clsx";
 import { Atom } from "jotai";
 import { OverlayScrollbarsComponent, OverlayScrollbarsComponentRef } from "overlayscrollbars-react";
@@ -69,6 +70,7 @@ const Heading = ({ props, hnum }: { props: React.HTMLAttributes<HTMLHeadingEleme
 };
 
 const Mermaid = ({ chart }: { chart: string }) => {
+    const { t } = useI18n();
     const ref = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -97,27 +99,27 @@ const Mermaid = ({ chart }: { chart: string }) => {
                 setIsLoading(false);
             } catch (err) {
                 console.error("Error rendering mermaid diagram:", err);
-                setError(`Failed to render diagram: ${err.message || err}`);
+                setError(t("element.diagramError", { error: err.message || String(err) }));
                 setIsLoading(false);
             }
         };
 
         renderMermaid();
-    }, [chart]);
+    }, [chart, t]);
 
     useEffect(() => {
         if (!ref.current) return;
 
         if (error) {
-            ref.current.textContent = `Error: ${error}`;
+            ref.current.textContent = error;
             ref.current.className = "mermaid error";
         } else if (isLoading) {
-            ref.current.textContent = "Loading diagram...";
+            ref.current.textContent = t("element.loadingDiagram");
             ref.current.className = "mermaid";
         } else {
             ref.current.className = "mermaid";
         }
-    }, [isLoading, error]);
+    }, [isLoading, error, t]);
 
     return <div className="mermaid" ref={ref} />;
 };
@@ -136,6 +138,7 @@ type CodeBlockProps = {
 };
 
 const CodeBlock = ({ children, onClickExecute }: CodeBlockProps) => {
+    const { t } = useI18n();
     const getTextContent = (children: any): string => {
         if (typeof children === "string") {
             return children;
@@ -166,7 +169,7 @@ const CodeBlock = ({ children, onClickExecute }: CodeBlockProps) => {
         <pre className="codeblock">
             {children}
             <div className="codeblock-actions">
-                <CopyButton onClick={handleCopy} title="Copy" />
+                <CopyButton onClick={handleCopy} title={t("common.copy")} />
                 {onClickExecute && (
                     <IconButton
                         decl={{
@@ -320,6 +323,7 @@ const Markdown = ({
     rehype = true,
     onClickExecute,
 }: MarkdownProps) => {
+    const { t } = useI18n();
     const textAtomValue = useAtomValueSafe<string>(textAtom);
     const tocRef = useRef<TocItem[]>([]);
     const showToc = useAtomValueSafe(showTocAtom) ?? false;
@@ -498,7 +502,7 @@ const Markdown = ({
             {toc && (
                 <OverlayScrollbarsComponent className="toc mt-1" options={{ scrollbars: { autoHide: "leave" } }}>
                     <div className="toc-inner">
-                        <h4 className="font-bold">Table of Contents</h4>
+                        <h4 className="font-bold">{t("element.tableOfContents")}</h4>
                         {toc}
                     </div>
                 </OverlayScrollbarsComponent>

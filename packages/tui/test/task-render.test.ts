@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
-import { renderResult, taskCardAgentIds, taskToolRenderer } from "@linxiraos/pi-tui/tools/task";
+import { renderResult, taskCardAgentIds } from "@linxiraos/pi-tui/tools/task";
+import { taskToolRenderer } from "@linxiraos/pi-tui/tools/task";
 import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
 
 const strip = (lines: readonly string[]): string =>
@@ -170,7 +171,7 @@ describe("task live progress rendering", () => {
 			"line 5",
 			"line 6",
 			"Wall time: 0.03 seconds",
-			"[raw output: artifact://123]",
+			"[raw output: local://123.log]",
 		];
 		const progress = makeProgress([...chronological].reverse());
 

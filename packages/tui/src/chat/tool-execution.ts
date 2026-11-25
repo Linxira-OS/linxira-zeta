@@ -142,7 +142,7 @@ function cardPreview(preview: NativeToolView["preview"]): TspPreview | undefined
 type ToolDescriber = Pick<ToolRenderer, "describeCall" | "describeResult" | "mergeCallAndResult">;
 
 /** Optional kinds of the host's vocabulary the describe hooks branch on. */
-type NativeHostKinds = Required<Pick<RenderResultContextOptions, "media" | "json" | "shell">>;
+type NativeHostKinds = Required<Pick<RenderResultContextOptions, "media" | "json" | "shell" | "tray">>;
 
 class SafeToolRendererComponent implements Component {
 	#toolName: string;
@@ -1324,6 +1324,7 @@ export class ToolExecutionComponent extends Container {
 			media: cx?.supports("media") === true,
 			json: cx?.supports("json") === true,
 			shell: cx?.supports("shell") === true,
+			tray: cx?.feature("tray") === true,
 		};
 		const presentation = this.#presentation.draw();
 		const key = [
@@ -1343,6 +1344,7 @@ export class ToolExecutionComponent extends Container {
 			host.media,
 			host.json,
 			host.shell,
+			host.tray,
 			getThemeEpoch(),
 			presentation,
 		];
@@ -1374,6 +1376,7 @@ export class ToolExecutionComponent extends Container {
 	 */
 	#nativeCollapsed(status: TspCardStatus, view: NativeToolView): boolean {
 		if (view.open) return false;
+		if (view.folded) return true;
 		const live = status === "pending" || status === "running";
 		return !this.#expanded && !(live && streamsBody(this.#toolName));
 	}

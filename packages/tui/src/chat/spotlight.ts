@@ -390,7 +390,7 @@ function noticeSpans(spotlight: SpotlightDetails): TspSpan[] {
 
 /**
  * The notice row under one tool card (role `zeta.tool.spotlight`, key `spotlight:<toolCallId>`): muted for a
- * passthrough (its star alone, named by its tooltip) and for a held-out result, accent for a changed result
+ * held-back cut, accent for an applied cut
  * ({@link noticeSpans}). One with an original (changed or held out) has a hover card charting its heat
  * ({@link spotlightNoticeCard}) and a click that opens its sheet through the host's transcript actions. A native
  * transcript block of its own, placed right after its card ({@link Component.nativeTrailers}), so it shows while the

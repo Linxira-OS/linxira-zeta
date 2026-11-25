@@ -114,8 +114,8 @@ function nonBlankParams(params: SpotlightRequestParams): Param[] {
 }
 
 /**
- * One parameter's row (role `zeta.spotlight.param`): its name, then its non-blank values on one run of spaces and at
- * most `lines` lines, whole in the tooltip; `end` (the toggle) last.
+ * One parameter's row (role `zeta.spotlight.param`): label the collapsed intent, show whole values
+ * in tooltips, and place the toggle last.
  */
 function paramRow(param: Param, expanded: boolean, end?: NativeNode): NativeNode {
 	const whole = param.values.map(value => sanitizeText(value).trim()).filter(Boolean);

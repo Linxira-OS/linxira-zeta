@@ -10,6 +10,7 @@ import {
 import { IconButton, ToggleIconButton } from "@/element/iconbutton";
 import { MagnifyIcon } from "@/element/magnify";
 import { MenuButton } from "@/element/menubutton";
+import { t, useI18n } from "../../i18n";
 import * as util from "@/util/util";
 import clsx from "clsx";
 import * as jotai from "jotai";
@@ -50,28 +51,28 @@ export function blockViewToIcon(view: string): string {
 
 export function blockViewToName(view: string): string {
     if (util.isBlank(view)) {
-        return "(No View)";
+        return t("block.view.noView");
     }
     if (view == "term") {
-        return "Terminal";
+        return t("block.view.terminal");
     }
     if (view == "preview") {
-        return "Preview";
+        return t("block.view.preview");
     }
     if (view == "web") {
-        return "Web";
+        return t("block.view.web");
     }
     if (view == "waveai") {
-        return "WaveAI";
+        return t("block.view.waveai");
     }
     if (view == "help") {
-        return "Help";
+        return t("block.view.help");
     }
     if (view == "tips") {
-        return "Tips";
+        return t("block.view.tips");
     }
     if (view == "processviewer") {
-        return "Processes";
+        return t("block.view.processes");
     }
     return view;
 }
@@ -212,10 +213,11 @@ export const Input = React.memo(
 
 export const OptMagnifyButton = React.memo(
     ({ magnified, toggleMagnify, disabled }: { magnified: boolean; toggleMagnify: () => void; disabled: boolean }) => {
+        const { t } = useI18n();
         const magnifyDecl: IconButtonDecl = {
             elemtype: "iconbutton",
             icon: <MagnifyIcon enabled={magnified} />,
-            title: magnified ? "Minimize" : "Magnify",
+            title: magnified ? t("block.minimize") : t("block.magnify"),
             click: toggleMagnify,
             disabled,
         };

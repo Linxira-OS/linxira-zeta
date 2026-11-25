@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { autoUpdate, FloatingPortal, Middleware, offset, useFloating } from "@floating-ui/react";
+import { useI18n } from "../../i18n";
 import clsx from "clsx";
 import { atom, useAtom, WritableAtom } from "jotai";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
@@ -35,6 +36,7 @@ const SearchComponent = ({
     onPrev,
 }: SearchProps) => {
     const [isOpen, setIsOpen] = useAtom<boolean>(isOpenAtom);
+    const { t } = useI18n();
     const [search, setSearch] = useAtom<string>(searchAtom);
     const [index, setIndex] = useAtom<number>(indexAtom);
     const [numResults, setNumResults] = useAtom<number>(numResultsAtom);
@@ -129,7 +131,7 @@ const SearchComponent = ({
     const prevDecl: IconButtonDecl = {
         elemtype: "iconbutton",
         icon: "chevron-up",
-        title: "Previous Result (Shift+Enter)",
+        title: t("element.previousResult"),
         disabled: numResults === 0,
         click: onPrevWrapper,
     };
@@ -137,7 +139,7 @@ const SearchComponent = ({
     const nextDecl: IconButtonDecl = {
         elemtype: "iconbutton",
         icon: "chevron-down",
-        title: "Next Result (Enter)",
+        title: t("element.nextResult"),
         disabled: numResults === 0,
         click: onNextWrapper,
     };
@@ -145,13 +147,13 @@ const SearchComponent = ({
     const closeDecl: IconButtonDecl = {
         elemtype: "iconbutton",
         icon: "xmark-large",
-        title: "Close (Esc)",
+        title: t("element.closeSearch"),
         click: () => setIsOpen(false),
     };
 
-    const regexDecl = createToggleButtonDecl(regexAtom, "custom@regex", "Regular Expression");
-    const wholeWordDecl = createToggleButtonDecl(wholeWordAtom, "custom@whole-word", "Whole Word");
-    const caseSensitiveDecl = createToggleButtonDecl(caseSensitiveAtom, "custom@case-sensitive", "Case Sensitive");
+    const regexDecl = createToggleButtonDecl(regexAtom, "custom@regex", t("element.regex"));
+    const wholeWordDecl = createToggleButtonDecl(wholeWordAtom, "custom@whole-word", t("element.wholeWord"));
+    const caseSensitiveDecl = createToggleButtonDecl(caseSensitiveAtom, "custom@case-sensitive", t("element.caseSensitive"));
 
     return (
         <>
@@ -160,7 +162,7 @@ const SearchComponent = ({
                     <div className="search-container" style={{ ...floatingStyles }} ref={refs.setFloating}>
                         <Input
                             ref={inputRef}
-                            placeholder="Search"
+                            placeholder={t("element.search")}
                             value={search}
                             onChange={setSearch}
                             onKeyDown={onKeyDown}
@@ -169,7 +171,7 @@ const SearchComponent = ({
                         <div
                             className={clsx("search-results", { hidden: numResults === 0 })}
                             aria-live="polite"
-                            aria-label="Search Results"
+                            aria-label={t("element.searchResults")}
                         >
                             {index + 1}/{numResults}
                         </div>

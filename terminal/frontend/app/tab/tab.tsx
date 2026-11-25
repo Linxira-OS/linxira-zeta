@@ -7,6 +7,7 @@ import { getTabModelByTabId } from "@/app/store/tab-model";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { WaveEnv, WaveEnvSubset, useWaveEnv } from "@/app/waveenv/waveenv";
 import { Button } from "@/element/button";
+import { useI18n } from "../../i18n";
 import { validateCssColor } from "@/util/color-validator";
 import { fireAndForget } from "@/util/util";
 import clsx from "clsx";
@@ -52,6 +53,7 @@ interface TabVProps {
 }
 
 const TabV = forwardRef<HTMLDivElement, TabVProps>((props, ref) => {
+    const { t } = useI18n();
     const {
         tabId,
         tabName,
@@ -209,7 +211,7 @@ const TabV = forwardRef<HTMLDivElement, TabVProps>((props, ref) => {
                     className="ghost grey close"
                     onClick={onClose}
                     onMouseDown={handleMouseDownOnClose}
-                    title="Close Tab"
+                    title={t("tab.closeTab")}
                 >
                     <i className="fa fa-solid fa-xmark" />
                 </Button>

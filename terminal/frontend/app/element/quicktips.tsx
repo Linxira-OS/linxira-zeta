@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { MagnifyIcon } from "@/app/element/magnify";
+import { useI18n } from "../../i18n";
 import { PLATFORM, PlatformMacOS } from "@/util/platformutil";
 import { cn } from "@/util/util";
 
@@ -32,6 +33,7 @@ const IconBox = ({ children, variant = "accent" }: { children: React.ReactNode; 
 };
 
 const KeyBinding = ({ keyDecl }: { keyDecl: string }) => {
+    const { t } = useI18n();
     const chordParts = keyDecl.split("+");
     const chordElems: React.ReactNode[] = [];
 
@@ -64,7 +66,7 @@ const KeyBinding = ({ keyDecl }: { keyDecl: string }) => {
                 continue;
             }
             if (part == "Digit") {
-                elems.push(<KeyCap key={`${chordIdx}-digit`}>Number (1-9)</KeyCap>);
+                elems.push(<KeyCap key={`${chordIdx}-digit`}>{t("quicktips.numberKeys")}</KeyCap>);
                 continue;
             }
             if (part == "[" || part == "]") {
@@ -93,12 +95,13 @@ const KeyBinding = ({ keyDecl }: { keyDecl: string }) => {
 };
 
 const QuickTips = () => {
+    const { t } = useI18n();
     return (
         <div className="flex flex-col w-full gap-6 @container">
             <div className="flex flex-col gap-4 p-5 bg-gradient-to-br from-highlightbg/30 to-transparent hover:from-accent-400/5 rounded-lg border border-white/10 hover:border-accent-400/20 transition-all duration-300">
                 <div className="flex items-center gap-2 text-xl font-bold">
                     <div className="w-1 h-6 bg-accent-400 rounded-full"></div>
-                    <span className="text-foreground">Header Icons</span>
+                    <span className="text-foreground">{t("quicktips.headerIcons")}</span>
                 </div>
                 <div className="grid grid-cols-1 @lg:grid-cols-2 gap-3">
                     <div className="flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors">
@@ -106,7 +109,7 @@ const QuickTips = () => {
                             <MagnifyIcon enabled={false} />
                         </IconBox>
                         <div className="flex flex-col gap-0.5 flex-1">
-                            <span className="text-[15px]">Magnify a Block</span>
+                            <span className="text-[15px]">{t("quicktips.magnifyBlock")}</span>
                             <KeyBinding keyDecl="Cmd:m" />
                         </div>
                     </div>
@@ -115,7 +118,7 @@ const QuickTips = () => {
                             <i className="fa-solid fa-sharp fa-laptop fa-fw" />
                         </IconBox>
                         <div className="flex flex-col gap-0.5 flex-1">
-                            <span className="text-[15px]">Connect to a remote server</span>
+                            <span className="text-[15px]">{t("quicktips.connectRemote")}</span>
                             <KeyBinding keyDecl="Cmd:g" />
                         </div>
                     </div>
@@ -123,14 +126,14 @@ const QuickTips = () => {
                         <IconBox variant="secondary">
                             <i className="fa-solid fa-sharp fa-cog fa-fw" />
                         </IconBox>
-                        <span className="text-[15px]">Block Settings</span>
+                        <span className="text-[15px]">{t("quicktips.blockSettings")}</span>
                     </div>
                     <div className="flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors">
                         <IconBox variant="secondary">
                             <i className="fa-solid fa-sharp fa-xmark-large fa-fw" />
                         </IconBox>
                         <div className="flex flex-col gap-0.5 flex-1">
-                            <span className="text-[15px]">Close Block</span>
+                            <span className="text-[15px]">{t("quicktips.closeBlock")}</span>
                             <KeyBinding keyDecl="Cmd:w" />
                         </div>
                     </div>
@@ -140,78 +143,78 @@ const QuickTips = () => {
             <div className="flex flex-col gap-4 p-5 bg-gradient-to-br from-highlightbg/30 to-transparent hover:from-accent-400/5 rounded-lg border border-white/10 hover:border-accent-400/20 transition-all duration-300">
                 <div className="flex items-center gap-2 text-xl font-bold">
                     <div className="w-1 h-6 bg-accent-400 rounded-full"></div>
-                    <span className="text-foreground">Important Keybindings</span>
+                    <span className="text-foreground">{t("quicktips.importantKeybindings")}</span>
                 </div>
 
                 <div className="grid grid-cols-1 @lg:grid-cols-2 gap-x-5 gap-y-6">
                     <div className="flex flex-col gap-1.5">
                         <div className="text-sm text-accent-400 font-semibold uppercase tracking-wide mb-1">
-                            Main Keybindings
+                            {t("quicktips.mainKeybindings")}
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">New Tab</span>
+                            <span className="text-[15px]">{t("quicktips.newTab")}</span>
                             <KeyBinding keyDecl="Cmd:t" />
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">New Terminal Block</span>
+                            <span className="text-[15px]">{t("quicktips.newTerminalBlock")}</span>
                             <KeyBinding keyDecl="Cmd:n" />
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Open Wave AI Panel</span>
+                            <span className="text-[15px]">{t("quicktips.openWaveAi")}</span>
                             <KeyBinding keyDecl="Cmd:Shift:a" />
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                         <div className="text-sm text-accent-400 font-semibold uppercase tracking-wide mb-1">
-                            Tab Switching ({PLATFORM === PlatformMacOS ? "Cmd" : "Alt"})
+                            {t("quicktips.tabSwitching", { key: PLATFORM === PlatformMacOS ? "Cmd" : "Alt" })}
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Switch To Nth Tab</span>
+                            <span className="text-[15px]">{t("quicktips.switchNthTab")}</span>
                             <KeyBinding keyDecl="Cmd:Digit" />
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Previous Tab</span>
+                            <span className="text-[15px]">{t("quicktips.previousTab")}</span>
                             <KeyBinding keyDecl="Cmd:[" />
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Next Tab</span>
+                            <span className="text-[15px]">{t("quicktips.nextTab")}</span>
                             <KeyBinding keyDecl="Cmd:]" />
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                         <div className="text-sm text-accent-400 font-semibold uppercase tracking-wide mb-1">
-                            Block Navigation (Ctrl-Shift)
+                            {t("quicktips.blockNavigation")}
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Navigate Between Blocks</span>
+                            <span className="text-[15px]">{t("quicktips.navigateBlocks")}</span>
                             <KeyBinding keyDecl="Ctrl:Shift:Arrows" />
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Focus Nth Block</span>
+                            <span className="text-[15px]">{t("quicktips.focusNthBlock")}</span>
                             <KeyBinding keyDecl="Ctrl:Shift:Digit" />
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Focus Wave AI</span>
+                            <span className="text-[15px]">{t("quicktips.focusWaveAi")}</span>
                             <KeyBinding keyDecl="Ctrl:Shift:0" />
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                         <div className="text-sm text-accent-400 font-semibold uppercase tracking-wide mb-1">
-                            Split Blocks
+                            {t("quicktips.splitBlocks")}
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Split Right</span>
+                            <span className="text-[15px]">{t("quicktips.splitRight")}</span>
                             <KeyBinding keyDecl="Cmd:d" />
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Split Below</span>
+                            <span className="text-[15px]">{t("quicktips.splitBelow")}</span>
                             <KeyBinding keyDecl="Cmd:Shift:d" />
                         </div>
                         <div className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-white/5 transition-colors">
-                            <span className="text-[15px]">Split in Direction</span>
+                            <span className="text-[15px]">{t("quicktips.splitDirection")}</span>
                             <KeyBinding keyDecl="Ctrl:Shift:s + Arrows" />
                         </div>
                     </div>
@@ -221,7 +224,7 @@ const QuickTips = () => {
             <div className="flex flex-col gap-4 p-5 bg-gradient-to-br from-highlightbg/30 to-transparent hover:from-accent-400/5 rounded-lg border border-white/10 hover:border-accent-400/20 transition-all duration-300">
                 <div className="flex items-center gap-2 text-xl font-bold">
                     <div className="w-1 h-6 bg-accent-400 rounded-full"></div>
-                    <span className="text-foreground">wsh commands</span>
+                    <span className="text-foreground">{t("quicktips.wshCommands")}</span>
                 </div>
                 <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2 p-4 bg-black/20 rounded-lg border border-accent-400/30 hover:border-accent-400/50 transition-colors">
@@ -230,7 +233,7 @@ const QuickTips = () => {
                             <span className="text-accent-400 font-semibold">wsh view</span>
                             <span className="text-muted"> [filename|url]</span>
                         </code>
-                        <div className="text-secondary text-sm mt-1">Preview files, directories, or web URLs</div>
+                        <div className="text-secondary text-sm mt-1">{t("quicktips.previewFiles")}</div>
                     </div>
                     <div className="flex flex-col gap-2 p-4 bg-black/20 rounded-lg border border-accent-400/30 hover:border-accent-400/50 transition-colors">
                         <code className="font-mono text-sm">
@@ -238,7 +241,7 @@ const QuickTips = () => {
                             <span className="text-accent-400 font-semibold">wsh edit</span>
                             <span className="text-muted"> [filename]</span>
                         </code>
-                        <div className="text-secondary text-sm mt-1">Edit config and code files</div>
+                        <div className="text-secondary text-sm mt-1">{t("quicktips.editConfig")}</div>
                     </div>
                 </div>
             </div>
@@ -246,7 +249,7 @@ const QuickTips = () => {
             <div className="flex flex-col gap-4 p-5 bg-gradient-to-br from-highlightbg/30 to-transparent hover:from-accent-400/5 rounded-lg border border-white/10 hover:border-accent-400/20 transition-all duration-300">
                 <div className="flex items-center gap-2 text-xl font-bold">
                     <div className="w-1 h-6 bg-accent-400 rounded-full"></div>
-                    <span className="text-foreground">More Tips</span>
+                    <span className="text-foreground">{t("quicktips.moreTips")}</span>
                 </div>
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors">
@@ -254,7 +257,7 @@ const QuickTips = () => {
                             <i className="fa-solid fa-sharp fa-computer-mouse fa-fw" />
                         </IconBox>
                         <span>
-                            <b>Tabs</b> - Right click any tab to change backgrounds or rename.
+                            <b>{t("quicktips.tabs")}</b> - {t("quicktips.tabsTip")}
                         </span>
                     </div>
                     <div className="flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors">
@@ -262,7 +265,7 @@ const QuickTips = () => {
                             <i className="fa-solid fa-sharp fa-cog fa-fw" />
                         </IconBox>
                         <span>
-                            <b>Web View</b> - Click the gear in the web view to set your homepage
+                            <b>{t("quicktips.webView")}</b> - {t("quicktips.webViewTip")}
                         </span>
                     </div>
                     <div className="flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors">
@@ -270,7 +273,7 @@ const QuickTips = () => {
                             <i className="fa-solid fa-sharp fa-cog fa-fw" />
                         </IconBox>
                         <span>
-                            <b>Terminal</b> - Click the gear in the terminal to set your terminal theme and font size
+                            <b>{t("quicktips.terminal")}</b> - {t("quicktips.terminalTip")}
                         </span>
                     </div>
                 </div>
@@ -279,7 +282,7 @@ const QuickTips = () => {
             <div className="flex flex-col gap-4 p-5 bg-gradient-to-br from-highlightbg/30 to-transparent hover:from-accent-400/5 rounded-lg border border-white/10 hover:border-accent-400/20 transition-all duration-300">
                 <div className="flex items-center gap-2 text-xl font-bold">
                     <div className="w-1 h-6 bg-accent-400 rounded-full"></div>
-                    <span className="text-foreground">Need More Help?</span>
+                    <span className="text-foreground">{t("quicktips.needMoreHelp")}</span>
                 </div>
                 <div className="grid grid-cols-1 @sm:grid-cols-2 gap-2">
                     <div className="flex items-center gap-3 p-3 rounded-md bg-black/20 hover:bg-black/30 transition-colors cursor-pointer">
@@ -292,7 +295,7 @@ const QuickTips = () => {
                             rel="noopener"
                             className="hover:text-accent-400 hover:underline transition-colors font-medium"
                         >
-                            Zeta Terminal on GitHub
+                            {t("quicktips.github")}
                         </a>
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-md bg-black/20 hover:bg-black/30 transition-colors cursor-pointer">
@@ -305,7 +308,7 @@ const QuickTips = () => {
                             rel="noopener"
                             className="hover:text-accent-400 hover:underline transition-colors font-medium"
                         >
-                            Configuration Options
+                            {t("quicktips.configOptions")}
                         </a>
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-md bg-black/20 hover:bg-black/30 transition-colors cursor-pointer">
@@ -318,7 +321,7 @@ const QuickTips = () => {
                             rel="noopener"
                             className="hover:text-accent-400 hover:underline transition-colors font-medium"
                         >
-                            All Keybindings
+                            {t("quicktips.allKeybindings")}
                         </a>
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-md bg-black/20 hover:bg-black/30 transition-colors cursor-pointer">
@@ -331,7 +334,7 @@ const QuickTips = () => {
                             rel="noopener"
                             className="hover:text-accent-400 hover:underline transition-colors font-medium"
                         >
-                            Full Documentation
+                            {t("quicktips.fullDocs")}
                         </a>
                     </div>
                 </div>

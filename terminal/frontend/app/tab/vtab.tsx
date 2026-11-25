@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { refocusNode } from "@/app/store/global";
+import { useI18n } from "../../i18n";
 import { validateCssColor } from "@/util/color-validator";
 import { cn } from "@/util/util";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -52,6 +53,7 @@ export function VTab({
     onHoverChanged,
     renameRef,
 }: VTabProps) {
+    const { t } = useI18n();
     const [originalName, setOriginalName] = useState(tab.name);
     const [isEditable, setIsEditable] = useState(false);
     const editableRef = useRef<HTMLDivElement>(null);
@@ -194,7 +196,7 @@ export function VTab({
                 )}
                 contentEditable={isEditable}
                 role="textbox"
-                aria-label="Tab name"
+                aria-label={t("tab.nameAria")}
                 aria-readonly={!isEditable}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
@@ -213,7 +215,7 @@ export function VTab({
                         event.stopPropagation();
                         onClose();
                     }}
-                    aria-label="Close tab"
+                    aria-label={t("tab.closeAria")}
                 >
                     <i className="fa fa-solid fa-xmark" />
                 </button>
