@@ -155,7 +155,14 @@ function hasNonWhitespace(value: string): boolean {
  */
 function conversationEnd(messages: readonly AgentMessage[]): number {
 	let end = messages.length;
-	while (end > 0 && messages[end - 1].role === "custom" && !isUserAuthoredMessage(messages[end - 1])) end--;
+	while (end > 0) {
+		const message = messages[end - 1];
+		// An excluded custom row is never part of the provider conversation, so
+		// it cannot hide the failed assistant turn a retry must strip.
+		if (message.role !== "custom") break;
+		if (message.excludeFromContext !== true && isUserAuthoredMessage(message)) break;
+		end--;
+	}
 	return end;
 }
 
@@ -1331,10 +1338,21 @@ export class TurnRecovery {
 		reason = "assistant-context-cleanup",
 	): void {
 		const messages = this.#host.agent.state.messages;
-		const lastMessage = messages[messages.length - 1];
+		let assistantIndex = messages.length - 1;
+		// Excluded rows queued during the failed turn may trail it; they are not
+		// provider context and must not hide the assistant turn from cleanup.
+		while (assistantIndex >= 0) {
+			const candidate = messages[assistantIndex];
+			if (candidate?.role !== "custom" || candidate.excludeFromContext !== true) break;
+			assistantIndex--;
+		}
+		const lastMessage = messages[assistantIndex];
 		const lastAssistant: AssistantMessage | undefined = lastMessage?.role === "assistant" ? lastMessage : undefined;
 		if (lastAssistant !== undefined && this.#isSameAssistantMessage(lastAssistant, assistantMessage)) {
-			this.#host.agent.replaceMessages(messages.slice(0, -1));
+			this.#host.agent.replaceMessages([
+				...messages.slice(0, assistantIndex),
+				...messages.slice(assistantIndex + 1),
+			]);
 			return;
 		}
 		// A miss means the failed turn is still in active context (or was never
@@ -3420,14 +3438,20 @@ export class TurnRecovery {
 	 */
 	#stripFailedAssistantTail(): void {
 		const messages = this.#host.agent.state.messages;
-		const tail = messages[messages.length - 1];
+		let tailIndex = messages.length - 1;
+		while (tailIndex >= 0) {
+			const candidate = messages[tailIndex];
+			if (candidate?.role !== "custom" || candidate.excludeFromContext !== true) break;
+			tailIndex--;
+		}
+		const tail = messages[tailIndex];
 		if (tail?.role !== "assistant") return;
 		if (tail.stopReason !== "error" && tail.stopReason !== "aborted") return;
 		logger.debug("agent active context failed assistant tail stripped positionally", {
 			stopReason: tail.stopReason,
 			timestamp: tail.timestamp,
 		});
-		this.#host.agent.replaceMessages(messages.slice(0, -1));
+		this.#host.agent.replaceMessages([...messages.slice(0, tailIndex), ...messages.slice(tailIndex + 1)]);
 	}
 
 	/**

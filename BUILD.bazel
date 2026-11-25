@@ -28,7 +28,7 @@ _ADDONS = {
 [
     native_addon(
         name = "natives-" + target,
-        lib = "//crates/natives:omp_natives",
+        lib = "//crates/natives:pi_natives",
         out = out,
         platform = platform,
     )
