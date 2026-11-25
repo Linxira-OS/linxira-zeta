@@ -3,7 +3,7 @@
  * fake fetcher: numbers/labels/summaries must be passed through unchanged, and
  * the transcript must keep each message's own immutable IM route.
  */
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { SessionId } from "@linxiraos/studio-contract";
 import type { GatewayFetch } from "../gatewayRequest";
 import { loadImChatCandidates, loadImChatTranscript } from "../teamImChatGateway";

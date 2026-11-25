@@ -3,7 +3,7 @@
  * status/lease decides actions, room pages merge by host seq, onboarding text
  * becomes the service input. No transport or fixture server.
  */
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { TeamRoomEvent, TeamWorkspaceTask } from "@linxiraos/studio-contract";
 import {
   bootstrapProgress,

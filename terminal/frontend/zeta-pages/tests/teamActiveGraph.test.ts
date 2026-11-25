@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { TeamGraphReadModel } from "@linxiraos/studio-contract";
 import { buildTeamLanes, filterTeamGraph, nodeRole } from "../teamGraph";
 

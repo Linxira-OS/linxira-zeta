@@ -4,7 +4,7 @@
  * `teamGraph.ts` imports types only, so this runs without the renderer's npm
  * dependencies and pins container grouping, project options and counts.
  */
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { TeamGraphEdge, TeamGraphNode, TeamGraphReadModel, WorkspaceId } from "@linxiraos/studio-contract";
 import {
   buildTeamLanes,

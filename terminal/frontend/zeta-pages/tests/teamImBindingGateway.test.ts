@@ -3,7 +3,7 @@
  * source of a pending switch (the IM router) and the fail-closed error path;
  * they do not assert copy.
  */
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { GatewayFetch } from "../gatewayRequest";
 import {
   cancelImChatSwitch,

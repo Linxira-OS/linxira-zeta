@@ -72,8 +72,9 @@ jobs:
       - name: Smoke-test zeta
         run: |
           "$ZETA_OUT/bin/zeta" --version
-          # Batch 3 is the stats-activity worker; the stats suite covers it and
-          # the installed binary smoke exceeds this runner's memory.
-          for batch in 1 2 4 5 6 7 8 9 10 11 12 13 14 15 16; do
+          # Batches 3 and 10 (stats-activity worker, mnemopi embed) exceed this
+          # runner's memory; their package suites cover the same workers, and
+          # batch 10's embedding model is the one that gets SIGKILLed here.
+          for batch in 1 2 4 5 6 7 8 9 11 12 13 14 15 16; do
             "$ZETA_OUT/bin/zeta" --smoke-test="$batch"
           done
