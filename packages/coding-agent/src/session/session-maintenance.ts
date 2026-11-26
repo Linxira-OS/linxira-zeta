@@ -25,7 +25,6 @@ import {
 	canReplayRemoteCompactionFrom,
 	collectShakeRegions,
 	COMPACTION_RECOVERY_BAND,
-	compact,
 	compactionContextTokens,
 	countResponsesHistoryTokens,
 	createCompactionSummaryMessage,
@@ -773,6 +772,23 @@ export class SessionMaintenance {
 	 */
 	onCommit(listener: CompactionCommitListener): () => void {
 		return this.#compactionService.onCommit(listener);
+	}
+
+	/**
+	 * Tracking references for the fidelity artifact. Present only when project
+	 * tracking is enabled, so a disabled tracker never sees (or causes a read of)
+	 * user files.
+	 */
+	#compactionTracking(): FidelityTracking | undefined {
+		if (cfgTrackingEnabled.get(this.#host.settings) !== true) return undefined;
+		const dir = getProjectTrackingDir(this.#host.sessionManager.getCwd());
+		return {
+			dir,
+			index: path.join(dir, "INDEX.md"),
+			status: path.join(dir, "status.json"),
+			summaries: path.join(dir, "summaries"),
+			sessionId: this.#host.sessionId(),
+		};
 	}
 
 	/** Experimental rollover is safe only when the current effective tool surface can recover its state. */
@@ -4378,13 +4394,13 @@ export class SessionMaintenance {
 
 			try {
 				const convertToLlm = await this.#summaryConvertToLlm(preparation, candidate, signal);
-				return await compact(
-					this.#host.obfuscatePreparationForProvider(preparation),
-					candidate,
-					this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
-					this.#host.obfuscateTextForProvider(customInstructions),
+				const artifact = await this.#compactionAgent.summarize({
+					preparation: this.#host.obfuscatePreparationForProvider(preparation),
+					model: candidate,
+					resolver: this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
+					customInstructions: this.#host.obfuscateTextForProvider(customInstructions),
 					signal,
-					{
+					options: {
 						...options,
 						metadata: this.#host.agent.metadataForProvider(candidate.provider),
 						convertToLlm,
@@ -4429,7 +4445,9 @@ export class SessionMaintenance {
 						},
 						onRemoteUsage: journal,
 					},
-				);
+					tracking: this.#compactionTracking(),
+				});
+				return artifact.result;
 			} catch (error) {
 				const id = AIError.classify(error instanceof NativeCompactionError ? error.cause : error, candidate.api);
 				if (AIError.is(id, AIError.Flag.AuthFailed)) continue;
@@ -6566,13 +6584,12 @@ export class SessionMaintenance {
 					while (true) {
 						try {
 							const convertToLlm = await this.#summaryConvertToLlm(preparation, candidate, autoCompactionSignal);
-							compactResult = await compact(
-								this.#host.obfuscatePreparationForProvider(preparation),
-								candidate,
-								this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
-								undefined,
-								autoCompactionSignal,
-								{
+							const artifact = await this.#compactionAgent.summarize({
+								preparation: this.#host.obfuscatePreparationForProvider(preparation),
+								model: candidate,
+								resolver: this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
+								signal: autoCompactionSignal,
+								options: {
 									promptOverride: this.#host.obfuscateTextForProvider(compactionPrep.hookPrompt),
 									extraContext: compactionPrep.hookContext,
 									loadExtraContext: compactionPrep.loadMemoryContext,
@@ -6607,7 +6624,9 @@ export class SessionMaintenance {
 									// wait would stack on top of an inner backoff.
 									oneshotRetry: false,
 								},
-							);
+								tracking: this.#compactionTracking(),
+							});
+							compactResult = artifact.result;
 							break;
 						} catch (error) {
 							if (autoCompactionSignal.aborted) {
