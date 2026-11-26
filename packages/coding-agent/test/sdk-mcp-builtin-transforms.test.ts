@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { AuthStorage } from "@linxiraos/pi-ai";
 import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { setForeignProjectSourceConsent } from "@linxiraos/zeta/config/foreign-sources";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
@@ -25,13 +26,14 @@ describe("createAgentSession built-in MCP transforms", () => {
 	// directory and os.homedir(); point both at an empty home so only the
 	// project fixture is discovered.
 	let originalAgentDir: string;
+	let isolatedAgentDir: string;
 	let isolatedHome: string;
 	let projectDir: string;
 	const sessions: AgentSession[] = [];
 
 	beforeAll(async () => {
 		isolatedHome = path.join(os.tmpdir(), `pi-sdk-mcp-transform-home-${Snowflake.next()}`);
-		const isolatedAgentDir = path.join(isolatedHome, ".zeta", "agent");
+		isolatedAgentDir = path.join(isolatedHome, ".zeta", "agent");
 		fs.mkdirSync(isolatedAgentDir, { recursive: true });
 		originalAgentDir = getAgentDir();
 		setAgentDir(isolatedAgentDir);
@@ -55,6 +57,9 @@ describe("createAgentSession built-in MCP transforms", () => {
 			path.join(projectDir, ".codex", "config.toml"),
 			'[mcp_servers.node_repl]\ncommand = "/nonexistent/cua_node/bin/node_repl"\n',
 		);
+		// A project `.codex` is a foreign source: discovery loads it only with
+		// operator consent for this exact tree (or the CI env escape).
+		setForeignProjectSourceConsent("codex", projectDir, true, isolatedAgentDir);
 	});
 
 	afterEach(async () => {
