@@ -366,6 +366,7 @@ import { cfgHideThinkingBlock } from "../session/settings";
 import { cfgCycleOrder, cfgModelRoles } from "../config/model-settings";
 import { cfgExtensionHandlersModeControl } from "../extensibility/settings";
 import { cfgGoalContinuationModes, cfgGoalEnabled } from "../goals/settings";
+import { derivePlanGoalObjective, normalizeGoalObjective } from "../goals/plan-objective";
 import { goalContinuationActivity, goalFromModeData } from "../goals/state";
 import { cfgPlanDefaultOnStartup, cfgPlanEnabled } from "../plan-mode/settings";
 import { cfgStreamRedactPatterns } from "../stream/settings";
@@ -4470,6 +4471,14 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.#updateGoalModeStatus();
 		}
 
+		if (this.leadModeEnabled) {
+			// The target session's active set is already loaded; strip only Lead's
+			// transient tools instead of restoring the source session's snapshot.
+			await this.session.removeLeadToolsPreservingActive();
+			this.session.setLeadModeState(undefined);
+			this.leadModeEnabled = false;
+		}
+
 		if (this.vibeModeEnabled && !options?.preserveVibe) {
 			const ownerScope = this.#vibeModeOwnerScope;
 			// This runs only from #reconcileModeFromSession, i.e. after switchSession
@@ -4513,6 +4522,9 @@ export class InteractiveMode implements InteractiveModeContext {
 		// flags and settings, and that set — not a historical one — is what exiting
 		// vibe must restore.
 		const vibeToolsetLostToTeardown = this.vibeModeEnabled && !preserveVibe;
+		// Same for Lead: only a lead -> lead switch needs the persisted pre-lead
+		// snapshot, because the live set is then Lead's reduced toolset.
+		const leadToolsetLostToTeardown = this.leadModeEnabled;
 		// A session that records no model (a `/new` boundary) keeps the live model,
 		// which during plan mode is the transient plan-role model; hand it the
 		// pre-plan model instead. A recorded model was already restored by switchSession.
@@ -4568,6 +4580,19 @@ export class InteractiveMode implements InteractiveModeContext {
 						? readPersistedToolNames(sessionContext.modeData?.previousTools)
 						: undefined,
 				});
+			}
+			return;
+		}
+		if (sessionContext.mode === "lead") {
+			try {
+				await this.#enterLeadMode({
+					persistModeChange: false,
+					previousTools: leadToolsetLostToTeardown
+						? readPersistedToolNames(sessionContext.modeData?.previousTools)
+						: undefined,
+				});
+			} catch {
+				this.sessionManager.appendModeChange("none");
 			}
 			return;
 		}
@@ -4627,6 +4652,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		workflow?: PlanWorkflow;
 		preserveRestoredModel?: boolean;
 		previousModelState?: PlanPreModelState;
+		/** Task stated at plan entry; seeds the goal objective of the approved execution round. */
+		objective?: string;
 	}): Promise<void> {
 		if (this.planModeEnabled) {
 			return;
@@ -4689,6 +4716,10 @@ export class InteractiveMode implements InteractiveModeContext {
 			planFilePath,
 			workflow: options?.workflow ?? "parallel",
 			reentry: this.#planModeHasEntered,
+			// Carried for the approved-plan execution round: approving a plan runs
+			// it under goal mode, and the operator's own task beats a summary
+			// derived from the plan text.
+			objective: normalizeGoalObjective(options?.objective),
 		});
 		try {
 			await this.session.setActiveToolsByName(uniquePlanTools);
@@ -5500,6 +5531,9 @@ export class InteractiveMode implements InteractiveModeContext {
 			mounted: this.session.getMountedToolCommandNames().filter(name => !isMCPToolName(name)),
 			registered: this.session.getAllToolNames(),
 		};
+		// The task the operator stated at plan entry (when any) is the goal
+		// objective for the execution round; #exitPlanMode clears plan state below.
+		const statedObjective = this.session.getPlanModeState()?.objective;
 
 		// Mark the pending abort caused by the plan-mode → compaction transition as
 		// silent BEFORE #exitPlanMode raises it. The `finally` below clears the
@@ -5627,6 +5661,29 @@ export class InteractiveMode implements InteractiveModeContext {
 				"Plan approved, but compaction was cancelled — execution not dispatched. Submit a turn to continue.",
 			);
 			return false;
+		}
+
+		// Approved plans execute as a goal: the execution turn carries the goal
+		// context, and the goal's own continuation drives the remaining work
+		// instead of stopping at the first turn. Entered AFTER the tool/mode
+		// restoration above (which would otherwise drop the `goal` tool) and
+		// BEFORE the execution prompt, so the very first execution turn runs
+		// goal-directed. A goal that cannot start (goal mode disabled, or a
+		// paused goal the runtime refuses to replace) must not fail the
+		// approval — the plan is executed either way.
+		const goalObjective = derivePlanGoalObjective({
+			statedTask: statedObjective,
+			planContent,
+			title: options.title,
+		});
+		if (goalObjective && cfgGoalEnabled.get(this.session.settings) && !this.goalModeEnabled) {
+			try {
+				await this.#enterGoalMode({ objective: goalObjective, silent: true });
+			} catch (error) {
+				this.showWarning(
+					`Plan approved without goal mode: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
 		}
 
 		// Approved plans land in a fresh (or compacted) session whose first user-visible
@@ -5810,7 +5867,12 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.showWarning("Plan mode is disabled. Enable it in settings (plan.enabled).");
 			return false;
 		}
-		await this.#enterPlanMode({ workflow });
+		await this.#enterPlanMode({
+			workflow,
+			// The supplied task is the operator's own statement of what the plan
+			// is for; approving it later runs the plan as a goal under it.
+			...(initialPrompt ? { objective: initialPrompt } : {}),
+		});
 		if (!initialPrompt) return false;
 		if (isKnownSkillCommand(this, initialPrompt)) {
 			await invokeSkillCommandFromText(this, initialPrompt, "steer", {

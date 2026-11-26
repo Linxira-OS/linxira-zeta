@@ -36,6 +36,7 @@ import { createRoomTools, ROOM_TOOL_NAMES } from "@linxiraos/zeta/tools/room";
 import { createLeadTools } from "@linxiraos/zeta/tools/secretary";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { createModeTerminal, type ModeTerminal } from "./helpers/mode-terminal";
 
 function stubTool(name: string): AgentTool {
 	return {
@@ -103,6 +104,7 @@ describe("Lead (PM) mode", () => {
 	let fixture: Fixture;
 	let session: AgentSession;
 	let mode: InteractiveMode;
+	let term: ModeTerminal;
 
 	beforeAll(async () => {
 		await initTheme();
@@ -135,11 +137,13 @@ describe("Lead (PM) mode", () => {
 			createLeadTools: () => createLeadTools({ cwd: fixture.pmRoot } as ToolSession),
 		});
 		await session.setActiveToolsByName(CODING_TOOLS);
-		mode = new InteractiveMode(session, "test", undefined, undefined, undefined, new EventBus());
+		term = createModeTerminal();
+		mode = new InteractiveMode(session, "test", undefined, undefined, undefined, new EventBus(), term.frame);
 	});
 
 	afterEach(async () => {
 		mode?.stop();
+		term?.dispose();
 		await session?.dispose();
 		fixture.releaseEnv();
 		vi.restoreAllMocks();
@@ -355,7 +359,16 @@ describe("Lead (PM) mode", () => {
 			builtInToolNames: [...CODING_TOOLS, "board", "calendar", "channel_send"],
 			createLeadTools: () => createLeadTools({ cwd: fixture.pmRoot } as ToolSession),
 		});
-		const reopenedMode = new InteractiveMode(reopened, "test", undefined, undefined, undefined, new EventBus());
+		const reopenedTerm = createModeTerminal();
+		const reopenedMode = new InteractiveMode(
+			reopened,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			new EventBus(),
+			reopenedTerm.frame,
+		);
 		try {
 			await reopenedMode.init({ suppressWelcomeIntro: true });
 			await reopened.setActiveToolsByName(CODING_TOOLS);
@@ -369,6 +382,7 @@ describe("Lead (PM) mode", () => {
 			expect(reopened.getActiveToolNames()).toContain("edit");
 		} finally {
 			reopenedMode.stop();
+			reopenedTerm.dispose();
 			await reopened.dispose();
 		}
 	}, 30_000);

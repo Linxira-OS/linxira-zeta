@@ -121,7 +121,12 @@ function paintWelcome(node: UiNode, cx: PaintContext): Block {
 	let art: readonly string[] = [];
 	if (hasLockup) {
 		const beside = ["", ...WORDMARK.map(row => theme.style("text strong", row)), version];
-		art = logo.map((row, index) => `${row}${spaces(LOCKUP_GAP)}${beside[index] ?? ""}`);
+		// The logo is shorter than the wordmark stack plus its version row; keep
+		// painting empty logo columns so the version lands under the wordmark.
+		art = Array.from(
+			{ length: Math.max(logo.length, beside.length) },
+			(_, index) => `${logo[index] ?? spaces(LOGO_WIDTH)}${spaces(LOCKUP_GAP)}${beside[index] ?? ""}`,
+		);
 	} else if (room >= LOGO_WIDTH) art = logo;
 	const rows = centered(art, width);
 	const versionRow = rows[VERSION_ROW];

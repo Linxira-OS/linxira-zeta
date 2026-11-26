@@ -11,16 +11,20 @@
  */
 import { type Accessor, computed, type JSXNode, Show, type Signal, signal } from "@linxiraos/pi-tui";
 import { registerBlob } from "@linxiraos/pi-tui/native";
-import { readFileSync } from "node:fs";
-import logoFile from "./zeta-mark.png" with { type: "file" };
 import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import type { VersionUpdate } from "../../modes/view-model/prompt/welcome";
 import "../styles/welcome";
 import { INTRO_MS } from "./logo";
 import { isNewTip, type TipKeyStyle, tipText } from "./tips";
 
-/** The real brand mark as a TSP blob; `builtin: "zeta"` is an OMP extension upstream Tern ignores. */
-const ZETA_LOGO_BLOB = registerBlob(readFileSync(logoFile), "image/png");
+/** The real brand mark as a TSP blob; the OMP-only builtin image is not recognized upstream. */
+const ZETA_LOGO_BLOB = registerBlob(
+	Buffer.from(
+		"iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsTAAALEwEAmpwYAAADgUlEQVR4nO2Zz08TQRTH5y/YaO1SSQxr2IJQAxWj9ITbhq0WOBA0kWIwGC8aTPDqQavgyUSDUUAicpUL3BTEHzE9GsXD/gseRE8a/oBn3sbFdtttl+6ub4b28E2aZnb6vp+ZefvmlUnhCNSzGHUA1GLUAVCLUQdALUYdALUYdQDUYtQBUItRByAkADmdBmUmB+1rK9CZfwuxT/mKwjFtqyugTOdATuviAgjFe0BdXqxquJrUF88g1H1CLAByMgkdH9Y9m7eEc8maJgaAULzHV/O7EN6/hlBXnH8A6tJC8RZenIPI8LAp/OzpOCwv8g1ATqdLzEtNzf/GNDV7hiDrOr8AlPt3i4LFVbePwe+8AFCm7/ALoH1tpXi1UqnSXZJKeQKAr0huAXTmNwMHgL/BLYCY/bwGAADVABBu7ABoHIFwIweAkEnwwNFW85ZXTm6rRaFzgFRNLqrF/Q0gXL1aFKYQipQphb0C6Py4IU4prNovQz4cgbbVl/wCUGZyJQFb12GnxLfXJKjcu80vADmtey5zq0nu7+cXgIQNkefzgZnH/iCVecktgIPHu6Dj3av6bYlJeBQ0zQzYT/PCNEWlv8JWNm5Zz9t+acFx5RNRFR5nNPgyMQI/b1yCnZuXKwrH4NjZjAa9UTVYAJK1G3TdbGPh68teJ5R9z+c3zbH4jFPCk5uaYX4gCb+nxquadtKvqXF4mklCOHI4WACSz0Lzm9mhmo3b9WZ0yDUERm0etTCY3A3+2/WsuRMe6H17Ej6Dz1rzPMkkxQCQiKq72x4NxBSl5rnwWQsCHofTLnICowaACc9atbkBd6tWSTiHNd+jc2f4B7B15XxgAD5PjPAP4EfBq87rEegoOAKo7ckx/gHs2DK4lQRvaYkSZXu6Hec51qKAcfVCyXzCAdhxEJpDk+XmiB5pga8FR2nfATBqNL8vABgezAsPwPBoXmgAhg/mhQVg+GReSABGBfOoa4mTru4CwgDYnhwrqgGwmPHjLoD6LkIhtFXvpfBsgJehh2f7+AfQG1XNq2sQ1+FTaiv/AKRwxGxjubkLVJI9CeI1281vM2rzKGxfbYz61xJbvzgIh1z+fceozRdCwDaWdRxqET6LK+/WvMQTAEvYxsJODmbwwl6Bk3AMjsWE5+bMcw9A+s9i1AFQi1EHQC1GHQC1GHUA1GLUAVCLUQdALUYdALX+ANqgIA+17wgVAAAAAElFTkSuQmCC",
+		"base64",
+	),
+	"image/png",
+);
 
 export type { VersionUpdate };
 

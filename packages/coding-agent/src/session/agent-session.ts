@@ -762,6 +762,8 @@ import {
 	cfgTodoEnabled,
 	NATIVE_TODO_BACKEND,
 	cfgToolsApproval,
+	cfgToolsXdevDocs,
+	cfgToolsXdevInlineDevices,
 } from "../tools/settings";
 import { cfgTtsrJudge } from "../export/ttsr-settings";
 import {
@@ -1290,12 +1292,12 @@ function originsMatch(left: AsyncJobOrigin | AsyncSourceOrigin, right: AsyncSour
 export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Command-style mounted tools, for `/tools` display. */
 	getToolCommandEntries(): Array<{ name: string }> {
-		return [];
+		return this.#tools.getToolCommandEntries();
 	}
 
 	/** Names of command-style mounted tools. */
 	getMountedToolCommandNames(): string[] {
-		return [];
+		return this.#tools.getMountedToolCommandNames();
 	}
 
 	/** Subscribe to idle/wake changes. */
@@ -2754,7 +2756,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 		const planModeState = this.#planModeState;
 		const planModeTools = this.getEnabledToolNames();
-		const planModeMountedTools = this.getMountedXdevToolNames();
+		const planModeMountedTools = [
+			...new Set([...this.getMountedXdevToolNames(), ...this.getMountedToolCommandNames()]),
+		];
 		const planModeModelState = this.model
 			? { model: this.model, thinkingLevel: this.configuredThinkingLevel() }
 			: undefined;
@@ -2784,7 +2788,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				}
 			}
 			const enabledTools = this.getEnabledToolNames();
-			const mountedTools = this.getMountedXdevToolNames();
+			const mountedTools = [...new Set([...this.getMountedXdevToolNames(), ...this.getMountedToolCommandNames()])];
 			if (
 				enabledTools.length !== planModeTools.length ||
 				enabledTools.some((name, index) => name !== planModeTools[index]) ||
@@ -3904,7 +3908,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			}
 			return thunks;
 		});
-		this.getToolCommandEntries = config.getToolCommandEntries ?? (() => []);
+		this.getToolCommandEntries = config.getToolCommandEntries ?? (() => this.#tools.getToolCommandEntries());
 		this.getXdevToolEntries = config.getXdevToolEntries ?? (() => []);
 		const sessionToolsHost: SessionToolsHost = {
 			agent: this.agent,
@@ -3959,6 +3963,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			rebuildSystemPrompt: config.rebuildSystemPrompt,
 			getMcpServerInstructions: config.getMcpServerInstructions,
 			xdev: config.xdev,
+			toolCommands: config.toolCommands,
 			setActiveToolNames: config.setActiveToolNames,
 			baseSystemPrompt: this.agent.state.systemPrompt,
 			systemPromptSources: config.systemPromptSources,
@@ -4642,6 +4647,19 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		});
 		this.#skillfulApplied = cfgSkillful.get(this.settings);
 		cfgSkillful.listen(this, skillful => this.#applySkillful(skillful));
+		// The xd:// prompt docs shape the system prompt's device guidance; a
+		// settings-panel or cfg:// write must rebuild it like every other prompt
+		// input (the panel used to do this in its change handler).
+		const refreshXdevPrompt = () => {
+			void this.refreshBaseSystemPrompt().catch(error => {
+				this.emitNotice(
+					"error",
+					`Failed to rebuild the system prompt after an xd:// docs change: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			});
+		};
+		cfgToolsXdevDocs.listen(this, refreshXdevPrompt);
+		cfgToolsXdevInlineDevices.listen(this, refreshXdevPrompt);
 	}
 
 	/** Keeps workspace roots, the auto-QA prompt note, and the held power assertion in step with live settings. */
@@ -11280,7 +11298,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const previousModel = this.model;
 		const previousThinking = this.configuredThinkingLevel();
 		const previousEnabled = this.getEnabledToolNames();
-		const previousMounted = this.getMountedXdevToolNames();
+		const previousMounted = [...new Set([...this.getMountedXdevToolNames(), ...this.getMountedToolCommandNames()])];
 		let definition: AgentDefinition | undefined;
 		let selected: Prewalk | undefined;
 		let toolsChanged = false;

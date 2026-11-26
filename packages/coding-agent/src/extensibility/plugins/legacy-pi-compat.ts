@@ -839,9 +839,7 @@ const PI_PACKAGE_NAMES = [
  * the replacement instead of aliasing the import onto a package with another API.
  */
 const PI_TUI_SPECIFIER = new RegExp(
-	`^@(?:${PI_SCOPE_ALIASES.filter(
-		scope => scope !== "linxiraos" && scope !== "oh-my-pi",
-	).join("|")})/pi-tui(?:/.*)?$`,
+	`^@(?:${PI_SCOPE_ALIASES.filter(scope => scope !== "linxiraos" && scope !== "oh-my-pi").join("|")})/pi-tui(?:/.*)?$`,
 );
 
 /** Docs section describing the pi-tui → pi-tui migration. */

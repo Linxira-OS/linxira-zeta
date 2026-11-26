@@ -402,6 +402,44 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 	},
 	{
+		name: "lead",
+		aliases: ["pm"],
+		icon: "agents",
+		description: () => M.cmdLead,
+		// Legacy PM/Lead surfaces are the pre-Team system (ADR 0038): callable by
+		// name, but kept out of the palette and advertised command list now that
+		// `/team` is the Team entry point.
+		hidden: true,
+		handle: async (_command, runtime) => {
+			const state = runtime.session.getLeadModeState();
+			try {
+				if (state?.enabled) {
+					await runtime.session.exitLeadMode();
+					await runtime.output("Lead mode disabled.");
+				} else {
+					const next = await runtime.session.enterLeadMode();
+					await runtime.output(
+						`Lead mode enabled for ${next.teamName} (${next.teamId}), PM ${next.pmName} (${next.pmId}).`,
+					);
+				}
+			} catch (error) {
+				await runtime.output(`Could not change lead mode: ${errorMessage(error)}`);
+				return { consumed: true, failed: true };
+			}
+			return commandConsumed();
+		},
+		getTuiAutocompleteDescription: runtime => {
+			if (runtime.ctx.leadModeEnabled) return M.acLeadOn;
+			if (runtime.ctx.planModeEnabled) return M.acLeadBlockedByPlanMode;
+			if (runtime.ctx.goalModeEnabled) return M.acLeadBlockedByGoalMode;
+			if (runtime.ctx.vibeModeEnabled) return M.acLeadBlockedByVibe;
+			return M.acLeadOff;
+		},
+		handleTui: async (_command, runtime) => {
+			await runtime.ctx.handleLeadModeCommand();
+		},
+	},
+	{
 		name: "goal",
 		icon: "goal",
 		description: "Toggle goal mode (persistent autonomous objective for this session)",

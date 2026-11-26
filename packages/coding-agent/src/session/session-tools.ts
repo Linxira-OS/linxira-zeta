@@ -991,6 +991,11 @@ export class SessionTools {
 		return [...(this.#toolCommands?.mountedNames ?? [])];
 	}
 
+	/** Mounted command entries for `/tools` and session-view presentation. */
+	getToolCommandEntries(): Array<{ name: string; summary: string; dynamic: boolean }> {
+		return this.#toolCommands ? toolCommandEntries(this.#toolCommands) : [];
+	}
+
 	/** Names currently presented as `xd://` devices. */
 	getMountedXdevToolNames(): string[] {
 		return [...(this.#xdev?.mountedNames ?? [])];
@@ -1664,15 +1669,35 @@ export class SessionTools {
 			selectedTools.some(({ name }) => name === "bash");
 		const isPresentationPinned = (name: string): boolean =>
 			this.#presentationPinnedToolNames?.has(name) === true || this.#runtimeSelectedToolNames?.has(name) === true;
-		const mountCandidates = selectedTools.filter(
+		// Discoverable tools mount as bash commands while the transport is live;
+		// every mountable tool presents top-level otherwise. Without this pass a
+		// tool discovered after startup (MCP list_changed) could never reach the
+		// command surface, only the top-level one.
+		const commandMountNames = new Set(
+			commandTransportActive
+				? selectedTools
+						.filter(
+							({ name, tool }) =>
+								this.#toolCommands !== undefined &&
+								!isPresentationPinned(name) &&
+								// MCP names are namespaced (`mcp__…`), so they can never be a
+								// shell reserved word; skip the native lookup for them.
+								(isMCPToolName(name) ? tool.loadMode === "discoverable" : isMountableAsToolCommand(tool)),
+						)
+						.map(({ name }) => name)
+				: [],
+		);
+		const xdevMountCandidates = selectedTools.filter(
 			({ name, tool }) =>
 				this.#xdev !== undefined &&
 				xdevReadAvailable &&
 				xdevWriteAvailable &&
+				!commandMountNames.has(name) &&
 				!isPresentationPinned(name) &&
 				isMountableUnderXdev(tool),
 		);
-		const mountNames = new Set(mountCandidates.map(({ name }) => name));
+		const xdevMountNames = new Set(xdevMountCandidates.map(({ name }) => name));
+		const mountNames = new Set([...commandMountNames, ...xdevMountNames]);
 		const tools: AgentTool[] = [];
 		const validToolNames: string[] = [];
 		for (const { name, tool } of selectedTools) {
@@ -1723,10 +1748,12 @@ export class SessionTools {
 			this.#isDeviceOnlyWrite?.() === true &&
 			this.#setDeviceOnlyWrite !== undefined;
 		const previousMounted = new Set(this.#xdev?.mountedNames ?? []);
+		const previousCommandMounted = new Set(this.#toolCommands?.mountedNames ?? []);
 		const previousActiveToolNames = this.getActiveToolNames();
 		const previousEnabledToolNames = this.#enabledToolNames;
 		this.#enabledToolNames = new Set([...validToolNames, ...mountNames]);
-		this.#setMountedNames(mountNames);
+		this.#setMountedNames(xdevMountNames);
+		this.#setCommandMountedNames(commandMountNames);
 		this.#setActiveToolNames?.(validToolNames);
 
 		let rebuiltSystemPrompt: string[] | undefined;
@@ -1795,6 +1822,7 @@ export class SessionTools {
 			if (restrictDeviceOnlyWrite) this.#setDeviceOnlyWrite?.(false);
 			if (upgradeDeviceOnlyWrite) this.#setPendingFullWriteDescription?.(false);
 			this.#setMountedNames(previousMounted);
+			this.#setCommandMountedNames(previousCommandMounted);
 			this.#setActiveToolNames?.(previousActiveToolNames);
 			this.#enabledToolNames = previousEnabledToolNames;
 			throw error;
@@ -1804,6 +1832,7 @@ export class SessionTools {
 			if (restrictDeviceOnlyWrite) this.#setDeviceOnlyWrite?.(false);
 			if (upgradeDeviceOnlyWrite) this.#setPendingFullWriteDescription?.(false);
 			this.#setMountedNames(previousMounted);
+			this.#setCommandMountedNames(previousCommandMounted);
 			this.#setActiveToolNames?.(previousActiveToolNames);
 			this.#enabledToolNames = previousEnabledToolNames;
 			return;
@@ -1871,6 +1900,13 @@ export class SessionTools {
 
 	#setMountedNames(names: Iterable<string>): void {
 		const mountedNames = this.#xdev?.mountedNames;
+		if (!mountedNames) return;
+		mountedNames.clear();
+		for (const name of names) mountedNames.add(name);
+	}
+
+	#setCommandMountedNames(names: Iterable<string>): void {
+		const mountedNames = this.#toolCommands?.mountedNames;
 		if (!mountedNames) return;
 		mountedNames.clear();
 		for (const name of names) mountedNames.add(name);
@@ -2511,7 +2547,7 @@ export class SessionTools {
 			// selection change should not demote `write` unless it is already active.
 			await this.#applyToolPresentation(
 				normalized,
-				this.#xdev?.mountedNames ?? new Set(),
+				new Set([...(this.#xdev?.mountedNames ?? []), ...(this.#toolCommands?.mountedNames ?? [])]),
 				this.getActiveToolNames().includes("write"),
 			);
 		});
@@ -2565,13 +2601,16 @@ export class SessionTools {
 			const isLateNonBuiltIn = (name: string) =>
 				!isMCPToolName(name) && !this.hasBuiltInTool(name) && !registered.has(name);
 			const currentMCPToolNames = this.getSelectedMCPToolNames();
-			const currentMountedMCPToolNames = this.getMountedXdevToolNames().filter(isMCPToolName);
+			const currentMountedToolNames = [
+				...new Set([...this.getMountedXdevToolNames(), ...this.getMountedToolCommandNames()]),
+			];
+			const currentMountedMCPToolNames = currentMountedToolNames.filter(isMCPToolName);
 			await this.setActiveToolPresentation(
 				[...nonMCPToolNames, ...currentMCPToolNames, ...this.getEnabledToolNames().filter(isLateNonBuiltIn)],
 				[
 					...nonMCPMountedToolNames,
 					...currentMountedMCPToolNames,
-					...this.getMountedXdevToolNames().filter(isLateNonBuiltIn),
+					...currentMountedToolNames.filter(isLateNonBuiltIn),
 				],
 			);
 		});
