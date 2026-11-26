@@ -766,8 +766,8 @@ export class PrewalkCoordinator {
 			throw error;
 		}
 		this.#planYoloPreviousNonMCPPresentation = {
-			enabled: previousEnabledTools.filter(name => !isMCPToolName(name)),
-			mounted: previousMountedTools.filter(name => !isMCPToolName(name)),
+			enabled: previousEnabledTools.filter(name => name !== "propose" && !isMCPToolName(name)),
+			mounted: previousMountedTools.filter(name => name !== "propose" && !isMCPToolName(name)),
 			registered: previousRegisteredTools,
 		};
 		this.#host.setPlanProposalHandler(title => this.#finalizePlanYoloProposal(title));

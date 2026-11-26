@@ -10421,6 +10421,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#planReferenceSent = false;
 			this.#planReferencePath = state.planFilePath;
 			this.#planReferenceApproved = false;
+			// A session driven without the TUI (SDK/RPC) still needs a proposal
+			// handler: the tool would otherwise have nowhere to submit a plan.
+			if (!this.#planProposalHandler) {
+				this.setPlanProposalHandler(title => this.#preparePlanForReviewAndSync(title));
+			}
 		} else {
 			this.#planModeReminderCount = 0;
 			this.#planModeReminderAwaitingProgress = false;
