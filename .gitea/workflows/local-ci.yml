@@ -435,6 +435,11 @@ jobs:
               bun run check:adr
               bun run check:reqs
               bun scripts/release-scope.ts structural
+         # 同 GitHub `check`：Zeta-only 模型控制 layer-1 门禁（ADR-0102 / REQ-152）。
+         - name: Model control provider/fallback kernel
+           run: |
+              bun scripts/check-model-control.ts
+              bun test packages/coding-agent/test/fallback-normalize.test.ts packages/coding-agent/test/provider-capabilities.test.ts
          - name: Type check workspace
            run: bun run ci:check:full
          - name: Brand residue guard

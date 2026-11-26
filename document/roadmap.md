@@ -144,6 +144,27 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 ## Priorities
 
+### P0 — Model control, layer by layer (2026-11-26, ADR-0102)
+
+模型控制不一次做成大页面。先做可测试的 **provider/fallback kernel**，之后再叠 UI。
+
+1. **Layer 1 — provider/fallback kernel**
+   - 规范模型身份 `provider/id` 与 alias
+   - fallback 链 trim、去重、保序、校验
+   - 分离 `resume / retry / role / agent / mode` scope
+   - provider capability/deployment 描述
+   - 旧 `modelRoles` / `retry.fallbackChains` / `models.yml` 零迁移
+2. **Layer 2 — 精简 `/pages/models`**
+   - provider 可见性、角色、fallback、认证状态
+3. **Layer 3 — agent/mode 覆盖**
+   - 子代理身份、Vibe/Team 分角色、继承与约束
+4. **Layer 4 — Blueprint**
+   - typed nodes/edges，作为同一状态的视图
+5. **Layer 5 — adapter 脚本与多模态**
+   - 声明式 request/response 映射、沙箱轻脚本
+   - image/decision 先做；TTS/STT/video 保持暂停，直到 owner 重开
+
+
 ### P0 — Zeta Terminal 产品线；Work Studio 退出发布（2026-11-26，ADR-0100）
 
 **2026-11-26 裁决（Superseding）**：`web-app`/Work Studio 与 `desktop/` 不再构建、

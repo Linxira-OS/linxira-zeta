@@ -1,4 +1,5 @@
 import { type Model, resolveModelServiceTier, type ServiceTier, shouldSendServiceTier } from "@linxiraos/pi-ai";
+import { normalizeFallbackChain } from "../config/fallback-normalize";
 import { findActiveModelPreset, getModelPresetNames } from "../config/model-presets";
 import { resolveModelRoleValue, rolePriorityDefaults } from "../config/model-resolver";
 import { getKnownRoleIds, getRoleInfo } from "../config/model-roles";
@@ -70,7 +71,12 @@ export function createModelBrowserSource(
 			return cfgDisabledProviders.get(settings);
 		},
 		get fallbackChains() {
-			return cfgRetryFallbackChains.get(settings);
+			const configured = cfgRetryFallbackChains.get(settings);
+			const normalized: Record<string, string[]> = {};
+			for (const [key, chain] of Object.entries(configured)) {
+				normalized[key] = [...normalizeFallbackChain(chain).chain];
+			}
+			return normalized;
 		},
 		get modelRoleStorage() {
 			return cfgModelRoleStorage.get(settings);

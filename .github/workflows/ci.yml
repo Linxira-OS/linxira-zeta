@@ -300,6 +300,13 @@ jobs:
               bun run check:adr
               bun run check:reqs
               bun scripts/release-scope.ts structural
+         # Zeta-only layer-1 model control (ADR-0102, REQ-152). The guard pins
+         # the paused capability policy and the ADR/roadmap/ledger rows; the
+         # tests pin fallback normalization. Both run in release mode too.
+         - name: Model control provider/fallback kernel
+           run: |
+              bun scripts/check-model-control.ts
+              bun test packages/coding-agent/test/fallback-normalize.test.ts packages/coding-agent/test/provider-capabilities.test.ts
          # Work Studio is retired (ADR-0100): no web-app renderer build here.
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |

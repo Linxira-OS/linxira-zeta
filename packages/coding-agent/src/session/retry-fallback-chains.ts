@@ -13,6 +13,7 @@ import {
 	resolveRoutedModelSelector,
 	revisionSpellingKey,
 } from "../config/model-resolver";
+import { normalizeFallbackChain } from "../config/fallback-normalize";
 import { getRoleInfo, isKindRole } from "../config/model-roles";
 
 import { cfgRetryFallbackChains, cfgRetryFallbackRevertPolicy, type RetrySettings } from "./settings";
@@ -173,10 +174,13 @@ export function expandDefaultRetryFallbackChains(
 	roleNames: readonly string[],
 ): RetryFallbackChains {
 	const chains: RetryFallbackChains = { ...configuredChains };
+	for (const [key, chain] of Object.entries(chains)) {
+		if (Array.isArray(chain)) chains[key] = [...normalizeFallbackChain(chain).chain];
+	}
 	const defaultChain = chains.default;
 	if (!Array.isArray(defaultChain)) return chains;
 	for (const role of roleNames) {
-		if (role !== "default" && !isKindRole(role) && chains[role] === undefined) chains[role] = defaultChain;
+		if (role !== "default" && !isKindRole(role) && chains[role] === undefined) chains[role] = [...defaultChain];
 	}
 	return chains;
 }

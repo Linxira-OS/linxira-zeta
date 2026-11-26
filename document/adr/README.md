@@ -127,6 +127,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0099](0099-web-app-freeze-and-team-page-extraction.md) | Freeze web-app and move Team pages onto a zeta-owned page surface | Superseded | 2026-11-24 | — | [requirements](../requirements-ledger.md) REQ-151 |
 | [0100](0100-terminal-product-line-work-studio-retirement.md) | Zeta Terminal is the next product line; retire Work Studio from release | Accepted | 2026-11-26 | Supersedes [0097](0097-wave-terminal-fork.md); retires Work Studio release scope of [0099](0099-web-app-freeze-and-team-page-extraction.md) | [Terminal](../../terminal/README.md), [surfaces](../agents/surface/surfaces.md) |
 | [0101](0101-scoped-external-pages-fallback.md) | Keep scoped external HTML pages as a high-interaction fallback | Accepted | 2026-11-26 | Extends [0100](0100-terminal-product-line-work-studio-retirement.md) | [Team/Rooms/IM pages](../agents/surface/surfaces.md), [REQ-151](../requirements-ledger.md) |
+| [0102](0102-layered-model-control-provider-fallback.md) | Layered model control starts with provider/fallback policy | Accepted | 2026-11-26 | Complements [0100](0100-terminal-product-line-work-studio-retirement.md)/[0101](0101-scoped-external-pages-fallback.md) | [Model control](../agents/surface/pages.md), [REQ-152](../requirements-ledger.md) |
 
 ## File and numbering rules
 
