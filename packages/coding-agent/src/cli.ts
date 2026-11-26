@@ -43,6 +43,7 @@ import {
 	AUTO_UPDATE_WORKER_ARG,
 	COMPUTER_WORKER_ARG,
 	DAEMON_BROKER_WORKER_ARG,
+	DISASM_HOST_WORKER_ARG,
 	PARENT_WATCHDOG_WORKER_ARG,
 	STATS_ACTIVITY_WORKER_ARG,
 	SUBAGENT_WORKER_ARG,
@@ -342,6 +343,11 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 		// Worker selectors must dispatch before the normal command graph loads.
 		const { startDaemonFromEnvironment } = await import("./daemon/server");
 		await startDaemonFromEnvironment();
+		return true;
+	}
+	if (arg === DISASM_HOST_WORKER_ARG) {
+		const { startDisasmHostFromEnvironment } = await import("./disasm/host");
+		await startDisasmHostFromEnvironment();
 		return true;
 	}
 	if (arg === TEXT_PREDICT_WORKER_ARG) {

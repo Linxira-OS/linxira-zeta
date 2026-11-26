@@ -1072,7 +1072,7 @@ describe("Mnemopi backend lifecycle", () => {
 
 		expect(warn).toHaveBeenCalledWith("Mnemopi: lifecycle hook failed", {
 			banks: ["test-bank"],
-			operation: "agent_end retention",
+			operation: "turn-end retention",
 			error: "Cannot use a closed database",
 		});
 	});

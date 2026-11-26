@@ -114,7 +114,10 @@ describe("ovnfs checkout recovery", () => {
 		const workspace = await ovnfsWorkspace(COMMAND)(repo, agentId);
 
 		const current = await readRecord(baseDir);
-		expect(current).toEqual({ command: COMMAND, checkout: expect.stringMatching(/^zetacode-authrefactor-[0-9a-f]{6}$/) });
+		expect(current).toEqual({
+			command: COMMAND,
+			checkout: expect.stringMatching(/^zetacode-authrefactor-[0-9a-f]{6}$/),
+		});
 		expect(workspace.dir).toBe(`/mnt/ovnfs/${current.checkout}`);
 		const [sibling] = await retainedDirs(baseDir);
 		expect(sibling).toBeString();

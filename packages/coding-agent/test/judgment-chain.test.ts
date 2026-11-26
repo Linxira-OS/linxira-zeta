@@ -563,7 +563,7 @@ describe("ChainJudge", () => {
 			new ChainJudge({ settings, registry, purpose: "test", sessionModel: ONLINE, onUsage }).judge(request),
 		).rejects.toThrow("402");
 		await expect(new ChainJudge({ settings, registry, purpose: "test", onUsage }).judge(request)).rejects.toThrow(
-			"rejected the account recently",
+			"rejected the account (402) recently",
 		);
 
 		expect(typesafeCalls).toHaveBeenCalledTimes(1);

@@ -48,39 +48,51 @@ describe("read tool artifacts without an artifacts directory", () => {
 		};
 	}
 
-	async function makeToolContext(): Promise<AgentToolContext> {
-		return {
-			sessionManager: manager,
-			settings: Settings.isolated(),
-			modelRegistry: new ModelRegistry(await AuthStorage.create(":memory:"), path.join(testDir, "models.yml")),
-			model: undefined,
-			isIdle: () => true,
-			hasQueuedMessages: () => false,
-			abort: () => {},
-		};
-	}
-
-	it("reads the artifact a spill footer advertises back from the in-memory store", async () => {
+	it("reads the local artifact a spill footer advertises back from the session local root", async () => {
 		const fullOutput = Array.from({ length: 8_000 }, (_, index) => `spill line ${index + 1} ${"x".repeat(80)}`).join(
 			"\n",
 		);
-		const spilled = await postProcessToolResult(
-			{ content: [{ type: "text", text: fullOutput }], details: {} },
-			"bash",
-			await makeToolContext(),
-		);
-		const advertised = getTextOutput(spilled).match(/artifact:\/\/(\d+)/);
-		expect(advertised).not.toBeNull();
-		expect(manager.getArtifactsDir()).toBeNull();
+		const persistent = SessionManager.create(testDir, path.join(testDir, "sessions"));
+		try {
+			const settings = Settings.isolated();
+			const session: ToolSession = {
+				cwd: testDir,
+				hasUI: false,
+				getSessionFile: () => persistent.getSessionFile(),
+				getSessionSpawns: () => "*",
+				getArtifactsDir: () => persistent.getArtifactsDir(),
+				sessionManager: persistent,
+				settings,
+			};
+			const context: AgentToolContext = {
+				sessionManager: persistent,
+				settings,
+				modelRegistry: new ModelRegistry(await AuthStorage.create(":memory:"), path.join(testDir, "models.yml")),
+				model: undefined,
+				isIdle: () => true,
+				hasQueuedMessages: false,
+				abort: () => {},
+			};
+			const spilled = await postProcessToolResult(
+				{ content: [{ type: "text", text: fullOutput }], details: {} },
+				"bash",
+				context,
+			);
+			const advertised = getTextOutput(spilled).match(/local:\/\/(\d+)\.log/);
+			expect(advertised).not.toBeNull();
+			expect(persistent.getArtifactsDir()).not.toBeNull();
 
-		const tool = new ReadTool(makeSession());
-		const head = getTextOutput(await tool.execute("call-head", { path: `artifact://${advertised![1]}` }));
-		const tail = getTextOutput(
-			await tool.execute("call-tail", { path: `artifact://${advertised![1]}:raw:8000-8000` }),
-		);
+			const tool = new ReadTool(session);
+			const head = getTextOutput(await tool.execute("call-head", { path: `local://${advertised![1]}.log` }));
+			const tail = getTextOutput(
+				await tool.execute("call-tail", { path: `local://${advertised![1]}.log:raw:8000-8000` }),
+			);
 
-		expect(head).toContain("spill line 1 ");
-		expect(tail).toContain("spill line 8000 ");
+			expect(head).toContain("spill line 1 ");
+			expect(tail).toContain("spill line 8000 ");
+		} finally {
+			await persistent.close();
+		}
 	});
 
 	it("pages an in-memory artifact with a line selector", async () => {

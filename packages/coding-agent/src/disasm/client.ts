@@ -83,28 +83,31 @@ class HostConnection {
 	constructor(key: string, conn: IpcConnection, onClose: () => void);
 	constructor(key: string, transport: DaemonTunnel | IpcConnection, onClose: () => void) {
 		this.#key = key;
-		const tunnel =
-			"unit" in transport
-				? transport
-				: ({
-						unit: { id: key },
-						start: transport.start.bind(transport),
-						send: transport.send.bind(transport),
-						close: transport.destroy.bind(transport),
-					} as unknown as DaemonTunnel);
+		const legacy = !("unit" in transport);
+		const tunnel = legacy
+			? ({
+					unit: { id: key },
+					start: (transport as IpcConnection).start.bind(transport),
+					// IpcConnection's line framing adds the delimiter itself.
+					send: (line: string) =>
+						(transport as IpcConnection).send(line.endsWith("\n") ? line.slice(0, -1) : line),
+					close: (transport as IpcConnection).destroy.bind(transport),
+				} as unknown as DaemonTunnel)
+			: (transport as DaemonTunnel);
 		this.#unitId = tunnel.unit.id;
 		this.#tunnel = tunnel;
-		tunnel.start(
-			lineReader(line => this.#onLine(line)),
-			reason => {
-				if (reason) logger.debug(`${unitLabel(key)} tunnel error`, { key, error: reason });
-				this.#open = false;
-				const error = this.#goneError();
-				for (const entry of this.#pending.values()) entry.reject(error);
-				this.#pending.clear();
-				onClose();
-			},
-		);
+		const decoder = new TextDecoder();
+		const consume = legacy
+			? (chunk: Uint8Array | string) => this.#onLine(typeof chunk === "string" ? chunk : decoder.decode(chunk))
+			: lineReader(line => this.#onLine(line));
+		tunnel.start(consume, reason => {
+			if (reason) logger.debug(`${unitLabel(key)} tunnel error`, { key, error: reason });
+			this.#open = false;
+			const error = this.#goneError();
+			for (const entry of this.#pending.values()) entry.reject(error);
+			this.#pending.clear();
+			onClose();
+		});
 	}
 
 	get open(): boolean {
@@ -205,6 +208,31 @@ export class DisasmDatabase {
 		try {
 			const status = parseHostStatus(await conn.call({ id: conn.nextId(), op }));
 			db = new DisasmDatabase(key, tunnel.unit.id, conn, status);
+			return db;
+		} catch (error) {
+			conn.close();
+			throw error;
+		}
+	}
+
+	/**
+	 * Attach directly to a listening host endpoint (no daemon), as tests and embedders
+	 * that manage the host process themselves do. `key` is the process-local registry name.
+	 */
+	static async attachEndpoint(
+		key: string,
+		endpoint: string,
+		op: "open" | "status",
+	): Promise<DisasmDatabase | undefined> {
+		const socket = await connectSocket(endpoint);
+		if (!socket) return undefined;
+		let db: DisasmDatabase | undefined;
+		const conn = new HostConnection(key, socket, () => {
+			if (db && handles.get(key) === db) handles.delete(key);
+		});
+		try {
+			const status = parseHostStatus(await conn.call({ id: conn.nextId(), op }));
+			db = new DisasmDatabase(key, key, conn, status);
 			return db;
 		} catch (error) {
 			conn.close();

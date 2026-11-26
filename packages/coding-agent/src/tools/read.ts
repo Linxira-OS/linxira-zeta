@@ -34,6 +34,7 @@ import {
 import { peekFile } from "@linxiraos/pi-utils/peek-file";
 import { cfgDisasmBackend, DISASM_BACKENDS, isExecutableFile } from "../disasm";
 import { normalizeToLF } from "../edit/normalize";
+import { isRemoteTextWritable, writeRemoteMirror } from "../edit/remote-mirror";
 import { writeResourceBackingFile } from "../internal-urls/filesystem-resource";
 import { getEditStore, recordFullySeenRows } from "../edit/store";
 import { extractUriScheme, InternalUrlRouter, type SchemeSpec, sessionResolveContext } from "../internal-urls";
@@ -1867,7 +1868,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			// mode keeps CR bytes, so it slices the original segments instead.
 			let collectedLines: string[];
 			let totalFileLines: number;
-			let endsAtTerminalNewline = false;
+			let endsTerminated = false;
 			let prefixLines: Map<number, number> | undefined;
 			let stoppedInRange = false;
 			const maxBytesForRead = Math.max(DEFAULT_MAX_BYTES, maxLines * 512);
@@ -1889,22 +1890,19 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				stoppedInRange =
 					window.stoppedByByteLimit &&
 					rangeStart + collectedLines.length < Math.min(rangeStart + maxLines, totalFileLines);
-				// An open raw range that reaches EOF keeps the file's terminal newline, as single-range reads do.
-				endsAtTerminalNewline =
-					range.endLine === undefined &&
-					window.reachedEof &&
-					window.hasTrailingNewline &&
-					rangeStart + collectedLines.length === totalFileLines;
+				// A raw range keeps its last line's terminator: every line has one but an unterminated final line.
+				endsTerminated =
+					!window.reachedEof || rangeStart + collectedLines.length < totalFileLines || window.hasTrailingNewline;
 			}
 
-			const bound = range.endLine !== undefined ? `${range.startLine}-${range.endLine}` : `${range.startLine}`;
+			const bound = range.endLine !== undefined ? `${range.startLine}-${range.endLine}` : `${range.startLine}-`;
 			if (rangeStart >= totalFileLines) {
 				notices.push(`[Range ${bound} is beyond end of file (${totalFileLines} lines total); skipped]`);
 				continue;
 			}
 			if (stoppedInRange) {
 				const nextLine = range.startLine + collectedLines.length;
-				const rest = range.endLine !== undefined ? `${nextLine}-${range.endLine}` : `${nextLine}`;
+				const rest = range.endLine !== undefined ? `${nextLine}-${range.endLine}` : `${nextLine}-`;
 				notices.push(
 					`[Range ${bound} stopped before line ${nextLine} at the ${formatBytes(maxBytesForRead)} read budget. Use ${selectorBase}:${rest} to continue]`,
 				);
@@ -1938,7 +1936,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					displayLineByNumber.set(range.startLine + i, displayLines[i] ?? "");
 				}
 				if (!fullLines || rawSelector) {
-					const blockText = displayLines.join("\n") + (rawSelector && endsAtTerminalNewline ? "\n" : "");
+					const blockText = displayLines.join("\n") + (rawSelector && endsTerminated ? "\n" : "");
 					blocks.push(formatTextWithMode(blockText, range.startLine, shouldAddHashLines, shouldAddLineNumbers));
 				}
 			}
@@ -1980,7 +1978,8 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			};
 			outputText = formatLineEntriesWithMode(entries, shouldAddHashLines, shouldAddLineNumbers);
 		} else {
-			outputText = blocks.join(rawSelector ? "\n" : "\n\n…\n\n");
+			// Raw blocks carry their own terminators, so they concatenate to the selected bytes.
+			outputText = blocks.join(rawSelector ? "" : "\n\n…\n\n");
 		}
 		if (shouldAddHashLines && outputText) {
 			const tag = buffered
@@ -2470,6 +2469,27 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				if (!recoveredApprovedPlan && !suffixResolution) {
 					const delimitedResult = await this.#tryReadDelimitedPaths(readPath, signal, toolContext);
 					if (delimitedResult) return delimitedResult;
+					// A numeric pair can also be a literal filename plus a selector. Diagnose it only after lookup
+					// failed, and find the base the way a corrected read would: literally, else by unique suffix.
+					if (localTarget.sel && /^\d+$/.test(localTarget.sel)) {
+						const prefix = splitPathAndSel(localReadPath);
+						if (
+							prefix.sel &&
+							/^\d+$/.test(prefix.sel) &&
+							((await probeLiteralPathExists(prefix.path, this.session.cwd)) === "exists" ||
+								(!isRemoteMountPath(absolutePath) &&
+									(await findSuffixMatchCached(this.session, suffixCache, prefix.path, signal)) !== null))
+						) {
+							// `file:10:5` is usually a line and column; a reversed range would only fail again.
+							const range =
+								Number(localTarget.sel) > Number(prefix.sel)
+									? ` or :${prefix.sel}-${localTarget.sel} for a range`
+									: "";
+							throw new ToolError(
+								`Invalid line selector ':${prefix.sel}:${localTarget.sel}'. Use :${prefix.sel} for a single line${range}.`,
+							);
+						}
+					}
 					throw new ToolError(`Path '${localReadPath}' not found`);
 				}
 			} else {
@@ -2878,7 +2898,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const budgetFor = (firstLine: number, lineCount: number): number => {
 						if (wholeFileShaping) return MAX_SUMMARY_BYTES;
 						const scaled = Math.max(DEFAULT_MAX_BYTES, lineCount * 512);
-						if (located?.spec.artifactStore) return scaled;
+						if (located?.spec.unspilledPages) return scaled;
 						const threshold = resolveArtifactSpillThreshold(this.session.settings);
 						const prefixWidth =
 							!rawSelector && displayMode.lineNumbers ? String(firstLine + lineCount).length + 1 : 0;
@@ -3018,10 +3038,8 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					let selectedContent = displayLines.join("\n");
 					if (
 						rawSelector &&
-						limit === undefined &&
-						reachedEof &&
-						hasTrailingNewline &&
-						startLine + displayLines.length === totalFileLines
+						displayLines.length > 0 &&
+						(!reachedEof || startLine + displayLines.length < totalFileLines || hasTrailingNewline)
 					) {
 						selectedContent += "\n";
 					}
@@ -3208,7 +3226,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						} else if (!rawSelector || limit === undefined || userLimitedLines < limit) {
 							outputText += `\n\n[More lines in file (${formatBytes(
 								fileSize,
-							)} total; not scanned to EOF). Use ${selectorBase}:${nextOffset} to continue]`;
+							)} total; not scanned to EOF). Use ${selectorBase}:${nextOffset}- to continue]`;
 						}
 						details = {};
 						sourcePath = renderAbsolutePath;
@@ -3240,7 +3258,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						outputText = formatBracketAwareText() ?? formatText(selectedContent, startLineDisplay);
 						outputText += `\n\n[${
 							totalFileLines - (startLine + userLimitedLines)
-						} more lines in file. Use ${selectorBase}:${nextOffset} to continue]`;
+						} more lines in file. Use ${selectorBase}:${nextOffset}- to continue]`;
 						details = {};
 						sourcePath = renderAbsolutePath;
 					} else {
@@ -3354,7 +3372,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			}
 			// A page of artifact storage is re-readable with selectors: spilling it would only
 			// duplicate it into another artifact. Every other unpaged located read spills like a plain file.
-			if (located?.spec.artifactStore) pagedSource = true;
+			if (located?.spec.unspilledPages) pagedSource = true;
 			// Immutable sources have no write path, so the hint never lands in a written-back file.
 			if (located && immutable && !isRawSelector(parsed) && fileSize > MAX_URL_RAW_INLINE_BYTES) {
 				const firstText = content.find((c): c is TextContent => c.type === "text");
@@ -3389,7 +3407,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		}
 		if (columnCut) {
 			// A `:raw:N-N` read gets the budget of a one-line raw page; a cut line past it comes back byte-capped.
-			const rawLineBudget = located?.spec.artifactStore
+			const rawLineBudget = located?.spec.unspilledPages
 				? DEFAULT_MAX_BYTES
 				: Math.min(DEFAULT_MAX_BYTES, resolveArtifactSpillThreshold(this.session.settings));
 			resultBuilder.limits({
@@ -3495,9 +3513,15 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			return toolResult(details).text(resource.content).sourceInternal(url).done();
 		}
 
+		// A remote file `edit` can patch is tagged through its local mirror, under its URL.
+		const mirror =
+			isRemoteTextWritable(spec) && !resource.isDirectory && resource.immutable !== true
+				? await writeRemoteMirror(url, resource.content)
+				: undefined;
 		return buildInMemorySelectorResult(this.session, resource.content, parsedSel, {
 			details,
-			sourcePath: resource.sourcePath,
+			sourcePath: mirror ?? resource.sourcePath,
+			hashlinePath: mirror ? url : undefined,
 			sourceStartLine: resource.sourceStartLine,
 			sourceInternal: url,
 			entityLabel: "resource",
@@ -3570,7 +3594,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			let text = sliced;
 			if (end < allLines.length) {
 				const remaining = allLines.length - end;
-				text += `\n\n[${remaining} more lines in listing. Use :${end + 1} to continue]`;
+				text += `\n\n[${remaining} more lines in listing. Use :${end + 1}- to continue]`;
 			}
 			return resultBuilder.text(text).done();
 		}

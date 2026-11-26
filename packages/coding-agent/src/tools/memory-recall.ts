@@ -4,6 +4,7 @@ import { logger, prompt, untilAborted, toError } from "@linxiraos/pi-utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";
 import { formatCurrentTime, formatMemories } from "../hindsight/content";
 import recallDescription from "../prompts/tools/recall.md" with { type: "text" };
+import { memoryToolRefs } from "../memory-backend/tool-names";
 import type { ToolSession } from ".";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
@@ -19,7 +20,10 @@ export class MemoryRecallTool implements AgentTool<typeof memoryRecallSchema> {
 	readonly approval = "read" as const;
 	readonly label = "Recall";
 	get description(): string {
-		return prompt.render(recallDescription);
+		return prompt.render(recallDescription, {
+			// Names only: reading device entries here would recurse through their descriptions.
+			toolRefs: memoryToolRefs([...(this.session.xdev?.mountedNames ?? [])].map(name => ({ name }))),
+		});
 	}
 	readonly parameters = memoryRecallSchema;
 	readonly strict = true;

@@ -58,6 +58,7 @@ const isolatedEnvKeys = [
 	"USERPROFILE",
 	"CLAUDE_CONFIG_DIR",
 	"ZETA_CODING_AGENT_DIR",
+	"ZETA_FOREIGN_PROJECT_SOURCES",
 	"ZETA_PROFILE",
 	"PI_PROFILE",
 ] as const;
@@ -78,6 +79,11 @@ beforeAll(async () => {
 	}
 	delete process.env.CLAUDE_CONFIG_DIR;
 	delete Bun.env.CLAUDE_CONFIG_DIR;
+	// These tests exercise project `.claude/skills` collisions; the native-only
+	// foreign-source gate normally requires an operator consent entry, so use
+	// the documented non-interactive escape instead of writing sources.json.
+	process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
+	Bun.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
 	setAgentDir(path.join(isolatedHome, ".zeta", "agent"));
 });
 

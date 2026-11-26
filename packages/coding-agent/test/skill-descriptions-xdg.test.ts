@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as agentCore from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
+import { __resetProfileSnapshotForTests, APP_NAME, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../src/config/auxiliary-model-policy";
 import { ModelRegistry } from "../src/config/model-registry";
 import { resolveRoleChain, resolveRoleSelection } from "../src/config/model-resolver";
@@ -46,7 +46,7 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			spyOn(os, "homedir").mockReturnValue(home);
 			agentDir = path.join(home, ".zeta", "agent");
 			xdgData = path.join(tempRoot, "data");
-			await fs.promises.mkdir(path.join(xdgData, "omp"), { recursive: true });
+			await fs.promises.mkdir(path.join(xdgData, APP_NAME), { recursive: true });
 			await fs.promises.mkdir(agentDir, { recursive: true });
 			process.env.PI_CONFIG_DIR = ".zeta";
 			delete process.env.ZETA_CODING_AGENT_DIR;
@@ -73,7 +73,7 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			setAgentDir(agentDir);
 			using store = SkillDescriptionStore.open();
 
-			expect(store.path).toBe(path.join(xdgData, "omp", "skill-descriptions.db"));
+			expect(store.path).toBe(path.join(xdgData, APP_NAME, "skill-descriptions.db"));
 			expect(store.get("k")).toBe("compressed description");
 		});
 
@@ -95,7 +95,7 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 		it("keeps an existing XDG database instead of overwriting it with the legacy one", () => {
 			using legacy = SkillDescriptionStore.open(path.join(agentDir, "skill-descriptions.db"));
 			legacy.put("k", "legacy");
-			const xdgDb = new Database(path.join(xdgData, "omp", "skill-descriptions.db"), { create: true });
+			const xdgDb = new Database(path.join(xdgData, APP_NAME, "skill-descriptions.db"), { create: true });
 			xdgDb.run("CREATE TABLE skill_descriptions (key TEXT PRIMARY KEY, description TEXT NOT NULL)");
 			xdgDb.run("INSERT INTO skill_descriptions VALUES ('k', 'current')");
 			xdgDb.close();

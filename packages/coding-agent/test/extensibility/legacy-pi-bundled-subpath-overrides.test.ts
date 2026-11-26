@@ -79,7 +79,7 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 
 	it("serves @linxiraos/pi-ai/oauth through the bundled virtual namespace in compiled mode", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides["@linxiraos/pi-ai/oauth"]).toBe("omp-legacy-pi-bundled:@linxiraos/pi-ai/oauth");
+		expect(overrides["@linxiraos/pi-ai/oauth"]).toBe("zetacode-legacy-pi-bundled:@linxiraos/pi-ai/oauth");
 	});
 
 	it("loads utility root-wildcard subpaths used by external image-link extensions", async () => {
@@ -145,7 +145,7 @@ export const observed = {
 		// and registers every concrete `.ts` match against the virtual namespace.
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		expect(overrides["@linxiraos/pi-ai/oauth/anthropic"]).toBe(
-			"omp-legacy-pi-bundled:@linxiraos/pi-ai/oauth/anthropic",
+			"zetacode-legacy-pi-bundled:@linxiraos/pi-ai/oauth/anthropic",
 		);
 		// Sanity: the wildcard expansion also reaches deeper subroots so plugins
 		// pinned to e.g. `@linxiraos/pi-ai/providers/openai` keep resolving.

@@ -16,7 +16,7 @@ const NPM_PACKAGES: readonly (readonly [npmDir: string, name: string])[] = [
 	["pi-natives", "@linxiraos/pi-natives"],
 	["pi-tui", "@linxiraos/pi-tui"],
 	["pi-utils", "@linxiraos/pi-utils"],
-	["omptype", "@linxiraos/zeta-schema"],
+	["zeta-schema", "@linxiraos/zeta-schema"],
 ];
 
 /** The shims the collector points at inside the installed coding-agent package. */

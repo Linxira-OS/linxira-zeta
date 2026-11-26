@@ -2,6 +2,7 @@ import { type } from "@linxiraos/zeta-schema";
 import { prompt } from "@linxiraos/pi-utils";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import memoryEditDescription from "../prompts/tools/memory-edit.md" with { type: "text" };
+import { memoryToolRefs } from "../memory-backend/tool-names";
 import type { ToolSession } from ".";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
@@ -21,7 +22,10 @@ export class MemoryEditTool implements AgentTool<typeof memoryEditSchema> {
 	readonly approval = "read" as const;
 	readonly label = "Memory Edit";
 	get description(): string {
-		return prompt.render(memoryEditDescription);
+		return prompt.render(memoryEditDescription, {
+			// Names only: reading device entries here would recurse through their descriptions.
+			toolRefs: memoryToolRefs([...(this.session.xdev?.mountedNames ?? [])].map(name => ({ name }))),
+		});
 	}
 	readonly parameters = memoryEditSchema;
 	readonly strict = true;

@@ -114,6 +114,7 @@ describe("edit parse-regression blackbox", () => {
 	test("appends valid-to-invalid transitions from every edit variant", async () => {
 		await fs.appendFile(logPath, '{"seed":true}\n');
 		const expected: Array<{
+			path: string;
 			prev: string;
 			new: string;
 			model: string;
@@ -125,6 +126,7 @@ describe("edit parse-regression blackbox", () => {
 		const replaceArg = { path: "replace.ts", old_string: "return 1;", new_string: "return (;" };
 		await new EditTool(session, "replace").execute("replace", replaceArg);
 		expected.push({
+			path: replacePath,
 			prev: SOURCE,
 			new: await Bun.file(replacePath).text(),
 			model: MODEL,
@@ -139,6 +141,7 @@ describe("edit parse-regression blackbox", () => {
 		} satisfies PatchParams;
 		await new EditTool(session, "patch").execute("patch", patchArg);
 		expected.push({
+			path: patchPath,
 			prev: SOURCE,
 			new: await Bun.file(patchPath).text(),
 			model: MODEL,
@@ -160,6 +163,7 @@ describe("edit parse-regression blackbox", () => {
 		};
 		await new EditTool(session, "apply_patch").execute("apply-patch", applyPatchArg);
 		expected.push({
+			path: applyPatchPath,
 			prev: SOURCE,
 			new: await Bun.file(applyPatchPath).text(),
 			model: MODEL,
@@ -174,6 +178,7 @@ describe("edit parse-regression blackbox", () => {
 		};
 		await new EditTool(session, "hashline").execute("hashline", hashlineArg);
 		expected.push({
+			path: hashlinePath,
 			prev: SOURCE,
 			new: await Bun.file(hashlinePath).text(),
 			model: MODEL,
@@ -187,6 +192,7 @@ describe("edit parse-regression blackbox", () => {
 		};
 		await new EditTool(session, "sloppy").execute("sloppy", sloppyArg);
 		expected.push({
+			path: sloppyPath,
 			prev: SOURCE,
 			new: await Bun.file(sloppyPath).text(),
 			model: MODEL,

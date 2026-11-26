@@ -7,8 +7,9 @@
  * autosave when idle, and idle databases save and close themselves.
  */
 import * as fs from "node:fs";
+import * as net from "node:net";
 import * as path from "node:path";
-import { type FileLockHandle, logger, readLines, TempDir, untilAborted } from "@linxiraos/pi-utils";
+import { type FileLockHandle, logger, TempDir, untilAborted } from "@linxiraos/pi-utils";
 import { ToolError } from "../tools/tool-errors";
 import type { Subprocess } from "bun";
 import { hostHasInheritableConsole, shouldHideKernelWindow } from "../eval/py/spawn-options";
@@ -29,6 +30,11 @@ const EXIT_GRACE_MS = 10_000;
 const STREAM_DRAIN_MS = 1_000;
 const STDERR_TAIL_CHARS = 64 * 1024;
 const STDERR_TAIL_LINES = 20;
+/** How long a starting worker may take to accept the protocol connection. */
+const CONNECT_TIMEOUT_MS = 30_000;
+const CONNECT_RETRY_MS = 100;
+/** Environment key carrying the token the worker requires as the first line of every connection. */
+const WORKER_TOKEN_ENV = "OMP_DISASM_WORKER_TOKEN";
 
 /** RPC methods shared by disassembler workers. */
 export type WorkerMethod =
@@ -91,10 +97,14 @@ function parseWorkerResponse(frame: unknown, label: string): WorkerResponse | nu
 		return { id: frame.id, ok: true, result, dirty };
 	}
 	const error = "error" in frame ? frame.error : undefined;
-	const message =
+	const errorText =
 		typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
 			? error.message
-			: `${label} worker request failed`;
+			: undefined;
+	const message =
+		errorText ??
+		("message" in frame && typeof frame.message === "string" ? frame.message : undefined) ??
+		`${label} worker request failed`;
 	return { id: frame.id, ok: false, message };
 }
 
@@ -113,6 +123,12 @@ export class DisasmWorker {
 	#info: DatabaseInfo = { module: "", format: "", arch: "", bitness: 0 };
 	readonly #proc: Subprocess<"pipe", "pipe", "pipe">;
 	readonly #lock: FileLockHandle;
+	readonly #endpoint: string;
+	readonly #token: string;
+	#socket: net.Socket | undefined;
+	#connection: Promise<net.Socket>;
+	#socketClosed: Promise<void> | undefined;
+	#dataBuffer = "";
 	readonly #streamsDrained: Promise<unknown>;
 	#queue: Promise<void> = Promise.resolve();
 	#pending = new Map<number, PromiseWithResolvers<unknown>>();
@@ -142,6 +158,8 @@ export class DisasmWorker {
 		proc: Subprocess<"pipe", "pipe", "pipe">,
 		lock: FileLockHandle,
 		idleCloseMs: number,
+		endpoint: string,
+		token: string,
 	) {
 		this.#backend = backend;
 		this.id = loc.id;
@@ -152,7 +170,12 @@ export class DisasmWorker {
 		this.#proc = proc;
 		this.#lock = lock;
 		this.#idleCloseMs = idleCloseMs;
-		this.#streamsDrained = Promise.all([this.#readStdout(proc.stdout), this.#drainStderr(proc.stderr)]);
+		this.#endpoint = endpoint;
+		this.#token = token;
+		this.#connection = this.#connect();
+		// Connection failures surface on the first request.
+		this.#connection.catch(() => undefined);
+		this.#streamsDrained = Promise.all([this.#drainStdout(proc.stdout), this.#drainStderr(proc.stderr)]);
 		void proc.exited.then(code => this.#onExit(code));
 	}
 
@@ -172,14 +195,21 @@ export class DisasmWorker {
 		const script = await stageRunnerScript(backend.workerStageDir, "py", backend.workerScript);
 		const alias = backend.projectAlias ? await TempDir.create(`@omp-${backend.id}-project-`) : undefined;
 		const project = alias?.join("project") ?? loc.dir;
+		const endpoint = path.join(
+			loc.dir,
+			`.disasm-${process.pid.toString(36)}-${crypto.randomUUID()}.${process.platform === "win32" ? "port" : "sock"}`,
+		);
+		const token = crypto.randomUUID();
+		const listen = process.platform === "win32" ? "--port-file" : "--socket";
 		let proc: Subprocess<"pipe", "pipe", "pipe">;
 		try {
 			if (alias) {
 				await fs.promises.symlink(loc.dir, project, process.platform === "win32" ? "junction" : "dir");
 			}
-			proc = Bun.spawn([runtime.pythonPath, "-u", script], {
+			await fs.promises.rm(endpoint, { force: true });
+			proc = Bun.spawn([runtime.pythonPath, "-u", script, listen, endpoint], {
 				cwd: loc.dir,
-				env: runtime.env,
+				env: { ...runtime.env, [WORKER_TOKEN_ENV]: token },
 				stdin: "pipe",
 				stdout: "pipe",
 				stderr: "pipe",
@@ -196,11 +226,11 @@ export class DisasmWorker {
 			throw error;
 		}
 		void proc.exited
-			.then(() => alias?.remove())
+			.then(() => Promise.all([alias?.remove(), fs.promises.rm(endpoint, { force: true })]))
 			.catch(error => {
 				logger.warn(`${backend.label} project alias cleanup failed`, { id: loc.id, error: errorMessage(error) });
 			});
-		const db = new DisasmWorker(backend, loc, proc, lock, idleCloseMs);
+		const db = new DisasmWorker(backend, loc, proc, lock, idleCloseMs, endpoint, token);
 		try {
 			const opened = await db.request<OpenResult>("open", {
 				path: loc.openPath,
@@ -404,14 +434,133 @@ export class DisasmWorker {
 		}
 	}
 
+	/** Dial the worker's listener, retrying until it accepts or the process exits. */
+	async #connect(): Promise<net.Socket> {
+		const deadline = Date.now() + CONNECT_TIMEOUT_MS;
+		let lastError: unknown;
+		while (Date.now() < deadline) {
+			if (this.#exitCode !== null) throw this.#exitError();
+			const socket = await this.#dial().catch(error => {
+				lastError = error;
+				return undefined;
+			});
+			if (socket) {
+				this.#socket = socket;
+				socket.setNoDelay(true);
+				const closed = Promise.withResolvers<void>();
+				this.#socketClosed = closed.promise;
+				socket.on("close", () => {
+					closed.resolve();
+					const pending = [...this.#pending.values()];
+					this.#pending.clear();
+					const error =
+						this.#exitCode !== null
+							? this.#exitError()
+							: new ToolError(`${this.#backend.label} worker ${this.id} connection closed`);
+					for (const entry of pending) entry.reject(error);
+				});
+				socket.on("error", error => {
+					logger.debug(`${this.#backend.label} worker socket error`, {
+						id: this.id,
+						error: errorMessage(error),
+					});
+				});
+				socket.on("data", chunk => this.#onData(chunk));
+				await new Promise<void>((resolve, reject) => {
+					socket.write(`${JSON.stringify({ token: this.#token })}\n`, error =>
+						error ? reject(error) : resolve(),
+					);
+				});
+				return socket;
+			}
+			await Bun.sleep(CONNECT_RETRY_MS);
+		}
+		throw new ToolError(
+			`${this.#backend.label} worker for ${this.id} did not accept a protocol connection: ${errorMessage(lastError)}`,
+		);
+	}
+
+	/** One connection attempt; undefined until the worker is listening. */
+	async #dial(): Promise<net.Socket> {
+		const timeoutMs = Math.max(1_000, CONNECT_RETRY_MS * 10);
+		let connectOptions: net.NetConnectOpts;
+		if (process.platform === "win32") {
+			const text = await Bun.file(this.#endpoint).text();
+			const port = Number.parseInt(text.trim(), 10);
+			if (!Number.isInteger(port) || port <= 0 || port > 65_535) throw new Error(`invalid worker port: ${text}`);
+			connectOptions = { host: "127.0.0.1", port };
+		} else {
+			connectOptions = { path: this.#endpoint };
+		}
+		return new Promise<net.Socket>((resolve, reject) => {
+			const socket = net.connect(connectOptions);
+			const timer = setTimeout(() => {
+				socket.destroy();
+				reject(new Error("connect timed out"));
+			}, timeoutMs);
+			timer.unref();
+			socket.once("connect", () => {
+				clearTimeout(timer);
+				socket.removeAllListeners("error");
+				resolve(socket);
+			});
+			socket.once("error", error => {
+				clearTimeout(timer);
+				socket.destroy();
+				reject(error);
+			});
+		});
+	}
+
+	/** Parse one NDJSON frame from the worker's protocol socket. */
+	#onData(chunk: Buffer | string): void {
+		this.#dataBuffer += chunk.toString();
+		for (;;) {
+			const newline = this.#dataBuffer.indexOf("\n");
+			if (newline === -1) return;
+			const line = this.#dataBuffer.slice(0, newline).trim();
+			this.#dataBuffer = this.#dataBuffer.slice(newline + 1);
+			if (!line) continue;
+			let frame: unknown;
+			try {
+				frame = JSON.parse(line);
+			} catch {
+				logger.warn(`${this.#backend.label} worker wrote non-JSON to its protocol socket`, {
+					id: this.id,
+					line: line.slice(0, 200),
+				});
+				continue;
+			}
+			const response = parseWorkerResponse(frame, this.#backend.label);
+			const entry = response ? this.#pending.get(response.id) : undefined;
+			if (!response || !entry) {
+				logger.warn(`${this.#backend.label} worker sent an unmatched response`, {
+					id: this.id,
+					line: line.slice(0, 200),
+				});
+				continue;
+			}
+			this.#pending.delete(response.id);
+			if (response.ok) {
+				if (response.dirty !== undefined) this.#dirty = response.dirty;
+				entry.resolve(response.result);
+			} else {
+				entry.reject(new ToolError(response.message));
+			}
+		}
+	}
+
 	async #writeFrame(line: string): Promise<void> {
-		const write = Promise.resolve(this.#proc.stdin.write(line));
-		void write.catch(() => {});
-		await Promise.all([write, this.#proc.stdin.flush()]);
+		const socket = this.#socket;
+		if (!socket || socket.destroyed) throw new Error("worker protocol connection is closed");
+		await new Promise<void>((resolve, reject) => {
+			socket.write(line, error => (error ? reject(error) : resolve()));
+		});
 	}
 
 	async #send(method: WorkerMethod, params: object, options: WorkerRequestOptions): Promise<unknown> {
 		if (this.#exitCode !== null) throw this.#exitError();
+		await this.#connection;
 		const id = this.#nextId++;
 		const response = Promise.withResolvers<unknown>();
 		this.#pending.set(id, response);
@@ -480,41 +629,19 @@ export class DisasmWorker {
 		}
 	}
 
-	async #readStdout(stream: ReadableStream<Uint8Array>): Promise<void> {
+	async #drainStdout(stream: ReadableStream<Uint8Array>): Promise<void> {
 		const decoder = new TextDecoder();
 		try {
-			for await (const bytes of readLines(stream)) {
-				const line = decoder.decode(bytes).trim();
-				if (!line) continue;
-				let frame: unknown;
-				try {
-					frame = JSON.parse(line);
-				} catch {
-					logger.warn(`${this.#backend.label} worker wrote non-JSON to its protocol stream`, {
-						id: this.id,
-						line: line.slice(0, 200),
-					});
-					continue;
-				}
-				const response = parseWorkerResponse(frame, this.#backend.label);
-				const entry = response ? this.#pending.get(response.id) : undefined;
-				if (!response || !entry) {
-					logger.warn(`${this.#backend.label} worker sent an unmatched response`, {
-						id: this.id,
-						line: line.slice(0, 200),
-					});
-					continue;
-				}
-				this.#pending.delete(response.id);
-				if (response.ok) {
-					if (response.dirty !== undefined) this.#dirty = response.dirty;
-					entry.resolve(response.result);
-				} else {
-					entry.reject(new ToolError(response.message));
-				}
+			for await (const chunk of stream) {
+				// The protocol moved to the worker's socket; anything left on stdout is diagnostic.
+				this.#appendStderr(decoder.decode(chunk, { stream: true }));
 			}
+			this.#appendStderr(decoder.decode());
 		} catch (error) {
-			logger.warn(`${this.#backend.label} worker stdout reader failed`, { id: this.id, error: errorMessage(error) });
+			logger.debug(`${this.#backend.label} worker stdout reader failed`, {
+				id: this.id,
+				error: errorMessage(error),
+			});
 		}
 	}
 
@@ -547,7 +674,8 @@ export class DisasmWorker {
 		if (this.#opened) this.#release();
 		// A response written right before exit (e.g. `close`) must settle before pending requests fail.
 		const drain = delay(STREAM_DRAIN_MS);
-		await Promise.race([this.#streamsDrained, drain.promise]);
+		const socketClosed = this.#socketClosed ?? Promise.resolve();
+		await Promise.race([Promise.all([this.#streamsDrained, socketClosed]), drain.promise]);
 		drain.cancel();
 		const error = this.#exitError();
 		for (const entry of this.#pending.values()) entry.reject(error);

@@ -71,7 +71,7 @@ describe("artifact reads through session approval", () => {
 			const produced = await bash.execute("produce", {
 				command: "printf 'artifact-start-'; printf '%010000d' 0; printf -- '-artifact-end'",
 			});
-			const hint = /Use (artifact:\/\/\S+:raw:1-1) to read/.exec(textOf(produced))?.[1];
+			const hint = /Use (local:\/\/\S+:raw:1-1) to read/.exec(textOf(produced))?.[1];
 			expect(hint).toBeDefined();
 			if (!hint) throw new Error("Expected a raw artifact recovery hint");
 
@@ -96,11 +96,11 @@ describe("artifact reads through session approval", () => {
 		const approve = (target: string) =>
 			resolveApproval(read, { path: target }, "always-ask-cached", {}, grants).policy;
 
-		expect(approve("artifact://54:raw:4-4")).toBe("prompt");
-		grants.record(approvalGrantKey("read", "artifact://54"));
-		expect(approve("artifact://54:raw:4-4")).toBe("allow");
-		expect(approve("artifact://54:5-10")).toBe("allow");
-		expect(approve("artifact://55:raw:4-4")).toBe("prompt");
+		expect(approve("local://54.log:raw:4-4")).toBe("prompt");
+		grants.record(approvalGrantKey("read", "local://54.log"));
+		expect(approve("local://54.log:raw:4-4")).toBe("allow");
+		expect(approve("local://54.log:5-10")).toBe("allow");
+		expect(approve("local://55.log:raw:4-4")).toBe("prompt");
 	});
 
 	it("preserves the SSH authority port when checking a selected read's grant", () => {

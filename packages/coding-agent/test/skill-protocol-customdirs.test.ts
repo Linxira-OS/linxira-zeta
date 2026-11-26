@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -32,6 +32,18 @@ const ALL_DEFAULT_SOURCES_DISABLED = {
 
 describe("skill:// resolution honors skills.customDirectories (#7190)", () => {
 	const tempDirs: string[] = [];
+	const originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+
+	beforeAll(() => {
+		// Several cases place a provider skill under the project's `.claude/skills`;
+		// the native-only foreign-source gate reads this documented CI escape.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
+	});
+
+	afterAll(() => {
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
+	});
 
 	afterEach(async () => {
 		resetActiveSkillsForTests();

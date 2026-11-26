@@ -50,11 +50,11 @@ export function errorMessage(error: unknown): string {
 }
 
 /** Split a byte stream into LF-delimited UTF-8 lines; empty lines are skipped. */
-export function lineReader(onLine: (line: string) => void): (chunk: Uint8Array) => void {
+export function lineReader(onLine: (line: string) => void): (chunk: Uint8Array | string) => void {
 	const decoder = new TextDecoder();
 	let buffered = "";
 	return chunk => {
-		buffered += decoder.decode(chunk, { stream: true });
+		buffered += typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
 		let newline = buffered.indexOf("\n");
 		while (newline !== -1) {
 			const line = buffered.slice(0, newline).trim();
