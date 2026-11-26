@@ -159,7 +159,7 @@ describe("resolveResumableSession", () => {
 		expect(match?.session.path).toBe(path.join(sessionDir, "2025-01-01_moved.jsonl"));
 	});
 
-	it("matches sessions staged into the dir as symlinks", async () => {
+	it.skipIf(process.platform === "win32")("matches sessions staged into the dir as symlinks", async () => {
 		const id = "sym1234";
 		const stagedDir = path.join(tempDir, "staged");
 		fs.mkdirSync(stagedDir);

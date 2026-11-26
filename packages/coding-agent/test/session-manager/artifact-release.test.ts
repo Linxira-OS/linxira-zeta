@@ -1,5 +1,6 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { ArtifactManager } from "@linxiraos/zeta/session/artifacts";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -97,7 +98,7 @@ describe("SessionManager artifact terminal release", () => {
 		if (!firstPath || !secondPath) throw new Error("Expected retained artifact paths");
 		expect(await Bun.file(firstPath).text()).toBe("completed child output");
 		expect(await Bun.file(secondPath).text()).toBe("sibling output");
-		expect(await shared.listFiles()).toHaveLength(2);
+		expect(await fs.readdir(shared.dir)).toHaveLength(2);
 	});
 
 	it("finishes a disk spill admitted before release and keeps persisted output readable", async () => {
