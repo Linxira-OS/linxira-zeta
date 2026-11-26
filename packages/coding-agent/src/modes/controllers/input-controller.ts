@@ -1262,6 +1262,17 @@ export class InputController {
 			}
 			if (bareSlashCommand) text = bareSlashCommand.command;
 
+			// A collab guest may not execute host-owned draft commands; block them
+			// before the builtin table runs, and hand the untouched draft back.
+			if (this.ctx.collabGuest && text.startsWith("/")) {
+				const hostOnly = parseSlashCommand(text)?.name;
+				if (hostOnly !== undefined && DETACHED_DRAFT_COMMANDS.has(hostOnly)) {
+					this.ctx.showStatus(`/${hostOnly} is host-only during a collab session`);
+					restoreDetachedDraft(this.ctx.composer, text, inputImages, inputImageLinks);
+					return;
+				}
+			}
+
 			// Handle built-in slash commands
 			if (text) {
 				this.#recordSlashCommandUsage(text);

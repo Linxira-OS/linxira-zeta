@@ -650,6 +650,7 @@ describe("interactive native input ingress", () => {
 				await releaseCommand.promise;
 			};
 			h.ctx.handleResetContextCommand = runCommand;
+			h.ctx.handleClearCommand = runCommand;
 			h.ctx.handleExportCommand = runCommand;
 			h.editor.setText(command);
 			const submitting = h.pressSubmit(FOLLOW_UP);
