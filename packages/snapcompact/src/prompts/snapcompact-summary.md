@@ -24,7 +24,6 @@ Reading HISTORY:
 {{!-- viewWithoutFrames (snapcompact.ts) reads this FILES section back out of a rendered summary, and viewSummary tells this template's summaries from others by their closing HISTORY heading: keep FILES_SECTION_HEAD and HISTORY_SECTION_HEAD in step with these headings. --}}
 {{#if files}}FILES
 ===================
-
 {{files}}
 {{/if}}HISTORY
 ===================
