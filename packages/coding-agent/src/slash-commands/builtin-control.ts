@@ -1,6 +1,7 @@
 import { AgentRegistry } from "../registry/agent-registry";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionHandle } from "../session/agent-session-handle";
+import { LIVE_DISABLED_MESSAGE, LIVE_FEATURE_ENABLED } from "../live/feature-gate";
 import { clearApprovalGrants } from "../tools/approval-cache";
 import { clearSubmittedText } from "./helpers/draft";
 import { shutdownHandlerTui } from "./helpers/shutdown";
@@ -139,6 +140,8 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "live",
 		icon: "voice",
 		description: "Start Codex-backed realtime voice mode",
+		enabled: () => LIVE_FEATURE_ENABLED,
+		disabledMessage: LIVE_DISABLED_MESSAGE,
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.handleLiveCommand();
