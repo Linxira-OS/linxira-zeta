@@ -1,6 +1,7 @@
 # 0097. Wave Terminal is an Apache-2.0 Zeta fork, isolated from the current release chain
 
-- **Status:** Proposed
+- **Status:** Superseded
+- **Superseded by:** [0100](0100-terminal-product-line-work-studio-retirement.md)
 - **Date:** 2026-11-23
 - **Deciders:** Zeta owner
 - **Links:** [ADR-0096](0096-work-studio-terminal-scope.md), [fork policy](../../terminal/ZETA-FORK.md), [README](../../terminal/README.md), [requirements ledger](../requirements-ledger.md) REQ-149

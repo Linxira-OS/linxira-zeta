@@ -3,7 +3,9 @@
 # 代码落点与路径归属
 
 > 一句话版在根 AGENTS.md 的「代码落点」；**本文是展开版**。
-> **2026-11-05 渲染器切换**：产品 UI 是 `web-app/`（Vite 7），`web-ui/` 冻结只作快照；
+> **2026-11-26 产品面**：Work Studio/`web-app/` 与 `desktop/` 已退出发布面（ADR-0100）；`terminal/` 是 Zeta Terminal 产品线，`zetacode serve` 仅保留 headless backend。以下 `web-app/` 段落仅作归档/迁移参考。
+>
+> **2026-11-05 渲染器切换（历史）**：`web-ui/` 冻结只作快照；
 > Studio 宿主契约在 `packages/coding-agent/src/server/studio-host/`。新增代码按本表，
 > 不要往 `web-ui/` 或 `desktop/` 里加。
 

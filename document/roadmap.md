@@ -144,7 +144,12 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 ## Priorities
 
-### P0 — 渲染器定稿：`web-app` 由 `zetacode serve` 托管（2026-11-05 裁决，取代 2026-10-15/16 桌面裁决）
+### P0 — Zeta Terminal 产品线；Work Studio 退出发布（2026-11-26，ADR-0100）
+
+**2026-11-26 裁决（Superseding）**：`web-app`/Work Studio 与 `desktop/` 不再构建、
+不随 release 发布；`terminal/`（Wave fork）成为下一产品线，以 TSP 为呈现协议；
+`zetacode serve` 仅保留 headless backend。下面 2026-11-05/06 的 Work Studio 渲染器
+记录仅作历史，不再指导新代码或 release。
 
 **2026-11-05 裁决（Superseding）：`zetawork` 暂挂，渲染器换成 `web-app`**
 

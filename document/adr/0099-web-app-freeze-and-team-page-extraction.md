@@ -1,6 +1,7 @@
 # 0099. Freeze web-app and move Team pages onto a zeta-owned page surface
 
-- **Status:** Proposed
+- **Status:** Superseded
+- **Superseded by:** [0100](0100-terminal-product-line-work-studio-retirement.md)
 - **Date:** 2026-11-24
 - **Deciders:** Zeta owner
 - **Links:** [ADR-0088](0088-one-host-many-clients.md), [ADR-0097](0097-wave-terminal-fork.md), [ADR-0098](0098-component-release-trains.md), [requirements ledger](../requirements-ledger.md) REQ-151

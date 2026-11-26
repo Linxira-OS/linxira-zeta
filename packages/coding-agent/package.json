@@ -566,7 +566,7 @@
 		"check:bundle": "bun ../../scripts/check-release-artifact.ts --path dist/cli.js --allow-unknown",
 		"gen:rpc": "bun scripts/gen-rpc/index.ts",
 		"gen:web-app": "bun scripts/build-web-app.ts",
-		"prepack": "bun run gen:export-viewer && bun run gen:bundle && bun run gen:web-app && bun run check:bundle",
+		"prepack": "bun run gen:export-viewer && bun run gen:bundle && bun run check:bundle",
 		"bench:guard": "bun scripts/bench-guard.ts",
 		"gen:export-viewer": "bun --cwd=../export-web run gen:export-viewer"
 	},

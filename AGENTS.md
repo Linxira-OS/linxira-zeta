@@ -14,15 +14,15 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 |---|---|
 | OMP（`omp-upstream`） | 运行时树；**只按官方 release tag 集成**（§6） |
 | Pi（`pi-upstream`） | 语义移植来源；永不直接 merge（`port/pi/<scope>` 分支） |
-| OMP Web（`omp-web-upstream`） | **冻结**：`retired/web-ui/` 只作快照（2026-11-05 起非产品面），只手工 cherry-pick，记进 `document/upstream-sync.md`；产品渲染器是 `web-app/` |
+| OMP Web（`omp-web-upstream`） | **冻结**：`retired/web-ui/` 只作快照（2026-11-05 起非产品面），只手工 cherry-pick，记进 `document/upstream-sync.md`；产品终端面是 Zeta Terminal 的 TSP，不再构建浏览器渲染器 |
 | Pi Web（`pi-web-upstream`） | Web 特性的语义移植来源（`port/pi-web/<scope>` 分支） |
 
 分支：`main` = 产品分支；`sync/omp` = 上游未改镜像（只快进，永不并入 `main`）；
 `retired/web-ui/` 是独立快照（自己的包管理器与 `AGENTS.md`，不是根 workspace 包，
 不得有自己的 GitHub workflow——根 `.github/workflows/ci.yml` 覆盖它）；**2026-11-05
-起冻结**（构建门禁 `web_ui_build` 同日退役），不再作为产品 UI。产品渲染器是 `web-app/`
-（Vite 7，自己的 `package-lock.json`，同样不是根 workspace 成员）；它的构建在 CI
-`check` job 里（`npm ci` + `npm run build:ci`），`zeta serve` 服务 `web-app/dist`。
+起冻结**（构建门禁 `web_ui_build` 同日退役），不再作为产品 UI。`web-app/` 与
+`desktop/` 也于 2026-11-26 退出发布面（ADR-0100），只作归档参考；`zeta serve`
+保留为 headless backend，不再服务 `web-app/dist`。
 
 `temp/` = 仓库内 scratch（gitignore，永不提交）：外部参考克隆 + 自己的 worktree
 （`temp/<topic>`）。**必须在仓库路径内**，绝不用系统临时目录（重启即清空）。
@@ -38,11 +38,12 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
   （Node/Bun）或 `CREATE_NO_WINDOW`（`std::process::Command`）。产品自启的 helper
   （serve、daemon、git 探测、LSP/MCP、eval、更新器）全静默，日志进
   `~/.zeta/run/daemon.log`。只有测试可以开可见终端。
-- **产品面只有三个（2026-11-06 规范）。** **Work Studio** = 浏览器面（`web-app/`，
-  由 `zetacode serve` 托管）；`zetacode` = CLI/TUI agent；`zetaide` = **终端 IDE**
-  （Rust termide / ratatui，不是 GUI）。**不存在 Rust UI**：`zetawork-gui`（egui +
-  WebView2）不是产品面，`zeta-main` 的嵌套终端工作台被 Work Studio 取代。详细边界见
-  `document/agents/surface/surfaces.md`。
+- **产品面（2026-11-26 裁决，ADR-0100）。** `zetacode` = CLI/TUI agent；
+  `zetaide` = **终端 IDE**（Rust termide / ratatui）；**Zeta Terminal** = `terminal/`
+  Wave fork 的终端产品线，以 TSP 为呈现协议。**Work Studio / `web-app/` / Electron
+  `desktop/` 已退出发布面**，源码归档，不再构建或发布。`zetacode serve` 是
+  headless backend/API，不是第四个产品面。**不存在 Rust UI**：`zetawork-gui` 不是产品面。
+  详细边界见 `document/agents/surface/surfaces.md`。
 - **品牌面不许被上游改回。** `.zeta` / `~/.zeta`；**已发布 bin 名**保留
   `zetawork` / `zetacode` / `zetaide`（`zetawork` 是 `@linxiraos/main` 的暂停面，
   不代表产品形态）；内部文档协议 `zeta://`；npm scope `@linxiraos/*`；release 资产名
@@ -91,21 +92,20 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 
 | 写什么 | 放哪里 |
 |---|---|
-| React 组件 / pages / hooks | `web-app/src/studio/`（产品渲染器；`retired/web-ui/` 已冻结，不再加功能） |
+| React 组件 / pages / hooks（归档） | `web-app/src/studio/`（2026-11-26 起非产品面；不再构建/发布，只作 Team/TSP 迁移参考） |
 | Studio 宿主 `/api/v1/*`（pair / CSRF / query / command / events） | `packages/coding-agent/src/server/studio-host/`（`ops/` 一家族一文件；`zeta-server.ts` 只做路由分派） |
-| 渲染器静态服务（`web-app/dist`、history fallback、CSP） | `packages/coding-agent/src/server/studio-web-app.ts`（`ZETA_WEB_APP_DIR` 覆盖） |
+| 旧渲染器静态服务（归档） | `packages/coding-agent/src/server/studio-web-app.ts`（不再随 release 构建；仅保留 API host 时不得启用） |
 | Gateway REST handler | `packages/coding-agent/src/server/web-gateway/`（路由在 `web-gateway.ts`） |
 | 频道 / 机器人运行时 | `packages/coding-agent/src/channels/` |
 | 配置层（web.yml） | `packages/coding-agent/src/config/web-config.ts` |
 | zetawork（TUI / GUI，**已退役**） | `retired/zetawork/crates/zeta-main/`、`retired/zetawork/crates/zetawork-gui/`（不构建、不发布、不被产品 import） |
 | zetaide / vendored TermIDE | `termide/`（**不要**在 retired/zetawork 里重写 vendored 面板库） |
-| terminal（Wave Apache-2.0 fork，**未产品化**） | `terminal/`；独立工具链，不入根 workspace/CI/release；先读 `terminal/AGENTS.md` 与 ADR-0097 |
+| **Zeta Terminal**（Wave Apache-2.0 fork，产品线） | `terminal/`；独立工具链，不入根 workspace；走自己的 CI/发布线（ADR-0098/0100）；先读 `terminal/AGENTS.md` |
 | `@linxiraos/editor` npm 面 | `editor/` |
-| Work Studio 桌面壳（Electron / 无浏览器引擎两版） | `desktop/`；渲染器与内核复用 `web-app/` + `packages/coding-agent`，不新增第二套 UI 代码 |
+| Work Studio 桌面壳（Electron，归档） | `desktop/`；2026-11-26 起不构建、不发布 |
 
-依赖方向不可倒：`web-app/` 只经 HTTP 打 `/api/v1/*`（Studio 宿主，由它转 gateway）；
-`desktop/` 属产品壳，`retired/web-ui/` 属冻结快照，同样只走 HTTP，
-**不得 import `packages/*` 源码**。
+依赖方向不可倒：`web-app/`/`desktop/` 已归档，只作参考；`retired/web-ui/` 是冻结快照；
+它们都不得成为产品构建入口或 import `packages/*` 源码。
 
 Catalog 值（models、identity、descriptors、cache）从 `@linxiraos/pi-catalog/<module>` 引；
 `@linxiraos/pi-ai` 只导出它自己签名用到的类型，别经它拿 catalog 值。

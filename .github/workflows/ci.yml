@@ -6,8 +6,6 @@ on:
       paths:
          - "packages/**"
          - "plugins/**"
-         - "desktop/**"
-         - "web-app/**"
          - "editor/**"
          - "termide/**"
          - "crates/**"
@@ -57,8 +55,6 @@ on:
       paths:
          - "packages/**"
          - "plugins/**"
-         - "desktop/**"
-         - "web-app/**"
          - "editor/**"
          - "termide/**"
          - "crates/**"
@@ -121,24 +117,8 @@ on:
             description: "Publish only the official plugin packages (validates a pending npm trusted publisher)"
             type: boolean
             default: false
-         build_desktop_archives:
-            description: "Run the paused release_desktop_archives packaging path without a tag (zetawork suspended 2026-11-05; zetawork binaries must be staged manually)"
-            type: boolean
-            default: false
-         desktop_app:
-            description: "Package the Work Studio desktop editions without a release tag (upload-only smoke of the desktop pipeline)"
-            type: boolean
-            default: false
          browser_tests:
             description: "Run the coding-agent browser/Chromium bucket (otherwise nightly schedule and release-state runs only)"
-            type: boolean
-            default: false
-         publish_web_ui:
-            description: "Publish the frozen @linxiraos/zeta-web snapshot on release (superseded by web-app)"
-            type: boolean
-            default: false
-         publish_zetawork:
-            description: "Publish the paused @linxiraos/main workbench packages on release (zetawork is suspended since 2026-11-05)"
             type: boolean
             default: false
          # Historical override for the 1.5.2 assets-only review. Normal
@@ -320,33 +300,7 @@ jobs:
               bun run check:adr
               bun run check:reqs
               bun scripts/release-scope.ts structural
-         # The renderer is the product UI now: `zeta serve` ships this build and
-         # the release packs it into `dist/web-app`. web-app is its own npm
-         # project (not a root workspace member), so it installs and builds on
-         # its own; `build` is `tsc -b && vite build`, so the renderer's types are
-         # gated here (2026-11-06: the port's 97 errors were paid down).
-         - name: Install web-app dependencies
-           working-directory: web-app
-           run: npm ci
-         - name: Build web-app
-           working-directory: web-app
-           run: npm run build
-         - name: Studio naming guard
-           working-directory: web-app
-           run: bun run check:naming
-        # The runtime diagnostics read model decides whether "no managed
-         # install" is a failure. A source runtime that is its own host must
-         # not render as "Runtime not installed"; pin that here because the
-         # renderer's unit tests are otherwise not part of any CI bucket.
-         - name: Test the Studio diagnostics read model
-           working-directory: web-app
-           run: bun test src/studio/diagnosticsModel.test.ts src/studio/deck/capabilitySupport.test.ts
-         # The diagram renderer is 3 MB of the bundle and must stay behind its
-         # `import()`. Read the built output, so a chunking change cannot
-         # silently modulepreload it again (see web-app/vite.config.ts).
-         - name: First-load guard (diagram renderer stays lazy)
-           working-directory: web-app
-           run: bun run check:first-load
+         # Work Studio is retired (ADR-0100): no web-app renderer build here.
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
               # Prebuilt release binary checked against digests pinned here:
@@ -598,65 +552,6 @@ jobs:
    # Restoring it was worth it: on its first real run (39356821804) everything
    # except `Build` passed on Windows — npm ci, tsc, lint, the colour guard and
    # all 354 `node --test` cases — and the run's failures were two genuine
-   # cross-platform bugs of ours (ZETA_WEB_PLUGIN_ROOTS split on the drive
-   # colon, POSIX paths parented by the platform instead of their own syntax;
-   # fixed in f6a9045e9ab). `Build` is the only step upstream still blocks: it
-   # dies with the same EPERM in Next's compile-phase glob *with*
-   # outputFileTracingRoot pinned to web-ui (b33e55684b6), so that step is
-   # Linux-only under a comment naming the defect. Re-enable it when the
-   # upstream issue closes; do not delete the rest of the leg again — the
-   # Windows consumer is real and this leg is its only PR-time signal.
-   # Cheap web/desktop contracts — a *test* job, so it carries no release gate
-   # and no gating on `is-release`: it must run in both modes. It exists because
-   # The Electron desktop's build+smoke legs retired with the 1.3.0 release
-   # surface (user ruling 2026-10-19); the desktop's
-   # own contract suite — and anything that exercises the npm-installed CLI's Web
-   # UI resolution — had no PR-time signal at all. v1.2.1 shipped through that
-   # hole: the npm fallback asked `npx` for the unscoped `zeta-web` (the published
-   # package is `@linxiraos/zeta-web`), so every launch 404'd, `serve` kept
-   # listening on 43141 with a dead Web UI child, and the shell adopted that
-   # corpse over and over.
-   #
-   # Nothing here publishes or packs: the job is test-only, deliberately
-   # separate from the publish chain, and it runs in both CI modes.
-   web_desktop_tests:
-      name: Test web/desktop contracts
-      # `bun test` pulls coding-agent modules in, whose import chain reaches the
-      # native addon (unlike the desktop's own node suite): same artifact wiring
-      # as the other coding-agent buckets. No `is-release` gate — this is a test
-      # job, not a publish job.
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
-      runs-on: ubuntu-22.04
-      timeout-minutes: 30
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         # Node 24 = what the desktop packaging jobs use; `node --test` strips
-         # the TypeScript the contract suites import from desktop/src/*.ts.
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-              cache: npm
-              cache-dependency-path: desktop/package-lock.json
-         - uses: ./.github/actions/bun-install
-         - uses: ./.github/actions/native-artifacts
-           with:
-              targets: linux-x64-baseline linux-x64-modern
-              stash: ${{ needs.native_addons.outputs.stash }}
-         - name: Install desktop dependencies
-           working-directory: desktop
-           run: npm ci
-         # `npm test` = `tsc -p tsconfig.json && node --test scripts/*.test.mjs`:
-         # the type check plus the platform/discovery/readiness contracts.
-         - name: Test desktop contract suite
-           working-directory: desktop
-           run: npm test
-         # The port-scoped reuse/refuse decision the same launcher feeds: an
-         # instance holding the port whose Web UI page does not answer must be
-         # refused, not reused.
-         - name: Test the serve reuse decision
-           run: bun test packages/coding-agent/test/serve-registry.test.ts
-
    # MODULE.bazel.lock caches the crate_universe (@crates) extension result,
    # keyed by Cargo.toml/Cargo.lock/member-manifest hashes. While current, a
    # fresh bazel server skips the extension entirely; once stale, every bazel
@@ -1419,7 +1314,7 @@ jobs:
    release_binary:
       name: "Release binary: ${{ matrix.target_id }}"
       if: ${{ !cancelled() &&
-         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives || inputs.desktop_app) &&
+         needs.release_metadata.outputs.is-release == 'true' &&
          needs.native_addons.result == 'success' &&
          needs.native_addons_cross.result == 'success' }}
       needs: [release_metadata, native_addons, native_addons_cross]
@@ -1563,7 +1458,7 @@ jobs:
       # `build_desktop_archives` is the paused archives dry run: it still wants
       # the zetaide legs the desktop packaging carries as a companion.
       if: ${{ !cancelled() &&
-         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) }}
+         needs.release_metadata.outputs.is-release == 'true' }}
       needs: [release_metadata]
       strategy:
          fail-fast: false
@@ -1639,164 +1534,6 @@ jobs:
    # packages the GUI + TUI + companions from `zeta-binary-*` artifacts, which
    # a dispatch has to stage itself (the release matrix no longer builds the
    # zetawork legs). See document/release.md.
-   release_desktop_archives:
-      name: Package zetawork desktop installer & archives (paused)
-      # Needs the CLI leg too: the installer and both Linux packages carry
-      # `zetacode` (zeta-binary-linux-x64 / zeta-binary-win32-x64) beside the
-      # GUI, alongside zetaide (zeta-binary-zeta-ide-{linux,win}-x64) and the
-      # TUI (zeta-binary-zeta-work-{linux,win}-x64).
-      if: false
-      needs: [release_metadata, release_binary, release_product_binaries]
-      runs-on: ubuntu-22.04
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-           with:
-              pattern: zeta-binary-*
-              path: packages/coding-agent/binaries
-              merge-multiple: true
-         # mksquashfs for appimagetool; docker is preinstalled on the runner and
-         # the Arch package is built inside archlinux/base-devel. NSIS builds
-         # the per-user Windows installer (`makensis`).
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-         - name: Install AppImage and NSIS tooling
-           run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools zsync nsis
-         # Every product artifact carries the browser UI: `zetacode serve`
-         # hosts it from `<exe dir>/web-ui`, and the shipped binary is its Bun
-         # runtime (`BUN_BE_BUN=1`), so no Node is needed on the user machine.
-         - name: Build the Web UI (standalone)
-           env:
-              NEXT_OUTPUT_STANDALONE: "1"
-              NEXT_TELEMETRY_DISABLED: "1"
-           run: |
-              npm ci
-              npm run build
-         - name: Package the Windows portable product (full payload zip)
-           run: |
-              bun scripts/package-desktop-archives.ts windows \
-                --version "${{ needs.release_metadata.outputs.release-tag }}" \
-                --exe packages/coding-agent/binaries/zetawork-gui-win-x64.exe \
-                --tui packages/coding-agent/binaries/zeta-work-win-x64.exe \
-                --agent packages/coding-agent/binaries/zeta-cli-windows-x64.exe \
-                --ide packages/coding-agent/binaries/zeta-ide-win-x64.exe \
-                --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
-                --webui web-ui \
-                --out packages/coding-agent/binaries
-         - name: Package the Windows installer (NSIS, with companions)
-           run: |
-              bun scripts/package-desktop-archives.ts windows-installer \
-                --version "${{ needs.release_metadata.outputs.release-tag }}" \
-                --gui packages/coding-agent/binaries/zetawork-gui-win-x64.exe \
-                --tui packages/coding-agent/binaries/zeta-work-win-x64.exe \
-                --agent packages/coding-agent/binaries/zeta-cli-windows-x64.exe \
-                --ide packages/coding-agent/binaries/zeta-ide-win-x64.exe \
-                --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
-                --webui web-ui \
-                --out packages/coding-agent/binaries
-         - name: Package the Linux desktop app
-           run: |
-              bun scripts/package-desktop-archives.ts linux \
-                --version "${{ needs.release_metadata.outputs.release-tag }}" \
-                --gui packages/coding-agent/binaries/zetawork-gui-linux-x64 \
-                --tui packages/coding-agent/binaries/zeta-work-linux-x64 \
-                --agent packages/coding-agent/binaries/zeta-cli-linux-x64 \
-                --ide packages/coding-agent/binaries/zeta-ide-linux-x64 \
-                --webui web-ui \
-                --out packages/coding-agent/binaries
-         - name: Upload desktop installer & archives
-           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-           with:
-              name: zeta-binary-zetawork-archives
-              path: |
-                 packages/coding-agent/binaries/linxira-zeta-*-setup-x64.exe
-                 packages/coding-agent/binaries/linxira-zeta-*-windows-x64.zip
-                 packages/coding-agent/binaries/linxira-zeta-*.AppImage
-                 packages/coding-agent/binaries/linxira-zeta-*.pkg.tar.zst
-              if-no-files-found: error
-
-   release_desktop:
-      name: Package Work Studio desktop (Electron + browser editions)
-      if: ${{ (needs.release_metadata.outputs.is-release == 'true' || inputs.desktop_app) && !cancelled() &&
-         needs.release_binary.result == 'success' }}
-      needs: [release_metadata, release_binary]
-      strategy:
-         fail-fast: false
-         matrix:
-            include:
-               - os: ubuntu-22.04
-                 platform: linux
-                 suffix: linux-x64
-                 native_target: linux-x64-baseline
-               - os: windows-latest
-                 platform: win32
-                 suffix: win32-x64
-                 native_target: win32-x64-baseline
-      runs-on: ${{ matrix.os }}
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-           with:
-              bun-version: 1.4.4
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-         - id: version
-           name: Read the product version
-           shell: bash
-           run: |
-              version=$(node -p "require('./desktop/package.json').version")
-              echo "value=$version" >> "$GITHUB_OUTPUT"
-         - run: bun install --frozen-lockfile
-         - name: Install prebuilt native addons
-           uses: ./.github/actions/native-artifacts
-           with:
-              targets: ${{ matrix.native_target }}
-         - name: Download the release CLI binary
-           uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-           with:
-              name: zeta-binary-${{ matrix.suffix }}
-              path: temp/desktop/binary
-         - name: Install desktop dependencies
-           working-directory: desktop
-           run: npm ci
-         # The Electron edition embeds Chromium + the compiled kernel + the
-         # Work Studio renderer. The shell reuses the release CLI artifact, so
-         # this job never recompiles the Rust/Bun binary.
-         - name: Package the Electron edition
-           working-directory: desktop
-           env:
-              ZETA_SERVICE_BINARY: ${{ github.workspace }}/temp/desktop/binary/zeta-cli-${{ matrix.platform == 'win32' && 'windows-x64.exe' || 'linux-x64' }}
-           run: npm run dist
-         - name: Package the browser edition (no bundled engine)
-           shell: bash
-           run: |
-              bun scripts/package-workstudio-browser.ts                 --version "${{ steps.version.outputs.value }}"                 --platform ${{ matrix.platform }}                 --runtime temp/desktop/staging/zeta                 --out temp/desktop/release
-         - name: Upload desktop artifacts
-           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-           with:
-              name: zeta-desktop-${{ matrix.suffix }}
-              path: |
-                 temp/desktop/release/zeta-desktop-*.exe
-                 temp/desktop/release/zeta-desktop-*.zip
-                 temp/desktop/release/zeta-desktop-*.AppImage
-                 temp/desktop/release/zeta-desktop-*.deb
-                 temp/desktop/release/zeta-desktop-*.tar.gz
-                 temp/desktop/release/linxira-zeta-*-workstudio-browser-*
-              if-no-files-found: error
-
-   # Desktop shells (Electron embedding the standalone web-ui + a compiled
-   # zeta runtime). They run on every CI event like the test fan-out: PR-side
-   # they prove the pipeline compiles and smokes; at release the artifacts
-   # feed release_github as installer assets. Linux/Windows reuse the
-   # native_addons artifact; macOS builds its own addon (no cross-hosted
-
-   # Publishes the six @linxiraos/pi-natives-<tag> leaf packages once
-   # validation passes and every binary built. Runs on one linux runner: leaf
-   # publishing is platform-agnostic file packaging (gen-npm-packages reads
-   # packages/natives/native), so no per-platform runners are needed.
    release_native_leaves:
       name: Publish native leaf packages
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
@@ -1877,12 +1614,10 @@ jobs:
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
          needs.release_product_binaries.result == 'success' }}
-      # zetawork is paused (2026-11-05 ruling): this job now uploads only what
-      # the release builds — CLI binaries, zetaide, the relay extension, the
-      # example-plugin zip and the root texts. The TUI and the desktop archives
-      # left the release surface with it, so release_desktop_archives is no
-      # longer a dependency (that job is dispatch-only).
-      needs: [release_metadata, release_gate, release_binary, release_product_binaries, release_desktop]
+      # Work Studio / desktop / zetawork have left the release surface (ADR-0100).
+      # This job uploads only the CLI binaries, zetaide, the relay extension, the
+      # example-plugin zip and the root texts.
+      needs: [release_metadata, release_gate, release_binary, release_product_binaries]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -1918,12 +1653,6 @@ jobs:
               pattern: zeta-binary-*
               path: packages/coding-agent/binaries
               merge-multiple: true
-         - name: Download desktop artifacts
-           uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-           with:
-              pattern: zeta-desktop-*
-              path: packages/coding-agent/binaries
-              merge-multiple: true
          - run: bun install --frozen-lockfile
          - name: Build browser relay artifacts
            run: bun run --cwd packages/browser-relay build
@@ -1940,18 +1669,12 @@ jobs:
          - name: Preflight release assets
            run: |
               missing=0
-              version=$(bun -p 'require("./desktop/package.json").version')
+              version="${{ needs.release_metadata.outputs.release-version }}"
               for asset in \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 LICENSE \
                 THIRD-PARTY-NOTICES.txt \
-                "packages/coding-agent/binaries/zeta-desktop-$version-win-x64.exe" \
-                "packages/coding-agent/binaries/zeta-desktop-$version-win-x64.zip" \
-                "packages/coding-agent/binaries/zeta-desktop-$version-linux-amd64.deb" \
-                "packages/coding-agent/binaries/zeta-desktop-$version-linux-x64.tar.gz" \
-                "packages/coding-agent/binaries/zeta-desktop-$version-linux-x86_64.AppImage" \
-                "packages/coding-agent/binaries/linxira-zeta-$version-workstudio-browser-linux-x64.tar.gz" \
-                "packages/coding-agent/binaries/linxira-zeta-$version-workstudio-browser-windows-x64.zip"; do
+                ; do
                 if [ ! -f "$asset" ]; then
                   echo "::error::Missing release asset: $asset"
                   missing=1
@@ -1988,8 +1711,6 @@ jobs:
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
                 packages/coding-agent/binaries/zeta-ide-* \
-                packages/coding-agent/binaries/zeta-desktop-* \
-                packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 plugins/dist/zeta-plugin-example-*.zip \
                 packaging/package-linkage.json \
@@ -2003,8 +1724,6 @@ jobs:
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
                  packages/coding-agent/binaries/zeta-ide-*
-                 packages/coding-agent/binaries/zeta-desktop-*
-                 packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                  plugins/dist/zeta-plugin-example-*.zip
                  packaging/package-linkage.json
@@ -2458,119 +2177,6 @@ jobs:
    # publish path, which preflights `npm view <name>@<version>` and skips a
    # version already on the registry (and treats npm's E409 /
    # "previously published versions" output as already published).
-   release_web_ui_packages:
-      name: Publish web-ui npm package (retired)
-      if: false
-      # web-ui is frozen (the renderer moved to web-app, 2026-11-05): the
-      # package keeps its published versions but only republishes when the
-      # `publish_web_ui` dispatch input asks for it.
-      needs: [release_metadata, release_gate]
-      runs-on: ubuntu-22.04
-      # id-token is the only publish credential (trusted publishing); the npm
-      # trusted publisher for @linxiraos/zeta-web must name this workflow file
-      # and this job's publish step.
-      permissions:
-         id-token: write
-         contents: read
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-              registry-url: "https://registry.npmjs.org"
-              cache: npm
-              cache-dependency-path: web-ui/package-lock.json
-         # npm 12 requires a newer emulated Node than Bun provides when the
-         # release script shells out; the OIDC floor is 11.5.1 (this pin matches
-         # the sibling publish legs).
-         - name: Ensure npm supports trusted publishing
-           run: npm install -g npm@11.17.0
-         - name: Install web-ui dependencies
-           run: npm ci
-         # The manifest's `files` list ships `.next`; publishing a fresh
-         # checkout without this build would upload a missing or stale Web UI
-         # against the release's gateway.
-         - name: Build web-ui
-           run: npm run build
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - name: Publish @linxiraos/zeta-web
-           working-directory: .
-           run: bun run ci:release:publish-web-ui
-
-   # Publishes the official plugins (`@linxiraos/pi-messenger`) on release tags
-   # via npm trusted publishing. Unlike web-ui there is no build to run: an
-   # official plugin ships TS source (`index.ts` entry, `crew/**`, `skills/**`,
-   # `bin` → `install.mjs`) for the host loader to transpile, so
-   # `ci-release-publish.ts --plugin` packs the directory as-authored through
-   # the same as-is path the vendored main/ide/web-ui legs use. The
-   # workspace `packages` table (release_npm) cannot carry it: that path's
-   # `typescript` kind runs a declaration emit whose output the plugin cannot
-   # consume — its sources use `allowImportingTsExtensions`, so the emitted
-   # `.d.ts` keep `.ts` specifiers no consumer can resolve — and it rewrites
-   # `main`/`exports`/`types`, which the plugin's `pi.extensions` and `bin` do
-   # not point at. Shipping source as-authored is the plugin's documented
-   # publish contract (document/plugin-system.md).
-   #
-   # The leg lives INSIDE ci.yml rather than in a dedicated workflow file: npm
-   # binds a trusted publisher to the workflow FILE that executes the publish,
-   # so the npm-side entry for `@linxiraos/pi-messenger` must name
-   # `.github/workflows/ci.yml` (document/release.md) — a first publish with no
-   # matching trusted publisher fails `PUT 404` (the v1.1.9 native-leaf lesson).
-   #
-   # needs: [release_metadata, release_gate] mirrors the other publish legs —
-   # release_metadata supplies
-   # is-release (this job must not run on ordinary pushes) and release_gate
-   # carries the release-state prerequisite: `check`'s guard steps run on a
-   # release run, and publishing before they pass must be impossible. No
-   # build-artifact edge is needed: everything in the tarball is produced inside
-   # this job from the tagged tree, so nothing can race an upload. A failure
-   # here reddens the tag run; like the sibling package legs it does not gate
-   # release_github's asset assembly.
-   #
-   # Re-run safe: the shared publish path preflights
-   # `npm view @linxiraos/pi-messenger@<version>` and skips a version already on
-   # the registry (and treats npm's E409 / "previously published versions"
-   # output as already published).
-   # 1.3.1 restores the workbench npm line (user ruling 2026-10-18: the GUI
-   # stays out of npm, the TUI does not). The leaves carry committed binaries,
-   # so main-publish.yml packs the tree as committed — it never rebuilds.
-   # zetawork is suspended (2026-11-05, roadmap P0): the workbench packages stay
-   # published-but-frozen, and a release only dispatches this leg when
-   # `publish_zetawork` is set. `main-publish.yml` itself is untouched, so a
-   # manual `gh workflow run main-publish.yml` still works.
-   release_main_packages:
-      name: Publish zetawork npm packages (retired)
-      if: false
-      needs: [release_metadata, release_gate, release_npm, release_ide_packages]
-      runs-on: ubuntu-22.04
-      permissions:
-         contents: read
-         actions: write
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - name: Dispatch main-publish.yml and wait for it
-           env:
-              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-           run: |
-              set -euo pipefail
-              gh workflow run main-publish.yml --ref "${GITHUB_REF_NAME}"
-              rid=""
-              for _ in $(seq 1 30); do
-                 sleep 10
-                 rid=$(gh run list --workflow=main-publish.yml --branch "${GITHUB_REF_NAME}" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
-                 [ -n "$rid" ] && break
-              done
-              if [ -z "$rid" ]; then
-                 echo "::error::main-publish run never appeared"
-                 exit 1
-              fi
-              gh run watch "$rid" --exit-status --interval 15
-
-   # The same publish, without the release gate. npm's trusted-publisher entry
-   # is validated by a single successful publish and its window is days wide, so
-   # a retry must not queue behind bazel/native builds. Mutually exclusive with
-   # release_plugin_packages (which requires is-release and the gate).
    release_plugin_packages_manual:
       name: Publish official plugin npm packages (manual)
       if: ${{ !cancelled() && !inputs.skip_npm && inputs.publish_plugins &&

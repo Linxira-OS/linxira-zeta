@@ -74,14 +74,7 @@ const NATIVES_PACKAGE = "@linxiraos/pi-natives";
  * `packages/natives/scripts/gen-npm-packages.ts`; kept here as the local
  * source of truth so the update path stays free of cross-package imports.
  */
-const SUPPORTED_NATIVE_TAGS: ReadonlySet<string> = new Set([
-	"linux-x64",
-	"linux-arm64",
-	"darwin-x64",
-	"darwin-arm64",
-	"win32-x64",
-	"win32-arm64",
-]);
+const SHIPPED_NATIVE_TAGS: ReadonlySet<string> = new Set(["linux-x64", "win32-x64"]);
 
 function currentNativeTag(): string {
 	return `${process.platform}-${process.arch}`;
@@ -1295,7 +1288,7 @@ function buildVersionedPackageInstallArgs(
 	packages: ReleasePackages,
 ): string[] {
 	const args = [`${packages.pkg}@${expectedVersion}`, `${packages.natives}@${expectedVersion}`];
-	if (SUPPORTED_NATIVE_TAGS.has(nativeTag)) {
+	if (SHIPPED_NATIVE_TAGS.has(nativeTag)) {
 		args.push(`${packages.natives}-${nativeTag}@${expectedVersion}`);
 	}
 	return args;
@@ -1329,7 +1322,7 @@ function buildVersionedPackageInstallArgs(
  * (`The .node file on disk is from a different release than this loader`).
  * Listing the natives explicitly forces bun to replace them in lock-step.
  * The leaf is added only on tags the release pipeline actually publishes
- * ({@link SUPPORTED_NATIVE_TAGS}) so unsupported platforms still fail with
+ * ({@link SHIPPED_NATIVE_TAGS}) so unsupported platforms still fail with
  * the original "no matching version" message instead of `EBADPLATFORM`.
  * See #1824.
  *
@@ -1462,7 +1455,7 @@ export function buildRenameCleanupPackages(
 	nativeTag: string = currentNativeTag(),
 ): string[] {
 	const old = [PACKAGE, NATIVES_PACKAGE];
-	if (SUPPORTED_NATIVE_TAGS.has(nativeTag)) {
+	if (SHIPPED_NATIVE_TAGS.has(nativeTag)) {
 		old.push(`${NATIVES_PACKAGE}-${nativeTag}`);
 	}
 	const newLeaf = `${packages.natives}-${nativeTag}`;
