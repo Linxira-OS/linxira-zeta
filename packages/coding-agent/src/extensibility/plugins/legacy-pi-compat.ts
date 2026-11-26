@@ -831,6 +831,8 @@ const PI_PACKAGE_NAMES = [
 	"pi-tui",
 	"pi-utils",
 	"omptype",
+	// Zeta is the renamed host package; installed extensions import it by name.
+	"zeta",
 ] as const;
 
 /**
