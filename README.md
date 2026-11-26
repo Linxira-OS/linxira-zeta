@@ -16,7 +16,8 @@ Zeta is a **terminal-first** agent workspace: the coding agent (`zetacode`),
 the terminal IDE (`zetaide`), and **Zeta Terminal** (the Wave fork in
 `terminal/`) are the product. Work Studio and the Electron desktop shell are
 retired from release; `zetacode serve` remains a headless backend for sessions,
-remote clients, and Terminal integration.
+remote clients, Terminal integration, and a slim set of high-interaction
+fallback pages (Team, Rooms, IM).
 
 It is an **agent development environment (ADE)**, not an IDE with a chat pane:
 the session is the unit of work, and every panel is a surface the agent can

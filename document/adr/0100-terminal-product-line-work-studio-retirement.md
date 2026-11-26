@@ -24,7 +24,9 @@ now superseded by an explicit product decision.
   reference fork: it is the product surface for the terminal-first/TSP line and
   is released through its own component train (ADR-0098), not by reviving the
   root web UI.
-- **Work Studio is retired from release.** `web-app/` and the Electron desktop
+- **Work Studio is retired from release.** The scoped fallback pages in
+  [ADR-0101](0101-scoped-external-pages-fallback.md) are not Work Studio and do
+  not restore its shell, desktop or assets. `web-app/` and the Electron desktop
   shell are excluded from release assets and from the root product CI. Their
   source remains in-tree for archival/reference until the Team/TSP pages are
   fully moved, then moves under `retired/` with the existing MIT/NOTICE
@@ -78,6 +80,7 @@ The resulting product surfaces are:
 
 ## Links
 
+- [ADR-0101: scoped external pages](0101-scoped-external-pages-fallback.md)
 - [ADR-0097: Wave fork](0097-wave-terminal-fork.md)
 - [ADR-0098: component release trains](0098-component-release-trains.md)
 - [ADR-0099: web-app freeze](0099-web-app-freeze-and-team-page-extraction.md)

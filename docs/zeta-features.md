@@ -99,7 +99,9 @@ Work Studio is retired from release (ADR-0100). `web-app/` and the Electron
 sessions and remote clients. There is no browser workbench to enable.
 
 The next product line is **Zeta Terminal** under `terminal/`, built on the TSP
-surface. See [`terminal/README.md`](../terminal/README.md) and
+surface. A slim external page shell keeps Team, Rooms and IM available for
+high-interaction and accessibility fallback; it is not Work Studio and does not
+bring back the full browser workbench. See [`terminal/README.md`](../terminal/README.md) and
 [`document/adr/0100-terminal-product-line-work-studio-retirement.md`](../document/adr/0100-terminal-product-line-work-studio-retirement.md).
 
 ## Ultra plan mode## Ultra plan mode

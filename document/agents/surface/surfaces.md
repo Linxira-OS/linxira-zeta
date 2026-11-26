@@ -9,6 +9,24 @@
 | **zetaide** | `zetaide` | **终端 IDE** | Rust `termide/`（ratatui + crossterm）+ `@linxiraos/editor` | `termide/crates/*` | `ide-publish.yml` → `@linxiraos/ide` |
 | **Zeta Terminal** | `terminal/` | 终端产品线（Wave fork） | 独立 Electron/Vite/Go 工具链；TSP 呈现协议 | `terminal/` | 独立 Terminal 发布线（ADR-0098/0100） |
 
+## 精简页面壳（高交互保底，不是 Work Studio）
+
+TSP 是主路径，但 Team / Rooms / IM 需要密集表格、多栏编辑、拖拽和复杂剪贴板，
+TSP 对这些交互不总是更好。按 ADR-0101 保留一个**精简 HTML 页面壳**：一个最小 host（header/nav/auth）+ 独立页面，不使用 React/Next 工作台外壳。
+
+| 页面 | 路由 | 数据 |
+|---|---|---|
+| Team | `/pages/team/` | `team.*` host ops / gateway |
+| Rooms | `/pages/rooms/` | `rooms.*` / IRC |
+| IM | `/pages/im/` | channels 后端 |
+| Stats | 独立 `packages/stats`（默认 3847） | 自有 `/api/*` |
+
+- 由 `zetacode serve` 同源托管，复用其 auth/CSRF/WS；`identity.pages` 发布 URL
+- `zetacode pages open team|rooms|im` 在系统浏览器或 Wave/Terminal 内嵌浏览器打开
+- 页面用原生 HTML/ESM，状态层按页需要最小化；不 import Work Studio shell
+- 不发布 Electron/desktop，不整包恢复旧 `web-ui/`；后续按页面选择性迁移
+- 这些页面是保底，不是第四个完整产品；新增页面需要单独裁决
+
 ## 已退出发布面
 
 - **Work Studio / `web-app/`**：2026-11-26 起不再构建、不打包、不发布。Team/Rooms/IM

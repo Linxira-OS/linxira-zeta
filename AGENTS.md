@@ -42,7 +42,8 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
   `zetaide` = **终端 IDE**（Rust termide / ratatui）；**Zeta Terminal** = `terminal/`
   Wave fork 的终端产品线，以 TSP 为呈现协议。**Work Studio / `web-app/` / Electron
   `desktop/` 已退出发布面**，源码归档，不再构建或发布。`zetacode serve` 是
-  headless backend/API，不是第四个产品面。**不存在 Rust UI**：`zetawork-gui` 不是产品面。
+  headless backend/API，并托管 Team/Rooms/IM 的**范围受控外部 HTML 保底页面**
+  （ADR-0101；不是第四个完整产品面）。**不存在 Rust UI**：`zetawork-gui` 不是产品面。
   详细边界见 `document/agents/surface/surfaces.md`。
 - **品牌面不许被上游改回。** `.zeta` / `~/.zeta`；**已发布 bin 名**保留
   `zetawork` / `zetacode` / `zetaide`（`zetawork` 是 `@linxiraos/main` 的暂停面，
@@ -96,6 +97,7 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 | Studio 宿主 `/api/v1/*`（pair / CSRF / query / command / events） | `packages/coding-agent/src/server/studio-host/`（`ops/` 一家族一文件；`zeta-server.ts` 只做路由分派） |
 | 旧渲染器静态服务（归档） | `packages/coding-agent/src/server/studio-web-app.ts`（不再随 release 构建；仅保留 API host 时不得启用） |
 | Gateway REST handler | `packages/coding-agent/src/server/web-gateway/`（路由在 `web-gateway.ts`） |
+| 高交互保底页面（Team/Rooms/IM） | `pages/`（精简 HTML/ESM；由 `zetacode serve` 托管；ADR-0101，不是 Work Studio） |
 | 频道 / 机器人运行时 | `packages/coding-agent/src/channels/` |
 | 配置层（web.yml） | `packages/coding-agent/src/config/web-config.ts` |
 | zetawork（TUI / GUI，**已退役**） | `retired/zetawork/crates/zeta-main/`、`retired/zetawork/crates/zetawork-gui/`（不构建、不发布、不被产品 import） |
