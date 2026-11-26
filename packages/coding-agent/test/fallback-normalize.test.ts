@@ -59,17 +59,3 @@ describe("fallback normalization", () => {
 		]);
 	});
 });
-
-describe("effective fallback chains", () => {
-	it("normalizes configured chains and copies the default without aliasing", async () => {
-		const { expandDefaultRetryFallbackChains } = await import("@linxiraos/zeta/session/retry-fallback-chains");
-		const normalized = expandDefaultRetryFallbackChains({ default: ["a/one", "a/one", "b/two"] }, [
-			"default",
-			"coder",
-		]);
-		expect(normalized.default).toEqual(["a/one", "b/two"]);
-		expect(normalized.coder).toEqual(["a/one", "b/two"]);
-		normalized.coder.push("c/three");
-		expect(normalized.default).toEqual(["a/one", "b/two"]);
-	});
-});

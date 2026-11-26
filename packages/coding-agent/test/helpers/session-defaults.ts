@@ -5,10 +5,12 @@ export function createSessionDefaults() {
 	return {
 		setActiveToolsByName: async (_toolNames: string[]) => {},
 		getMountedXdevToolNames: () => [],
+		getMountedToolCommandNames: () => [],
 		waitForIdle: async () => {},
 		prepareForHeadlessAdvisorDrain: () => {},
 		waitForAdvisorCatchup: async () => true,
 		getToolByName: () => undefined,
+		getWorkPoolYieldItems: () => [],
 		getLastAssistantMessage: () => undefined,
 		isRunActive: false,
 		wakeSources: undefined,
