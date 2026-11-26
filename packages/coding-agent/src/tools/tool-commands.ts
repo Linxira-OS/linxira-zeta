@@ -56,6 +56,9 @@ export const TOOL_COMMAND_KEEP_TOP_LEVEL: Record<string, true> = {
 	ask: true,
 	grep: true,
 	web_search: true,
+	// The todo phase nudge and the approved-plan prompt gate on tracking_update
+	// being directly callable; mounting it as a bash command closes both gates.
+	tracking_update: true,
 };
 
 /**

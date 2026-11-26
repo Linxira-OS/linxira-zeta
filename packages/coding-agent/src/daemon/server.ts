@@ -351,7 +351,7 @@ class Daemon {
 		const units = this.#units;
 		switch (request.op) {
 			case "ping":
-				return { pid: process.pid, build: daemonBuildId() } satisfies DaemonResults["ping"];
+				return { pid: process.pid, build: daemonBuildId(), previewUrls: true } satisfies DaemonResults["ping"];
 			case "list":
 				return units.list(request);
 			case "describe":

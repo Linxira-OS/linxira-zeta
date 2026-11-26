@@ -105,7 +105,14 @@ function execution(id: string, output?: string): StructuredSubagentResult {
 }
 
 function markIdle(id: string): void {
-	AgentRegistry.global().register({
+	// The mocked lifecycle registers once and then reports idle turns; an id is
+	// never silently re-registered.
+	const registry = AgentRegistry.global();
+	if (registry.get(id)) {
+		registry.setStatus(id, "idle");
+		return;
+	}
+	registry.register({
 		id,
 		displayName: id,
 		kind: "sub",

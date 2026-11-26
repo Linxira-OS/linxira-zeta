@@ -497,6 +497,9 @@ const bashSchemaWithService = type({
 	"pty?": "boolean",
 	"notify?": "string",
 	"name?": SERVICE_NAME,
+	"previewUrl?": type("string").describe(
+		"Real HTTP(S) preview URL for a named web development server; no embedded credentials",
+	),
 	"ready?": SERVICE_READY,
 });
 
@@ -508,6 +511,9 @@ const bashSchemaWithAsyncAndService = type({
 	"async?": "boolean",
 	"notify?": "string",
 	"name?": SERVICE_NAME,
+	"previewUrl?": type("string").describe(
+		"Real HTTP(S) preview URL for a named web development server; no embedded credentials",
+	),
 	"ready?": SERVICE_READY,
 });
 
@@ -529,6 +535,8 @@ export interface BashToolInput {
 	timeout?: number;
 	cwd?: string;
 	name?: string;
+	/** Agent-declared absolute HTTP(S) preview URL of a named web development server. */
+	previewUrl?: string;
 	ready?: ServiceReady;
 	async?: boolean;
 	/**
@@ -1811,6 +1819,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			timeout: rawTimeout,
 			cwd,
 			name: rawName,
+			previewUrl,
 			ready: rawReady,
 			async: rawAsync,
 			notify: rawNotify,
@@ -2005,6 +2014,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				this.session,
 				{
 					name,
+					previewUrl,
 					command,
 					cwd: commandCwd,
 					pty: pty ?? true,

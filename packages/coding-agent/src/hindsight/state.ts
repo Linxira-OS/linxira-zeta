@@ -3,6 +3,7 @@ import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { shortenPath } from "../utils/render-utils";
 import { memoryNoticeErrorText } from "../memory-backend/messages";
 import { findPersistedRecall, persistRecall } from "../memory-backend/recall-entry";
+import { cfgMemoryExtractionMode } from "../memory-backend/settings";
 import type { MemoryPromptPreparation } from "../memory-backend/types";
 import type { AgentSession } from "../session/agent-session";
 import { type BankScope, ensureBankExists, type HindsightBankSet } from "./bank";
@@ -460,6 +461,8 @@ export class HindsightSessionState implements HindsightSessionStateApi {
 	 */
 	/** Retains on a turn-end event when due; compatibility entry point to the single-flight queue. */
 	async maybeRetainOnAgentEnd(): Promise<void> {
+		if (!this.config.autoRetain || this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto")
+			return;
 		await this.#requestRetain(false);
 	}
 

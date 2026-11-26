@@ -32,19 +32,19 @@ import {
 // instructions and the installed Context Mode server's absent instructions.
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "instructions-mcp.ts");
 const MCP_TOOL_NAME = "mcp__instr_do_thing";
-/** Route line for the fixture's backtick-named tool: escaped label, normalized mount path. */
-const DO_THING_ROUTE = '- "do\\u0060thing" → `xd://mcp__instr_do_thing`';
-const MCP_ROUTE_SECTION = "## MCP Tool Routes";
-const CONTEXT_MODE_ROUTE = '- "ctx_execute" → `xd://mcp__context_mode_ctx_execute`';
+/** Route line for the fixture's backtick-named tool: escaped label, normalized command name. */
+const DO_THING_ROUTE = '- "do\\u0060thing" → `mcp__instr_do_thing`';
+const MCP_ROUTE_SECTION = "## MCP Tool Commands";
+const CONTEXT_MODE_ROUTE = '- "ctx_execute" → `mcp__context_mode_ctx_execute`';
 const CONTEXT_MODE_MCP_TOOL_NAME = "mcp__context_mode_ctx_execute";
 /** Sentinel proving the user's append prompt stays a block of its own. */
 const USER_APPEND_MARKER = "USER_APPEND_SENTINEL_7d13f2: prefer Bun APIs over Node APIs.";
 /** Heading that opens the user's append section, asserted literally rather than imported. */
 const USER_APPEND_SECTION_HEADING = "## User Instructions";
-/** The route section's instruction to read an `xd://` path before first use. */
-const READ_FIRST_CLAUSE = "for docs + JSON schema before first use";
+/** The route section's instruction to ask a command for help before first use. */
+const READ_FIRST_CLAUSE = "run `<command> --help` before first use";
 
-/** The rendered `## MCP Tool Routes` section, up to the next heading. */
+/** The rendered `## MCP Tool Commands` section, up to the next heading. */
 function routeSection(prompt: string): string {
 	const start = prompt.indexOf(MCP_ROUTE_SECTION);
 	if (start === -1) return "";
@@ -228,8 +228,8 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 
 			expect(prompt).toContain(SERVER_INSTRUCTIONS);
 			// The instructions are framed under the MCP section, and guidance keeps
-			// the escaped original tool name while routing through the exact
-			// normalized name actually mounted in the live xd:// registry.
+			// the escaped original tool name while routing through the exact command
+			// name the tool is mounted under.
 			expect(prompt).toContain("MCP Server Instructions");
 			expect(prompt).toContain(DO_THING_ROUTE);
 		} finally {
@@ -315,7 +315,7 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			);
 
 			expect(prompt).toContain(CONTEXT_MODE_ROUTE);
-			expect(session.getXdevToolEntries().map(entry => entry.name)).toContain(CONTEXT_MODE_MCP_TOOL_NAME);
+			expect(session.getToolCommandEntries().map(entry => entry.name)).toContain(CONTEXT_MODE_MCP_TOOL_NAME);
 			expect(session.getActiveToolNames()).not.toContain(CONTEXT_MODE_MCP_TOOL_NAME);
 			expect(prompt.split(MCP_ROUTE_SECTION)).toHaveLength(2);
 			expect(prompt).not.toContain(SERVER_INSTRUCTIONS);
@@ -326,7 +326,7 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 		}
 	}, 20_000);
 
-	it("bounds mounted route guidance deterministically and points to the live xd:// inventory", async () => {
+	it("bounds mounted route guidance deterministically and lists the live command inventory", async () => {
 		fs.writeFileSync(
 			path.join(tempDir, ".mcp.json"),
 			JSON.stringify({
@@ -365,23 +365,25 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			expect(prompt).toContain(SERVER_INSTRUCTIONS);
 			const renderedMappings = prompt.split("\n").filter(line => line.startsWith('- "row_'));
 			expect(renderedMappings).toHaveLength(64);
-			expect(renderedMappings[0]).toBe('- "row_aa" → `xd://mcp__instr_row_aa` — Bounded guidance fixture tool aa.');
-			expect(renderedMappings[63]).toBe('- "row_cl" → `xd://mcp__instr_row_cl` — Bounded guidance fixture tool cl.');
-			expect(prompt).not.toContain('- "row_cm" → `xd://mcp__instr_row_cm`');
+			expect(renderedMappings[0]).toBe('- "row_aa" → `mcp__instr_row_aa` — Bounded guidance fixture tool aa.');
+			expect(renderedMappings[63]).toBe('- "row_cl" → `mcp__instr_row_cl` — Bounded guidance fixture tool cl.');
+			expect(prompt).not.toContain('- "row_cm" → `mcp__instr_row_cm`');
 			// Truncation notice present (row_cm absent above proves the cap applied).
 			expect(prompt).toContain("omitted");
 			// Every mounted MCP tool is listed exactly once: routed tools on their
 			// route line with the catalog summary, and the tool the bound omits on
 			// its catalog line.
-			expect(prompt).toContain("- mcp__instr_row_cm — Bounded guidance fixture tool cm.");
+			const omittedCatalogLine = prompt
+				.split("\n")
+				.find(line => line.includes("mcp__instr_row_cm") && line.includes("Bounded guidance fixture tool cm."));
+			expect(omittedCatalogLine).toBeDefined();
+			expect(omittedCatalogLine).not.toContain("→");
 			const mountedRows = session
-				.getXdevToolEntries()
+				.getToolCommandEntries()
 				.map(entry => entry.name)
 				.filter(name => name.startsWith("mcp__instr_row_"));
 			expect(mountedRows).toHaveLength(BOUNDED_GUIDANCE_TOOL_COUNT);
-			const listings = (name: string) =>
-				prompt.split("\n").filter(line => line.includes(`\`xd://${name}\``) || line.startsWith(`- ${name} — `))
-					.length;
+			const listings = (name: string) => prompt.split("\n").filter(line => line.includes(`\`${name}\``)).length;
 			expect(mountedRows.filter(name => listings(name) !== 1)).toEqual([]);
 		} finally {
 			await session.dispose();
@@ -394,7 +396,7 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			agentDir: tempDir,
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
-			settings: Settings.isolated({ "tools.xdevDocs": "inline", "mcp.startupTimeoutMs": 0 }),
+			settings: Settings.isolated({ "tools.commandDocs": "inline", "mcp.startupTimeoutMs": 0 }),
 			model: getBundledModel("openai", "gpt-4o-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
@@ -433,7 +435,7 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			agentDir: tempDir,
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
-			settings: Settings.isolated({ "tools.xdevDocs": "inline", "mcp.startupTimeoutMs": 0 }),
+			settings: Settings.isolated({ "tools.commandDocs": "inline", "mcp.startupTimeoutMs": 0 }),
 			model: getBundledModel("openai", "gpt-4o-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
@@ -445,20 +447,22 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			enableMCP: true,
 		});
 		try {
-			// The schema exceeds the per-device docs cap, so the docs fall back to
+			// The schema exceeds the per-tool docs cap, so the docs fall back to
 			// a one-line entry even under the inline policy. That entry is the
-			// route line, and the section asks for a read before first use.
+			// route line, and the section asks for help before first use.
 			const prompt = session.systemPrompt.join("\n");
 			expect(prompt).not.toContain("## mcp__instr_do_thing");
 			expect(prompt.split("\n")).toContain(`${DO_THING_ROUTE} — Fixture tool returning a deterministic sentinel.`);
-			expect(prompt.split("xd://mcp__instr_do_thing")).toHaveLength(2);
+			expect(prompt.split("\n").filter(line => line.includes("mcp__instr_do_thing"))).toEqual([
+				`${DO_THING_ROUTE} — Fixture tool returning a deterministic sentinel.`,
+			]);
 			expect(routeSection(prompt)).toContain(READ_FIRST_CLAUSE);
 		} finally {
 			await session.dispose();
 		}
 	}, 20_000);
 
-	it("mounts deferred MCP tools when CLI filtering grants read but omits write", async () => {
+	it("keeps deferred MCP tools top-level when the CLI list omits bash", async () => {
 		const { session } = await createAgentSession({
 			cwd: tempDir,
 			agentDir: tempDir,
@@ -480,23 +484,16 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 		try {
 			expect(session.getActiveToolNames()).toContain("read");
 
-			// A device-only write supplies the xd:// execution half without granting
-			// filesystem mutation, so deferred MCP tools mount after connection
-			// instead of shipping their full schemas top-level.
-			// Mount state lands before the awaited system-prompt rebuild while
-			// agent tools land after it, so poll for the whole applied selection
-			// (mounted MCP tool AND transport write) — not the mount alone.
-			const { mountedNames, activeNames } = await eventually(
-				() => ({
-					mountedNames: session.getXdevToolEntries().map(entry => entry.name),
-					activeNames: session.getActiveToolNames(),
-				}),
-				state => state.mountedNames.includes(MCP_TOOL_NAME) && state.activeNames.includes("write"),
+			// Without bash the command transport is inactive, so a deferred MCP
+			// tool lands top-level instead of mounting as a command.
+			const activeNames = await eventually(
+				() => session.getActiveToolNames(),
+				names => names.includes(MCP_TOOL_NAME),
 			);
 			expect(activeNames).toContain("read");
-			expect(activeNames).toContain("write");
-			expect(activeNames).not.toContain(MCP_TOOL_NAME);
-			expect(mountedNames).toContain(MCP_TOOL_NAME);
+			expect(activeNames).not.toContain("write");
+			expect(activeNames).toContain(MCP_TOOL_NAME);
+			expect(session.getToolCommandEntries()).toEqual([]);
 			const mcpTool = session.getToolByName(MCP_TOOL_NAME);
 			expect(mcpTool).toBeDefined();
 			const result = await mcpTool!.execute("deferred-mcp-call", {});
@@ -536,16 +533,16 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			);
 
 			expect(activeNames).toContain(MCP_TOOL_NAME);
-			expect(session.getXdevToolEntries().map(entry => entry.name)).not.toContain(MCP_TOOL_NAME);
+			expect(session.getToolCommandEntries().map(entry => entry.name)).not.toContain(MCP_TOOL_NAME);
 			expect(prompt).toContain("## MCP Server Instructions");
 			expect(prompt).toContain(SERVER_INSTRUCTIONS);
-			expect(prompt).not.toContain(`xd://${MCP_TOOL_NAME}`);
+			expect(prompt).not.toContain(MCP_ROUTE_SECTION);
 		} finally {
 			await session.dispose();
 		}
 	}, 20_000);
 
-	it("keeps deferred tools top-level when an explicit session omitted read", async () => {
+	it("mounts deferred tools when an explicit session includes bash", async () => {
 		const { session } = await createAgentSession({
 			cwd: tempDir,
 			agentDir: tempDir,
@@ -565,14 +562,14 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			toolNames: ["bash"],
 		});
 		try {
-			const activeNames = await eventually(
-				() => session.getActiveToolNames(),
+			const mountedNames = await eventually(
+				() => session.getToolCommandEntries().map(entry => entry.name),
 				names => names.includes(MCP_TOOL_NAME),
 			);
 
-			expect(activeNames).not.toContain("read");
-			expect(activeNames).toContain(MCP_TOOL_NAME);
-			expect(session.getXdevToolEntries().map(entry => entry.name)).not.toContain(MCP_TOOL_NAME);
+			expect(session.getActiveToolNames()).not.toContain("read");
+			expect(session.getActiveToolNames()).not.toContain(MCP_TOOL_NAME);
+			expect(mountedNames).toContain(MCP_TOOL_NAME);
 		} finally {
 			await session.dispose();
 		}

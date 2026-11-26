@@ -644,6 +644,20 @@ export async function listResources(
 }
 
 /**
+ * Whether `error` is a JSON-RPC "method not found" answer. The host and the
+ * transports surface it as an {@link MCPTransportError} carrying the code, but
+ * a transport (or SDK) that rejects with the original error keeps it on the
+ * object or in the canonical `MCP error -32601: ...` message.
+ */
+function isMethodNotFoundError(error: unknown): boolean {
+	if (error instanceof MCPTransportError) {
+		return error.code === MCPErrorCode.MethodNotFound || error.rpc?.code === MCPErrorCode.MethodNotFound;
+	}
+	if (isRecord(error) && error.code === MCPErrorCode.MethodNotFound) return true;
+	return error instanceof Error && error.message.includes(`MCP error ${MCPErrorCode.MethodNotFound}:`);
+}
+
+/**
  * List resource templates from a connected server.
  *
  * A server MAY advertise the `resources` capability without implementing the
@@ -665,7 +679,7 @@ export async function listResourceTemplates(
 			options,
 		);
 	} catch (error) {
-		if (!(error instanceof MCPTransportError) || error.code !== MCPErrorCode.MethodNotFound) throw error;
+		if (!isMethodNotFoundError(error)) throw error;
 		connection.resourceTemplates = [];
 	}
 	return connection.resourceTemplates;

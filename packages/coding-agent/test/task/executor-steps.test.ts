@@ -134,6 +134,9 @@ describe("runSubprocess stepped spawns", () => {
 			agent,
 			task: PROMPTS[0],
 			steps: PROMPTS,
+			// A yield-delivered step needs the structured contract: schema-less
+			// spokes return their final message instead.
+			structured: true,
 			index: 0,
 			id: "steps-structured",
 			parentAgentId: "Main",
@@ -167,6 +170,7 @@ describe("runSubprocess stepped spawns", () => {
 			agent,
 			task: PROMPTS[0],
 			steps: PROMPTS,
+			structured: true,
 			index: 0,
 			id: "steps-failed-yield",
 		});

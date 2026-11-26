@@ -47,6 +47,7 @@ import type {
 	WriteContext,
 } from "./types";
 import { VaultProtocolHandler } from "./vault-protocol";
+import { XdProtocolHandler } from "./xd-protocol";
 import { splitInternalUrlSel } from "../tools/details/read";
 
 /**
@@ -115,6 +116,9 @@ export class InternalUrlRouter {
 		this.register(resourceFallback);
 		this.register(new ZetaProtocolHandler());
 		this.register(new HelpProtocolHandler());
+		// Zeta keeps `xd://` alongside 19.2 tool commands: the device transport for
+		// mounted tools, and the only path a device-only session has.
+		this.register(new XdProtocolHandler());
 		this.register(new AttachmentProtocolHandler());
 		this.register(new ConflictProtocolHandler());
 		this.#builtinSchemes = new Set(this.#handlers.keys());

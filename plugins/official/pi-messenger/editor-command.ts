@@ -66,8 +66,8 @@ export async function switchToEditor(ctx: ExtensionCommandContext, args = ""): P
 	if (process.platform !== "win32" && ctx.ui?.openTerminal) {
 		// Deferred for the same reason as the settings import above: a host
 		// without /editor must not pay the host runtime's load-time graph.
-		const { classifyTerminalMultiplexer } = await import("@linxiraos/pi-tui/terminal-multiplexer");
-		const multiplexer = classifyTerminalMultiplexer(process.env);
+		const { classifyMultiplexer } = await import("@linxiraos/pi-tui/driver/mux/detect");
+		const multiplexer = classifyMultiplexer(process.env);
 		if (multiplexer !== null) {
 			const { createDefaultTerminalLaunchRequest, terminalLaunchCapabilities } = await import(
 				"@linxiraos/zeta/subprocess/terminal-launch"

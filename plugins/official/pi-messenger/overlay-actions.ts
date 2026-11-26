@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { matchesKey, type TUI } from "@linxiraos/pi-tui";
+import type { ExtensionUiHost } from "@linxiraos/zeta";
+import { matchesKey } from "./keys.ts";
 import type { AgentMailMessage, Dirs, MessengerState } from "./lib.ts";
 import { MAX_CHAT_HISTORY } from "./lib.ts";
 import { sendMessageToAgent, getActiveAgents } from "./store.ts";
@@ -92,7 +93,7 @@ function executeTaskAction(
 	return { success: result.success, message: result.message };
 }
 
-export function setNotification(viewState: CrewViewState, tui: TUI, success: boolean, message: string): void {
+export function setNotification(viewState: CrewViewState, tui: ExtensionUiHost, success: boolean, message: string): void {
 	if (viewState.notificationTimer) clearTimeout(viewState.notificationTimer);
 	viewState.notification = { message: `${success ? "✓" : "✗"} ${message}`, expiresAt: Date.now() + 2000 };
 	viewState.notificationTimer = setTimeout(() => {
@@ -135,7 +136,7 @@ export function handleConfirmInput(
 	viewState: CrewViewState,
 	cwd: string,
 	agentName: string,
-	tui: TUI,
+	tui: ExtensionUiHost,
 ): void {
 	const action = viewState.confirmAction;
 	if (!action) return;
@@ -175,7 +176,7 @@ export function handleBlockReasonInput(
 	cwd: string,
 	task: Task | undefined,
 	agentName: string,
-	tui: TUI,
+	tui: ExtensionUiHost,
 ): void {
 	if (matchesKey(data, "escape")) {
 		viewState.inputMode = "normal";
@@ -212,7 +213,7 @@ export function handleRevisePromptInput(
 	cwd: string,
 	task: Task | undefined,
 	agentName: string,
-	tui: TUI,
+	tui: ExtensionUiHost,
 ): void {
 	if (matchesKey(data, "escape")) {
 		viewState.inputMode = "normal";
@@ -310,7 +311,7 @@ function sendDirectMessage(
 	cwd: string,
 	target: string,
 	text: string,
-	tui: TUI,
+	tui: ExtensionUiHost,
 	viewState: CrewViewState,
 ): void {
 	try {
@@ -332,7 +333,7 @@ function sendBroadcastMessage(
 	dirs: Dirs,
 	cwd: string,
 	text: string,
-	tui: TUI,
+	tui: ExtensionUiHost,
 	viewState: CrewViewState,
 ): void {
 	const peers = getActiveAgents(state, dirs);
@@ -371,7 +372,7 @@ export function handleMessageInput(
 	state: MessengerState,
 	dirs: Dirs,
 	cwd: string,
-	tui: TUI,
+	tui: ExtensionUiHost,
 ): void {
 	if (matchesKey(data, "escape")) {
 		resetMessageInput(viewState);
@@ -461,7 +462,7 @@ export function handleCrewKeyBinding(
 	viewState: CrewViewState,
 	cwd: string,
 	agentName: string,
-	tui: TUI,
+	tui: ExtensionUiHost,
 ): void {
 	if (matchesKey(data, "r") && ["done", "blocked", "in_progress"].includes(task.status)) {
 		viewState.confirmAction = { type: "reset", taskId: task.id, label: task.title };

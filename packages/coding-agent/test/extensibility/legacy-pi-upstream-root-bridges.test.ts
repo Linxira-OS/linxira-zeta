@@ -34,18 +34,18 @@ describe("legacy shim upstream-root bridges", () => {
 			...extra,
 		});
 		const skills = [skill("a&b"), skill("off", { disableModelInvocation: true }), skill("hidden", { hide: true })];
-		// Upstream pi-coding-agent 1.3.0's layout; element text escapes `&`, `<` and `>` (quotes need none).
+		// OMP 19.2's layout; element text escapes `&`, `<` and `>` (quotes need none).
 		expect(caShim.formatSkillsForPrompt(skills)).toBe(
 			"\n\nThe following skills provide specialized instructions for specific tasks.\n" +
 				"Use the read tool to load a skill's file when the task matches its description.\n" +
 				"When a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.\n" +
 				"\n" +
 				"<available_skills>\n" +
-				"  <skill>\n" +
-				"    <name>a&amp;b</name>\n" +
-				'    <description>uses &lt;tags&gt; and "quotes"</description>\n' +
-				"    <location>/s/a&amp;b/SKILL.md</location>\n" +
-				"  </skill>\n" +
+				"<skill>\n" +
+				"<name>a&amp;b</name>\n" +
+				'<description>uses &lt;tags&gt; and "quotes"</description>\n' +
+				"<location>/s/a&amp;b/SKILL.md</location>\n" +
+				"</skill>\n" +
 				"</available_skills>",
 		);
 		expect(caShim.formatSkillsForPrompt(skills, "bash").split("\n")[3]).toBe(

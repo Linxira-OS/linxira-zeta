@@ -370,6 +370,23 @@ function seenKeeps(run: Run, lines: readonly string[]): boolean[] {
 	return keep;
 }
 
+/**
+ * Runs of already-seen lines that shaping may collapse ({@link witnessedRuns}), or none for `edit` results.
+ *
+ * Intentionally limited to `edit`: search and read tools (`read`, `grep`, `ast_grep`) also record seen rows in
+ * `EditStore`, but Spotlight shrinks their repeated/long output by design, whereas `edit` is already exempt from the
+ * valve up to 12k and its numbered rows are the edit confirmation the model verifies in place.
+ */
+function seenRuns(run: Run, lines: readonly string[], minRun: number, keep: readonly boolean[]): Witnessed {
+	if (run.input.tool === "edit") {
+		return {
+			mask: Array.from<boolean>({ length: lines.length }).fill(false),
+			starts: Array.from<boolean>({ length: lines.length }).fill(false),
+		};
+	}
+	return witnessedRuns(lines, run.state.seen, minRun, keep);
+}
+
 /** `seen.mask` without the runs whose text (newlines included) is shorter than their marker plus {@link SEEN_MARGIN}. */
 function payingRuns(lines: readonly string[], seen: Witnessed): boolean[] {
 	const out = [...seen.mask];
@@ -393,7 +410,7 @@ function payingRuns(lines: readonly string[], seen: Witnessed): boolean[] {
  */
 async function collapseSeen(run: Run, view: View, steps: string[]): Promise<View> {
 	const keep = seenKeeps(run, view.lines);
-	const seen = witnessedRuns(view.lines, run.state.seen, SHORT_SEEN_RUN, keep);
+	const seen = seenRuns(run, view.lines, SHORT_SEEN_RUN, keep);
 	const mask = payingRuns(view.lines, seen);
 	if (!mask.includes(true)) return view;
 	noteWhy(
@@ -473,7 +490,7 @@ async function shapeSubject(run: Run, subject: Subject): Promise<{ view: View; s
 	if (again) bump(run, "reasks");
 
 	const keep = seenKeeps(run, lines);
-	const { mask: witnessed, starts } = witnessedRuns(lines, state.seen, again ? Math.min(SEEN_RUN, 2) : SEEN_RUN, keep);
+	const { mask: witnessed, starts } = seenRuns(run, lines, again ? Math.min(SEEN_RUN, 2) : SEEN_RUN, keep);
 	const width = lines.map(l => (!again && l.length > MAX_LINE ? LINE_KEEP + 36 : l.length));
 	let shown = 0;
 	lines.forEach((_, i) => {

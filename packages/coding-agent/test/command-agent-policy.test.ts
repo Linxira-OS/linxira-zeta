@@ -80,6 +80,7 @@ describe("command agent/model execution policy", () => {
 			settings,
 			modelRegistry,
 			toolRegistry: new Map(tools.map(tool => [tool.name, tool])),
+			builtInToolNames: tools.map(tool => tool.name),
 			rebuildSystemPrompt: async () => ({ systemPrompt: ["BASE"] }),
 		});
 		return session;

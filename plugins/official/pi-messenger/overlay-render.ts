@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { truncateToWidth } from "@linxiraos/pi-tui";
+import { truncate as truncateToWidth } from "@linxiraos/pi-tui/text/width";
 import type { Theme } from "@linxiraos/zeta";
 import {
 	formatDuration,

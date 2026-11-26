@@ -409,8 +409,16 @@ export class ExtensionToolWrapper<TParameters extends TSchema = TSchema, TDetail
 		const sessionScope =
 			pendingSafetyChecks.length === 0 && !cacheTargets ? sessionApprovalScope(resolved, this.tool.name) : undefined;
 		const sessionApproved = sessionScope !== undefined && this.runner.hasSessionApproval(sessionScope.key);
+		// `write xd://<device>` resolves the device tier and prompts in the write
+		// tool's outer gate, then dispatches the same call through this wrapper.
+		// `xdevPolicyKey` names the policy that gate used; when this tool resolves
+		// the same key, the inner gate must not ask the same question a second
+		// time (#17039). Deny and provider safety checks stay independent.
+		const outerDeviceApproval = context?.xdevPolicyKey !== undefined && resolved.policyKey === context.xdevPolicyKey;
 		const approvalCheck = {
-			required: pendingSafetyChecks.length > 0 || (resolved.policy === "prompt" && !acpBypass && !sessionApproved),
+			required:
+				pendingSafetyChecks.length > 0 ||
+				(resolved.policy === "prompt" && !acpBypass && !sessionApproved && !outerDeviceApproval),
 			reason: resolved.reason,
 		};
 

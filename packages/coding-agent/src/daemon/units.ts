@@ -36,6 +36,7 @@ import {
 	type OpenResult,
 	type ProcSpec,
 	scopeKey,
+	normalizePreviewUrl,
 	type UnitPolicy,
 	type UnitRef,
 	type UnitScope,
@@ -1225,6 +1226,7 @@ export class UnitTable {
 				policy: init.policy,
 				command: init.proc ? [init.proc.application, ...init.proc.args].join(" ") : undefined,
 				cwd: init.proc?.cwd,
+				...(init.proc?.previewUrl === undefined ? {} : { previewUrl: init.proc.previewUrl }),
 				supervised: init.supervised,
 			},
 			proc: init.proc,
@@ -1347,6 +1349,8 @@ export class UnitTable {
 		if (!SERVICE_NAME.test(request.key)) {
 			throw new Error("Service name must be 1-48 letters, numbers, dots, underscores, or hyphens");
 		}
+		// Validate before touching the live generation: an invalid declaration never replaces it.
+		if (proc.previewUrl !== undefined) proc.previewUrl = normalizePreviewUrl(proc.previewUrl);
 		const policy: UnitPolicy = { ...defaultProcPolicy(proc, request.policy?.hold), ...request.policy };
 		if (policy.hold === "detached") policy.survive = "detached";
 		if (policy.survive === "detached" && proc.pty) throw new Error("A detached service cannot allocate a PTY");
@@ -2147,7 +2151,14 @@ export class UnitTable {
 			supervised: stored.snapshot.supervised,
 			proc: stored.proc,
 		});
-		entry.snapshot = { ...stored.snapshot, leases: 0, idleAt: undefined };
+		entry.snapshot = {
+			...stored.snapshot,
+			leases: 0,
+			idleAt: undefined,
+			...(stored.snapshot.previewUrl === undefined && stored.proc?.previewUrl !== undefined
+				? { previewUrl: stored.proc.previewUrl }
+				: {}),
+		};
 		entry.pidStartedAt = stored.pidStartedAt;
 		entry.outputOffset = stored.outputOffset;
 		entry.completion = stored.completion;

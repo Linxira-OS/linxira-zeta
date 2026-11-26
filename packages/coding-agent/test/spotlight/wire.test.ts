@@ -358,7 +358,7 @@ describe("spotlight access denial", () => {
 		client.warm();
 		await resolve.mock.results.at(-1)?.value;
 		expect(sent).toHaveLength(1);
-		expect(sent[0]).toStartWith("omp/");
+		expect(sent[0]).toStartWith("zeta/");
 		expect(denied).toEqual(["This Stencil account does not have Stencil Cloud access yet."]);
 
 		token = "admitted-account";

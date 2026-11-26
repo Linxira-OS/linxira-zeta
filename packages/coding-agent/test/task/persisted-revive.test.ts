@@ -1062,6 +1062,9 @@ describe("persisted subagent revival", () => {
 				// parent revival can restore its own authorization before retrying the child.
 				const reopened = await SessionManager.open(sessionFile);
 				await reopened.close();
+				// An explicit parent revival claims the parked ref; an id is never
+				// silently re-registered.
+				if (parentStatus === "parked") registry.unregister(parentId);
 				registry.register({
 					id: parentId,
 					displayName: parentId,
@@ -1786,18 +1789,17 @@ describe("persisted subagent revival", () => {
 			expect(observer).toBeDefined();
 
 			const delivered: IrcMessage[] = [];
-			AgentRegistry.global().register({
-				id: "Main",
-				displayName: "Main",
-				kind: "main",
-				status: "idle",
-				session: {
+			// The waker is already registered by reviveWithWaker; attach the live
+			// delivery stub to that ref instead of registering the id again.
+			AgentRegistry.global().attachSession(
+				"Main",
+				{
 					deliverIrcMessage: async (msg: IrcMessage) => {
 						delivered.push(msg);
 						return "injected" as const;
 					},
 				} as unknown as AgentSession,
-			});
+			);
 			const bus = IrcBus.global();
 			const finish = observer?.([wakeRecord("Main")]);
 			await bus.send({ from: ref.id, to: "Main", body: "on it" });

@@ -56,6 +56,21 @@ function keepItemModelKey<T, I>(item: FluentType<T, I>): FluentType<unknown, I> 
 	});
 }
 
+/**
+ * Keep a flat spawn's undeclared `model` key through validation for the same
+ * reason as {@link keepItemModelKey}: preflight must see a pinned selector and
+ * refuse it while per-call model is off. The wire schema stays without
+ * `model`, so the field is advertised only when the caller may send it.
+ */
+function keepRootModelKey<T, I>(schema: FluentType<T, I>): FluentType<T, I> {
+	return schema.onUndeclaredKey("ignore").pipe((input: unknown): unknown => {
+		const out: unknown = schema(input);
+		if (out instanceof type.errors || !isRecord(out) || !isRecord(input)) return out;
+		if (Object.hasOwn(input, "model") && !Object.hasOwn(out, "model")) out.model = input.model;
+		return out;
+	}) as unknown as FluentType<T, I>;
+}
+
 export const taskItemSchema = type({
 	"name?": "string",
 	agent: "string = 'task'",
@@ -64,7 +79,6 @@ export const taskItemSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
-	"model?": "string",
 	"+": "delete",
 });
 const taskItemSchemaIsolated = type({
@@ -75,34 +89,35 @@ const taskItemSchemaIsolated = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
-	"model?": "string",
 	"isolated?": "boolean",
 	"+": "delete",
 });
 
-export const taskSchema = type({
-	"name?": "string",
-	agent: "string = 'task'",
-	task: "string",
-	solutionSpace: "string",
-	"outputSchema?": outputSchemaInputSchema,
-	"schemaMode?": '"permissive" | "strict"',
-	"tools?": "string[]",
-	"model?": "string",
-	"isolated?": "boolean",
-	"+": "delete",
-});
-const taskSchemaNoIsolation = type({
-	"name?": "string",
-	agent: "string = 'task'",
-	task: "string",
-	solutionSpace: "string",
-	"outputSchema?": outputSchemaInputSchema,
-	"schemaMode?": '"permissive" | "strict"',
-	"tools?": "string[]",
-	"model?": "string",
-	"+": "delete",
-});
+export const taskSchema = keepRootModelKey(
+	type({
+		"name?": "string",
+		agent: "string = 'task'",
+		task: "string",
+		solutionSpace: "string",
+		"outputSchema?": outputSchemaInputSchema,
+		"schemaMode?": '"permissive" | "strict"',
+		"tools?": "string[]",
+		"isolated?": "boolean",
+		"+": "delete",
+	}),
+);
+const taskSchemaNoIsolation = keepRootModelKey(
+	type({
+		"name?": "string",
+		agent: "string = 'task'",
+		task: "string",
+		solutionSpace: "string",
+		"outputSchema?": outputSchemaInputSchema,
+		"schemaMode?": '"permissive" | "strict"',
+		"tools?": "string[]",
+		"+": "delete",
+	}),
+);
 function guardBatchAgent(schema: BaseType): BaseType {
 	// Inspect the input before undeclared-key deletion can erase the requested agent.
 	return schema.in
@@ -300,6 +315,8 @@ export interface AgentDefinition {
 	blocking?: boolean;
 	/** `true` = task spawns keep this agent's `output` schema, and with it the `yield` tool, even when `task.structured` is off. */
 	structured?: boolean;
+	/** `true` = the subagent owns a `todo` list instead of having the parent-owned tool stripped. */
+	ownsTodo?: boolean;
 	autoloadSkills?: string[];
 	/** When `false`, the agent's `read` tool returns verbatim file content instead of structural summaries. */
 	readSummarize?: boolean;

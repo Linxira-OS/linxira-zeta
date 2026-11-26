@@ -32,10 +32,15 @@ describe("disabledExtensions runtime filtering", () => {
 	let originalPiProfileEnv: string | undefined;
 	let originalUserProfile: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
+	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `.gemini/GEMINI.md` is a foreign project source; these cases pin how a
+		// disabled or shadowed project context file is listed in the dashboard.
+		restoreEnvValue("ZETA_FOREIGN_PROJECT_SOURCES", "gemini");
 		delete process.env.CLAUDE_CONFIG_DIR;
 		delete Bun.env.CLAUDE_CONFIG_DIR;
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
@@ -71,6 +76,7 @@ describe("disabledExtensions runtime filtering", () => {
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("USERPROFILE", originalUserProfile);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
+		restoreEnvValue("ZETA_FOREIGN_PROJECT_SOURCES", originalForeignSources);
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(tempHomeDir);
 		await removeWithRetries(tempDir);
@@ -203,7 +209,7 @@ describe("disabledExtensions runtime filtering", () => {
 		const loose = path.join(tempDir, "loose.ts");
 		await Bun.write(
 			path.join(fleet, "package.json"),
-			JSON.stringify({ omp: { extensions: ["./extensions/hello.ts"] } }),
+			JSON.stringify({ zeta: { extensions: ["./extensions/hello.ts"] } }),
 		);
 		await Bun.write(hello, "export default function hello() {}\n");
 		await Bun.write(loose, "export default function loose() {}\n");
@@ -243,7 +249,7 @@ describe("disabledExtensions runtime filtering", () => {
 		const guard = path.join(fleet, "hooks", "pre", "guard.ts");
 		await Bun.write(
 			path.join(fleet, "package.json"),
-			JSON.stringify({ omp: { extensions: ["./hooks/pre/guard.ts"] } }),
+			JSON.stringify({ zeta: { extensions: ["./hooks/pre/guard.ts"] } }),
 		);
 		await Bun.write(guard, "export default function guard() {}\n");
 		// The loader's hook discovery reads configured package roots from disk.

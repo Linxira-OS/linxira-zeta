@@ -14,6 +14,7 @@ import {
 	type DaemonClient,
 	type DaemonOp,
 	type DaemonResult,
+	normalizePreviewUrl,
 	type ProcSpec,
 	projectScope,
 	type UnitPolicy,
@@ -359,13 +360,22 @@ export async function startService(
 		}
 	}
 	if (params.notify) compileNotifyPattern(params.notify);
+	let previewUrl: string | undefined;
+	if (params.previewUrl !== undefined) {
+		previewUrl = normalizePreviewUrl(params.previewUrl);
+		// An older resident daemon would silently drop the field and start the
+		// service without its preview; refuse before it replaces anything.
+		const ping = await requestService(session, { op: "ping" });
+		if (ping.previewUrls !== true)
+			throw new ToolError("This project broker does not support preview URLs");
+	}
 	const scope = await sessionScope(session);
 	const shell = session.settings.getShellConfig();
 	// The service is a shell process: the bash tool's shell, with Zeta's utilities and the mounts
 	// its script makes. A URL directory is entered by that shell; the process starts on the host.
 	const urlCwd = params.cwd !== undefined && isUrlPath(params.cwd) ? params.cwd : undefined;
 	const source = params.seed ? await writeServiceSeed(scope, params.name, params.seed) : undefined;
-	const proc: ProcSpec & { previewUrl?: string } = {
+	const proc: ProcSpec = {
 		...shellProcessCommand({
 			command: `${shell.prefix ? `${shell.prefix} ` : ""}${params.command}`,
 			source,
@@ -383,7 +393,7 @@ export async function startService(
 				}
 			: undefined,
 		notify: params.notify,
-		...(params.previewUrl === undefined ? {} : { previewUrl: params.previewUrl }),
+		...(previewUrl === undefined ? {} : { previewUrl }),
 	};
 	const persist = params.mode === "persist" || (params.mode === undefined && cfgLaunchPersist.get(session.settings));
 	const detached = params.mode === "detached";

@@ -4,7 +4,7 @@ import type { Model } from "@linxiraos/pi-ai";
 import { resolveDelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
 import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@linxiraos/pi-utils";
 import { reset as resetCapabilities } from "../capability";
-import { stripXdUrlPrefix, XD_URL_PREFIX } from "../tools/xd-url";
+import { stripXdUrlPrefix } from "../tools/xd-url";
 import xdevMountNoticePrompt from "../prompts/system/xdev-mount-notice.md" with { type: "text" };
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldInlineToolDescriptors } from "../config/inline-tool-descriptors-mode";
@@ -195,14 +195,15 @@ export interface SettingsGatedToolDelta {
 }
 
 /**
- * Renders the base prompt for an active tool set. `xdev` is the `xd://` state
- * to render: the live state, or a frozen prefix's committed roster when a
- * rebuild re-renders it. Supplied by `sdk.ts`; called on every prompt rebuild.
+ * Renders the base prompt for an active tool set. `toolCommands` is the tool
+ * command state to render: the live state, or a frozen prefix's committed
+ * roster when a rebuild re-renders it. Supplied by `sdk.ts`; called on every
+ * prompt rebuild.
  */
 export type SystemPromptRebuilder = (
 	toolNames: string[],
 	tools: Map<string, AgentTool>,
-	xdev: XdevState | undefined,
+	toolCommands: ToolCommandState | undefined,
 ) => Promise<BuildSystemPromptResult>;
 
 interface SessionToolsOptions {
@@ -273,6 +274,7 @@ export interface MountedMCPToolRoute {
 
 export interface MCPToolCommandGuidanceMapping extends MountedMCPToolRoute {
 	readonly label: string;
+	/** Command name the route runs as. */
 	readonly path: string;
 }
 
@@ -316,22 +318,13 @@ export function projectMountedMCPToolCommandGuidance(
 	let remainingMappingDataLength = MAX_MCP_TOOL_COMMAND_GUIDANCE_MAPPING_DATA_LENGTH;
 	let hasOmittedMappings = false;
 	for (const route of routes) {
-		const rawMappingDataLength = route.mcpToolName.length + XD_URL_PREFIX.length + route.name.length;
-		if (
-			mappings.length >= MAX_MCP_TOOL_COMMAND_GUIDANCE_MAPPINGS ||
-			rawMappingDataLength > remainingMappingDataLength
-		) {
-			hasOmittedMappings = true;
-			continue;
-		}
 		const label = formatMCPToolCommandGuidanceLabel(route.mcpToolName);
-		const path = `${XD_URL_PREFIX}${route.name}`;
-		const mappingDataLength = label.length + path.length;
-		if (mappingDataLength > remainingMappingDataLength) {
+		const mappingDataLength = label.length + route.name.length;
+		if (mappings.length >= MAX_MCP_TOOL_COMMAND_GUIDANCE_MAPPINGS || mappingDataLength > remainingMappingDataLength) {
 			hasOmittedMappings = true;
 			continue;
 		}
-		mappings.push({ ...route, label, path });
+		mappings.push({ ...route, label, path: route.name });
 		remainingMappingDataLength -= mappingDataLength;
 	}
 	return { mappings, hasOmittedMappings };
@@ -446,8 +439,8 @@ interface PromptRoster {
 	readonly toolNames: string[];
 	/** Registry entries the render could read. */
 	readonly tools: Map<string, AgentTool>;
-	/** `xd://` state over {@link tools} with the mounts the render listed. */
-	readonly xdev: XdevState | undefined;
+	/** Tool command state over {@link tools} with the mounts the render listed. */
+	readonly toolCommands: ToolCommandState | undefined;
 }
 
 interface PendingNoticePreview<T> {
@@ -1809,7 +1802,7 @@ export class SessionTools {
 					const built = await untilAborted(
 						signal,
 						this.#promptSurfaceScope.run(candidate, () =>
-							rebuildSystemPrompt(validToolNames, this.#toolRegistry, this.#xdev),
+							rebuildSystemPrompt(validToolNames, this.#toolRegistry, this.#toolCommands),
 						),
 					);
 					rebuiltSystemPrompt = built.systemPrompt;
@@ -2055,15 +2048,15 @@ export class SessionTools {
 			return;
 		}
 		const tools = new Map(this.#toolRegistry);
-		const xdev = this.#xdev;
+		const toolCommands = this.#toolCommands;
 		this.#basePromptRoster = {
 			toolNames: [...toolNames],
 			tools,
-			xdev: xdev && {
+			toolCommands: toolCommands && {
 				tools,
-				mountedNames: new Set(xdev.mountedNames),
-				builtInNames: xdev.builtInNames,
-				isActive: xdev.isActive,
+				mountedNames: new Set(toolCommands.mountedNames),
+				builtInNames: toolCommands.builtInNames,
+				isActive: toolCommands.isActive,
 			},
 		};
 	}
@@ -2800,12 +2793,14 @@ export class SessionTools {
 		// winner.
 		const candidate = this.#derivePromptSurface();
 		const built = await this.#promptSurfaceScope.run(candidate, () =>
-			rebuildSystemPrompt(activeToolNames, this.#toolRegistry, this.#xdev),
+			rebuildSystemPrompt(activeToolNames, this.#toolRegistry, this.#toolCommands),
 		);
 		const promptTools = activeToolNames
 			.map(name => this.#toolRegistry.get(name))
 			.filter((tool): tool is AgentTool => tool != null);
-		const mountedSignatureTools = [...(this.#xdev?.mountedNames ?? [])].flatMap(name => {
+		const mountedSignatureTools = [
+			...new Set([...(this.#xdev?.mountedNames ?? []), ...(this.#toolCommands?.mountedNames ?? [])]),
+		].flatMap(name => {
 			const tool = this.#toolRegistry.get(name);
 			return tool ? [tool] : [];
 		});
@@ -2868,7 +2863,7 @@ export class SessionTools {
 			perCallModelAdvertisement: this.#promptSurface.perCallModelAdvertisement,
 		};
 		const built = await this.#promptSurfaceScope.run(candidate, () =>
-			rebuildSystemPrompt(roster.toolNames, roster.tools, roster.xdev),
+			rebuildSystemPrompt(roster.toolNames, roster.tools, roster.toolCommands),
 		);
 		if (!samePromptBlocks(built.systemPrompt, previousBaseSystemPrompt)) return undefined;
 		return {
@@ -2962,13 +2957,13 @@ export class SessionTools {
 	 *      `readsSkillUris` changes skill catalog/URI guidance with identical
 	 *      names and descriptions, so it must rebuild too.
 	 *   3. The bounded mounted-MCP projection: escaped original-name labels,
-	 *      actual `xd://` paths, and the omission flag in catalog order. These are
-	 *      the exact values rendered by the global transport guidance; catalog
+	 *      command names, and the omission flag in catalog order. These are
+	 *      the exact values rendered by the global command guidance; catalog
 	 *      churn wholly behind the fallback does not change the prompt.
 	 *   4. MCP server instructions text (per server), since `rebuildSystemPrompt`
 	 *      embeds these in the appended prompt under "## MCP Server Instructions".
 	 *      A server upgrade can change instructions while keeping tools identical.
-	 *   5. Sorted names of mounted xd:// skill readers: mounting, unmounting,
+	 *   5. Sorted names of mounted skill-reader commands: mounting, unmounting,
 	 *      or flipping such a reader changes skill catalog/URI guidance without
 	 *      touching the direct inventory, so it must rebuild. Mount churn of
 	 *      capability-less tools leaves this segment empty and the prompt stable.
@@ -3004,7 +2999,7 @@ export class SessionTools {
 			`${tool.name}=${tool.label ?? ""}|${tool.description ?? ""}|${tool.customWireName ?? ""}|${toolReadsSkillUris(tool)}`;
 		const descriptionSegment = tools.map(describeTool).join("\u0002");
 		const mountedMCPProjection = projectMountedMCPToolCommandGuidance(
-			collectMountedMCPToolRoutes(this.#xdev ? listXdevTools(this.#xdev) : []),
+			collectMountedMCPToolRoutes(this.#toolCommands ? listToolCommands(this.#toolCommands) : []),
 		);
 		const mountedMCPRouteSegment =
 			JSON.stringify({
@@ -3022,13 +3017,13 @@ export class SessionTools {
 			entries.sort();
 			instructionsSegment = entries.join("\u0006");
 		}
-		// The non-MCP remainder of the xd:// inventory is deliberately NOT part
-		// of the signature: its mount/unmount announces itself through
-		// `#notifyXdevMountDelta` rather than rewriting the system prompt, keeping
-		// the provider cache prefix byte-stable. Mounted MCP routes are the narrow
-		// exception above, bounded to the exact projection rendered in the global
-		// route guidance so churn wholly behind its fallback does not rebuild.
-		// Mounted xd:// readers stay out of the direct inventory, but a mounted
+		// The non-MCP remainder of the mounted inventory is deliberately NOT part
+		// of the signature: its mount/unmount announces itself through a notice
+		// rather than rewriting the system prompt, keeping the provider cache
+		// prefix byte-stable. Mounted MCP routes are the narrow exception above,
+		// bounded to the exact projection rendered in the global command guidance
+		// so churn wholly behind its fallback does not rebuild.
+		// Mounted readers stay out of the direct inventory, but a mounted
 		// skill reader still drives catalog/URI guidance: hash only the sorted
 		// names of mounted readers so their mount/unmount/flip rebuilds, while
 		// mount churn of capability-less tools keeps the prompt byte-stable.

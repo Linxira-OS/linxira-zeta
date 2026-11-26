@@ -155,7 +155,12 @@ export interface DaemonLogs {
 
 /** Result of each operation, keyed by `op`. */
 export interface DaemonResults {
-	ping: { pid: number; build: string };
+	ping: {
+		pid: number;
+		build: string;
+		/** The daemon understands `ProcSpec.previewUrl`. Absent on older daemons. */
+		previewUrls?: boolean;
+	};
 	list: { units: UnitSnapshot[] };
 	describe: { unit: UnitSnapshot; proc?: ProcSpec };
 	watch: Record<string, never>;
@@ -294,4 +299,20 @@ export function compareDaemonBuilds(left: string, right: string): number {
 export function scopeKey(scope: UnitScope): string {
 	if (scope.kind === "global") return "global";
 	return scope.kind === "project" ? `project:${scope.dir}` : `session:${scope.id}`;
+}
+
+/**
+ * The canonical form of an Agent-declared service preview URL: absolute HTTP(S)
+ * with no embedded credentials. Throws the same message every caller shows.
+ */
+export function normalizePreviewUrl(raw: string): string {
+	const invalid = "previewUrl must be an absolute HTTP(S) URL without embedded credentials";
+	let url: URL;
+	try {
+		url = new URL(raw);
+	} catch {
+		throw new Error(invalid);
+	}
+	if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) throw new Error(invalid);
+	return url.href;
 }

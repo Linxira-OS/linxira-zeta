@@ -42,6 +42,7 @@ import { extractProfileFlags } from "./cli/profile-bootstrap";
 import {
 	AUTO_UPDATE_WORKER_ARG,
 	COMPUTER_WORKER_ARG,
+	DAEMON_BROKER_WORKER_ARG,
 	PARENT_WATCHDOG_WORKER_ARG,
 	STATS_ACTIVITY_WORKER_ARG,
 	SUBAGENT_WORKER_ARG,
@@ -217,6 +218,7 @@ async function runSmokeTest(): Promise<void> {
 		await cleanupDaemon();
 	}
 	process.stdout.write("smoke-test: ok\n");
+	process.stdout.write(`build-commit: ${process.env.ZETA_BUILD_COMMIT ?? "unknown"}\n`);
 }
 
 const TINY_WORKER_ARG = "__zeta_worker_tiny_inference";
@@ -339,6 +341,14 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 		// Worker selectors must dispatch before the normal command graph loads.
 		const { startDaemonFromEnvironment } = await import("./daemon/server");
 		await startDaemonFromEnvironment();
+		return true;
+	}
+	if (arg === DAEMON_BROKER_WORKER_ARG) {
+		// The launch broker re-enters the CLI as a hidden worker; without this
+		// dispatch the child falls through to the command graph and never binds
+		// its socket, which every client sees as a generic 10s connect timeout.
+		const { startDaemonBrokerFromEnvironment } = await import("./launch/broker");
+		await startDaemonBrokerFromEnvironment();
 		return true;
 	}
 	if (arg === AUTO_UPDATE_WORKER_ARG) {

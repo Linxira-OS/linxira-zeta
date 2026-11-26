@@ -185,6 +185,7 @@ import { resolveMCPToolAlias } from "./mcp/tool-bridge";
 import { createSessionMemoryRuntimeContext, resolveMemoryBackend } from "./memory-backend";
 import { MEMORY_BACKEND_TOOL_NAMES } from "./memory-backend/tool-names";
 import type { MnemopiSessionStateApi } from "./mnemopi/state";
+import { buildTasteInstructions } from "./taste/inject";
 import autolearnCaptureRefused from "./prompts/system/autolearn-capture-refused.md" with { type: "text" };
 import mcpToolCommandGuidanceTemplate from "./prompts/system/mcp-tool-command-guidance.md" with { type: "text" };
 import lateDiagnosticTemplate from "./prompts/tools/lsp-late-diagnostic.md" with { type: "text" };
@@ -371,6 +372,8 @@ import { createArchivePrelude } from "./archive/prelude-definition";
 import { ToolContextStore } from "./tools/context";
 import { IrcBus } from "./irc/bus";
 import { isIrcEnabled } from "./irc/messaging";
+import { isDesignEnabled } from "./design/config";
+import { designTool } from "./design/tool";
 import { imageGenTool } from "./tools/image-gen";
 import { wrapToolWithMetaNotice } from "./tools/output-meta";
 import { isFilesystemSourcePath } from "./tools/path-utils";
@@ -4214,6 +4217,13 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			if (cfgGenerateImageEnabled.get(settings) && imageGenRequested) {
 				wanted.push(imageGenTool as unknown as CustomTool);
 			}
+			// The design bridge is a workspace opt-in, not a user-level setting.
+			// Without `.zeta/design.yml` it stays unregistered, so other repos keep
+			// the standard tool surface and pay no MCP/CLI startup cost.
+			const designRequested = !options.toolNames || options.toolNames.includes("design");
+			if (designRequested && (await isDesignEnabled(cwd))) {
+				wanted.push(designTool as unknown as CustomTool);
+			}
 			if (cfgSpeechgenEnabled.get(settings)) wanted.push(ttsTool as unknown as CustomTool);
 			const wantedNames = new Set(wanted.map(tool => tool.name));
 			for (const [name, entry] of settingsGatedCustomEntries) {
@@ -4620,6 +4630,17 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					});
 			const appendParts: string[] = [];
 			if (memoryInstructions) appendParts.push(memoryInstructions);
+			// The taste block follows the memory block and precedes auto-learn: it is
+			// a refinement of memory, and it carries its own precedence line.
+			const tasteInstructions = restrictToolNames
+				? undefined
+				: await buildTasteInstructions({
+						agentDir,
+						cwd: sessionManager.getCwd(),
+						settings,
+						...(hasSession && session ? { session } : {}),
+					});
+			if (tasteInstructions) appendParts.push(tasteInstructions);
 			if (autoLearnInstructions) appendParts.push(autoLearnInstructions);
 			// List each mounted MCP tool once. A routed tool that the command catalog
 			// would list carries its catalog summary on the route line and gets no

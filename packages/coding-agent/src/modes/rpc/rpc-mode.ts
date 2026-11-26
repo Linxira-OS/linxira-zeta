@@ -2542,6 +2542,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 					})),
 					contextUsage: session.getContextUsage(),
 					goal: session.getGoalModeState() ?? null,
+					guidedGoalInterview: session.isGuidedGoalInterviewActive(),
 				};
 				return success(id, "get_state", state);
 			}
@@ -2567,6 +2568,19 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 					return error(id, "set_slow_mode", "Slow mode is unavailable for the current model.");
 				}
 				return success(id, "set_slow_mode", { enabled: session.isSlowModeEnabled() });
+			}
+
+			case "guided_goal": {
+				try {
+					await session.startGuidedGoal({ initial: command.message, images: command.images });
+					return success(id, "guided_goal", { started: true });
+				} catch (guidedGoalError) {
+					return error(
+						id,
+						"guided_goal",
+						guidedGoalError instanceof Error ? guidedGoalError.message : String(guidedGoalError),
+					);
+				}
 			}
 
 			case "goal": {

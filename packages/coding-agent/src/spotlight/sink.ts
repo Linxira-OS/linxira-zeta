@@ -7,10 +7,14 @@ import type { ShapedTool, ShapeSink } from "./types";
  * or null when it is gone or unreadable.
  */
 export async function readArtifactText(
-	sessionManager: Pick<SessionManager, "getArtifactPath">,
+	sessionManager: Pick<SessionManager, "getArtifactPath"> & {
+		getArtifactContent(id: string): string | null | Promise<string | null>;
+	},
 	ref: string,
 ): Promise<string | null> {
 	const id = String(parseSpillUrl(ref) ?? ref);
+	const inMemory = await sessionManager.getArtifactContent(id);
+	if (inMemory !== null) return inMemory;
 	const artifactPath = await sessionManager.getArtifactPath(id);
 	if (!artifactPath) return null;
 	try {

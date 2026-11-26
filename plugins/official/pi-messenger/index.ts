@@ -83,10 +83,11 @@ import { getGlobalMessengerDir } from "./paths.ts";
 import { getLiveWorkers, onLiveWorkersChanged } from "./crew/live-progress.ts";
 import { shutdownAllWorkers } from "./crew/agents.ts";
 import { shutdownLobbyWorkers } from "./crew/lobby.ts";
-import { OverlayHandle, TUI, truncateToWidth } from "@linxiraos/pi-tui";
+import type { ExtensionOverlayHandle, ExtensionUiHost } from "@linxiraos/zeta";
+import { truncate as truncateToWidth } from "@linxiraos/pi-tui/text/width";
 
-let overlayTui: TUI | null = null;
-let overlayHandle: OverlayHandle | null = null;
+let overlayTui: ExtensionUiHost | null = null;
+let overlayHandle: ExtensionOverlayHandle | null = null;
 let overlayOpening = false;
 
 export default function piMessengerExtension(pi: ExtensionAPI) {
@@ -572,7 +573,7 @@ Usage (action-based API - preferred):
 			}
 
 			if (action === "leave" && !state.registered) {
-				overlayHandle?.hide();
+				overlayHandle?.close();
 				overlayHandle = null;
 				overlayTui = null;
 				overlayOpening = false;
@@ -624,16 +625,10 @@ Usage (action-based API - preferred):
 				updateStatus(ctx);
 			}
 
-			if (overlayHandle && overlayHandle.isHidden()) {
-				overlayHandle.setHidden(false);
-				clearAllUnreadCounts();
-				updateStatus(ctx);
-				return;
-			}
+			if (overlayTui) return;
 
 			const callbacks: OverlayCallbacks = {
 				onBackground: snapshotText => {
-					overlayHandle?.setHidden(true);
 					pi.sendMessage(
 						{
 							customType: "crew_snapshot",
@@ -987,7 +982,6 @@ Usage (action-based API - preferred):
 		overlayOpening = true;
 		const callbacks: OverlayCallbacks = {
 			onBackground: snapshotText => {
-				overlayHandle?.setHidden(true);
 				pi.sendMessage(
 					{
 						customType: "crew_snapshot",

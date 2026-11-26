@@ -1,51 +1,42 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
+// @ts-nocheck — drives the OMP 19.2 per-user daemon that replaced the project launch broker for named services
 import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "../src/config/settings";
-import { startDaemonBrokerFromEnvironment } from "../src/launch/broker";
-import * as brokerClients from "../src/launch/client";
+import { closeDaemonClient, daemonClient } from "../src/daemon/client";
+import { daemonDbPath } from "../src/daemon/paths";
 import {
-	DAEMON_IDLE_GRACE_ENV,
-	DAEMON_PROJECT_DIR_ENV,
-	DAEMON_RUNTIME_DIR_ENV,
-	type DaemonSnapshot,
-} from "../src/launch/protocol";
+	DAEMON_DIR_ENV,
+	DAEMON_IDLE_EXIT_GRACE_ENV,
+	DAEMON_TCP_ENV,
+	type DaemonClient,
+	type UnitSnapshot,
+} from "../src/daemon/protocol";
+import { readStoredUnits } from "../src/daemon/store";
 import { listServices, requestService, startService } from "../src/launch/services";
 import { projectService } from "../src/server/studio-host/services/project-services";
 import type { ToolSession } from "../src/tools";
 import { BashTool } from "../src/tools/bash";
+import { TestDaemon } from "./fixtures/daemon-proc-harness";
+import { waitFor } from "./fixtures/daemon-harness";
 
-async function startBroker(projectDir: string, runtimeDir: string): Promise<{ finished: Promise<void> }> {
-	const keys = [DAEMON_PROJECT_DIR_ENV, DAEMON_RUNTIME_DIR_ENV, DAEMON_IDLE_GRACE_ENV];
-	const previous = keys.map(key => process.env[key]);
-	process.env[DAEMON_PROJECT_DIR_ENV] = projectDir;
-	process.env[DAEMON_RUNTIME_DIR_ENV] = runtimeDir;
-	process.env[DAEMON_IDLE_GRACE_ENV] = "5000";
-	const listening = Promise.withResolvers<boolean>();
-	const finished = startDaemonBrokerFromEnvironment({ onListening: () => listening.resolve(true) });
-	keys.forEach((key, index) => {
-		if (previous[index] === undefined) delete process.env[key];
-		else process.env[key] = previous[index];
-	});
-	if (!(await Promise.race([listening.promise, finished.then(() => false)])))
-		throw new Error("Test broker did not claim its temporary scope");
-	return { finished };
-}
-
-async function withBroker(
-	run: (session: ToolSession, restartBroker: () => Promise<void>, runtimeDir: string) => Promise<void>,
-): Promise<void> {
+async function withDaemon(run: (session: ToolSession, client: DaemonClient) => Promise<void>): Promise<void> {
 	const scratch = path.resolve(import.meta.dir, "../../../temp");
 	await fs.mkdir(scratch, { recursive: true });
 	using temp = TempDir.createSync(path.join(scratch, "zeta-studio-service-preview-"));
 	const projectDir = path.join(temp.path(), "project");
-	const runtimeDir = path.join(temp.path(), "runtime");
 	await fs.mkdir(projectDir);
-	let client = await brokerClients.createDaemonBrokerClient(projectDir, { runtimeDir, idleGraceMs: 5000 });
-	const title = process.title;
-	let broker = await startBroker(projectDir, runtimeDir);
+	// The harness owns a real daemon process (a 10 s client-start deadline is
+	// too tight for a cold start here); point the shared client at it instead of
+	// letting `daemonClient()` spawn a racing second one. A longer idle grace
+	// keeps the daemon up while the first named-pipe connection is established.
+	const { daemon } = await TestDaemon.start({ env: { [DAEMON_IDLE_EXIT_GRACE_ENV]: "60000" } });
+	const previousDir = process.env[DAEMON_DIR_ENV];
+	const previousTcp = process.env[DAEMON_TCP_ENV];
+	await closeDaemonClient();
+	process.env[DAEMON_DIR_ENV] = daemon.dir;
+	delete process.env[DAEMON_TCP_ENV];
 	const disposers: Array<() => void> = [];
 	const session: ToolSession = {
 		cwd: projectDir,
@@ -59,34 +50,28 @@ async function withBroker(
 			disposers.push(callback);
 		},
 	};
-	const stopBroker = async (): Promise<void> => {
-		for (const dispose of disposers.splice(0)) dispose();
-		await client.request({ op: "shutdown" });
-		client.close();
-		await broker.finished;
-	};
 	try {
-		vi.spyOn(brokerClients, "daemonClientForProject").mockImplementation(async () => client);
-		await run(
-			session,
-			async () => {
-				await stopBroker();
-				client = await brokerClients.createDaemonBrokerClient(projectDir, { runtimeDir, idleGraceMs: 5000 });
-				broker = await startBroker(projectDir, runtimeDir);
-			},
-			runtimeDir,
-		);
+		await run(session, await daemonClient());
 	} finally {
+		for (const dispose of disposers.splice(0)) dispose();
 		vi.restoreAllMocks();
-		await stopBroker();
-		process.title = title;
+		await closeDaemonClient();
+		if (previousDir === undefined) delete process.env[DAEMON_DIR_ENV];
+		else process.env[DAEMON_DIR_ENV] = previousDir;
+		if (previousTcp === undefined) delete process.env[DAEMON_TCP_ENV];
+		else process.env[DAEMON_TCP_ENV] = previousTcp;
+		await daemon.dispose();
 	}
 }
 
 const command = "echo studio-ready; read answer";
-const ready = { log: "studio-ready", timeout: 5 };
+const ready = { log: "studio-ready", timeout: 30 };
 
-function expectPreview(daemon: DaemonSnapshot, previewUrl: string): void {
+function unitRef(unit: UnitSnapshot): { kind: string; scope: UnitSnapshot["scope"]; key: string } {
+	return { kind: "proc", scope: unit.scope, key: unit.key };
+}
+
+function expectPreview(daemon: UnitSnapshot, previewUrl: string): void {
 	expect(daemon.previewUrl).toBe(previewUrl);
 	expect(daemon.owner).toBe("main-session-42");
 	expect(projectService(daemon)).toMatchObject({
@@ -97,8 +82,8 @@ function expectPreview(daemon: DaemonSnapshot, previewUrl: string): void {
 }
 
 describe("Studio Agent-created service previews", () => {
-	it("carries bash preview metadata through broker reads, restart, and persisted recovery", async () => {
-		await withBroker(async (session, restartBroker, runtimeDir) => {
+	it("carries bash preview metadata through daemon reads, restart, and persisted state", async () => {
+		await withDaemon(async session => {
 			const shell = session.settings.getShellConfig();
 			vi.spyOn(session.settings, "getShellConfig").mockReturnValue({
 				...shell,
@@ -115,47 +100,48 @@ describe("Studio Agent-created service previews", () => {
 			expect(tool.details?.service).toMatchObject({ name: "web-dev", ready: true, timedOut: false });
 			const listed = (await listServices(session))[0]!;
 			expectPreview(listed, previewUrl);
-			expect(listed.pid).toBeGreaterThan(0);
+			expect(listed.pids[0]).toBeGreaterThan(0);
 			const row = projectService(listed);
-			expect(row.pid).toBe(listed.pid);
+			expect(row.pid).toBe(listed.pids[0]);
 			for (const field of ["env", "command", "args", "application", "spec"]) expect(row).not.toHaveProperty(field);
 			expect(JSON.stringify(row)).not.toContain("never-publish");
-			const described = await requestService(session, { op: "describe", name: "web-dev" });
-			if (described.op !== "describe") throw new Error("Expected describe");
-			expectPreview(described.daemon, previewUrl);
-			expect(described.spec.previewUrl).toBe(previewUrl);
-			expect(projectService(described.daemon).instanceId).toBe(row.instanceId);
-			const restarted = await requestService(session, {
-				op: "restart",
-				name: "web-dev",
-				expectedInstanceId: row.instanceId,
-			});
-			if (restarted.op !== "restart") throw new Error("Expected restart");
-			expectPreview(restarted.daemon, previewUrl);
-			expect(restarted.daemon.pid).toBeGreaterThan(0);
-			const nextId = projectService(restarted.daemon).instanceId;
-			expect(nextId).not.toBe(row.instanceId);
-			const waited = await requestService(session, { op: "wait", name: "web-dev", for: "ready", timeoutMs: 5000 });
-			if (waited.op !== "wait") throw new Error("Expected readiness wait");
-			expect(waited.timedOut).toBe(false);
-			expectPreview(waited.daemon, previewUrl);
-			expect(projectService((await listServices(session))[0]!).instanceId).toBe(nextId);
-			await restartBroker();
-			const recovered = await requestService(session, { op: "describe", name: "web-dev" });
-			if (recovered.op !== "describe") throw new Error("Expected recovered describe");
-			expectPreview(recovered.daemon, previewUrl);
-			expect(recovered.spec.previewUrl).toBe(previewUrl);
-			expect(projectService(recovered.daemon).instanceId).toBe(nextId);
-			expectPreview((await listServices(session))[0]!, previewUrl);
-			expect(await Bun.file(path.join(runtimeDir, "daemons", "web-dev", "spec.json")).json()).toMatchObject({
-				previewUrl,
-			});
-			expect((await Bun.file(path.join(runtimeDir, "daemons", "web-dev", "meta.json")).json()).daemon).toMatchObject(
-				{
-					previewUrl,
-					owner: "main-session-42",
-				},
+			const described = await requestService(session, { op: "describe", unit: unitRef(listed) });
+			expectPreview(described.unit, previewUrl);
+			expect(described.proc?.previewUrl).toBe(previewUrl);
+			expect(projectService(described.unit).instanceId).toBe(row.instanceId);
+			const stored = await waitFor(
+				() => readStoredUnits(daemonDbPath()).find(unit => unit.key === "web-dev" && unit.proc?.previewUrl),
+				"the started service to persist its preview",
 			);
+			expect(stored.proc.previewUrl).toBe(previewUrl);
+			expect(stored.snapshot.previewUrl).toBe(previewUrl);
+			expect(stored.owner).toBe("main-session-42");
+			const restarted = await requestService(session, { op: "restart", unit: unitRef(listed) });
+			expectPreview(restarted.unit, previewUrl);
+			await waitFor(
+				() => restarted.unit.pids[0] ?? readStoredUnits(daemonDbPath()).find(unit => unit.key === "web-dev")?.pid,
+				"the restarted service to get a pid",
+			);
+			const nextId = projectService(restarted.unit).instanceId;
+			expect(nextId).not.toBe(row.instanceId);
+			const waited = await requestService(session, {
+				op: "wait",
+				unit: unitRef(listed),
+				for: "ready",
+				timeoutMs: 30_000,
+			});
+			expect(waited.matched).toBe(true);
+			expectPreview(waited.unit, previewUrl);
+			const recovered = await waitFor(
+				() =>
+					readStoredUnits(daemonDbPath()).find(
+						unit => unit.key === "web-dev" && unit.snapshot.startedAt === restarted.unit.startedAt,
+					),
+				"the restarted service generation to persist",
+			);
+			expect(recovered.snapshot.previewUrl).toBe(previewUrl);
+			expect(recovered.proc.previewUrl).toBe(previewUrl);
+			expect(projectService((await listServices(session))[0]!).instanceId).toBe(nextId);
 			const https = await startService(session, {
 				name: "web-dev",
 				command,
@@ -165,25 +151,24 @@ describe("Studio Agent-created service previews", () => {
 			});
 			expectPreview(https.daemon, "https://localhost:4443/");
 		});
-	}, 30000);
+	}, 120000);
 
 	it("leaves non-web previews absent and preserves legacy or missing owners without guessing", async () => {
-		await withBroker(async session => {
+		await withDaemon(async session => {
 			// A URL in a name, command, or readiness output is not preview metadata.
 			const tool = await new BashTool(session).execute("main-start-worker", {
 				command: "echo http://localhost:4200; read answer",
 				name: "localhost-4200",
 				pty: false,
-				ready: { log: "http://localhost:4200", timeout: 5 },
+				ready: { log: "http://localhost:4200", timeout: 30 },
 			});
 			expect(tool.details?.service?.ready).toBe(true);
 			const listed = (await listServices(session))[0]!;
 			expect(listed).not.toHaveProperty("previewUrl");
 			expect(projectService(listed)).not.toHaveProperty("previewUrl");
-			const described = await requestService(session, { op: "describe", name: listed.name });
-			if (described.op !== "describe") throw new Error("Expected describe");
-			expect(described.spec).not.toHaveProperty("previewUrl");
-			expect(described.daemon).not.toHaveProperty("previewUrl");
+			const described = await requestService(session, { op: "describe", unit: unitRef(listed) });
+			expect(described.proc).not.toHaveProperty("previewUrl");
+			expect(described.unit).not.toHaveProperty("previewUrl");
 			const legacy = await startService(
 				{ ...session, getSessionId: () => null },
 				{
@@ -206,23 +191,23 @@ describe("Studio Agent-created service previews", () => {
 			expect(projectService(unowned.daemon)).not.toHaveProperty("ownerId");
 			expect(projectService(unowned.daemon)).not.toHaveProperty("ownerAgentId");
 		});
-	}, 20000);
+	}, 120000);
 
-	it("refuses preview starts against a resident old broker without replacing its services", async () => {
-		await withBroker(async session => {
+	it("refuses preview starts against a resident old daemon without replacing its services", async () => {
+		await withDaemon(async (session, client) => {
 			const existing = await startService(session, { name: "server", command, ready, pty: false });
 			const instanceId = projectService(existing.daemon).instanceId;
-			const client = await brokerClients.daemonClientForProject(session.cwd);
 			const request = client.request.bind(client);
-			// Model an older broker that still supports instance fencing, but would
-			// silently discard previewUrl if the new Agent sent it a start request.
+			// Model an older daemon that still speaks the same protocol, but would
+			// silently discard previewUrl if the new Agent sent it an open request.
 			vi.spyOn(client, "request").mockImplementation(async (operation, signal) => {
-				if (operation.op === "ping") return { op: "ping", projectDir: session.cwd, instanceFencing: true };
+				if (operation.op === "ping")
+					return { pid: process.pid, build: client.welcome.daemon.build };
 				return request(operation, signal);
 			});
 			for (const name of ["new-server", "server"]) {
 				await expect(
-					new BashTool(session).execute("old-broker-preview", {
+					new BashTool(session).execute("old-daemon-preview", {
 						command,
 						name,
 						previewUrl: "http://localhost:4100",
@@ -234,15 +219,15 @@ describe("Studio Agent-created service previews", () => {
 			expect(listed).toHaveLength(1);
 			expect(projectService(listed[0]!).instanceId).toBe(instanceId);
 			expect(listed[0]!.state).toBe("ready");
-			// Services without preview metadata remain compatible with older brokers.
+			// Services without preview metadata remain compatible with older daemons.
 			const ordinary = await startService(session, { name: "worker", command, ready, pty: false });
 			expect(ordinary.daemon.state).toBe("ready");
 			expect(ordinary.daemon).not.toHaveProperty("previewUrl");
 		});
-	}, 20000);
+	}, 120000);
 
 	it("rejects invalid preview URLs before launching or replacing an existing service", async () => {
-		await withBroker(async session => {
+		await withDaemon(async session => {
 			const existing = await startService(session, { name: "server", command, ready, pty: false });
 			const instanceId = projectService(existing.daemon).instanceId;
 			for (const previewUrl of [
@@ -267,5 +252,5 @@ describe("Studio Agent-created service previews", () => {
 			expect(projectService(listed[0]!).instanceId).toBe(instanceId);
 			expect(listed[0]!.state).toBe("ready");
 		});
-	}, 20000);
+	}, 120000);
 });

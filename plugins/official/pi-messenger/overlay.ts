@@ -2,9 +2,9 @@
  * Pi Messenger - Chat Overlay Component
  */
 
-import type { Component, Focusable, TUI } from "@linxiraos/pi-tui";
-import { matchesKey, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
-import type { Theme } from "@linxiraos/zeta";
+import type { ExtensionRows, ExtensionUiHost, Theme } from "@linxiraos/zeta";
+import { truncate as truncateToWidth, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { matchesKey } from "./keys.ts";
 import { extractFolder, formatDuration, type MessengerState, type Dirs } from "./lib.ts";
 import * as crewStore from "./crew/store.ts";
 import {
@@ -51,7 +51,7 @@ export interface OverlayCallbacks {
 	onBackground?: (snapshot: string) => void;
 }
 
-export class MessengerOverlay implements Component, Focusable {
+export class MessengerOverlay implements ExtensionRows {
 	get width(): number {
 		return Math.min(100, Math.max(40, process.stdout.columns ?? 90));
 	}
@@ -70,7 +70,7 @@ export class MessengerOverlay implements Component, Focusable {
 	private prevInProgressCount = 0;
 
 	constructor(
-		private tui: TUI,
+		private tui: ExtensionUiHost,
 		private theme: Theme,
 		private state: MessengerState,
 		private dirs: Dirs,

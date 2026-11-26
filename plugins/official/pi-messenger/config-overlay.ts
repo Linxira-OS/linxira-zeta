@@ -2,12 +2,12 @@
  * Pi Messenger - Config Overlay Component
  */
 
-import type { Component, Focusable, TUI } from "@linxiraos/pi-tui";
-import { matchesKey, truncateToWidth, visibleWidth } from "@linxiraos/pi-tui";
-import type { Theme } from "@linxiraos/zeta";
+import type { ExtensionRows, ExtensionUiHost, Theme } from "@linxiraos/zeta";
+import { truncate as truncateToWidth, visibleWidth } from "@linxiraos/pi-tui/text/width";
+import { matchesKey } from "./keys.ts";
 import { getAutoRegisterPaths, saveAutoRegisterPaths, matchesAutoRegisterPath } from "./config.ts";
 
-export class MessengerConfigOverlay implements Component, Focusable {
+export class MessengerConfigOverlay implements ExtensionRows {
 	readonly width = 60;
 	focused = false;
 
@@ -17,7 +17,7 @@ export class MessengerConfigOverlay implements Component, Focusable {
 	private statusMessage = "";
 
 	constructor(
-		private tui: TUI,
+		private tui: ExtensionUiHost,
 		private theme: Theme,
 		private done: () => void,
 		private cwd: string,

@@ -5499,8 +5499,9 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 			}
 			// Todos are parent-owned bookkeeping and stripped from subagents —
 			// except under prewalk, whose plan nudge + todo gate require the
-			// subagent to commit its own todo list before the hand-off.
-			const isParentOwnedTool = (name: string): boolean => !prewalk && name === "todo";
+			// subagent to commit its own todo list before the hand-off, or an
+			// agent that explicitly owns its own list (`ownsTodo`).
+			const isParentOwnedTool = (name: string): boolean => !prewalk && name === "todo" && agent.ownsTodo !== true;
 			if (sessionFile !== null) {
 				const reviveCapture: WarmReviveCapture = {
 					sessionFile,
@@ -5508,7 +5509,7 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 					perCallModel: perCallModelGrants !== undefined,
 					settings: captureSubagentSettings(settings, subagentSettings),
 					parentArtifactManager: options.parentArtifactManager,
-					keepTodo: prewalk !== undefined,
+					keepTodo: prewalk !== undefined || agent.ownsTodo === true,
 					wake: wakeOptions,
 					agentName: agent.name,
 					pendingCacheCandidate: undefined,

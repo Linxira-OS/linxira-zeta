@@ -394,6 +394,7 @@ export class AgentSessionWrapper {
 			},
 		});
 		this.#goalController = new RpcGoalController(inner, undefined, {
+			continuationMode: GOAL_CONTINUATION_MODE_WEB,
 			continuationSuppressed: () => this.#loopController.active,
 		});
 		// Live voice is session state: one microphone/voice session for the

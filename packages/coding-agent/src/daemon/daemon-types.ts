@@ -51,6 +51,8 @@ export interface ProcSpec {
 	ready?: DaemonReadySpec;
 	/** Regex; the daemon reports each matching output line to the owner while the unit runs. */
 	notify?: string;
+	/** Agent-declared HTTP(S) preview URL of a web development server; never inferred from output. */
+	previewUrl?: string;
 }
 
 /** Serializable unit state: one row of the board. */
@@ -89,6 +91,8 @@ export interface UnitSnapshot {
 	/** Launch command for display; absent for units without a process. */
 	command?: string;
 	cwd?: string;
+	/** Agent-declared HTTP(S) preview URL of this service; absent unless declared at start. */
+	previewUrl?: string;
 	/** False for `external` units and re-adopted detached units the daemon cannot wait on. */
 	supervised: boolean;
 }

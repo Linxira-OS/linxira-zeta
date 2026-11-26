@@ -143,6 +143,18 @@ function createMcpStartupFailure(serverName: string, error: string, source?: Sou
  */
 const NOTIFICATION_BUFFER_CAP = 100;
 
+/**
+ * Per-server reconnect-storm circuit breaker.
+ *
+ * An upstream can complete its handshake and exit immediately (issue #1592: a
+ * PHP-shebang MCP server forked 66 487 children in minutes). Every upstream
+ * exit the host reports re-arms automatic recovery, so without a cap that
+ * loop never ends. The window ages out transient failures; a manual
+ * `/mcp reconnect` resets it.
+ */
+const RECONNECT_BURST_WINDOW_MS = 30_000;
+const RECONNECT_BURST_LIMIT = 5;
+
 function trackPromise<T>(promise: Promise<T>): TrackedPromise<T> {
 	const tracked: TrackedPromise<T> = { promise, status: "pending" };
 	promise.then(
@@ -413,6 +425,23 @@ export class MCPManager implements MCPManagerApi {
 	#subscribedResources = new Map<string, Set<string>>();
 	#pendingResourceRefresh = new Map<string, { connection: MCPServerConnection; promise: Promise<void> }>();
 	#pendingReconnections = new Map<string, Promise<MCPServerConnection | null>>();
+	/**
+	 * Timestamps of recent automatic reconnect attempts per server. The
+	 * crash-storm breaker opens past {@link RECONNECT_BURST_LIMIT} inside a
+	 * {@link RECONNECT_BURST_WINDOW_MS} window.
+	 */
+	#reconnectHistory = new Map<string, number[]>();
+	/**
+	 * Servers whose upstream failed while a reconnect was already in flight:
+	 * that attempt re-arms one on settle so a crash is never silently dropped.
+	 */
+	#reconnectRetryQueued = new Set<string>();
+	/**
+	 * Servers whose last upstream status was `failed` and whose automatic
+	 * recovery is still running: a failed attempt re-arms another until the
+	 * breaker opens or the host reports the upstream back up.
+	 */
+	#crashRecovering = new Set<string>();
 	/** Preserved configs for reconnection after connection loss. */
 	#serverConfigs = new Map<string, MCPServerConfig>();
 	#discoverOptions: MCPDiscoverOptions | undefined;
@@ -1037,6 +1066,15 @@ export class MCPManager implements MCPManagerApi {
 					await this.#notifyOwnerToolsChanged();
 
 					notify({ type: "connected", serverName: name });
+					// The upstream may have exited before this connection was
+					// registered (a server that dies right after tools/list): its
+					// failed status is already in `#runtimes`, but no live event
+					// will repeat it, so recover it here.
+					const status = this.#runtimes.get(name);
+					if (this.#ready.has(name) && status?.state === "failed") {
+						this.#handleUpstreamStatus(name, status);
+						return;
+					}
 					void this.#loadServerResourcesAndPrompts(name, connection);
 				})
 				.catch(error => {
@@ -1541,6 +1579,9 @@ export class MCPManager implements MCPManagerApi {
 		this.#pendingConnections.delete(name);
 		this.#pendingToolLoads.delete(name);
 		this.#pendingReconnections.delete(name);
+		this.#reconnectHistory.delete(name);
+		this.#reconnectRetryQueued.delete(name);
+		this.#crashRecovering.delete(name);
 		this.#sources.delete(name);
 		this.#serverConfigs.delete(name);
 		this.#pendingResourceRefresh.delete(name);
@@ -1597,6 +1638,9 @@ export class MCPManager implements MCPManagerApi {
 		this.#startupServers.clear();
 		this.#startupFailures.clear();
 		this.#pendingReconnections.clear();
+		this.#reconnectHistory.clear();
+		this.#reconnectRetryQueued.clear();
+		this.#crashRecovering.clear();
 		this.#pendingResourceRefresh.clear();
 		this.#sources.clear();
 		this.#builtinDrops.clear();
@@ -1639,15 +1683,67 @@ export class MCPManager implements MCPManagerApi {
 		name: string,
 		options?: MCPReconnectOptions & { manual?: boolean },
 	): Promise<MCPServerConnection | null> {
+		if (options?.manual) {
+			// A user-driven retry is never blocked by an earlier storm.
+			this.#reconnectHistory.delete(name);
+			this.#reconnectRetryQueued.delete(name);
+			this.#crashRecovering.delete(name);
+		}
 		const pending = this.#pendingReconnections.get(name);
 		if (pending) return pending;
+		if (!options?.manual && this.#tripReconnectBreaker(name)) return null;
 		const attempt = this.#doReconnect(name, options ?? {});
 		this.#pendingReconnections.set(name, attempt);
+		let result: MCPServerConnection | null = null;
 		try {
-			return await attempt;
+			result = await attempt;
+			if (result) this.#crashRecovering.delete(name);
+			return result;
 		} finally {
 			if (this.#pendingReconnections.get(name) === attempt) this.#pendingReconnections.delete(name);
+			// A crash reported while this attempt ran would otherwise be dropped
+			// (the host only reports state changes), and a failed crash recovery
+			// has to keep trying until the breaker caps the burst.
+			if (this.#reconnectRetryQueued.delete(name) || (result === null && this.#crashRecovering.has(name))) {
+				void this.reconnectServer(name);
+			}
 		}
+	}
+
+	/**
+	 * Count one automatic reconnect against the per-server crash window and
+	 * report whether it opened the breaker. Past the limit the dead connection
+	 * is torn down (its `onClose` detached so a late event cannot re-arm the
+	 * loop) and the server reports `disconnected`; its tools stay registered
+	 * for a manual `/mcp reconnect`, which resets the window.
+	 */
+	#tripReconnectBreaker(name: string): boolean {
+		const now = Date.now();
+		const recent = (this.#reconnectHistory.get(name) ?? []).filter(at => now - at < RECONNECT_BURST_WINDOW_MS);
+		recent.push(now);
+		this.#reconnectHistory.set(name, recent);
+		if (recent.length <= RECONNECT_BURST_LIMIT) return false;
+		logger.error("MCP server failed too many times; suspending automatic reconnects", {
+			path: `mcp:${name}`,
+			attempts: recent.length,
+			windowMs: RECONNECT_BURST_WINDOW_MS,
+		});
+		this.#reconnectRetryQueued.delete(name);
+		this.#crashRecovering.delete(name);
+		const stale = this.#connections.get(name);
+		if (stale) {
+			this.#detachConnection(name, stale);
+			void disconnectServer(stale).catch(() => {});
+		}
+		this.#ready.delete(name);
+		this.#emitConnectionStatus({
+			type: "failed",
+			serverName: name,
+			error:
+				`MCP server "${name}" failed ${recent.length} times within ${RECONNECT_BURST_WINDOW_MS / 1_000} s; ` +
+				`automatic reconnects are suspended. Run /mcp reconnect to retry.`,
+		});
+		return true;
 	}
 
 	async #doReconnect(
@@ -1738,7 +1834,17 @@ export class MCPManager implements MCPManagerApi {
 		} else if (options.manual || (options.staleSession && link.status?.era === "legacy")) {
 			await link.restart();
 		}
-		await this.#reloadServer(name, connection, signal);
+		// A reconnect after an upstream failure must ask the server itself: the
+		// host's cached lists would let a dead process look recovered and the
+		// crash breaker would never see the next failure (#1592).
+		const recheckingCrash = this.#runtimes.get(name)?.state === "failed";
+		const previousLive = connection.live;
+		if (recheckingCrash) connection.live = true;
+		try {
+			await this.#reloadServer(name, connection, signal);
+		} finally {
+			connection.live = previousLive;
+		}
 	}
 
 	/**
@@ -1799,7 +1905,9 @@ export class MCPManager implements MCPManagerApi {
 			},
 			// A connect given up on may still attach and report; only the registered one speaks for the server.
 			onStatus: status => {
-				if (this.#serverScopes.get(name) === scope) this.#runtimes.set(name, status);
+				if (this.#serverScopes.get(name) !== scope) return;
+				this.#runtimes.set(name, status);
+				this.#handleUpstreamStatus(name, status);
 			},
 			onReattach: change => this.#linkReattached(name, change),
 			// From the first attach on: the era probe is where a stale token is refused first.
@@ -1846,6 +1954,32 @@ export class MCPManager implements MCPManagerApi {
 		return reload;
 	}
 
+	/**
+	 * Recover a server whose upstream exited or failed to start after its
+	 * handshake. `failed` is the host-era equivalent of the `transport.onClose`
+	 * that used to re-arm the loop, so it schedules the same automatic
+	 * reconnect; the circuit breaker in {@link reconnectServer} caps the storm.
+	 * Any other state (starting, running, idle) clears a retry queued while an
+	 * attempt was in flight.
+	 */
+	#handleUpstreamStatus(name: string, status: McpUpstreamStatus): void {
+		if (status.state !== "failed") {
+			this.#reconnectRetryQueued.delete(name);
+			this.#crashRecovering.delete(name);
+			return;
+		}
+		if (!this.#connections.has(name)) return;
+		this.#crashRecovering.add(name);
+		if (this.#pendingReconnections.has(name)) {
+			this.#reconnectRetryQueued.add(name);
+			return;
+		}
+		logger.debug("MCP upstream failed, triggering reconnect", { path: `mcp:${name}` });
+		this.#ready.delete(name);
+		this.#emitConnectionStatus({ type: "reconnecting", serverName: name });
+		void this.reconnectServer(name);
+	}
+
 	/** Wire a stored connection's link: one reconnect when the link cannot re-attach by itself. */
 	#wireLink(name: string, connection: HostedMCPConnection): void {
 		connection.transport.onClose = () => {
@@ -1886,6 +2020,10 @@ export class MCPManager implements MCPManagerApi {
 			const serverTools = await listTools(connection, { signal: scope.signal });
 			this.#publishServerTools(name, connection, serverTools);
 			this.#notifyOwnerToolsChanged().catch(error => logger.debug("MCP tools-changed handler failed", { error }));
+			// Same pre-registration exit as in `connectServers`: the host already
+			// reported it, and only the queued status remains to re-arm recovery.
+			const status = this.#runtimes.get(name);
+			if (this.#ready.has(name) && status?.state === "failed") this.#handleUpstreamStatus(name, status);
 			void this.#loadServerResourcesAndPrompts(name, connection);
 			return connection;
 		} catch (error) {
