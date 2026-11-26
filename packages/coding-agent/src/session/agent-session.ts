@@ -12597,7 +12597,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const expandedText = expandMention
 			? this.#modelMentions.expandMentions(expandPromptTemplate(text, [...this.#promptTemplates]))
 			: expandPromptTemplate(text, [...this.#promptTemplates]);
-		const mentionNotice = expandMention ? this.#tools.takeSessionAgentNotice() : undefined;
+		const mentionNotice = expandMention && text.includes("^") ? this.#tools.takeSessionAgentNotice() : undefined;
 		// Stamp before image preprocessing so a queued image steer measures from
 		// the operator's submission, not after the vision-model description.
 		const submittedAt = Date.now();
@@ -12633,7 +12633,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				: expandMention
 					? this.#modelMentions.expandMentions(expandPromptTemplate(text, [...this.#promptTemplates]))
 					: expandPromptTemplate(text, [...this.#promptTemplates]);
-		const mentionNotice = expandMention ? this.#tools.takeSessionAgentNotice() : undefined;
+		const mentionNotice = expandMention && text.includes("^") ? this.#tools.takeSessionAgentNotice() : undefined;
 		// Stamp before image preprocessing so a queued image follow-up measures
 		// from the operator's submission.
 		const submittedAt = Date.now();
@@ -12755,7 +12755,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		}
 		const mode = options?.queue === "followUp" ? "followUp" : "steer";
 		const expandedText = this.#modelMentions.expandMentions(expandPromptTemplate(text, [...this.#promptTemplates]));
-		const mentionNotice = this.#tools.takeSessionAgentNotice();
+		const mentionNotice = text.includes("^") ? this.#tools.takeSessionAgentNotice() : undefined;
 		return await this.#queueUserMessage(expandedText, images, mode, {
 			timestamp: Date.now(),
 			rawText: text,
@@ -12970,10 +12970,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#queueFollowUpTexts(texts: readonly string[], client?: SessionClient): void {
 		this.#advisors.autoResumeSuppressed = false;
 		for (const text of texts) {
-			const expandedText = expandPromptTemplate(text, [...this.#promptTemplates]);
+			const expandedText = this.#modelMentions.expandMentions(
+				expandPromptTemplate(text, [...this.#promptTemplates]),
+			);
+			const notice = text.includes("^") ? this.#tools.takeSessionAgentNotice() : undefined;
 			this.#pushQueuedUserMessage(
 				"followUp",
-				[],
+				notice ? [notice] : [],
 				[{ type: "text", text: expandedText }],
 				"user",
 				Date.now(),
