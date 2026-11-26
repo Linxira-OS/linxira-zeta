@@ -125,6 +125,7 @@ const expectSleepNear = (sleepSpy: Mock<typeof Bun.sleep>, targetMs: number) => 
 		),
 	).toBe(true);
 };
+let sessionSequence = 0;
 const createSession = async (
 	_tempDir: TempDir,
 	cwd: string,
@@ -133,6 +134,7 @@ const createSession = async (
 	(
 		await createAgentSession({
 			cwd,
+			agentId: `python-cleanup-${++sessionSequence}`,
 			agentDir: createAgentDir(),
 			authStorage,
 			modelRegistry,
@@ -173,6 +175,7 @@ describe("AgentSession python cleanup", () => {
 	let originalNullPrompt: string | undefined;
 
 	beforeEach(() => {
+		AgentRegistry.resetGlobalForTests();
 		originalNullPrompt = Bun.env.NULL_PROMPT;
 		Bun.env.NULL_PROMPT = "true";
 	});
@@ -186,6 +189,7 @@ describe("AgentSession python cleanup", () => {
 		originalNullPrompt = undefined;
 		vi.restoreAllMocks();
 		AgentStorage.close();
+		AgentRegistry.resetGlobalForTests();
 		await pythonExecutor.disposeAllKernelSessions();
 		await Bun.sleep(0);
 		// Best-effort cleanup: createAgentSession opens AgentStorage
