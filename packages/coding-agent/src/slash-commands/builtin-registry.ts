@@ -2,6 +2,7 @@ import { clearSubmittedText } from "./helpers/draft";
 import { M, type Messages } from "../i18n";
 import { en } from "../i18n/en";
 import type { AutocompleteItem } from "../autocomplete/autocomplete";
+import { BUILTIN_CHANNELS_SLASH_COMMAND } from "./builtin-channels";
 import { BUILTIN_COMMIT_SLASH_COMMANDS } from "./builtin-commit";
 import {
 	buildArgumentCompletions,
@@ -15,12 +16,15 @@ import {
 	buildSubcommandInlineHint,
 } from "./builtin-completions";
 import { BUILTIN_CONTROL_SLASH_COMMANDS } from "./builtin-control";
+import { BUILTIN_EDITS_SLASH_COMMANDS } from "./builtin-edits";
 import { BUILTIN_LIFECYCLE_SLASH_COMMANDS } from "./builtin-lifecycle";
 import { BUILTIN_MARKETPLACE_SLASH_COMMANDS, reloadTuiPluginState } from "./builtin-marketplace";
 import { BUILTIN_MODE_SLASH_COMMANDS } from "./builtin-modes";
 import { BUILTIN_OUTPUT_SLASH_COMMANDS } from "./builtin-output";
 import { BUILTIN_SESSION_SLASH_COMMANDS } from "./builtin-session";
 import { BUILTIN_SKILLS_SLASH_COMMANDS } from "./builtin-skills";
+import { BUILTIN_TWO_FACTOR_SLASH_COMMAND } from "./builtin-two-factor";
+import { BUILTIN_ZETA_SLASH_COMMANDS } from "./builtin-zeta";
 import { parseSlashCommand } from "./helpers/parse";
 import type {
 	BuiltinSlashCommand,
@@ -75,6 +79,10 @@ const RAW_BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_MARKETPLACE_SLASH_COMMANDS,
 	...BUILTIN_SKILLS_SLASH_COMMANDS,
 	...BUILTIN_CONTROL_SLASH_COMMANDS,
+	BUILTIN_CHANNELS_SLASH_COMMAND,
+	...BUILTIN_EDITS_SLASH_COMMANDS,
+	BUILTIN_TWO_FACTOR_SLASH_COMMAND,
+	...BUILTIN_ZETA_SLASH_COMMANDS,
 ];
 
 const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = RAW_BUILTIN_SLASH_COMMAND_REGISTRY.map(
