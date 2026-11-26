@@ -43,34 +43,35 @@ v18.8.8 rounds recorded their ~100 hand-resolved files in
 decision record, so this table deliberately stops at v18.1.10 rather than
 duplicating (or inventing) rows for them.
 
-| Merge (tag) | File | Resolution | Reason |
-|---|---|---|---|
-| v18.1.10 | `packages/coding-agent/src/cli/update-cli.ts` | kept Zeta constants (`REPO`/`HOMEBREW_FORMULA`/`MISE_TOOL`) | upstream GH release + brew tap are the shared distribution infrastructure; renaming breaks the update chain (plan decision B6) |
-| v18.1.10 | `.github/workflows/ci.yml` | kept Zeta CI (GitHub-hosted runners, Zeta job graph) | upstream `runs-on: omp-kata` never resolves in this repo; artifact names follow `zeta-cli-*` |
-| v18.1.10 | `desktop/` | restored Zeta desktop CI references | merge-commit 50c5414846 dropped 4 desktop_linux references; desktop CI must survive every merge |
-| v18.22.0 | 273 paths in `local://omp-v18.22.0-conflict-decisions-20261118.json` | each initial conflict has a path-specific disposition | exact-path accounting, adaptation receipts and gate results are linked in [`upstream-sync.md`](./upstream-sync.md#v18220-source-integration-2026-11-18) |
+| Merge (tag) | File                                                                 | Resolution                                                  | Reason                                                                                                                                                  |
+| ----------- | -------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v18.1.10    | `packages/coding-agent/src/cli/update-cli.ts`                        | kept Zeta constants (`REPO`/`HOMEBREW_FORMULA`/`MISE_TOOL`) | upstream GH release + brew tap are the shared distribution infrastructure; renaming breaks the update chain (plan decision B6)                          |
+| v18.1.10    | `.github/workflows/ci.yml`                                           | kept Zeta CI (GitHub-hosted runners, Zeta job graph)        | upstream `runs-on: omp-kata` never resolves in this repo; artifact names follow `zeta-cli-*`                                                            |
+| v18.1.10    | `desktop/`                                                           | restored Zeta desktop CI references                         | merge-commit 50c5414846 dropped 4 desktop_linux references; desktop CI must survive every merge                                                         |
+| v18.22.0    | 273 paths in `local://omp-v18.22.0-conflict-decisions-20261118.json` | each initial conflict has a path-specific disposition       | exact-path accounting, adaptation receipts and gate results are linked in [`upstream-sync.md`](./upstream-sync.md#v18220-source-integration-2026-11-18) |
 
 ## Guard matrix
 
-| Check | Command | Gate | CI job |
-|---|---|---|---|
-| Version line (packages, catalog, Cargo, natives stamp, desktop, vendored npm distribution leaf pins, README badge) | `bun scripts/check-version-consistency.ts` | every push | `check` |
-| Brand residue — token bans, MUST_CONTAIN pins, and product-policy gates | `bun scripts/brand/brand-check.ts` | every push | `check` |
-| Zeta-only sentinels + AGENTS.md link | `bun scripts/check-zeta-sentinels.ts` | every push | `check` |
-| CI release surface (job inventory + needs edges + artifact names — damage classes 7+10; registry `scripts/brand/ci-surface-registry.ts`) | `bun scripts/check-ci-surface.ts` | every push | `check` |
-| Type check | `bun run ci:check:full` | every push | `check` |
-| Rust format | `cargo fmt --all --check` | when `crates/` touched | `rust_validate` |
-| **Upstream merge lineage** (tag-to-tag only) | `bun scripts/check-merge-lineage.ts --tag <tag>` | **before every upstream merge** | `sync/omp-release/*`, `port/*` |
-| **Merge member loss** — Zeta-only members dropped by a conflict resolution (damage class 4); diffs every `packages/*/src` module's member set between a pre-merge ref and the working tree (or `--against <ref>`), exit 1 when any are gone, exit 2 when the audit could not run | `bun scripts/audit-merge-members.ts --base <pre-merge-ref>` | **before pushing an upstream merge**; its regression test runs on every push | `check` |
-| **Brand regression in the merge diff** — added lines carrying an upstream `omp` token next to removed lines that carried a Zeta token (a Zeta spelling reverted by the merge); prints the per-file hits and a total, no exit code | `bun scripts/scan-brand-regressions.ts --base <pre-merge-ref>` | **review before pushing an upstream merge** (not wired into CI yet) | — |
-| Native pipeline smoke | desktop smoke | release runs | `desktop_*` |
+| Check                                                                                                                                                                                                                                                                            | Command                                                        | Gate                                                                                | CI job                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------ |
+| Version line (packages, catalog, Cargo, natives stamp, desktop, vendored npm distribution leaf pins, README badge)                                                                                                                                                               | `bun scripts/check-version-consistency.ts`                     | every push                                                                          | `check`                        |
+| Brand residue — token bans, MUST_CONTAIN pins, and product-policy gates                                                                                                                                                                                                          | `bun scripts/brand/brand-check.ts`                             | every push                                                                          | `check`                        |
+| Zeta-only sentinels + AGENTS.md link                                                                                                                                                                                                                                             | `bun scripts/check-zeta-sentinels.ts`                          | every push                                                                          | `check`                        |
+| CI release surface (job inventory + needs edges + artifact names — damage classes 7+10; registry `scripts/brand/ci-surface-registry.ts`)                                                                                                                                         | `bun scripts/check-ci-surface.ts`                              | every push                                                                          | `check`                        |
+| Type check                                                                                                                                                                                                                                                                       | `bun run ci:check:full`                                        | every push                                                                          | `check`                        |
+| Rust format                                                                                                                                                                                                                                                                      | `cargo fmt --all --check`                                      | when `crates/` touched                                                              | `rust_validate`                |
+| **Upstream drift report** — tag-to-tag commit/file/hotspot inventory, breaking commits, and removed export lines in contract roots; never merges, refuses branches/raw SHAs                                                                                                      | `bun scripts/check-upstream-drift.ts --tag <tag>`              | **before evaluating an upstream tag** (report first; optional `--fail-on-breaking`) | —                              |
+| **Upstream merge lineage** (tag-to-tag only)                                                                                                                                                                                                                                     | `bun scripts/check-merge-lineage.ts --tag <tag>`               | **before every upstream merge**                                                     | `sync/omp-release/*`, `port/*` |
+| **Merge member loss** — Zeta-only members dropped by a conflict resolution (damage class 4); diffs every `packages/*/src` module's member set between a pre-merge ref and the working tree (or `--against <ref>`), exit 1 when any are gone, exit 2 when the audit could not run | `bun scripts/audit-merge-members.ts --base <pre-merge-ref>`    | **before pushing an upstream merge**; its regression test runs on every push        | `check`                        |
+| **Brand regression in the merge diff** — added lines carrying an upstream `omp` token next to removed lines that carried a Zeta token (a Zeta spelling reverted by the merge); prints the per-file hits and a total, no exit code                                                | `bun scripts/scan-brand-regressions.ts --base <pre-merge-ref>` | **review before pushing an upstream merge** (not wired into CI yet)                 | —                              |
+| Native pipeline smoke                                                                                                                                                                                                                                                            | desktop smoke                                                  | release runs                                                                        | `desktop_*`                    |
 
 The member-loss auditor's own regression is gated on every push
 (`bun test scripts/audit-merge-members.test.ts` in the `check` job: scratch
 repositories, real commits + real `git grep`, no network, no toolchain). It is
 gated because it had shipped as a **no-op**: `git grep <ref>` prefixes every hit
 with `<ref>:`, and the parse read the file name off the first `:` — so it took
-the *ref* as the path, filtered every hit out, compared two empty member sets,
+the _ref_ as the path, filtered every hit out, compared two empty member sets,
 and printed `0 member(s) dropped` + exit 0 for **every** input. On the
 2026-10-15 v18.10.0 sync merge it reported 0 where the same comparison finds
 **568 members gone across 279 files** (`--base 2291ae3dc80 --against v18.10.0`),
@@ -83,12 +84,11 @@ in dependency order, then the three pre-merge audits (members, brand
 regressions, lineage — `--base <ref>` / `--tag <tag>` feed them), then the
 behaviour suites, and prints a single-page pass/fail summary with the first error
 line of each failure (`--gates-only` stops after the audits; `--only <id>`
-re-runs one step). It is also the only entry point that *gates* on the two suites
+re-runs one step). It is also the only entry point that _gates_ on the two suites
 no CI bucket collects on a blocking path: `packages/stats/test` and
 `plugins/official/pi-messenger/tests` (vitest) run in CI as `continue-on-error`
 steps until their pre-existing failures are fixed — 69/214 and 7/438 on
 2026-10-16, the first time either suite ever ran in a job.
-
 
 ## Studio tag-delta automation
 
@@ -125,8 +125,8 @@ The final accounting step rejects missing decisions and absent official target a
 
 The rule this repo is built on is one sentence: **only the difference between two
 upstream tags is ever merged; our own differences never enter the merge
-computation.** Git enforces that automatically *provided the merge-base is
-exactly the previously integrated upstream tag*. That precondition was prose
+computation.** Git enforces that automatically _provided the merge-base is
+exactly the previously integrated upstream tag_. That precondition was prose
 until `scripts/check-merge-lineage.ts` made it executable.
 
 The failure it prevents is the most expensive in this repo's history: lineage
@@ -143,17 +143,17 @@ bun scripts/check-merge-lineage.ts --tag <tag>    # exit 1 = do not merge
 ```
 
 It refuses the merge unless all of the following hold, and prints the size of
-the tag-to-tag window you are about to merge so you see the *increment*, never a
+the tag-to-tag window you are about to merge so you see the _increment_, never a
 whole-tree diff:
 
-| Check | Refuses when |
-|---|---|
+| Check                                            | Refuses when                                                                                                          |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | baseline recorded in `document/upstream-sync.md` | the ledger has no `**Baseline**: vX.Y.Z` entry — the written history and the machine gate would otherwise drift apart |
-| baseline tag resolves | the baseline object was never fetched |
-| baseline is an ancestor of HEAD | 谱系受损: squash, force-push, or a skipped tag |
-| candidate is a release tag | a branch (`omp-upstream/main`) or raw SHA was passed |
-| local tag matches remote's peeled SHA | a release tag was force-moved — escalate, never accept |
-| `merge-base(HEAD, <tag>)` == baseline peeled SHA | our own diff is entering the merge computation |
+| baseline tag resolves                            | the baseline object was never fetched                                                                                 |
+| baseline is an ancestor of HEAD                  | 谱系受损: squash, force-push, or a skipped tag                                                                        |
+| candidate is a release tag                       | a branch (`omp-upstream/main`) or raw SHA was passed                                                                  |
+| local tag matches remote's peeled SHA            | a release tag was force-moved — escalate, never accept                                                                |
+| `merge-base(HEAD, <tag>)` == baseline peeled SHA | our own diff is entering the merge computation                                                                        |
 
 Run it with no `--tag` to audit the standing lineage on any branch (CI does this
 on every push, so damage is visible before someone attempts a merge).
@@ -169,12 +169,12 @@ in the brand registry objects. Each one is pinned in `brand-rules.ts`
 (`MUST_CONTAIN` for the value, `MUST_NOT_CONTAIN` for the surface that must
 never come back) so `brand-check` fails on the merge that breaks it.
 
-| Policy | Canonical | Pinned by | Why a merge reverts it |
-|---|---|---|---|
-| OTLP telemetry export | hard-off (`TELEMETRY_EXPORT_ENABLED = false`, no setting exists) | MUST_CONTAIN ×2 + MUST_NOT_CONTAIN on the setting id | upstream ships the opt-in setting with `default: true`; a merge restores both the setting and the call site |
-| OTLP `service.name` fallback | `zeta` | registry row in AGENTS.md | upstream literal is `oh-my-pi` |
-| Tokio install export name | `omp_install_tokio_runtime` (**upstream name on purpose**) | MUST_CONTAIN | sweeping it to `__zeta*` made Tokio silently fail to install (v18.0.10) — the guard exists to stop a well-meaning sweep |
-| External identity (OS/browser visible) | `dev.zeta.oauth-callback.*`, `Zeta OAuth Callback`, `zeta-auth`, `zeta-descriptor://`, `zeta-file-lock-`, `zeta.ida.*`, `zeta-plugins.lock.json`, `.zetacast` | MUST_CONTAIN ×7 + MUST_NOT_CONTAIN ×7 | these names are registered with the OS and read by our own peers; nothing in a source-only review notices, and the product silently reintroduces itself as `omp` at the platform level |
+| Policy                                 | Canonical                                                                                                                                                     | Pinned by                                            | Why a merge reverts it                                                                                                                                                                 |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OTLP telemetry export                  | hard-off (`TELEMETRY_EXPORT_ENABLED = false`, no setting exists)                                                                                              | MUST_CONTAIN ×2 + MUST_NOT_CONTAIN on the setting id | upstream ships the opt-in setting with `default: true`; a merge restores both the setting and the call site                                                                            |
+| OTLP `service.name` fallback           | `zeta`                                                                                                                                                        | registry row in AGENTS.md                            | upstream literal is `oh-my-pi`                                                                                                                                                         |
+| Tokio install export name              | `omp_install_tokio_runtime` (**upstream name on purpose**)                                                                                                    | MUST_CONTAIN                                         | sweeping it to `__zeta*` made Tokio silently fail to install (v18.0.10) — the guard exists to stop a well-meaning sweep                                                                |
+| External identity (OS/browser visible) | `dev.zeta.oauth-callback.*`, `Zeta OAuth Callback`, `zeta-auth`, `zeta-descriptor://`, `zeta-file-lock-`, `zeta.ida.*`, `zeta-plugins.lock.json`, `.zetacast` | MUST_CONTAIN ×7 + MUST_NOT_CONTAIN ×7                | these names are registered with the OS and read by our own peers; nothing in a source-only review notices, and the product silently reintroduces itself as `omp` at the platform level |
 
 ### Scanner scope rule
 
