@@ -90,12 +90,19 @@ type SendOutcome = "accepted" | "rejected" | { error: string };
 export class HindsightOutbox {
 	readonly #root: string;
 	readonly #dir: string;
+	/**
+	 * Serializes quarantine moves and pruning outbox-wide. Kept beside the tree,
+	 * not inside it: the OS lock is a persistent `*.lock` file, and the outbox
+	 * root and quarantine directory list only destinations and retained events.
+	 */
+	readonly #quarantineLock: string;
 	readonly #options: HindsightOutboxOptions;
 
 	constructor(options: HindsightOutboxOptions) {
 		this.#options = options;
 		this.#root = path.join(options.agentDir, "hindsight-outbox");
 		this.#dir = path.join(this.#root, destinationKey(options.apiUrl, options.bankId));
+		this.#quarantineLock = path.join(options.agentDir, "hindsight-outbox-quarantine");
 	}
 
 	/** Where refused, malformed, and expired events go for review. */
@@ -304,7 +311,7 @@ export class HindsightOutbox {
 		if (files.length === 0) return 0;
 		const dir = this.quarantineDir;
 		await fs.mkdir(dir, { recursive: true, mode: 0o700 });
-		return withFileLock(dir, async () => {
+		return withFileLock(this.#quarantineLock, async () => {
 			const now = new Date();
 			for (const file of files) {
 				const target = path.join(dir, path.basename(file));
@@ -319,7 +326,7 @@ export class HindsightOutbox {
 	/** Deletes quarantined events past their review period. */
 	async #pruneQuarantine(): Promise<void> {
 		const dir = this.quarantineDir;
-		await withFileLock(dir, async () => {
+		await withFileLock(this.#quarantineLock, async () => {
 			let names: string[];
 			try {
 				names = await fs.readdir(dir);

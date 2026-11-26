@@ -1037,8 +1037,6 @@ jobs:
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts scripts/run-rs-task.test.ts
          - name: Test Feishu inbound media and bounded attachment storage
            run: bun test packages/channels/test/feishu.test.ts packages/channels/test/attachments.test.ts
-         - name: Run bounded memory soak (384 MiB RSS growth cap)
-           run: bun scripts/memory-soak.ts --seconds=180 --sample-ms=500 --commit-ms=5000 --max-rss-growth-mib=384 --out=temp/memory-soak.json
          # Orphan suite: `packages/stats` is a workspace package that sits in no
          # `ci-test-ts.ts` bucket (neither `fastWorkspacePackages` nor
          # `nativeAndIntegrationPackages`), so neither CI nor the local

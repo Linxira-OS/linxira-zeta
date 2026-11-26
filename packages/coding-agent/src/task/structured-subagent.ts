@@ -563,12 +563,12 @@ export async function resolveEffectiveSubagentPolicy(
 	}
 	const effectiveAgent = planMode ? createPlanModeAgent(agent) : agent;
 	// An agent declaring `structured: true` keeps its result contract when the caller opts out (`task.structured` off).
-	const schema = resolveSchema(
-		request,
-		effectiveAgent,
-		request.structured !== false || effectiveAgent.structured === true,
-	);
-	const structured = request.structured ?? usesYield(schema.schema);
+	const structuredAllowed = request.structured !== false || effectiveAgent.structured === true;
+	const schema = resolveSchema(request, effectiveAgent, structuredAllowed);
+	// A caller opting out is overridden by the agent opt-in, so a resolved agent
+	// schema still yields. An explicit opt-in keeps the yield contract even
+	// without a schema; otherwise the schema decides.
+	const structured = structuredAllowed && (request.structured === true || usesYield(schema.schema));
 	if (schema.source === "caller" || (schema.source !== "none" && schema.mode === "strict")) {
 		const { error } = buildOutputValidator(schema.schema);
 		if (error) {

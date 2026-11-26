@@ -2735,12 +2735,16 @@ export class ModelRegistry {
 		}
 
 		for (const entry of getUnknownCompatKeys(value)) {
-			const keyPath = entry.paths[0] ?? entry.key;
-			if (this.#warnedCompatKeys.has(keyPath)) continue;
-			this.#warnedCompatKeys.add(keyPath);
-			this.#configWarnings.push(
-				`Unknown compat key in ${this.#modelsConfigFile.path()}: ${keyPath} (configuration still loaded).`,
-			);
+			// Every occurrence is its own place to fix: a stale key repeated at the
+			// provider, model, and override levels is three lines, each naming its
+			// own path, deduped per path across reloads.
+			for (const keyPath of entry.paths) {
+				if (this.#warnedCompatKeys.has(keyPath)) continue;
+				this.#warnedCompatKeys.add(keyPath);
+				this.#configWarnings.push(
+					`Unknown compat key in ${this.#modelsConfigFile.path()}: ${keyPath} (configuration still loaded).`,
+				);
+			}
 		}
 
 		const overrides = new Map<string, ProviderOverride>();

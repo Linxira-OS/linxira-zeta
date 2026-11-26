@@ -8,6 +8,7 @@ import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue, resolveRoleSelection } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
+import { cfgMemoryExtractionMode } from "../memory-backend/settings";
 import type { MemoryLearningWindow } from "../memory-backend/window-types";
 import extractInputTemplate from "../prompts/memories/sharpshooter-extract-input.md" with { type: "text" };
 import extractSystemTemplate from "../prompts/memories/sharpshooter-extract-system.md" with { type: "text" };
@@ -207,6 +208,9 @@ export function maybeStartSharpshooterExtraction(options: {
 }): void {
 	try {
 		const { session } = options;
+		// Per-prompt extraction is the automatic cadence only; window and manual
+		// modes learn from committed windows or explicit writes instead.
+		if (cfgMemoryExtractionMode.get(options.settings) !== "auto") return;
 		if (session.isDisposed || (session as ExtractionHost)[kExtractionInFlight]) return;
 		const envelope = buildSharpshooterEnvelope(session.messages, options.message);
 		if (!envelope) return;

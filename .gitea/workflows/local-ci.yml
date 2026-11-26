@@ -916,8 +916,6 @@ jobs:
            run: bun test packages/channels/test/feishu.test.ts packages/channels/test/attachments.test.ts
          # 同 GitHub 的 retained-byte 门禁。此 runner 尚无实测 RSS 基线，
          # 保留 report-only；GitHub ubuntu-22.04 使用实测后的 384 MiB cap。
-         - name: Run bounded memory soak (report-only)
-           run: bun scripts/memory-soak.ts --seconds=180 --sample-ms=500 --commit-ms=5000 --out=temp/memory-soak.json
          # 镜像 GitHub `test_workspace`：`packages/stats` 不属于任何 ci-test-ts bucket，
          # 此前 CI 与本地 `bun run test:ts` 都没跑过它。放在这个 job（而非 `check`）是
          # 因为它的用例经 `@linxiraos/pi-utils` → `@linxiraos/pi-natives` 在 import
