@@ -425,7 +425,7 @@ describe("history:// protocol", () => {
 
 		expect(output?.type).toBe("text");
 		if (output?.type !== "text") throw new Error("Expected text output");
-		expect(output.text).toBe(String(resource.content).split("\n").slice(0, 2).join("\n"));
+		expect(output.text).toBe(`${String(resource.content).split("\n").slice(0, 2).join("\n")}\n`);
 	});
 
 	it("resolves agent ids case-insensitively", async () => {
