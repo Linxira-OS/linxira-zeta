@@ -52,28 +52,38 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 		const res = await globalThis.__zeta_call_tool__("read", { path });
 		return res && typeof res === "object" && "text" in res ? res.text : res;
 	};
-	// Delegated reads ask for `:raw`, which the bridge returns whole: no row prefixes, pages or cut lines.
-	// Web URLs keep their reader text; `:raw` there means the original HTML.
-	const rawReadPath = path =>
-		/^https?:\/\//i.test(path) || /:raw(?::|$)/i.test(path) ? path : `${path}:raw`;
+	const ARTIFACT_ID_PATH_RE = /^artifact:\/\/\d+$/i;
+	const locateReadPath = async (path, options) => {
+		// A bounded raw read locates the file without inlining it; a bare `:raw` read refuses files over 50 KB.
+		const located = await globalThis.__zeta_call_tool__("read", { path: `${path}:raw:1-1` });
+		const filePath = located?.details?.resolvedPath;
+		// Once located, the file is read like this session's artifacts and plain paths: read() is no read-tool policy gate.
+		if (typeof filePath === "string") return callHelper("read", filePath, options);
+		// An extension's replacement `read` may name no file: its own text for the selected lines is the answer.
+		return readToolText(withReadLineSelector(`${path}:raw`, options));
+	};
 
 
 	const read = async (path, opts, ...rest) => {
 		const options = optionsArg("read", opts, rest, ["offset", "limit"], "{ offset, limit }");
+		// An artifact id is a per-session counter: this session's dir is tried first, then the read tool searches
+		// every registered one. Any selector stays with the read tool, which applies it to the backing file.
+		if (typeof path === "string" && ARTIFACT_ID_PATH_RE.test(path)) {
+			if (typeof options.limit === "number" && options.limit <= 0) return "";
+			if (callHelper("hasRoot", path)) {
+				const text = await callHelper("read", path, options);
+				if (text !== undefined) return text;
+			}
+			return locateReadPath(path, options);
+		}
 		if (!shouldDelegateRead(path)) {
 			const text = await callHelper("read", path, options);
 			if (text !== undefined) return text;
-			// Another session's, or no artifacts dir was injected: the read tool searches every registered one.
-			// A bounded raw read locates the file without inlining it; a bare `:raw` read refuses files over 50 KB.
-			const located = await globalThis.__zeta_call_tool__("read", { path: `${path}:raw:1-1` });
-			const filePath = located?.details?.resolvedPath;
-			// Once located, the file is read like this session's artifacts and plain paths: read() is no read-tool policy gate.
-			if (typeof filePath === "string") return callHelper("read", filePath, options);
-			// An extension's replacement `read` may name no file: its own text for the selected lines is the answer.
-			return readToolText(withReadLineSelector(`${path}:raw`, options));
+			// A root-served path can be missing here (another session's file): locate its backing file first.
+			return locateReadPath(path, options);
 		}
 		// Protocol paths and directories (whose listing it renders) go through the read tool.
-		const toolPath = withReadLineSelector(rawReadPath(path), options);
+		const toolPath = withReadLineSelector(path, options);
 		return toolPath === null ? "" : readToolText(toolPath);
 	};
 	const write = async (path, data) => {

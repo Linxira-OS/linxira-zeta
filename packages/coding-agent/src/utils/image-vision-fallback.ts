@@ -232,7 +232,8 @@ interface ImageDescription {
 interface ImageDescriber {
 	/** Whether a vision request can be made now. */
 	canRequest(): boolean;
-	describe(image: ImageContent, signal?: AbortSignal): Promise<ImageDescription>;
+	/** `timeoutMs` bounds only the request, started after the image is saved and its cached description is read. */
+	describe(image: ImageContent, signal?: AbortSignal, timeoutMs?: number): Promise<ImageDescription>;
 }
 
 async function createImageDescriber(deps: DescribeAttachedImagesDeps): Promise<ImageDescriber> {
@@ -241,7 +242,11 @@ async function createImageDescriber(deps: DescribeAttachedImagesDeps): Promise<I
 	const apiKey = visionModel ? await deps.modelRegistry.getApiKey(visionModel, deps.sessionId) : undefined;
 	const telemetry = resolveTelemetry(deps.telemetryConfig, deps.sessionId);
 	const canRequest = () => Boolean(visionModel && apiKey) && !deps.costGate?.check();
-	const describe = async (image: ImageContent, signal?: AbortSignal): Promise<ImageDescription> => {
+	const describe = async (
+		image: ImageContent,
+		signal?: AbortSignal,
+		timeoutMs?: number,
+	): Promise<ImageDescription> => {
 		const localUrl = await saveImage(image, localRoot);
 		// Kept beside the saved image, so a resumed session does not pay for the description again.
 		const saved = path.join(localRoot, `${imageFileName(image)}.description.md`);
@@ -261,7 +266,9 @@ async function createImageDescriber(deps: DescribeAttachedImagesDeps): Promise<I
 		if (deps.costGate?.check()) {
 			return { text: formatImageBlock(localUrl, DESCRIPTION_UNAVAILABLE_NOTE), outcome: "unrequested" };
 		}
-		const description = await describeImage(image, visionModel, deps, telemetry, signal);
+		const timeout = timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs);
+		const requestSignal = signal && timeout ? AbortSignal.any([signal, timeout]) : (signal ?? timeout);
+		const description = await describeImage(image, visionModel, deps, telemetry, requestSignal);
 		if (!description) return { text: formatImageBlock(localUrl, DESCRIPTION_UNAVAILABLE_NOTE), outcome: "failed" };
 		// Losing the saved copy only costs a resumed session another request; keep the paid-for description.
 		await Bun.write(saved, description).catch(err =>
@@ -451,23 +458,26 @@ export class ImageDescriptions {
 				if (!canRequest) work = due.filter(item => item.entry.outcome !== "unrequested");
 			}
 			// Newest first: the image the current prompt asks about must not wait behind a history backlog that
-			// the caller's wait cannot cover.
-			let next = work.length;
+			// the caller's wait cannot cover. Newest images go out as one in-flight batch and the next batch starts
+			// only after it settles, so a slow save cannot let an older history image overtake the current prompt's.
+			const newestFirst = [...work].reverse();
 			// A failed request means the vision model is failing now: the rest of this run waits for the retry
 			// delay instead of queueing more requests against it.
 			let failing = false;
-			const worker = async (): Promise<void> => {
-				for (let item = work[--next]; item; item = work[--next]) {
-					if (failing) {
+			for (let start = 0; start < newestFirst.length; start += IMAGE_DESCRIPTION_CONCURRENCY) {
+				const batch = newestFirst.slice(start, start + IMAGE_DESCRIPTION_CONCURRENCY);
+				if (failing) {
+					for (const item of batch) {
 						item.entry.outcome ??= "failed";
 						if (item.entry.outcome === "failed") item.entry.retryAt = Date.now() + FAILED_DESCRIPTION_RETRY_MS;
-						continue;
 					}
-					await this.#describe(item.key, item.entry, item.image, getDescriber, timeoutMs);
-					if (item.entry.outcome === "failed") failing = true;
+					continue;
 				}
-			};
-			await Promise.all(Array.from({ length: Math.min(IMAGE_DESCRIPTION_CONCURRENCY, work.length) }, worker));
+				await Promise.all(
+					batch.map(item => this.#describe(item.key, item.entry, item.image, getDescriber, timeoutMs)),
+				);
+				failing = batch.some(item => item.entry.outcome === "failed");
+			}
 		} finally {
 			for (const item of due) item.entry.pending = undefined;
 		}
@@ -482,7 +492,7 @@ export class ImageDescriptions {
 	): Promise<void> {
 		try {
 			const describer = await getDescriber();
-			const result = await describer.describe(image, AbortSignal.timeout(timeoutMs));
+			const result = await describer.describe(image, undefined, timeoutMs);
 			entry.text = result.text;
 			entry.outcome = result.outcome;
 			entry.retryAt = result.outcome === "failed" ? Date.now() + FAILED_DESCRIPTION_RETRY_MS : undefined;

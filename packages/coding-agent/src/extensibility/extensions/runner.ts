@@ -636,6 +636,25 @@ export const UNAVAILABLE_ANNOTATIONS: ExtensionAnnotationsAPI = Object.freeze({
 	open: () => Promise.reject(new Error("ctx.annotations is not available in this host.")),
 });
 
+/**
+ * Whether a context hook handed back the message bytes it received.
+ *
+ * `Bun.deepEquals` compares enumerable symbol properties too, while
+ * `structuredClone` does not copy them: agent identity, tool-call repair marks
+ * and context-history tracking exist on the live message but not on its clone.
+ * None of them reaches the provider wire, so a structural miss falls back to
+ * the serialized bytes (the same projection {@link ExtensionRunner} compares
+ * repeated hook rewrites by) before the message is classified as rewritten.
+ */
+function contextMessageUnchanged(previous: AgentMessage, message: AgentMessage): boolean {
+	if (Bun.deepEquals(message, previous)) return true;
+	try {
+		return JSON.stringify(message) === JSON.stringify(previous);
+	} catch {
+		return false;
+	}
+}
+
 export class ExtensionRunner {
 	#uiContext: ExtensionUIContext;
 	#mode: ExtensionMode = "print";
@@ -2779,7 +2798,7 @@ export class ExtensionRunner {
 						const historyIndex = getContextHistoryIndex(previousMessage);
 						if (historyIndex === undefined) continue;
 						setContextHistoryIndex(message, historyIndex);
-						if (!Bun.deepEquals(message, previousMessage)) clearContextHistoryIndex(message);
+						if (!contextMessageUnchanged(previousMessage, message)) clearContextHistoryIndex(message);
 					}
 					currentMessages = nextMessages;
 				}
@@ -2790,7 +2809,7 @@ export class ExtensionRunner {
 			const historyIndex = getContextHistoryIndex(message);
 			const historyMessage = historyIndex === undefined ? undefined : messages[historyIndex];
 			if (historyMessage && historyIndex !== undefined) setContextHistoryIndex(historyMessage, historyIndex);
-			const unchanged = historyMessage !== undefined && Bun.deepEquals(message, historyMessage);
+			const unchanged = historyMessage !== undefined && contextMessageUnchanged(historyMessage, message);
 			clearContextHistoryIndex(message);
 			if (historyMessage) clearContextHistoryIndex(historyMessage);
 			if (unchanged) {

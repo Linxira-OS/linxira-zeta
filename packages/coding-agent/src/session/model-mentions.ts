@@ -131,26 +131,32 @@ export class ModelMentionRegistry {
 		};
 	}
 
+	/** The mention for a canonical selector, registering one on first use. */
+	#mentionFor(selector: string): ModelMention | undefined {
+		const existing = this.#bySelector.get(selector);
+		if (existing) return existing;
+		const resolved = this.resolve(selector);
+		if (!resolved) return undefined;
+		const canonical = this.#bySelector.get(resolved.selector);
+		if (canonical) return canonical;
+		let next = 1;
+		while (this.#agents.has(`m${next}`)) next++;
+		const mention = { agent: `m${next}`, ...resolved };
+		this.#host.sessionManager.appendCustomEntry(MODEL_MENTION_ENTRY_TYPE, mention);
+		this.#mentions.push(mention);
+		this.#bySelector.set(mention.selector, mention);
+		this.#agents.add(mention.agent);
+		return mention;
+	}
+
 	/** Register user-tagged models and replace their tokens with persisted agent tags. */
 	expandMentions(text: string): string {
 		if (!text.includes("^")) return text;
 		return text.replace(MODEL_MENTION_RE, (token, delimiter: string, selector: string) => {
-			let mention = this.#bySelector.get(selector);
-			if (!mention) {
-				const resolved = this.resolve(selector);
-				if (!resolved) return token;
-				mention = this.#bySelector.get(resolved.selector);
-				if (!mention) {
-					let next = 1;
-					while (this.#agents.has(`m${next}`)) next++;
-					mention = { agent: `m${next}`, ...resolved };
-					this.#host.sessionManager.appendCustomEntry(MODEL_MENTION_ENTRY_TYPE, mention);
-					this.#mentions.push(mention);
-					this.#bySelector.set(mention.selector, mention);
-					this.#agents.add(mention.agent);
-				}
-			}
-			return `${delimiter}${modelMentionTag(mention)}`;
+			// Prose punctuation after a selector stays outside the tag, unless the
+			// punctuation is itself part of a registered model id.
+			const resolved = resolveModelMentionToken(selector, candidate => this.#mentionFor(candidate));
+			return resolved ? `${delimiter}${modelMentionTag(resolved.value)}${resolved.suffix}` : token;
 		});
 	}
 

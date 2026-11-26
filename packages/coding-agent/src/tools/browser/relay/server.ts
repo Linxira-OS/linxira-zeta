@@ -29,7 +29,7 @@ export interface RelayServerOptions {
 	/** Accept the browser only over its chat native messaging port. */
 	chatOnly?: boolean;
 	/** Work Studio managed-relay control channel. */
-	studio?: { token: string; control(mode: "agent" | "human"): void };
+	studio?: { token: string; control(mode: "agent" | "human"): Promise<void> };
 	/**
 	 * A `POST /omp/relay/restart` from zetacode `version`; `idleOnly` asks only when no CDP client is connected. Returns
 	 * whether the server is going away; absent, every restart is refused.
@@ -152,7 +152,9 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 					? req.url.slice(`http://${rawHost}`.length)
 					: req.url;
 			const url = new URL(requestUrl, `http://${fallback}`);
-			const path = url.pathname.replace(/\/+$/, "") || "/";
+			const prefix = opts.studio ? `/managed/${opts.studio.token}` : "";
+			if (prefix && !url.pathname.startsWith(`${prefix}/`)) return new Response("Not found", { status: 404 });
+			const path = url.pathname.slice(prefix.length).replace(/\/+$/, "") || "/";
 			if (path === "/cdp") {
 				// Browsers set Origin on websocket upgrades; native CDP clients
 				// don't. Reject any Origin so a web page can't drive the relay.
@@ -205,7 +207,7 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 					return Response.json(info, { status: 503 });
 				}
 				return Response.json({
-					...bridge.versionInfo(`ws://${host}/cdp`),
+					...bridge.versionInfo(`ws://${host}${prefix}/cdp`),
 					ompRelayInstance: instance,
 				});
 			}
@@ -230,6 +232,42 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 			message(ws: RelayWebSocket, message: string | Buffer): void {
 				const text = typeof message === "string" ? message : new TextDecoder().decode(message);
 				if (ws.data.role === "ext") {
+					if (opts.studio) {
+						let control: { t?: string; id?: number; control?: string };
+						try {
+							control = JSON.parse(text);
+						} catch {
+							ws.close();
+							return;
+						}
+						if (control?.t === "studioControl") {
+							if (
+								(control.control !== "human" && control.control !== "agent") ||
+								!Number.isSafeInteger(control.id)
+							) {
+								ws.close();
+								return;
+							}
+							void opts.studio.control(control.control).then(
+								() => {
+									if (sockets.has(ws))
+										ws.send(JSON.stringify({ t: "studioControlResult", id: control.id, ok: true }));
+								},
+								error => {
+									if (sockets.has(ws))
+										ws.send(
+											JSON.stringify({
+												t: "studioControlResult",
+												id: control.id,
+												ok: false,
+												error: String(error),
+											}),
+										);
+								},
+							);
+							return;
+						}
+					}
 					bridge.extMessage(ws, text);
 				} else if (ws.data.connId !== undefined) {
 					bridge.cdpMessage(ws.data.connId, text);

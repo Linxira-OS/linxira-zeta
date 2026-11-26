@@ -46,6 +46,7 @@ import {
 	PARENT_WATCHDOG_WORKER_ARG,
 	STATS_ACTIVITY_WORKER_ARG,
 	SUBAGENT_WORKER_ARG,
+	TEXT_PREDICT_WORKER_ARG,
 	TRANSCRIPT_INDEX_WORKER_ARG,
 } from "./cli/worker-selectors";
 import { DAEMON_WORKER_ARG } from "./daemon/protocol";
@@ -341,6 +342,11 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 		// Worker selectors must dispatch before the normal command graph loads.
 		const { startDaemonFromEnvironment } = await import("./daemon/server");
 		await startDaemonFromEnvironment();
+		return true;
+	}
+	if (arg === TEXT_PREDICT_WORKER_ARG) {
+		const { startTextPredictDaemonFromEnvironment } = await import("./predict/daemon");
+		await startTextPredictDaemonFromEnvironment();
 		return true;
 	}
 	if (arg === DAEMON_BROKER_WORKER_ARG) {

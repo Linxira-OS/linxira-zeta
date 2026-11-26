@@ -302,7 +302,7 @@ function sameContent(a: Record<string, unknown>, b: Record<string, unknown>): bo
 function upstreamMeta(meta: Record<string, unknown>): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 	for (const key in meta) {
-		if (key === MCPMeta.progressToken || key.startsWith("omp/")) continue;
+		if (key === MCPMeta.progressToken || key.startsWith("zeta/")) continue;
 		result[key] = meta[key];
 	}
 	return result;

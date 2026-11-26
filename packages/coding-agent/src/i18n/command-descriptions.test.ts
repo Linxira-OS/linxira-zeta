@@ -89,9 +89,12 @@ function descriptionProperties(source: string): Array<{ depth: number; value: st
 			depth--;
 			continue;
 		}
-		const match = /^description\s*:\s*/.exec(source.slice(index, index + 16));
-		if (!match) continue;
-		const valueStart = index + match[0].length;
+		if (char !== "d" || !source.startsWith("description", index)) continue;
+		let valueStart = index + "description".length;
+		while (valueStart < source.length && /\s/.test(source[valueStart]!)) valueStart++;
+		if (source[valueStart] !== ":") continue;
+		valueStart++;
+		while (valueStart < source.length && /\s/.test(source[valueStart]!)) valueStart++;
 		let end = valueStart;
 		let inner = 0;
 		let innerQuote: string | null = null;
@@ -199,6 +202,14 @@ function relativeTo(root: string, file: string): string {
 	return path.relative(root, file).split(path.sep).join("/");
 }
 
+/** The source tree is static for one test run; read and scan it once so the
+ * two guards below do not each pay for 2,700 file reads. */
+const SOURCE_ROOT = path.resolve(import.meta.dir, "..");
+const SOURCE_SCANS: ReadonlyArray<{ file: string; scan: CallSiteScan }> = walkSources(SOURCE_ROOT).map(file => ({
+	file,
+	scan: scanRegisterCommandSites(fs.readFileSync(file, "utf8")),
+}));
+
 describe("command descriptions go through the catalogue", () => {
 	test("built-in slash command descriptions and ACP descriptions are thunks or accessors", () => {
 		const offenders: string[] = [];
@@ -243,14 +254,12 @@ describe("command descriptions go through the catalogue", () => {
 	});
 
 	test("extension-registered commands declare description as a thunk, not a literal", () => {
-		const srcRoot = path.resolve(import.meta.dir, "..");
 		const violations: string[] = [];
 		let sites = 0;
-		for (const file of walkSources(srcRoot)) {
-			const scan = scanRegisterCommandSites(fs.readFileSync(file, "utf8"));
+		for (const { file, scan } of SOURCE_SCANS) {
 			sites += scan.sites;
 			for (const violation of scan.violations) {
-				violations.push(`${relativeTo(srcRoot, file)}:${violation.line} ${violation.value}`);
+				violations.push(`${relativeTo(SOURCE_ROOT, file)}:${violation.line} ${violation.value}`);
 			}
 		}
 		// Zero call sites means the scan is broken, not that the tree is clean.
@@ -263,12 +272,10 @@ describe("command descriptions go through the catalogue", () => {
 		// list; the hint text is a different surface with no `M.*` family today
 		// (tracked by the coverage table). Pinned so the exclusion is a recorded
 		// list of live sites rather than an open-ended allowlist.
-		const srcRoot = path.resolve(import.meta.dir, "..");
 		const sites: string[] = [];
-		for (const file of walkSources(srcRoot)) {
-			const scan = scanRegisterCommandSites(fs.readFileSync(file, "utf8"));
+		for (const { file, scan } of SOURCE_SCANS) {
 			for (const hint of scan.nested) {
-				sites.push(`${relativeTo(srcRoot, file)}:${hint.line}`);
+				sites.push(`${relativeTo(SOURCE_ROOT, file)}:${hint.line}`);
 			}
 		}
 		expect(sites).toEqual(["autoresearch/index.ts:133", "autoresearch/index.ts:137"]);

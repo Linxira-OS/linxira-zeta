@@ -5,7 +5,7 @@ How coding-agent speaks MCP: which revision, where each protocol concern lives, 
 ## Two hops
 
 ```
-session ── tunnel: NDJSON, MCP 2026-07-28 + omp/* ──► host unit ── upstream transport ──► server
+session ── tunnel: NDJSON, MCP 2026-07-28 + zeta/* ──► host unit ── upstream transport ──► server
 (client.ts, link.ts)                                  (endpoint.ts)  (stdio / http / sse)
 ```
 
@@ -28,16 +28,16 @@ Constants and helpers are in `src/mcp/protocol.ts`.
 
 ### Tunnel extensions
 
-Declared in `src/mcp/host/contract.ts`; the host strips `zetacode/*` `_meta` keys before anything reaches a server.
+Declared in `src/mcp/host/contract.ts`; the host strips `zeta/*` `_meta` keys before anything reaches a server.
 
 | Extension                         | Direction      | Meaning                                                                                                          |
 | --------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `_meta["omp/cache"] = "stale-ok"` | request        | answer from the store even past its TTL without starting the server; the host revalidates and notifies on change |
-| `_meta["omp/cache"] = "no-store"` | request        | ask the server itself and leave the store untouched (connection tests, auth probes)                              |
-| `_meta["omp/stale"] = true`       | result         | the served entry was past its TTL                                                                                |
-| `zetacode/status`                 | host → session | era, state (`idle`, `starting`, `running`, `failed`), pid, attached sessions, last exit                          |
-| `zetacode/restart`                | session → host | stop the upstream now and clear its crash history                                                                |
-| `zetacode/roots`                  | session → host | the session's roots, for a handshake-era server's `roots/list`                                                   |
+| `_meta["zeta/cache"] = "stale-ok"` | request        | answer from the store even past its TTL without starting the server; the host revalidates and notifies on change |
+| `_meta["zeta/cache"] = "no-store"` | request        | ask the server itself and leave the store untouched (connection tests, auth probes)                              |
+| `_meta["zeta/stale"] = true`       | result         | the served entry was past its TTL                                                                                |
+| `zeta/status`                     | host → session | era, state (`idle`, `starting`, `running`, `failed`), pid, attached sessions, last exit                          |
+| `zeta/restart`                    | session → host | stop the upstream now and clear its crash history                                                                |
+| `zeta/roots`                      | session → host | the session's roots, for a handshake-era server's `roots/list`                                                   |
 
 ### Errors
 

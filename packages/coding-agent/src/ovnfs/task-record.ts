@@ -3,7 +3,7 @@ import { isEnoent, isRecord } from "@linxiraos/pi-utils";
 import { removeCheckout } from "./checkouts";
 
 /** Record of the checkout an isolation dir stands for. */
-export const OVNFS_CHECKOUT_FILE = ".zeta-ovnfs-checkout.json";
+export const OVNFS_CHECKOUT_FILE = ".omp-ovnfs-checkout.json";
 
 /** Contents of {@link OVNFS_CHECKOUT_FILE}. */
 export interface CheckoutRecord {

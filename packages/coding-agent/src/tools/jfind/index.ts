@@ -163,9 +163,9 @@ export class FindTool implements AgentTool<typeof findSchema, FindToolDetails> {
 		} catch (error) {
 			if (!deadline.aborted || signal?.aborted) throw error;
 		}
-		if (!result) {
+		if (!result || result.timeout?.passages === 0) {
 			throw new ToolError(
-				`find timed out after ${formatDuration(FIND_TIMEOUT_MS)} at "${phase}", before any file was judged. Narrow \`path\` to a smaller tree, or use grep.`,
+				`find timed out after ${formatDuration(FIND_TIMEOUT_MS)} at "${phase}", before any passage was verified. Narrow \`path\` to a smaller tree, or use grep.`,
 			);
 		}
 		const elapsedMs = performance.now() - started;
@@ -220,10 +220,6 @@ export class FindTool implements AgentTool<typeof findSchema, FindToolDetails> {
 		} else if (coverage === "unavailable") {
 			out.push(
 				`find unavailable for "${query}"${where}: all ${stats.requests} judge requests failed, nothing was judged. This is not evidence of absence; use grep.`,
-			);
-		} else if (timeout?.passages === 0) {
-			out.push(
-				`find timed out after ${formatDuration(FIND_TIMEOUT_MS)} at "${phase}", before any passage was verified. This is not evidence of absence; narrow \`path\`, or use grep.`,
 			);
 		} else if (stats.listed === 0) {
 			out.push(

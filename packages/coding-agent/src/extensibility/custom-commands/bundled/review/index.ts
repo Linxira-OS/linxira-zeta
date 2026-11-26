@@ -4,6 +4,7 @@ import * as vcs from "@linxiraos/pi-natives/vcs";
 import { replaceTabs, truncateToWidth } from "../../../../utils/text-width";
 import { shortenPath, TRUNCATE_LENGTHS } from "../../../../utils/render-utils";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
+import { M } from "../../../../i18n";
 import { findScopedSettings } from "../../../../config/settings";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";
@@ -619,7 +620,7 @@ function buildCustomReviewPrompt(instructions: string, repository: string | unde
 
 export class ReviewCommand implements CustomCommand {
 	name = "review";
-	description = "Launch interactive code review";
+	description = () => M.cmdReview;
 
 	constructor(private readonly api: CustomCommandAPI) {}
 

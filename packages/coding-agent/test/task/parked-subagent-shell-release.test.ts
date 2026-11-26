@@ -105,6 +105,9 @@ it("releases a parked subagent's persistent shell so a revive starts a fresh one
 			cwd,
 			artifactsDir,
 			agent: { name: "task", description: "test", systemPrompt: "test", tools: ["read", "bash"], source: "bundled" },
+			// The mock drives bash and then yields; 19.2 gives schema-less children
+			// no `yield` tool, so pin the unconstrained structured contract.
+			outputSchema: true,
 			task: "report done",
 			index: 0,
 			id: AGENT_ID,

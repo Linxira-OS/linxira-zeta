@@ -33,22 +33,11 @@ import * as path from "node:path";
 import { logger } from "@linxiraos/pi-utils";
 import { callSocket, OvnfsError, socketFeatures } from "../ovnfs/client";
 import { forgetDaemon, startDaemon } from "../ovnfs/daemon";
+import { type CheckoutRecord, OVNFS_CHECKOUT_FILE } from "../ovnfs/task-record";
 import type { IsolationWorkspace, OpenWorkspace, RetainedWorkspace, WorkspaceStart } from "./isolation-runner";
 import { vacateIsolationSlot } from "./isolation-runner";
 import { writeIsolationOwner } from "./isolation-ownership";
 import { captureIsolationBaseline, taskIsolationBaseDir, type WorktreeBaseline } from "./worktree";
-
-/** Record of the checkout an isolation dir stands for. */
-export const OVNFS_CHECKOUT_FILE = ".omp-ovnfs-checkout.json";
-
-/** Contents of {@link OVNFS_CHECKOUT_FILE}. */
-interface CheckoutRecord {
-	/** ovnfs executable that opened the checkout (it can start the daemon again). */
-	command: string;
-	checkout: string;
-	/** The checkout on the same capture a branch commit reads its baseline from, while it exists. */
-	start?: string;
-}
 
 /** The parts of ovnfs's `new` reply used here. */
 interface NewReply {

@@ -3,6 +3,7 @@ import type { MCPProgress } from "@linxiraos/zeta/mcp/types";
 import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
 import {
 	encodeHostError,
+	MCP_RESTART_METHOD,
 	MCP_ROOTS_METHOD,
 	MCP_STATUS_METHOD,
 	type McpUpstreamStatus,
@@ -346,7 +347,7 @@ describe("HostLink", () => {
 		await link.restart();
 		link.setRoots();
 
-		expect((await host.tunnel.next("omp/restart")).id).toBeUndefined();
+		expect((await host.tunnel.next(MCP_RESTART_METHOD)).id).toBeUndefined();
 		expect(paramsOf(await host.tunnel.next(MCP_ROOTS_METHOD))).toEqual({ roots: ROOTS });
 	});
 

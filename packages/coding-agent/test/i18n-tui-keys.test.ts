@@ -115,9 +115,13 @@ function collectKeySites(): KeySites {
 	return { literal, families };
 }
 
+/** The two source trees are static for one test run; scan them once so the
+ * three guards below do not each reread several thousand files. */
+const KEY_SITES: KeySites = collectKeySites();
+
 describe("pi-tui text keys resolve in the catalogue", () => {
 	test("every literal tuiText key exists in en and zh", () => {
-		const { literal } = collectKeySites();
+		const { literal } = KEY_SITES;
 		expect(literal.size, `${SCAN_LABEL} scan is broken: only ${literal.size} literal keys`).toBeGreaterThanOrEqual(
 			MIN_LITERAL_KEYS,
 		);
@@ -131,7 +135,7 @@ describe("pi-tui text keys resolve in the catalogue", () => {
 	});
 
 	test("translatable tuiText keys are not shipped as English copies", () => {
-		const { literal } = collectKeySites();
+		const { literal } = KEY_SITES;
 		const offenders = [...literal]
 			.filter(([key]) => !(key in LANGUAGE_NEUTRAL))
 			.filter(([key]) => en[key as keyof typeof en] === zh[key as keyof typeof zh])
@@ -140,7 +144,7 @@ describe("pi-tui text keys resolve in the catalogue", () => {
 	});
 
 	test("dynamic key families are exactly the pinned list", () => {
-		const { families } = collectKeySites();
+		const { families } = KEY_SITES;
 		expect([...families].sort()).toEqual([...DYNAMIC_KEY_FAMILIES].sort());
 	});
 });

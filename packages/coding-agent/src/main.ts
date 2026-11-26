@@ -49,7 +49,7 @@ import { applyStartupCwd } from "./cli/startup-cwd";
 import { runAutoUpdate } from "./cli/auto-update";
 import { managedInstallName } from "./cli/managed-install";
 import { getLatestRelease, isSourceCheckout } from "./cli/update-cli";
-import { findConfigFile } from "./config";
+import { discoverAppendSystemPromptPath } from "./config";
 import { cfgNoJudge, cfgNoSpotlight, cfgOffline } from "./config/auxiliary-model-policy";
 import { ModelRegistry } from "./config/model-registry";
 import { formatModelSelectorValue } from "./config/model-selector";
@@ -1532,19 +1532,6 @@ export async function createSessionManager(
 	return undefined;
 }
 
-/** Discover APPEND_SYSTEM.md file if no CLI append system prompt was provided */
-function discoverAppendSystemPromptFile(): string | undefined {
-	const projectPath = findConfigFile("APPEND_SYSTEM.md", { user: false });
-	if (projectPath) {
-		return projectPath;
-	}
-	const globalPath = findConfigFile("APPEND_SYSTEM.md", { user: true });
-	if (globalPath) {
-		return globalPath;
-	}
-	return undefined;
-}
-
 /** Apply resolved CLI/discovered prompt files without bypassing system prompt templates. */
 export function applyResolvedSystemPromptInputs(
 	options: CreateAgentSessionOptions,
@@ -1698,14 +1685,19 @@ export async function buildSessionOptions(
 		parsed.systemPrompt ?? (discoveredOverride?.kind === "text" ? discoveredOverride.path : undefined);
 	const templatePath =
 		parsed.systemPromptTemplate ?? (discoveredOverride?.kind === "template" ? discoveredOverride.path : undefined);
-	const appendPromptSource = parsed.appendSystemPrompt ?? discoverAppendSystemPromptFile();
+	// A discovered APPEND_SYSTEM.md passes its source path so the rebuild re-reads
+	// it; only an explicit CLI value is frozen into the session options.
+	const discoveredAppendSource =
+		parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
 	const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
 	const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] =
 		await Promise.all([
 			discoveredOverride?.kind === "text"
 				? Promise.resolve(discoveredOverride.content)
 				: resolvePromptInput(systemPromptSource, "system prompt"),
-			resolvePromptInput(appendPromptSource, "append system prompt"),
+			parsed.appendSystemPrompt === undefined
+				? Promise.resolve(undefined)
+				: resolvePromptInput(parsed.appendSystemPrompt, "append system prompt"),
 			resolvePromptInput(titleSystemPromptSource, "title system prompt"),
 			// Discovered templates arrive pre-loaded from the capability; only
 			// explicit CLI paths hit the strict file loader here.
@@ -1715,6 +1707,9 @@ export async function buildSessionOptions(
 					? Promise.resolve(undefined)
 					: loadSystemPromptTemplateFile(templatePath),
 		]);
+	if (discoveredAppendSource !== undefined) {
+		options.appendSystemPromptSource = discoveredAppendSource;
+	}
 
 	if (sessionManager) {
 		options.sessionManager = sessionManager;

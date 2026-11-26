@@ -4,6 +4,7 @@ import type {
 	CustomCommandContext,
 } from "../../../../extensibility/custom-commands/types";
 import { parseCommandArgs } from "../../../../utils/command-args";
+import { M } from "../../../../i18n";
 import type { AutocompleteItem } from "../../../../autocomplete/autocomplete";
 import { CombinedAutocompleteProvider } from "../../../../autocomplete/autocomplete";
 import type { CodeReviewOverlayResult, TextReviewSource } from "./annotation-types";
@@ -344,7 +345,7 @@ export async function runAnnotateCommand(
 
 export class AnnotateCommand implements CustomCommand {
 	name = "annotate";
-	description = "Annotate a diff or text from a file, prompt, latest reply, or session";
+	description = () => M.cmdAnnotate;
 	#fileCompletionProvider: CombinedAutocompleteProvider | undefined;
 	#fileCompletionCwd: string | undefined;
 

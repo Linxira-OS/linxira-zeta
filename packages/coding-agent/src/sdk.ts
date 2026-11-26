@@ -67,6 +67,7 @@ import {
 import { bucketRules } from "./capability/rule-buckets";
 import type { EffectiveExtensionRoots } from "./capability/types";
 import { type OAuthAccountPools, SessionAccountPoolScope } from "./config/account-pools";
+import { discoverAppendSystemPromptPath } from "./config";
 import { shouldEnableAppendOnlyContext } from "./config/append-only-context-mode";
 import { shouldInlineToolDescriptors } from "./config/inline-tool-descriptors-mode";
 import { isAuthenticated, kNoAuth, ModelRegistry } from "./config/model-registry";
@@ -297,6 +298,7 @@ import {
 	composeAppendPrompt,
 	loadProjectContextFiles as loadContextFilesInternal,
 	projectSystemPromptToolMetadata,
+	resolvePromptInput,
 	withoutAgentsMd,
 } from "./system-prompt";
 import type { AgentDefinition } from "./task/types";
@@ -772,6 +774,12 @@ export interface CreateAgentSessionOptions {
 	customSystemPrompt?: string;
 	/** Already-loaded text appended through the bundled system prompt templates. */
 	appendSystemPrompt?: string;
+	/**
+	 * Source path of a discovered APPEND_SYSTEM.md. Read once per prompt
+	 * rebuild (not per turn), so editing/atomically replacing the file reaches
+	 * the next rebuild. Explicit `appendSystemPrompt` wins.
+	 */
+	appendSystemPromptSource?: string;
 	/**
 	 * Already-loaded title-generation system prompt override (typically
 	 * {@link discoverTitleSystemPromptFile} → {@link resolvePromptInput}). When
@@ -4687,7 +4695,13 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					appendParts.push(`### ${srvName}\n${truncated}`);
 				}
 			}
-			const appendPrompt = composeAppendPrompt(appendParts, options.appendSystemPrompt);
+			const appendSource =
+				options.appendSystemPromptSource ??
+				(options.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined);
+			const appendText =
+				options.appendSystemPrompt ??
+				(appendSource === undefined ? undefined : await resolvePromptInput(appendSource, "append system prompt"));
+			const appendPrompt = composeAppendPrompt(appendParts, appendText);
 			// Owned/in-band tool dialects (non-native) require the full functions-
 			// namespace catalog; native tool calling lets the compact name list suffice.
 			const nativeTools = resolveDialect(cfgToolsFormat.get(settings), agent?.state.model ?? model) === undefined;

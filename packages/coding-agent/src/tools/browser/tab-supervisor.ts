@@ -2480,6 +2480,7 @@ async function buildInitPayload(browser: PuppeteerBrowserHandle, opts: AcquireTa
 	}
 	return {
 		mode: "attach",
+		studioManaged: browser.kind.kind === "relay" && browser.kind.studioManaged === true,
 		browserWSEndpoint:
 			page.kind === "create" ? browserWSEndpoint : adoptEndpoint(browserWSEndpoint, browser, page.targetId),
 		safeDir,
@@ -2765,6 +2766,7 @@ async function recycleTimedOutWorkerTab(
 		lastUrl && lastUrl !== "about:blank" ? { url: lastUrl, timeoutMs: Math.floor(timeoutMs / 2) } : undefined;
 	const payload: WorkerInitPayload = {
 		mode: "attach",
+		studioManaged: tab.browser.kind.kind === "relay" && tab.browser.kind.studioManaged === true,
 		browserWSEndpoint: tab.connectionScoped
 			? browserWSEndpoint
 			: adoptEndpoint(browserWSEndpoint, tab.browser, tab.targetId),

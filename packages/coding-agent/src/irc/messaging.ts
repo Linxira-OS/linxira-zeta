@@ -41,7 +41,7 @@ export async function executeSend(
 		const sender = registry.get(senderId);
 		if (sender?.kind === "sub" && sender.parentId !== undefined) {
 			return coordinationErrorResult(
-				"Subagents may only message the main agent that spawned them; broadcast is not available.",
+				"Only the main agent can broadcast; broadcast is not available to subagents, which may only message the main agent that spawned them.",
 				{ op: "send", from: senderId, to },
 			);
 		}

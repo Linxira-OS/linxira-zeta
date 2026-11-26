@@ -85,16 +85,28 @@ const RAW_BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_ZETA_SLASH_COMMANDS,
 ];
 
-const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = RAW_BUILTIN_SLASH_COMMAND_REGISTRY.map(
-	command => ({
+/** Localise a command's description and ACP copy at read time, preserving a
+ * spec's own thunk/getter instead of freezing whatever it returned at import. */
+function localizeCommandSpec(command: SlashCommandSpec): SlashCommandSpec {
+	return {
 		...command,
-		description: localizeCommandDescription(command.description)!,
+		get description() {
+			return localizeCommandDescription(command.description)!;
+		},
+		get acpDescription() {
+			return localizeCommandDescription(command.acpDescription);
+		},
 		subcommands: command.subcommands?.map(subcommand => ({
 			...subcommand,
-			description: localizeCommandDescription(subcommand.description)!,
+			get description() {
+				return localizeCommandDescription(subcommand.description)!;
+			},
 		})),
-	}),
-);
+	};
+}
+
+const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> =
+	RAW_BUILTIN_SLASH_COMMAND_REGISTRY.map(localizeCommandSpec);
 
 const BUILTIN_SLASH_COMMAND_LOOKUP = new Map<string, SlashCommandSpec>();
 for (const command of BUILTIN_SLASH_COMMAND_REGISTRY) {

@@ -78,6 +78,7 @@ export type AttachPage =
 
 /** zetacode created the payload's page: closing the tab closes the page. */
 export function ownsPage(payload: WorkerInitPayload): boolean {
+	if (payload.mode === "attach" && payload.studioManaged) return false;
 	return payload.mode === "headless" || payload.page.kind !== "borrowed";
 }
 
@@ -129,6 +130,8 @@ export type WorkerInitPayload =
 	  }
 	| {
 			mode: "attach";
+			/** This relay and page belong to a Studio-managed desktop browser; its pages are borrowed, never owned. */
+			studioManaged?: boolean;
 			browserWSEndpoint: string;
 			safeDir: string;
 			/** The tab's upload staging folder, which outlives a recycled worker; see `UploadStaging`. */

@@ -555,6 +555,7 @@ import {
 	isLaunchCompletionOwner,
 	LAUNCH_COMPLETION_MESSAGE_TYPE,
 	type LaunchCompletionEntry,
+	toLaunchCompletionEvent,
 } from "./launch-completion";
 import {
 	type BashExecutionMessage,
@@ -599,6 +600,7 @@ import {
 	type PrewalkCoordinatorHost,
 	type PrewalkRestartResult,
 } from "./prewalk";
+import { PROVIDER_REFUSAL_CUSTOM_TYPE, providerRefusalData } from "./provider-refusal";
 import {
 	isAdvisorCard,
 	isDisplayableQueuedMessage,
@@ -1287,6 +1289,22 @@ function sourceFileMatches(left: string | null, right: string | null): boolean {
 
 function originsMatch(left: AsyncJobOrigin | AsyncSourceOrigin, right: AsyncSourceOrigin): boolean {
 	return left.sessionId === right.sessionId && sourceFileMatches(left.sessionFile, right.sessionFile);
+}
+
+/**
+ * Whether a dispose for `reason` ends the process under a running turn (an exit, the
+ * host's SIGTERM or SIGHUP, a crash) rather than the user stopping it (a quit, Ctrl+C,
+ * manual cleanup); see {@link AgentSessionDisposeOptions.reason}.
+ */
+function cutsTurnOff(reason: postmortem.Reason | undefined): boolean {
+	switch (reason) {
+		case undefined:
+		case postmortem.Reason.MANUAL:
+		case postmortem.Reason.SIGINT:
+			return false;
+		default:
+			return true;
+	}
 }
 
 export class AgentSession implements SettingsScope, AgentViewSession {
@@ -6371,6 +6389,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			}
 			return;
 		}
+		// A refused turn stays out of the transcript (#persistSessionMessageIfMissing
+		// skips it); keep a non-context record of it instead. Recorded here, once per
+		// message_end, because mid-run compaction re-offers unpersisted turn messages.
+		if (message.role === "assistant" && this.#recovery.isClassifierRefusal(message)) {
+			this.sessionManager.appendCustomEntry(PROVIDER_REFUSAL_CUSTOM_TYPE, providerRefusalData(message));
+			return;
+		}
 		this.#persistSessionMessageIfMissing(message);
 	}
 
@@ -6537,6 +6562,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#runToolCallIds = new Set(event.resumedToolCallIds);
 			this.#prunedTerminalFailure = undefined;
 			this.#advisors.onPrimaryAgentStart();
+			this.#models.settleAutoThinkingLevel();
 			// The previous loop's end lost the race to this start: announce its pause first,
 			// so every subscriber sees it before the next loop.
 			if (this.#loopEnd) this.#pauseLoop(this.#loopEnd);
@@ -8981,9 +9007,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#fallbackExtensionTimers?.clearAll();
 		this.abortRetry();
 		this.abortCompaction();
-		// A process exit cuts a turn still in flight off instead of stopping it:
-		// label it as interrupted so `zetacode --restore` goes on with it.
-		const abortReason = options.reason === postmortem.Reason.EXIT ? INTERRUPTED_TURN_ERROR : undefined;
+		// A process ending under a turn still in flight cuts it off instead of
+		// stopping it: label it as interrupted so `zetacode --restore` goes on with it.
+		const abortReason = cutsTurnOff(options.reason) ? INTERRUPTED_TURN_ERROR : undefined;
 		const postPromptDrain = this.#cancelPostPromptTasks(abortReason);
 		this.agent.abort(abortReason);
 		try {
@@ -11924,6 +11950,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		signal: AbortSignal,
 	): Promise<QueuedMessagePreparation> {
 		const generation = this.#promptGeneration;
+		// A queued follow-up starts a new user turn: the host-owned boundary lands before its work.
+		await this.#beforeNextUserTurn?.();
+		signal.throwIfAborted();
 		await this.#prewalk.beginAutoTask(message);
 		// Past the cap, the before-model-call gate refuses this task's first request and reports it; judging it, or
 		// moving it to an `escalate` planner, would only spend and switch for a request that is never sent.
@@ -11973,7 +12002,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		generation: number,
 		signal: AbortSignal | undefined,
 		origin: "direct" | "queued",
-	): Promise<QueuedMessagePreparation & { baseXdevCatalogDelivered: boolean }> {
+	): Promise<QueuedMessagePreparation & { baseToolCommandCatalogDelivered: boolean }> {
 		const sessionGeneration = this.#sessionGeneration;
 		const alreadyDisposing = this.#isDisposed && origin === "direct";
 		const isCurrent = () =>
@@ -11981,7 +12010,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#sessionGeneration === sessionGeneration &&
 			(!this.#isDisposed || alreadyDisposing) &&
 			!signal?.aborted;
-		const cancelled = { baseXdevCatalogDelivered: false, commit: () => undefined };
+		const cancelled = { baseToolCommandCatalogDelivered: false, commit: () => undefined };
 		if (this.hasPendingDeferredExtensions) await this.loadDeferredExtensions();
 		const pendingMCPDiscovery = this.#pendingMCPDiscovery;
 		if (pendingMCPDiscovery) {
@@ -12057,7 +12086,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			}
 			if (!overrideIsCurrent()) continue;
 			return {
-				baseXdevCatalogDelivered: result?.systemPrompt === undefined,
+				baseToolCommandCatalogDelivered: result?.systemPrompt === undefined,
 				commit: () => {
 					// No await may separate ownership validation from publishing memory and policy.
 					if (!isCurrent() || !overrideIsCurrent()) return undefined;
@@ -12227,13 +12256,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				return false;
 			}
 
-			// Pending tool-roster and xd:// deltas accompany the next user-authored
+			// Pending tool-roster and tool-command deltas accompany the next user-authored
 			// prompt, never an agent-initiated continuation. Reserve their pre-user
 			// position now. Non-consuming previews count toward pre-prompt context
 			// maintenance, while the live deltas are consumed only after maintenance:
 			// promotion/summary can rebuild the base prompt and clear a roster delta
 			// it subsumes, avoiding a contradictory materialized notice.
-			const xdevMountNoticeIndex = messages.length;
+			const toolCommandMountNoticeIndex = messages.length;
 			messages.push(message);
 			// Inject any pending "nextTurn" messages as context alongside the user message
 			for (const msg of this.#pendingNextTurnMessages) {
@@ -12261,7 +12290,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			const preparedMessages = preparation.commit();
 			if (!preparedMessages) return false;
 			messages.push(...preparedMessages);
-			const baseXdevCatalogDelivered = preparation.baseXdevCatalogDelivered;
+			const baseToolCommandCatalogDelivered = preparation.baseToolCommandCatalogDelivered;
 
 			// Auto thinking: classify this real user turn and set the effective level
 			// before the model request. A user-invoked `/skill:<name>` arrives as a
@@ -12280,18 +12309,18 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				}
 			}
 
-			// Only the xd:// mount notice can carry substantial inline docs (up to
-			// XDEV_DOCS_TOTAL_BUDGET), so preview it in a copy and let context
+			// Only the tool command mount notice can carry substantial inline docs (up to
+			// TOOL_COMMAND_DOCS_TOTAL_BUDGET), so preview it in a copy and let context
 			// maintenance see the request's true size without consuming a delta a
 			// rebuild may supersede. The tool-roster notice is a tiny name list with
 			// no budget impact, so it is not previewed here — it must always ship
 			// alongside the schema change it describes (see below).
-			const previewXdevMountNotice = isUserQueuedMessage(message)
-				? this.#tools.peekPendingXdevMountNotice({ baseCatalogDelivered: baseXdevCatalogDelivered })
+			const previewToolCommandMountNotice = isUserQueuedMessage(message)
+				? this.#tools.peekPendingToolCommandMountNotice({ baseCatalogDelivered: baseToolCommandCatalogDelivered })
 				: undefined;
-			const maintenanceMessages = previewXdevMountNotice?.notice ? [...messages] : messages;
-			if (maintenanceMessages !== messages && previewXdevMountNotice?.notice) {
-				maintenanceMessages.splice(xdevMountNoticeIndex, 0, previewXdevMountNotice.notice);
+			const maintenanceMessages = previewToolCommandMountNotice?.notice ? [...messages] : messages;
+			if (maintenanceMessages !== messages && previewToolCommandMountNotice?.notice) {
+				maintenanceMessages.splice(toolCommandMountNoticeIndex, 0, previewToolCommandMountNotice.notice);
 			}
 			await logger.time("prompt:prePromptCompaction", () =>
 				this.#maintenance.runPrePromptCompactionIfNeeded(maintenanceMessages),
@@ -12325,30 +12354,30 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					if (eager >= 0) messages.splice(eager, 1);
 				}
 			}
-			// Consume the xd:// notice only when its previewed revision still holds.
+			// Consume the mount notice only when its previewed revision still holds.
 			// A mount delta or catalog rebuild during the await invalidates it: any
 			// additions carried by the delivered base are recorded as announced,
 			// while remaining notice content waits for the next context check.
 			// The roster notice is re-derived from the live delta here and always
 			// delivered, keeping the model's stated availability in lockstep with
 			// the wire tool list even when a roster change landed during maintenance.
-			const xdevMountNotice = previewXdevMountNotice
-				? this.#tools.takePendingXdevMountNotice({
-						baseCatalogDelivered: baseXdevCatalogDelivered,
-						expectedContentKey: previewXdevMountNotice.contentKey,
+			const toolCommandMountNotice = previewToolCommandMountNotice
+				? this.#tools.takePendingToolCommandMountNotice({
+						baseCatalogDelivered: baseToolCommandCatalogDelivered,
+						expectedContentKey: previewToolCommandMountNotice.contentKey,
 					})
 				: undefined;
 			const toolRosterNotice = isUserQueuedMessage(message)
-				? this.#tools.takePendingToolRosterNotice({ baseDelivered: baseXdevCatalogDelivered })
+				? this.#tools.takePendingToolRosterNotice({ baseDelivered: baseToolCommandCatalogDelivered })
 				: undefined;
 			const evalPreludeNotice = isUserQueuedMessage(message) ? this.#tools.takeEvalPreludeNotice() : undefined;
 			const sessionAgentNotice = isUserQueuedMessage(message) ? this.#tools.takeSessionAgentNotice() : undefined;
 			const skillNotice = isUserQueuedMessage(message) ? this.#tools.takeSkillNotice() : undefined;
-			if (xdevMountNotice || toolRosterNotice || evalPreludeNotice || sessionAgentNotice || skillNotice) {
+			if (toolCommandMountNotice || toolRosterNotice || evalPreludeNotice || sessionAgentNotice || skillNotice) {
 				messages.splice(
-					xdevMountNoticeIndex,
+					toolCommandMountNoticeIndex,
 					0,
-					...(xdevMountNotice ? [xdevMountNotice] : []),
+					...(toolCommandMountNotice ? [toolCommandMountNotice] : []),
 					...(toolRosterNotice ? [toolRosterNotice] : []),
 					...(evalPreludeNotice ? [evalPreludeNotice] : []),
 					...(sessionAgentNotice ? [sessionAgentNotice] : []),
@@ -13264,7 +13293,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (this.#isDisposed) return Promise.reject(new Error("Session disposed before launch completion delivery"));
 		const delivered = this.yieldQueue.enqueueWithReceipt<LaunchCompletionEntry>(
 			LAUNCH_COMPLETION_MESSAGE_TYPE,
-			notification as any,
+			toLaunchCompletionEvent(notification),
 		);
 		this.yieldQueue.requestIdleFlush();
 		return delivered;

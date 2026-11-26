@@ -2306,7 +2306,6 @@ cdPickerNavHint
 cdPickerTitle
 cdPickerUnavailableFmt
 cmdAgents
-cmdAnnotate
 cmdChangelog
 cmdChangelogAcp
 cmdChangelogFull
@@ -2401,7 +2400,6 @@ cmdRatchet
 cmdReloadPlugins
 cmdReloadPluginsAcp
 cmdRestoreTheBoundedHudPreview
-cmdReview
 cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch
 cmdSecurity
 cmdSecurityCancel

@@ -114,7 +114,7 @@ describe("ovnfs checkout recovery", () => {
 		const workspace = await ovnfsWorkspace(COMMAND)(repo, agentId);
 
 		const current = await readRecord(baseDir);
-		expect(current).toEqual({ command: COMMAND, checkout: expect.stringMatching(/^omp-authrefactor-[0-9a-f]{6}$/) });
+		expect(current).toEqual({ command: COMMAND, checkout: expect.stringMatching(/^zetacode-authrefactor-[0-9a-f]{6}$/) });
 		expect(workspace.dir).toBe(`/mnt/ovnfs/${current.checkout}`);
 		const [sibling] = await retainedDirs(baseDir);
 		expect(sibling).toBeString();
@@ -199,7 +199,7 @@ describe("ovnfs checkout recovery", () => {
 
 		const baseDir = taskIsolationBaseDir(repo, agentId);
 		const record = await readRecord(baseDir);
-		expect(requested).toMatch(/^omp-lostreply-[0-9a-f]{6}$/);
+		expect(requested).toMatch(/^zetacode-lostreply-[0-9a-f]{6}$/);
 		expect(record).toEqual({ command: COMMAND, checkout: requested });
 		expect(await Bun.file(path.join(baseDir, ISOLATION_OWNER_FILE)).exists()).toBe(true);
 		expect(removed).toContain(requested);
@@ -227,7 +227,7 @@ describe("ovnfs checkout recovery", () => {
 
 		await expect(ovnfsWorkspace(COMMAND)(repo, "Confirmed")).rejects.toThrow(/ovnfs: invalid: rejected/);
 
-		expect(requested).toMatch(/^omp-confirmed-[0-9a-f]{6}$/);
+		expect(requested).toMatch(/^zetacode-confirmed-[0-9a-f]{6}$/);
 		expect(removed).toEqual([requested]);
 		await expect(fs.stat(baseDir)).rejects.toMatchObject({ code: "ENOENT" });
 	});
@@ -252,7 +252,7 @@ describe("ovnfs checkout recovery", () => {
 
 		await expect(ovnfsWorkspace(COMMAND)(repo, "Collision")).rejects.toThrow(/ovnfs: exists: already exists/);
 
-		expect(requested).toMatch(/^omp-collision-[0-9a-f]{6}$/);
+		expect(requested).toMatch(/^zetacode-collision-[0-9a-f]{6}$/);
 		expect(removed).toEqual([]);
 		await expect(fs.stat(baseDir)).rejects.toMatchObject({ code: "ENOENT" });
 	});
@@ -458,7 +458,7 @@ describe("ovnfs checkout recovery", () => {
 			"branch",
 			binaryPatch,
 		);
-		expect(result.branchName).toBe("omp/task/BranchRun");
+		expect(result.branchName).toBe("zetacode/task/BranchRun");
 		const start = opened.find(op => op.base);
 		expect(start?.base).toBe("b_1");
 		expect(captured.mock.calls).toEqual([[`/mnt/ovnfs/${start?.name}`, repo]]);
