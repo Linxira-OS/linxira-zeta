@@ -95,14 +95,14 @@ describe("notification formatting", () => {
 			true,
 		);
 		expect(out).toBe(
-			"\x1b]99;i=complete-1:f=emV0YQ:a=focus:u=1:t=Y29tcGxldGlvbg==:n=aW5mbw==:s=aW5mbw==:w=5000:d=0;Session\x1b\\" +
+			"\x1b]99;i=complete-1:f=emV0YQ==:a=focus:u=1:t=Y29tcGxldGlvbg==:n=aW5mbw==:s=aW5mbw==:w=5000:d=0;Session\x1b\\" +
 				"\x1b]99;i=complete-1:p=body;Complete\x1b\\",
 		);
 	});
 
 	it("base64-encodes unsafe OSC 99 payload controls", () => {
 		expect(formatNotification({ title: "Line 1\nLine 2", id: "unsafe" }, "osc99", true)).toBe(
-			"\x1b]99;i=unsafe:f=emV0YQ:e=1;TGluZSAxCkxpbmUgMg==\x1b\\",
+			"\x1b]99;i=unsafe:f=emV0YQ==:e=1;TGluZSAxCkxpbmUgMg==\x1b\\",
 		);
 	});
 
@@ -400,7 +400,7 @@ describe("notifyTerminal", () => {
 		try {
 			term.output.length = 0;
 			notifyTerminal({ title: "Session", body: "Complete", id: "n1" });
-			expect(term.output).toEqual(["\x1b]99;i=n1:f=emV0YQ:d=0;Session\x1b\\\x1b]99;i=n1:p=body;Complete\x1b\\"]);
+			expect(term.output).toEqual(["\x1b]99;i=n1:f=emV0YQ==:d=0;Session\x1b\\\x1b]99;i=n1:p=body;Complete\x1b\\"]);
 		} finally {
 			await term.driver.stop();
 		}

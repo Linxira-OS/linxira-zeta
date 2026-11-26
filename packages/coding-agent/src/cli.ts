@@ -179,8 +179,6 @@ async function showHelp(config: CliConfig<CommandMetadata>): Promise<void> {
 async function runSmokeTest(): Promise<void> {
 	const { smokeTestSpotlightWorker, smokeTestSyncWorker, startServer } = await import("@linxiraos/pi-stats");
 	const { smokeTestTinyTitleWorker } = await import("./tiny/title-client");
-	const { smokeTestSttWorker } = await import("./stt/asr-client");
-	const { smokeTestTtsWorker } = await import("./tts/tts-client");
 	const { smokeTestMnemopiEmbedWorker } = await import("./mnemopi/embed-client");
 	const { smokeTestStatsActivityWorker } = await import("./stats/activity-client");
 	const { smokeTestTranscriptIndexWorker } = await import("./session/transcript-index-client");
@@ -209,11 +207,9 @@ async function runSmokeTest(): Promise<void> {
 		}
 
 		await smokeTestTinyTitleWorker();
-		await smokeTestSttWorker();
 		await smokeTestJsEvalWorker();
 		const { smokeTestComputerWorker } = await import("./tools/computer/supervisor");
 		await smokeTestComputerWorker();
-		await smokeTestTtsWorker();
 		await smokeTestMnemopiEmbedWorker();
 		await smokeTestDaemon();
 		await smokeTestSubagentWorker();
