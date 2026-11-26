@@ -112,6 +112,7 @@ import {
 	loadCustomCommands as loadCustomCommandsInternal,
 } from "./extensibility/custom-commands";
 import { createAnnotationsAPI } from "./extensibility/custom-commands/bundled/annotate/api";
+import { CustomCommandWatcher } from "./extensibility/custom-commands/watcher";
 import { discoverCustomToolPaths, loadCustomTools, type ToolPathWithSource } from "./extensibility/custom-tools";
 import type {
 	CustomTool,
@@ -6096,6 +6097,17 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					),
 				);
 			});
+			// Live TypeScript custom commands: editing `commands/<name>/index.*`
+			// reloads that module in place and re-advertises the palette.
+			if (!options.disableExtensionDiscovery && !restrictToolNames) {
+				const customCommandWatcher = new CustomCommandWatcher({
+					cwd,
+					agentDir,
+					onChange: async () => session.applyCustomCommandReload(await discoverCustomTSCommands(cwd, agentDir)),
+				});
+				void customCommandWatcher.start();
+				disposeCallbacks.add(() => customCommandWatcher.stop());
+			}
 		}
 		session.yieldQueue.register<McpNotificationEntry>("mcp-notification", {
 			build: buildMcpNotificationBatchMessage,

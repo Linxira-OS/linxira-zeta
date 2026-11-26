@@ -12,9 +12,9 @@
 //!   [`host::PiHost`], [`session::Session`] (a persistent shell driven by a
 //!   task on the caller's runtime), [`commands`] (the host's session commands
 //!   of a run), [`tools`] (`timeout`, `nohup`, `git` and the command-running
-//!   extras as host callouts), [`extras`] (pi's utilities from `zetacode-builtins`
-//!   as engine commands) and [`git`] (the guard and in-process worktree
-//!   layers).
+//!   extras as host callouts), [`extras`] (pi's utilities from
+//!   `zetacode-builtins` as engine commands) and [`git`] (the guard and
+//!   in-process worktree layers).
 //! - The API omp-natives uses: [`Shell`], [`execute_shell`],
 //!   [`execute_shell_streams`], [`minimizer`], [`taps`], [`cancel`],
 //!   [`proctree`].

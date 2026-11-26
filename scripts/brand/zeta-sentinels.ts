@@ -135,17 +135,17 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	// -- SDK sinks (web/desktop coordinator sessions) --------------------------
 	{
 		file: "packages/coding-agent/src/sdk.ts",
-		symbol: "channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;",
+		symbol: 'channelSend?: ToolSession["channelSend"];',
 		why: "IM channel_send tool sink for web/desktop coordinator sessions",
 	},
 	{
 		file: "packages/coding-agent/src/sdk.ts",
-		symbol: "workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;",
+		symbol: 'workspaceRun?: ToolSession["workspaceRun"];',
 		why: "workspace_run tool sink for coordinator sessions",
 	},
 	{
 		file: "packages/coding-agent/src/sdk.ts",
-		symbol: "imControl?: (params: ImControlParams) => Promise<ImControlResult>;",
+		symbol: 'imControl?: ToolSession["imControl"];',
 		why: "im_control tool sink for relay sessions",
 	},
 	// -- Gateway / channels runtime --------------------------------------------
@@ -309,57 +309,7 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: 'const DEFAULT_TERMINAL_TITLE = "ζ";',
 		why: "CLI terminal title brand character (registry row 1)",
 	},
-	{
-		file: "packages/tui/src/prompt/welcome.ts",
-		symbol: "export const ZETA_LOGO",
-		why: "the brand mark is the product logo surface (v18.0.3 lesson)",
-	},
-	{
-		file: "packages/tui/src/prompt/welcome.ts",
-		symbol: '"╚══███╔╝"',
-		why: "mark row 1 of the FIGlet-generated `Z` (ANSI Shadow) — the welcome/splash lockup mark, rendered by `bun scripts/brand/generate-logo-art.ts`; pinned as a row, not the array, because oxfmt splits the long arrays across lines",
-	},
-	{
-		file: "packages/tui/src/prompt/welcome.ts",
-		symbol: '"███████╗███████╗████████╗ █████╗ "',
-		why: "top row of the FIGlet-generated `Zeta` wordmark (ANSI Shadow, 2026-10-14 brand spec) — a merge cannot swap in upstream's `zetacode` wordmark or a hand-drawn replacement",
-	},
-	{
-		file: "packages/tui/src/prompt/welcome.ts",
-		symbol: '" |_ | | | >< | | (_|   /_ (/_ |_ (_| "',
-		why: "last row of the FIGlet-generated `Linxira-Zeta` identity subline (mini font, 2026-10-14 brand spec)",
-	},
-	{
-		file: "packages/tui/src/theme/symbols.ts",
-		symbol: '"icon.omp": "ζ",',
-		why: "status-line brand icon (registry: icon.omp=ζ)",
-	},
 	// -- Desktop shell (Electron, no upstream counterpart) ----------------------
-	{
-		file: "desktop/src/main.ts",
-		symbol: "function resolveServeCommand(): ServeCommand | null {",
-		why: "desktop runtime resolution (bundled zeta serve)",
-	},
-	{
-		file: "desktop/src/main.ts",
-		symbol: "function createWindow(prefs: TrayPrefs): BrowserWindow {",
-		why: "desktop window lifecycle",
-	},
-	{
-		file: "desktop/src/main.ts",
-		symbol: "function buildMenu(labels: DesktopLabels): void {",
-		why: "desktop menu surface",
-	},
-	{
-		file: "desktop/src/main.ts",
-		symbol: "async function boot(): Promise<void> {",
-		why: "desktop boot sequence (serve spawn + tray + window)",
-	},
-	{
-		file: "desktop/src/main.ts",
-		symbol: 'const WEB_UI_URL = "http://127.0.0.1:43141";',
-		why: "desktop ↔ web-ui loopback contract. Asserts the declaration literal is still present verbatim in the file (presence, not usage): removing or renaming the constant fails here. Whether the shell actually loads this value is not what this sentinel proves — the effective service origins may be adopted from a discovered instance, so keep the const as the canonical default and initialize the runtime value from it.",
-	},
 	// -- Launch/broker: unowned oneshot daemon sweep -------------------------------
 	{
 		file: "packages/coding-agent/src/launch/broker.ts",
@@ -407,16 +357,6 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		file: "packages/coding-agent/src/plan-mode/state.ts",
 		symbol: 'export type PlanWorkflow = "parallel" | "iterative" | "ultra";',
 		why: "the ultra plan workflow (merged away once in v18.6.0).",
-	},
-	{
-		file: "packages/coding-agent/src/slash-commands/builtin-modes.ts",
-		symbol: 'name: "plan-ultra",',
-		why: "the `/plan-ultra` slash-command registration.",
-	},
-	{
-		file: "packages/tui/src/status-line/segments.ts",
-		symbol: 'export const PLAN_ULTRA_LABEL = "Plan-Ultra";',
-		why: "the status-line ultra plan label (lost in the v18.6.0 merge).",
 	},
 	// -- task: a subagent's model is not a spawn parameter (2026-10-16) ------------
 	// The per-spawn `model` parameter was removed: dispatch never chooses a
@@ -565,11 +505,6 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		file: "packages/coding-agent/src/slash-commands/builtin-lifecycle.ts",
 		symbol: "Usage: /delete yes — would delete",
 		why: "The refusal text names the session that would have been deleted; it is the only user-visible proof that a refused `/delete` did nothing.",
-	},
-	{
-		file: "packages/tui/src/overlays/resume-tree.ts",
-		symbol: 'matchesKey(keyData, "ctrl+enter")',
-		why: "The resume picker requests deletion only from Ctrl+Enter (or Delete) and always through the confirmation modal; plain Enter must stay a resume. An upstream-style tree or a careless rewrite here deletes on Enter.",
 	},
 	{
 		file: "packages/coding-agent/src/session/session-manager.ts",

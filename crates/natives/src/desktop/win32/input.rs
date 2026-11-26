@@ -1692,8 +1692,8 @@ mod foreground {
 		// SAFETY: IsHungAppWindow only reads the window's responsiveness state.
 		if unsafe { IsHungAppWindow(reader) } != 0 {
 			return Some(format!(
-				"{name} is not responding, so zetacode could not wait for it to read the typed text; the \
-				 rest may reach whichever window is in front next"
+				"{name} is not responding, so zetacode could not wait for it to read the typed text; \
+				 the rest may reach whichever window is in front next"
 			));
 		}
 		// SAFETY: a null process-id pointer is permitted; Win32 validates the

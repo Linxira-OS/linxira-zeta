@@ -1,6 +1,6 @@
 //! macOS privacy permissions. TCC charges each grant to the responsible
-//! process: the app that launched zetacode (a terminal or IDE), or zetacode itself when
-//! no app did.
+//! process: the app that launched zetacode (a terminal or IDE), or zetacode
+//! itself when no app did.
 
 use std::{
 	ffi::{CStr, OsStr},

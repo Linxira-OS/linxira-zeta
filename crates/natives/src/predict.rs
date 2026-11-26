@@ -4,8 +4,8 @@
 //! thread, so inference, learning, and persistence never block the JS thread
 //! and each engine keeps a stable thread identity (required by `AppKit` for the
 //! `apple` method). The constructor only spawns the thread (the engine opens
-//! there); every working method returns a Promise. The zetacode daemon's `predict`
-//! module creates one per active method.
+//! there); every working method returns a Promise. The zetacode daemon's
+//! `predict` module creates one per active method.
 
 use napi::{Error, Result, Status};
 use napi_derive::napi;

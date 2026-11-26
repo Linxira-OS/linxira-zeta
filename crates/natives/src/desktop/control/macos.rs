@@ -282,10 +282,10 @@ const fn monitor_mask() -> u64 {
 static SEEN: [AtomicU32; 5] = [const { AtomicU32::new(0) }; 5];
 
 /// Where an event the tap sees goes in [`SEEN`]: only hardware input (no
-/// source pid) and omp's own tagged events, which zetacode posts only to the HID
-/// event tap, so every seen event is one the HID counters count too. Another
-/// process's event may have been posted to the session, which the tap sees
-/// but the HID counters skip; counting it would let it stand in for a user
+/// source pid) and omp's own tagged events, which zetacode posts only to the
+/// HID event tap, so every seen event is one the HID counters count too.
+/// Another process's event may have been posted to the session, which the tap
+/// sees but the HID counters skip; counting it would let it stand in for a user
 /// click still in the tap's queue. One posted to the HID tap leaves the
 /// monitor behind instead, which only stands the hand-back down.
 const fn seen_index(kind: u32, pid: i64, tag: i64) -> Option<usize> {

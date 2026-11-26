@@ -464,8 +464,8 @@ async fn every_utility_builtin_is_registered_under_its_own_name() {
 }
 
 /// Every process builtin pi offers must be installed and dispatch in
-/// process: `zetacode-builtins`' process extras and the engine tools `nohup` and
-/// `timeout` (`src/tools`).
+/// process: `zetacode-builtins`' process extras and the engine tools `nohup`
+/// and `timeout` (`src/tools`).
 ///
 /// `omp_builtins::extras` maps each name to a struct by hand, so a mis-wire
 /// compiles and runs — and with `PATH` emptied there is no binary to silently

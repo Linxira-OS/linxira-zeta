@@ -8,9 +8,9 @@ use std::{
 use anyhow::Result;
 /// Current state of a process reference.
 ///
-/// Defined in `zetacode-builtins` alongside the process-table snapshots its process
-/// builtins read, and re-exported here so this module — and `zetacode-natives`
-/// through it — keeps one status type for both concerns.
+/// Defined in `zetacode-builtins` alongside the process-table snapshots its
+/// process builtins read, and re-exported here so this module — and
+/// `zetacode-natives` through it — keeps one status type for both concerns.
 pub use omp_builtins::ProcessStatus;
 
 use crate::cancel::CancelToken;

@@ -353,6 +353,8 @@ export async function readPipedInput(): Promise<string | undefined> {
  */
 const TELEMETRY_EXPORT_ENABLED = false;
 
+const CLI_SESSION = { client: "cli" } as const;
+
 const STARTUP_WATCHDOG_INTERVAL_MS = 10_000;
 let startupWatchdogTimer: NodeJS.Timeout | undefined;
 let startupWatchdogActive = false;
@@ -651,7 +653,7 @@ export function createAcpSessionFactory(args: AcpSessionFactoryOptions): AcpSess
 			if (nextOptions.model) bindApiKey(nextOptions.model.provider, apiKey);
 		}
 
-		const nextSessionManager = SessionManager.create(cwd, args.sessionDir);
+		const nextSessionManager = SessionManager.create(cwd, args.sessionDir, undefined, CLI_SESSION);
 		const agentId = `acp:${nextSessionManager.getSessionId()}`;
 		// `baseOptions.titleSystemPrompt` is resolved from the launch cwd; an ACP
 		// host can open `session/new` for any client-supplied workspace, so
@@ -1493,6 +1495,7 @@ export async function createSessionManager(
 	if (parsed.continue) {
 		const manager = await forkIfMovedAway(
 			await SessionManager.continueRecent(cwd, parsed.sessionDir, undefined, {
+				...CLI_SESSION,
 				onSessionContinuation: options.onSessionContinuation,
 			}),
 			parsed.sessionDir,
@@ -1505,7 +1508,7 @@ export async function createSessionManager(
 	// --resume without value is handled separately (needs picker UI)
 	// If --session-dir provided without --continue/--resume, create new session there
 	if (parsed.sessionDir) {
-		return SessionManager.create(cwd, parsed.sessionDir);
+		return SessionManager.create(cwd, parsed.sessionDir, undefined, CLI_SESSION);
 	}
 	// Auto-resume: behave like --continue if the setting is enabled and a prior
 	// session exists. When a prior session is resumed, mark parsed.continue so
@@ -1515,6 +1518,7 @@ export async function createSessionManager(
 	if (parsed.goal === undefined && cfgAutoResume.get(activeSettings)) {
 		const manager = await forkIfMovedAway(
 			await SessionManager.continueRecent(cwd, parsed.sessionDir, undefined, {
+				...CLI_SESSION,
 				onSessionContinuation: options.onSessionContinuation,
 			}),
 			parsed.sessionDir,

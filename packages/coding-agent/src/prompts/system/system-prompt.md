@@ -141,6 +141,7 @@ Every turn costs seconds: batch independent reads, searches, and edits into the 
   {{#has tools "find"}}
 - Unknown behavior/location: descriptive `{{toolRefs.find}}` FIRST; NEVER guess `grep`/`glob` targets.
   {{/has}}
+  {{#has tools "github"}}- GitHub (CI runs, PRs, issues, search): use `{{toolRefs.github}}`; never shell `gh`.{{/has}}
 
 {{#if encourageEdits}}
 {{#has tools "edit"}}

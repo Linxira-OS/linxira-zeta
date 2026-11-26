@@ -19,3 +19,4 @@ Long-lived services:
   No backgrounding when the client terminal runs the command or the job cap is reached.
   The result arrives automatically as a follow-up message. NEVER poll.
   {{/if}}
+Elevated commands (`sudo`/UAC): user-consented only, NEVER silent. Prefer `pty: true` — the user types the password / approves UAC in the visible overlay; when unavailable, pop out a visible window (`Start-Process … -Verb RunAs` on Windows, `x-terminal-emulator -e bash -lc 'sudo …'` elsewhere) with output through a temp file you read and delete. Try non-elevated first; state the exact command before elevating; the deny list applies to both paths.

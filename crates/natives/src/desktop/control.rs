@@ -1182,8 +1182,8 @@ impl KernelLease {
 			.write_all_at(format!("{}\n{agent}", std::process::id()).as_bytes(), 0);
 	}
 
-	/// The zetacode pid and agent a live host recorded in the locked `file`; `None`
-	/// for no record, an unreadable one or one whose process is gone.
+	/// The zetacode pid and agent a live host recorded in the locked `file`;
+	/// `None` for no record, an unreadable one or one whose process is gone.
 	fn holder(file: &std::fs::File) -> Option<(u32, String)> {
 		use std::os::unix::fs::FileExt;
 		let mut buffer = [0u8; 10 + 1 + 64 * 4];
