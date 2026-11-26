@@ -3,8 +3,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
+import { type AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { resolveApproval } from "@linxiraos/zeta/tools/approval";
@@ -12,6 +14,7 @@ import { approvalGrantKey, SessionApprovals } from "@linxiraos/zeta/tools/approv
 import { approvalTargetKey } from "@linxiraos/zeta/tools/approval-targets";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 function textOf(result: { content: ReadonlyArray<{ type: string; text?: string }> }): string {
 	return result.content.flatMap(block => (block.type === "text" ? [block.text ?? ""] : [])).join("\n");
@@ -20,6 +23,7 @@ function textOf(result: { content: ReadonlyArray<{ type: string; text?: string }
 describe("artifact reads through session approval", () => {
 	let root: string;
 	let session: AgentSession | undefined;
+	let authStorage: AuthStorage | undefined;
 
 	beforeEach(async () => {
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifact-approval-"));
@@ -28,6 +32,8 @@ describe("artifact reads through session approval", () => {
 	afterEach(async () => {
 		await session?.dispose();
 		session = undefined;
+		authStorage?.close();
+		authStorage = undefined;
 		await removeWithRetries(root);
 	});
 
@@ -39,10 +45,13 @@ describe("artifact reads through session approval", () => {
 		async (_kind, taskDepth) => {
 			const cwd = path.join(root, "cwd");
 			await fs.mkdir(cwd);
+			authStorage = createInMemoryAuthStorage();
 			const created = await createAgentSession({
 				cwd,
 				agentDir: path.join(root, "agent"),
 				sessionManager: SessionManager.create(cwd, path.join(root, "sessions")),
+				authStorage,
+				modelRegistry: new ModelRegistry(authStorage, path.join(root, "models.yml")),
 				settings: Settings.isolated({
 					"tools.approvalMode": "yolo",
 					"tools.restrictedFolders": [path.join(root, "restricted")],

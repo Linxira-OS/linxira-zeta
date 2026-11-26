@@ -310,10 +310,7 @@ export class ComputerSupervisor implements ComputerController {
 		}
 		if (signal?.aborted || epoch !== this.#controlEpoch) throw new ToolAbortError();
 		if (
-			(this.#session.getComputerSessionId?.() ??
-				this.#session.getSessionId?.() ??
-				this.#session.getEvalSessionId?.() ??
-				"computer") !== snapshot.sessionId ||
+			(currentSessionId !== undefined && currentSessionId !== snapshot.sessionId) ||
 			this.#session.getSessionInstanceKey?.() !== instanceKey
 		)
 			throw new ToolAbortError();

@@ -58,7 +58,7 @@ describe("read tool artifacts without an artifacts directory", () => {
 			const session: ToolSession = {
 				cwd: testDir,
 				hasUI: false,
-				getSessionFile: () => persistent.getSessionFile(),
+				getSessionFile: () => persistent.getSessionFile() ?? null,
 				getSessionSpawns: () => "*",
 				getArtifactsDir: () => persistent.getArtifactsDir(),
 				sessionManager: persistent,
@@ -70,7 +70,7 @@ describe("read tool artifacts without an artifacts directory", () => {
 				modelRegistry: new ModelRegistry(await AuthStorage.create(":memory:"), path.join(testDir, "models.yml")),
 				model: undefined,
 				isIdle: () => true,
-				hasQueuedMessages: false,
+				hasQueuedMessages: () => false,
 				abort: () => {},
 			};
 			const spilled = await postProcessToolResult(
