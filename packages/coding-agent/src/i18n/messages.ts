@@ -1923,7 +1923,6 @@ export interface Messages {
 	cmdSecurityCompare: string;
 	cmdSecurityDisposition: string;
 	cmdSettings: string;
-	cmdSettingsReset: string;
 	cmdTwoFactor: string;
 	cmdTwoFactorStatus: string;
 	cmdTwoFactorUsage: string;
@@ -1932,6 +1931,7 @@ export interface Messages {
 	cmdChannelsInstances: string;
 	cmdChannelsEnableInstance: string;
 	cmdChannelsDisableInstance: string;
+	cmdSettingsReset: string;
 	settingsResetConfirmHint: string;
 	settingsResetDoneFmt: string;
 	settingsResetKeyDoneFmt: string;

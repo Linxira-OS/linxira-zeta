@@ -266,7 +266,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "settings",
 		description: "Open settings menu",
 		allowArgs: true,
-		subcommands: [{ name: "reset", description: "Reset configured settings to defaults", usage: "[confirm|<key>]" }],
+		subcommands: [{ name: "reset", description: () => M.cmdSettingsReset, usage: "[confirm|<key>]" }],
 		handleTui: async (command, runtime) => {
 			const raw = command.args.trim();
 			const settings = runtime.ctx.settings;
