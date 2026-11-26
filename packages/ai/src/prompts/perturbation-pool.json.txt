@@ -19130,14 +19130,6 @@
 			"manual": true
 		},
 		{
-			"source": "`path`: one directory or file, host path or internal URL (zeta://, zeta://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope known subsystem; batch related questions. Searches live files, no index; no :start-end selector (judges whole files).",
-			"origin": "tools/find.md",
-			"variants": [
-				"`path`: one directory or file, host path or internal URL (zeta://, zeta://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope known subsystem; batch related questions. Searches live files, no index; no :start-end selector (judges whole files)."
-			],
-			"manual": true
-		},
-		{
 			"source": "`tea` op wrapper for self-hosted Gitea (and gitea.com): repos, issues, PRs, releases, and Actions runs. Reads via the Gitea API through `tea api`; creates verify by readback.",
 			"origin": "tools/gitea.md",
 			"variants": [
@@ -19238,14 +19230,6 @@
 			"origin": "tools/gitea.md",
 			"variants": [
 				"Self-hosted Gitea entity reads: MUST use this tool; NEVER `curl`/`wget`. Requires `gitea.enabled` and an authenticated `tea` CLI (`tea login add`)."
-			],
-			"manual": true
-		},
-		{
-			"source": "Glob files/dirs: `;`-separated paths or internal URLs (local://*.md, zeta://**/*.md); default workspace root.",
-			"origin": "tools/glob.md",
-			"variants": [
-				"Glob files/dirs: `;`-separated paths or internal URLs (local://*.md, zeta://**/*.md); default workspace root."
 			],
 			"manual": true
 		},
@@ -21038,6 +21022,174 @@
 				"- Unconstrained input: `<input type=\"text|number|date|email|url\">`, <textarea>; placeholder, min/max, pattern, required are hints only: broken answers get flagged, never blocked, so answers MAY break them.",
 				"- Open input: `<input type=\"text|number|date|email|url\">`, <textarea>; placeholder, min/max, pattern, required are hints: broken answers get flagged, never blocked, hence answers MAY break them."
 			]
+		},
+		{
+			"source": "description: 'Populate via incremental yield sections under type: [\"findings\"]; don''t repeat it in a final payload.'",
+			"origin": "agents/reviewer.md",
+			"variants": [
+				"description: 'Populate via incremental yield sections under type: [\"findings\"]; don''t repeat it in a final payload.'"
+			],
+			"manual": true
+		},
+		{
+			"source": "ssh://host/<path>: max 1 MiB. /~~/path and /~~ use the connected remote account's HOME, not local HOME; /~user is unsupported, /%7E/ is literal. Encode : ? # as %3A %3F %23. Needs verified POSIX shell; else bash remote SSH or sshfs.",
+			"origin": "internal-urls/ssh-reference.md",
+			"variants": [
+				"ssh://host/<path>: max 1 MiB. /~~/path and /~~ use the connected remote account's HOME, not local HOME; /~user is unsupported, /%7E/ is literal. Encode : ? # as %3A %3F %23. Needs verified POSIX shell; else bash remote SSH or sshfs."
+			],
+			"manual": true
+		},
+		{
+			"source": "- zetacode decides from the user's setting when input takes over their pointer and keyboard; you never choose it and need not ask the user about it.",
+			"origin": "system/computer-use.md",
+			"variants": [
+				"- zetacode decides from the user's setting when input takes over their pointer and keyboard; you never choose it and need not ask the user about it."
+			],
+			"manual": true
+		},
+		{
+			"source": "{\"title\":\"CI · 6 jobs\",\"rules\":[{\"from\":\"_\",\"match\":\"^(?P<mark>[✓✗_-])\\\\s+(?P<name>\\\\S+)\",\"key\":\"name\",\"text\":\"mark\"}],\"blocks\":[{\"kind\":\"grid\",\"field\":\"mark\",\"label\":\"jobs\",\"tones\":{\"✓\":\"success\",\"✗\":\"error\",\"*\":\"pending\",\"-\":\"muted\"}}]}",
+			"origin": "system/job-widget-system.md",
+			"variants": [
+				"{\"title\":\"CI · 6 jobs\",\"rules\":[{\"from\":\"_\",\"match\":\"^(?P<mark>[✓✗_-])\\\\s+(?P<name>\\\\S+)\",\"key\":\"name\",\"text\":\"mark\"}],\"blocks\":[{\"kind\":\"grid\",\"field\":\"mark\",\"label\":\"jobs\",\"tones\":{\"✓\":\"success\",\"✗\":\"error\",\"*\":\"pending\",\"-\":\"muted\"}}]}"
+			],
+			"manual": true
+		},
+		{
+			"source": "\"scope\": [\"tool:edit(_.ts)\", \"tool:edit(_.tsx)\", \"tool:write(_.ts)\", \"tool:write(_.tsx)\"],",
+			"origin": "system/omfg-user.md",
+			"variants": [
+				"\"scope\": [\"tool:edit(_.ts)\", \"tool:edit(_.tsx)\", \"tool:write(_.ts)\", \"tool:write(_.tsx)\"],"
+			],
+			"manual": true
+		},
+		{
+			"source": "\"scope\": [\"tool:edit(_.go)\", \"tool:write(_.go)\"],",
+			"origin": "system/omfg-user.md",
+			"variants": [
+				"\"scope\": [\"tool:edit(_.go)\", \"tool:write(_.go)\"],"
+			],
+			"manual": true
+		},
+		{
+			"source": "- nf: the Nerd Fonts class name (nf-md-_, nf-cod-_, nf-dev-_, nf-fa-_, nf-oct-_, nf-seti-_) of the most specific picture of this session's subject, one that tells it apart from the user's other sessions in the same project:",
+			"origin": "system/title-card.md",
+			"variants": [
+				"- nf: the Nerd Fonts class name (nf-md-_, nf-cod-_, nf-dev-_, nf-fa-_, nf-oct-_, nf-seti-_) of the most specific picture of this session's subject, one that tells it apart from the user's other sessions in the same project:"
+			],
+			"manual": true
+		},
+		{
+			"source": "- `calls({tool, match, result, error, flags, project, subagents, since, until, limit})` → tool calls, newest first: `[{session, agent, project, file, at, entry, callId, tool, args, result, resultChars, isError, reasoning, model, version}]`. `tool`: name or list; `match`: regex over every string inside the arguments; `result`: regex over the result text; `error: true` keeps failed calls, `false` succeeded ones. `reasoning`: last 4,000 characters of the thinking and reply before the call; `version`: zetacode version that ran it.",
+			"origin": "tools/archive.md",
+			"variants": [
+				"- `calls({tool, match, result, error, flags, project, subagents, since, until, limit})` → tool calls, newest first: `[{session, agent, project, file, at, entry, callId, tool, args, result, resultChars, isError, reasoning, model, version}]`. `tool`: name or list; `match`: regex over every string inside the arguments; `result`: regex over the result text; `error: true` keeps failed calls, `false` succeeded ones. `reasoning`: last 4,000 characters of the thinking and reply before the call; `version`: zetacode version that ran it."
+			],
+			"manual": true
+		},
+		{
+			"source": "Elevated commands (`sudo`/UAC): user-consented only, NEVER silent. Prefer `pty: true` — the user types the password / approves UAC in the visible overlay; when unavailable, pop out a visible window (`Start-Process … -Verb RunAs` on Windows, `x-terminal-emulator -e bash -lc 'sudo …'` elsewhere) with output through a temp file you read and delete. Try non-elevated first; state the exact command before elevating; the deny list applies to both paths.",
+			"origin": "tools/bash.md",
+			"variants": [
+				"Elevated commands (`sudo`/UAC): user-consented only, NEVER silent. Prefer `pty: true` — the user types the password / approves UAC in the visible overlay; when unavailable, pop out a visible window (`Start-Process … -Verb RunAs` on Windows, `x-terminal-emulator -e bash -lc 'sudo …'` elsewhere) with output through a temp file you read and delete. Try non-elevated first; state the exact command before elevating; the deny list applies to both paths."
+			],
+			"manual": true
+		},
+		{
+			"source": "- Relay tabs zetacode opened close when the session ends. For a page you leave open for the user, pass `persist: true` to `open`;",
+			"origin": "tools/browser-core.md",
+			"variants": [
+				"- Relay tabs zetacode opened close when the session ends. For a page you leave open for the user, pass `persist: true` to `open`;"
+			],
+			"manual": true
+		},
+		{
+			"source": "- It does not change delivery, which zetacode decides from the user's setting (below).",
+			"origin": "tools/computer.md",
+			"variants": [
+				"- It does not change delivery, which zetacode decides from the user's setting (below)."
+			],
+			"manual": true
+		},
+		{
+			"source": "- When a background route is unavailable, zetacode reruns that call in takeover, hands the keyboard back to the user's window and says what it did in the output",
+			"origin": "tools/computer.md",
+			"variants": [
+				"- When a background route is unavailable, zetacode reruns that call in takeover, hands the keyboard back to the user's window and says what it did in the output"
+			],
+			"manual": true
+		},
+		{
+			"source": "Glob files/dirs: `;`-separated paths or internal URLs (local://_.md, zeta://\\**/_.md); default workspace root.",
+			"origin": "tools/glob.md",
+			"variants": [
+				"Glob files/dirs: `;`-separated paths or internal URLs (local://_.md, zeta://\\**/_.md); default workspace root."
+			],
+			"manual": true
+		},
+		{
+			"source": "| `action`  | Required                                            | Effect                                                                                                                |",
+			"origin": "tools/super-memory.md",
+			"variants": [
+				"| `action`  | Required                                            | Effect                                                                                                                |"
+			],
+			"manual": true
+		},
+		{
+			"source": "| --------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |",
+			"origin": "tools/super-memory.md",
+			"variants": [
+				"| --------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |"
+			],
+			"manual": true
+		},
+		{
+			"source": "| `record`  | `statement`, `category`, `polarity`, `evidenceText` | Queue one preference candidate. `evidenceText` must be a verbatim substring of the user's message.                    |",
+			"origin": "tools/super-memory.md",
+			"variants": [
+				"| `record`  | `statement`, `category`, `polarity`, `evidenceText` | Queue one preference candidate. `evidenceText` must be a verbatim substring of the user's message.                    |"
+			],
+			"manual": true
+		},
+		{
+			"source": "| `query`   | —                                                   | List stored preferences with their confidence, mentions and last use. `query` filters by text, `limit` caps the rows. |",
+			"origin": "tools/super-memory.md",
+			"variants": [
+				"| `query`   | —                                                   | List stored preferences with their confidence, mentions and last use. `query` filters by text, `limit` caps the rows. |"
+			],
+			"manual": true
+		},
+		{
+			"source": "| `resolve` | `topicKey`, `keep`                                  | Resolve a recorded conflict: `keep: \"prefer\"` or `\"avoid\"` keeps that side and clears the other's conflict mark.      |",
+			"origin": "tools/super-memory.md",
+			"variants": [
+				"| `resolve` | `topicKey`, `keep`                                  | Resolve a recorded conflict: `keep: \"prefer\"` or `\"avoid\"` keeps that side and clears the other's conflict mark.      |"
+			],
+			"manual": true
+		},
+		{
+			"source": "| `forget`  | `statement`                                         | Delete an entry and leave a retraction.                                                                               |",
+			"origin": "tools/super-memory.md",
+			"variants": [
+				"| `forget`  | `statement`                                         | Delete an entry and leave a retraction.                                                                               |"
+			],
+			"manual": true
+		},
+		{
+			"source": "| `stats`   | —                                                   | Counts per category, queued candidates, unresolved conflicts, retractions.                                            |",
+			"origin": "tools/super-memory.md",
+			"variants": [
+				"| `stats`   | —                                                   | Counts per category, queued candidates, unresolved conflicts, retractions.                                            |"
+			],
+			"manual": true
+		},
+		{
+			"source": "**Memory boundary.** Tracking records _process_ state only — phase, progress, blockers, plan mirrors, the action log. It is NEVER a store for learned knowledge facts: durable facts belong to the memory tools (`retain`, `recall`, `memory_edit`). Keep the two stores disjoint.",
+			"origin": "tools/tracking.md",
+			"variants": [
+				"**Memory boundary.** Tracking records _process_ state only — phase, progress, blockers, plan mirrors, the action log. It is NEVER a store for learned knowledge facts: durable facts belong to the memory tools (`retain`, `recall`, `memory_edit`). Keep the two stores disjoint."
+			],
+			"manual": true
 		}
 	]
 }
