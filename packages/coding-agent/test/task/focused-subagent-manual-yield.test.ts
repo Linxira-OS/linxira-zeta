@@ -143,7 +143,7 @@ async function spawnKeptAliveChild(options?: { handler?: MockHandler; structured
 			id: AGENT_ID,
 			parentAgentId: PARENT_ID,
 			asyncJobManager: manager,
-			...(options?.structured ? { outputSchema: {} } : {}),
+			outputSchema: options?.structured === false ? undefined : {},
 			modelOverride: "mock/mock-model",
 			authStorage,
 			modelRegistry,
@@ -230,6 +230,7 @@ it("publishes a consumed parent injection during a peer wake without publishing 
 	const releasePeer = Promise.withResolvers<void>();
 	let request = 0;
 	const child = await spawnKeptAliveChild({
+		structured: false,
 		enableIrc: true,
 		handler: async () => {
 			request++;
@@ -294,6 +295,7 @@ for (const source of ["queued steering", "async completion"] as const) {
 		const releaseContinuation = Promise.withResolvers<void>();
 		let request = 0;
 		const child = await spawnKeptAliveChild({
+			structured: false,
 			enableIrc: true,
 			handler: async () => {
 				request++;

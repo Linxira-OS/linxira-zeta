@@ -514,6 +514,7 @@ it("keeps a structured follow-up's yield when a peer message arrives as a turn o
 			agent: { name: "task", description: "test", systemPrompt: "test", tools: ["read"], source: "bundled" },
 			message: "report again",
 			artifactsDir: child.artifactsDir,
+			outputSchema: {},
 		});
 		expect((await peerSent)?.outcome).not.toBe("failed");
 		expect(followUp.output).toContain("FOLLOW_UP");
