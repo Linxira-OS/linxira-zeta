@@ -313,6 +313,7 @@ export function normalizePreviewUrl(raw: string): string {
 	} catch {
 		throw new Error(invalid);
 	}
-	if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) throw new Error(invalid);
+	if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password)
+		throw new Error(invalid);
 	return url.href;
 }

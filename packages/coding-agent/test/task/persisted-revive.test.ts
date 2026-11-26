@@ -1791,15 +1791,12 @@ describe("persisted subagent revival", () => {
 			const delivered: IrcMessage[] = [];
 			// The waker is already registered by reviveWithWaker; attach the live
 			// delivery stub to that ref instead of registering the id again.
-			AgentRegistry.global().attachSession(
-				"Main",
-				{
-					deliverIrcMessage: async (msg: IrcMessage) => {
-						delivered.push(msg);
-						return "injected" as const;
-					},
-				} as unknown as AgentSession,
-			);
+			AgentRegistry.global().attachSession("Main", {
+				deliverIrcMessage: async (msg: IrcMessage) => {
+					delivered.push(msg);
+					return "injected" as const;
+				},
+			} as unknown as AgentSession);
 			const bus = IrcBus.global();
 			const finish = observer?.([wakeRecord("Main")]);
 			await bus.send({ from: ref.id, to: "Main", body: "on it" });

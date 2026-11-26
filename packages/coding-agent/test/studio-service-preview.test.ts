@@ -201,8 +201,7 @@ describe("Studio Agent-created service previews", () => {
 			// Model an older daemon that still speaks the same protocol, but would
 			// silently discard previewUrl if the new Agent sent it an open request.
 			vi.spyOn(client, "request").mockImplementation(async (operation, signal) => {
-				if (operation.op === "ping")
-					return { pid: process.pid, build: client.welcome.daemon.build };
+				if (operation.op === "ping") return { pid: process.pid, build: client.welcome.daemon.build };
 				return request(operation, signal);
 			});
 			for (const name of ["new-server", "server"]) {

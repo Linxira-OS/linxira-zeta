@@ -366,8 +366,7 @@ export async function startService(
 		// An older resident daemon would silently drop the field and start the
 		// service without its preview; refuse before it replaces anything.
 		const ping = await requestService(session, { op: "ping" });
-		if (ping.previewUrls !== true)
-			throw new ToolError("This project broker does not support preview URLs");
+		if (ping.previewUrls !== true) throw new ToolError("This project broker does not support preview URLs");
 	}
 	const scope = await sessionScope(session);
 	const shell = session.settings.getShellConfig();
