@@ -2231,6 +2231,7 @@ export interface Messages {
 	cmdFastAcp: string;
 	cmdComputerAcp: string;
 	cmdPrewalkAcp: string;
+	cmdBranch: string;
 	cmdPrewalkRestart: string;
 	cmdPrewalkOff: string;
 	cmdTodoAcp: string;

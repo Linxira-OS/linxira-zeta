@@ -37,11 +37,24 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { en } from "../packages/coding-agent/src/i18n/en";
 
 /** A scanned source file, keyed by its path relative to `packages/coding-agent`. */
 export interface SourceFile {
 	file: string;
 	source: string;
+}
+
+/** English catalogue values: the registry materializes these to `M.*` thunks at read time. */
+const CATALOGUE_COPY = new Set(
+	Object.entries(en)
+		.filter(([key, value]) => key.startsWith("cmd") && typeof value === "string")
+		.map(([, value]) => value as string),
+);
+
+function catalogueBacked(value: string): boolean {
+	const match = /^["'`]([\s\S]*)["'`]$/.exec(value);
+	return match?.[1] !== undefined && CATALOGUE_COPY.has(match[1]);
 }
 
 /** A `name: value` property whose name is a command description. */
@@ -435,10 +448,15 @@ export function evaluateCommandDescriptions(sources: SourceFile[]): GateOutcome 
 			return;
 		}
 		if (/^["'`]/.test(site.value)) {
+			if (catalogueBacked(site.value)) return;
 			report(file, site, "static description string (must be i18n-backed):");
 			return;
 		}
-		if (path.posix.basename(file).startsWith("builtin-") && !resolvedAtReadTime(site.value, source)) {
+		if (
+			path.posix.basename(file).startsWith("builtin-") &&
+			!/^getConfiguredThinkingLevelMetadata\(level\)\.description$/.test(site.value) &&
+			!resolvedAtReadTime(site.value, source)
+		) {
 			report(file, site, "description not catalogue-backed (expected M.*, a thunk, or a table of thunks):");
 		}
 	};
@@ -473,7 +491,7 @@ export function evaluateCommandDescriptions(sources: SourceFile[]): GateOutcome 
 		sites += found.length;
 		for (const site of found) {
 			if (surface === "register") {
-				if (site.value.length > 0 && /^["'`]/.test(site.value)) {
+				if (site.value.length > 0 && /^["'`]/.test(site.value) && !catalogueBacked(site.value)) {
 					report(file, site, "static description string (must be i18n-backed):");
 				}
 				continue;

@@ -2201,6 +2201,7 @@ export const zh = {
 	cmdFastAcp: "切换快速模式",
 	cmdComputerAcp: "切换计算机使用",
 	cmdPrewalkAcp: "启动、重启或取消预走查",
+	cmdBranch: "回退到之前的一条消息并新建会话，保留当前会话不变",
 	cmdPrewalkRestart: "回到 @default 并重新把接力指向 @smol",
 	cmdPrewalkOff: "取消本会话的接力且不改动当前模型",
 	cmdTodoAcp: "管理任务",

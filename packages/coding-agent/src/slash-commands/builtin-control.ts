@@ -6,6 +6,7 @@ import { clearSubmittedText } from "./helpers/draft";
 import { shutdownHandlerTui } from "./helpers/shutdown";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
+import { M } from "../i18n";
 import { agentPauseGate } from "@linxiraos/pi-agent-core";
 import { signal } from "@linxiraos/pi-tui";
 import type { InteractiveModeContext } from "../modes/types";
@@ -146,7 +147,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "record",
 		icon: "export",
-		description: "Start or stop recording this screen to a replayable file (zetacode play)",
+		description: M.cmdRecord,
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.toggleRecording();

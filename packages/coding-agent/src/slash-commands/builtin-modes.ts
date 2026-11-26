@@ -30,6 +30,7 @@ import { noThinkingMessage, resolveThinkingArgument } from "./helpers/effort";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { handleSecurityCommand } from "./helpers/security";
 import type { SlashCommandSpec } from "./types";
+import { M } from "../i18n";
 import {
 	cfgComputerDisplay,
 	cfgComputerEnabled,
@@ -519,13 +520,12 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "fast",
 		icon: "fast",
-		description:
-			"Toggle fast service (OpenAI service_tier=priority or ultrafast, Anthropic speed=fast, Google priority)",
+		description: M.cmdFast,
 		acpDescription: "Toggle fast mode",
 		acpInputHint: "[on|ultra|off|status]",
 		subcommands: [
-			{ name: "on", description: "Enable fast mode (priority tier)" },
-			{ name: "ultra", description: "Enable Ultrafast (OpenAI API, or Codex and relay models that offer it)" },
+			{ name: "on", description: M.cmdFastOn },
+			{ name: "ultra", description: M.cmdFastUltra },
 			{ name: "off", description: "Disable fast mode" },
 			{ name: "status", description: "Show fast mode status" },
 		],
@@ -744,7 +744,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		subcommands: [
 			{
 				name: "restart",
-				description: "Return to the planning model and re-arm the handoff (default prewalk.from → prewalk.into)",
+				description: M.cmdPrewalkRestart,
 				usage: "[from] [into]",
 			},
 			{ name: "off", description: "Cancel this session's handoff without changing the active model" },

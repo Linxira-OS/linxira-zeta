@@ -2233,6 +2233,7 @@ export const en = {
 	cmdFastAcp: "Toggle fast mode",
 	cmdComputerAcp: "Toggle computer use",
 	cmdPrewalkAcp: "Arm, restart, or cancel prewalk",
+	cmdBranch: "Rewind to a previous message in a new session, keeping this one unchanged",
 	cmdPrewalkRestart: "Return to @default and re-arm the handoff to @smol",
 	cmdPrewalkOff: "Cancel this session's handoff without changing the active model",
 	cmdTodoAcp: "Manage todos",
