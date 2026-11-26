@@ -8,7 +8,7 @@ import type { ToolSession } from "../tools";
 import { resolveToolTier } from "../tools/approval";
 import { dispatchReportIssueDevice, reportIssueDeviceUsage } from "../tools/report-tool-issue";
 import { dispatchResolutionDevice, resolutionDeviceUsage } from "../tools/resolve";
-import { dispatchXdevTool, resolveXdevTool, xdevDocs, xdevListing } from "../tools/xdev";
+import { dispatchXdevTool, resolveXdevTool, type XdevState, xdevDocs, xdevListing } from "../tools/xdev";
 import type {
 	InternalResource,
 	InternalUrl,
@@ -22,6 +22,23 @@ import type {
 const ENABLE_DEVICE_NAME = "enable";
 
 const NOT_MOUNTED = "xd:// is not mounted in this session.";
+
+/**
+ * The session's `xd://` presentation state, or a device view over the live tool
+ * registry when the host supplied none: the write transport still dispatches
+ * the session's active top-level tools (and a tool enabled at runtime, such as
+ * `goal`), exactly as `xd://<tool>` documents.
+ */
+function sessionXdev(session: ToolSession): XdevState | undefined {
+	if (session.xdev) return session.xdev;
+	if (!session.toolRegistry) return undefined;
+	return {
+		tools: session.toolRegistry,
+		mountedNames: new Set(),
+		builtInNames: new Set(),
+		isActive: name => session.isToolActive?.(name) === true,
+	};
+}
 
 /**
  * Approval tier for `write xd://<device>`: the mounted tool's own
@@ -93,7 +110,7 @@ export class XdProtocolHandler implements ProtocolHandler {
 			const { result, xdev } = await dispatchResolutionDevice(session, name, content);
 			return { content: result.content, details: { xdev }, isError: result.isError, useless: result.useless };
 		}
-		const xdev = session.xdev;
+		const xdev = sessionXdev(session);
 		if (!xdev) throw new ToolError(NOT_MOUNTED);
 		if (!name) throw new ToolError(`Cannot write to xd:// itself — pick a device:\n${xdevListing(xdev)}`);
 		if (name === ENABLE_DEVICE_NAME) {
@@ -141,7 +158,7 @@ export class XdProtocolHandler implements ProtocolHandler {
 	#usage(session: ToolSession, name: string | null): string {
 		if (name === REPORT_ISSUE_DEVICE_NAME) return reportIssueDeviceUsage();
 		if (name && isResolutionDeviceName(name)) return resolutionDeviceUsage(name);
-		const xdev = session.xdev;
+		const xdev = sessionXdev(session);
 		if (!xdev) throw new ToolError(NOT_MOUNTED);
 		return name === null ? xdevListing(xdev) : xdevDocs(xdev, name);
 	}

@@ -748,6 +748,7 @@ subprocessToolRegistry.register<YieldDetails>("yield", {
 			status,
 			error: typeof record.error === "string" ? record.error : undefined,
 			type: isYieldType(record.type) ? record.type : undefined,
+			useLastTurn: record.useLastTurn === true ? true : undefined,
 			complete: record.complete === true ? true : undefined,
 			schemaOverridden: record.schemaOverridden === true ? true : undefined,
 		};

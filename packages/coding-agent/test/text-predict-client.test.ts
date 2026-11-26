@@ -1,89 +1,144 @@
+/**
+ * Client half of text prediction: the unified daemon owns build/version
+ * replacement (see `daemon/reexec.test.ts`); this client opens the `predict`
+ * unit for its agent directory, leases it, and routes complete/feedback calls.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
-import { IpcServer } from "@linxiraos/pi-natives";
-import { getAgentDir, VERSION } from "@linxiraos/pi-utils";
-import * as launchClient from "../src/launch/client";
-import { closeTextPrediction, requestTextPrediction } from "../src/predict/client";
-import { type TextPredictRequest, type TextPredictResponse, textPredictDaemon } from "../src/predict/protocol";
+import * as daemonClient from "../src/daemon/client";
+import type { DaemonClient } from "../src/daemon/protocol";
+import { closeTextPrediction, requestTextPrediction, TextPredictionClient } from "../src/predict/client";
+import { TEXT_PREDICT_KIND, type TextPredictReply } from "../src/predict/protocol";
 import { rejectionOf } from "./helpers/rejection";
 
-const cleanups: (() => Promise<void>)[] = [];
+interface OpenRequest {
+	kind: string;
+	scope: string;
+	key: string;
+	params: {
+		agentDir: string;
+		historyDbPath: string;
+		modelDir: string;
+		stateDirs: Record<string, string>;
+	};
+}
+
+interface CallRecord {
+	method: string;
+	params: unknown;
+	unit: string;
+}
+
+function fakeDaemon(reply: (method: string, params: unknown) => TextPredictReply<unknown>) {
+	const opens: OpenRequest[] = [];
+	const calls: CallRecord[] = [];
+	const released: string[] = [];
+	const client = {
+		async open(request: OpenRequest) {
+			opens.push(request);
+			return { unit: { id: "predict-unit" }, lease: "predict-lease" };
+		},
+		async call(kind: string, method: string, params: unknown, options: { unit: string }) {
+			expect(kind).toBe(TEXT_PREDICT_KIND);
+			calls.push({ method, params, unit: options.unit });
+			return reply(method, params);
+		},
+		async release(lease: string) {
+			released.push(lease);
+		},
+		onReconnect() {
+			return () => {};
+		},
+	} as unknown as DaemonClient;
+	return { client, opens, calls, released };
+}
 
 beforeEach(closeTextPrediction);
 
-afterEach(async () => {
+afterEach(() => {
 	closeTextPrediction();
 	vi.restoreAllMocks();
-	for (const cleanup of cleanups.splice(0)) await cleanup();
 });
 
-/**
- * Serve the text-predict endpoint as a daemon of `version` and route the
- * client's broker to a stand-in that knows no daemons, so the client can only
- * use this daemon or fail. Returns the ops the daemon received.
- */
-async function serveDaemon(version: string): Promise<string[]> {
-	const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-text-predict-client-"));
-	const received: string[] = [];
-	const server = await IpcServer.listen(
-		textPredictDaemon(runtimeDir, getAgentDir()).endpoint,
-		{ framing: "lines" },
-		connection => {
-			connection.start(
-				line => {
-					const request = JSON.parse(line) as TextPredictRequest;
-					received.push(request.op);
-					const response: TextPredictResponse =
-						request.op === "ping"
-							? { id: request.id, ok: true, op: "ping", version, pid: process.pid, engines: [] }
-							: request.op === "complete"
-								? { id: request.id, ok: true, op: "complete", suggestion: { suffix: "ady", confidence: 0.9 } }
-								: request.op === "shutdown"
-									? { id: request.id, ok: true, op: "shutdown" }
-									: { id: request.id, ok: false, error: `unexpected ${request.op}` };
-					connection.send(JSON.stringify(response));
+describe("text-predict client", () => {
+	it("opens the predict unit for its agent directory and reuses it across calls", async () => {
+		const daemon = fakeDaemon(() => ({
+			ok: true,
+			value: { suffix: "ady", confidence: 0.9 },
+		}));
+		const daemonSpy = vi.spyOn(daemonClient, "daemonClient").mockResolvedValue(daemon.client);
+		const client = new TextPredictionClient({ agentDirectory: "/agent/dir", downloadWeights: false });
+
+		try {
+			const prediction = await client.complete("ngram", "please ", "re");
+			expect(prediction).toEqual({
+				engine: "ngram",
+				suggestion: { suffix: "ady", confidence: 0.9 },
+			});
+			expect(daemon.opens).toHaveLength(1);
+			expect(daemon.opens[0]).toMatchObject({
+				kind: TEXT_PREDICT_KIND,
+				params: { agentDir: "/agent/dir" },
+			});
+			expect(daemon.calls).toEqual([
+				{
+					method: "complete",
+					params: { method: "ngram", before: "please ", prefix: "re" },
+					unit: "predict-unit",
 				},
-				() => {},
-			);
-		},
-	);
-	vi.spyOn(launchClient, "daemonClientForGlobal").mockResolvedValue({
-		projectDir: runtimeDir,
-		onCompletion: () => () => {},
-		request: async operation => {
-			if (operation.op === "ping") return { op: "ping", projectDir: runtimeDir };
-			throw new launchClient.DaemonBrokerRejectedError(`no daemon ${operation.op} in this test`);
-		},
-		close: () => {},
-	});
-	cleanups.push(async () => {
-		await server.close();
-		await fs.rm(runtimeDir, { recursive: true, force: true });
-	});
-	return received;
-}
+			]);
 
-describe("text-predict client against a daemon from another zetacode version", () => {
-	it("uses a daemon from a newer zetacode instead of shutting it down", async () => {
-		// After an in-place upgrade, a session still running the old build must not
-		// stop the daemon every session on the new build is using.
-		const [major] = VERSION.split(".");
-		const received = await serveDaemon(`${Number(major) + 1}.0.0`);
-
-		const prediction = await requestTextPrediction("ngram", "please ", "re");
-
-		expect(prediction).toEqual({ engine: "ngram", suggestion: { suffix: "ady", confidence: 0.9 } });
-		expect(received).toEqual(["ping", "complete"]);
+			await client.complete("ngram", "please ", "re");
+			expect(daemon.opens).toHaveLength(1);
+			expect(daemon.calls).toHaveLength(2);
+		} finally {
+			daemonSpy.mockRestore();
+		}
 	});
 
-	it("shuts down a daemon from an older zetacode so this version's can start", async () => {
-		const received = await serveDaemon("0.0.1");
+	it("surfaces an engine error reply and keeps the unit open for the next call", async () => {
+		const daemon = fakeDaemon(() => ({ ok: false, error: "ngram failed to load" }));
+		const daemonSpy = vi.spyOn(daemonClient, "daemonClient").mockResolvedValue(daemon.client);
+		const client = new TextPredictionClient({ agentDirectory: "/agent/dir", downloadWeights: false });
 
-		const error = await rejectionOf(requestTextPrediction("ngram", "please ", "re"));
-		expect(error).toMatchObject({ message: "text-predict daemon did not start" });
-		expect(received).toContain("shutdown");
-		expect(received).not.toContain("complete");
+		try {
+			const error = await rejectionOf(client.complete("ngram", "before ", "p"));
+			expect(error).toMatchObject({ message: "text-predict complete: ngram failed to load" });
+
+			await rejectionOf(client.complete("ngram", "before ", "p"));
+			expect(daemon.opens).toHaveLength(1);
+			expect(daemon.calls).toHaveLength(2);
+		} finally {
+			daemonSpy.mockRestore();
+		}
+	});
+
+	it("releases the lease when the client closes", async () => {
+		const daemon = fakeDaemon(() => ({ ok: true, value: null }));
+		const daemonSpy = vi.spyOn(daemonClient, "daemonClient").mockResolvedValue(daemon.client);
+		const client = new TextPredictionClient({ agentDirectory: "/agent/dir", downloadWeights: false });
+
+		try {
+			await client.complete("ngram", "before ", "p");
+			client.close();
+			expect(daemon.released).toEqual(["predict-lease"]);
+		} finally {
+			daemonSpy.mockRestore();
+		}
+	});
+
+	it("does not retry a daemon that could not be reached", async () => {
+		const daemonSpy = vi
+			.spyOn(daemonClient, "daemonClient")
+			.mockRejectedValue(new Error("The zetacode daemon did not answer"));
+		try {
+			const error = await rejectionOf(requestTextPrediction("ngram", "please ", "re"));
+			expect(error).toMatchObject({ message: "The zetacode daemon did not answer" });
+
+			const second = await rejectionOf(requestTextPrediction("ngram", "please ", "re"));
+			expect(second).toMatchObject({ message: "text-predict unavailable" });
+			expect(daemonSpy).toHaveBeenCalledTimes(1);
+		} finally {
+			daemonSpy.mockRestore();
+		}
 	});
 });

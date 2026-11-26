@@ -22,7 +22,7 @@ import { TempDir } from "@linxiraos/pi-utils";
 
 const DAEMON_TEST_TIMEOUT_MS = 60_000;
 const WAIT_MS = 15_000;
-const HEALTH_PATH = "/.well-known/omp-blob-health";
+const HEALTH_PATH = "/.well-known/zeta-blob-health";
 
 /** Teardown never waits on how fast a process exits: whatever is still running is gone after this. */
 function killQuietly(pid: number): void {

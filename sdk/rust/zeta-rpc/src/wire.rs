@@ -4408,7 +4408,7 @@ pub struct PromptError {
 	pub model: Option<String>,
 	#[serde(rename = "httpStatus", default, skip_serializing_if = "Option::is_none")]
 	pub http_status: Option<i64>,
-	/// `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and omp did not send the next request.
+	/// `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and zetacode did not send the next request.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub code: Option<LitCostCap>,
 }
@@ -5793,7 +5793,7 @@ pub struct GetModelPickerParams {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetThinkingLevelParams {
-	/// `auto` lets omp pick the effort per turn.
+	/// `auto` lets zetacode pick the effort per turn.
 	pub level: ConfiguredThinkingLevel,
 }
 
@@ -7203,7 +7203,7 @@ impl Command for GetModelPickerCommand {
 /// Set the thinking level.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetThinkingLevelCommand {
-	/// `auto` lets omp pick the effort per turn.
+	/// `auto` lets zetacode pick the effort per turn.
 	pub level: ConfiguredThinkingLevel,
 }
 

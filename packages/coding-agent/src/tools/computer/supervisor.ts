@@ -309,6 +309,8 @@ export class ComputerSupervisor implements ComputerController {
 			this.#startingRuns.delete(session);
 		}
 		if (signal?.aborted || epoch !== this.#controlEpoch) throw new ToolAbortError();
+		const currentSessionId =
+			this.#session.getComputerSessionId?.() ?? this.#session.getSessionId?.() ?? this.#session.getEvalSessionId?.();
 		if (
 			(currentSessionId !== undefined && currentSessionId !== snapshot.sessionId) ||
 			this.#session.getSessionInstanceKey?.() !== instanceKey

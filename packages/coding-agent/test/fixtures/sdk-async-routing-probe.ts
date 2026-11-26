@@ -60,6 +60,9 @@ const model = createMockModel({
 									agent: "task",
 									task: "Return initial child result.",
 									solutionSpace: "Report only.",
+									// 19.2 gives `yield` only to schema-bearing subagents; the correction
+									// turn's terminal yield is what reaches the owner as an async-result.
+									outputSchema: { type: "string" },
 								},
 							],
 						},

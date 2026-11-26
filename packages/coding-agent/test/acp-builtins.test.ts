@@ -256,6 +256,9 @@ function createRuntime() {
 			return true;
 		},
 	};
+	// The real session carries its manager; `/context` reads the conversation
+	// compaction override from it.
+	(typedSession as unknown as Record<string, unknown>).sessionManager = fakeSessionManager;
 	return {
 		output,
 		session,

@@ -5143,7 +5143,7 @@ type PromptError struct {
 	Provider   *string `json:"provider,omitempty"`
 	Model      *string `json:"model,omitempty"`
 	HTTPStatus *int64  `json:"httpStatus,omitempty"`
-	// `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and omp did not send the next request.
+	// `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and zetacode did not send the next request.
 	Code *PromptErrorCode `json:"code,omitempty"`
 }
 
@@ -8701,7 +8701,7 @@ func (c Commands) GetModelPicker(ctx context.Context, p GetModelPickerCommand) (
 
 // SetThinkingLevelCommand holds the parameters of "set_thinking_level".
 type SetThinkingLevelCommand struct {
-	// `auto` lets omp pick the effort per turn.
+	// `auto` lets zetacode pick the effort per turn.
 	Level ConfiguredThinkingLevel `json:"level"`
 }
 

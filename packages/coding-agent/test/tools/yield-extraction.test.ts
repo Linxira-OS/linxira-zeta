@@ -27,6 +27,8 @@ describe("yield subprocess extraction", () => {
 			error: undefined,
 			type: ["notes"],
 			useLastTurn: true,
+			complete: undefined,
+			schemaOverridden: undefined,
 		});
 	});
 

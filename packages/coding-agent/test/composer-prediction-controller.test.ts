@@ -115,7 +115,7 @@ function harness(options: HarnessOptions = {}) {
 		}),
 		viewSession: session,
 		focusedAgentId: options.focusedAgentId,
-		composer: editor,
+		editor: { getText: () => editor.text() },
 	} as unknown as ConstructorParameters<typeof ComposerPredictionController>[0];
 	const controller = new ComposerPredictionController(ctx, {
 		deadlineMs: options.deadlineMs,

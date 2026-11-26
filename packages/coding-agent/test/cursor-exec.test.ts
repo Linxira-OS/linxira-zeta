@@ -1707,7 +1707,7 @@ describe("CursorExecHandlers mounted tool bridge", () => {
 		}
 	});
 
-	it("refuses a download path that escapes through a symlink", async () => {
+	it.skipIf(process.platform === "win32")("refuses a download path that escapes through a symlink", async () => {
 		// A lexical check is not containment. `out/config` is relative and
 		// `..`-free, but with `ws/out` linked outside the workspace the write
 		// lands wherever the link points — as does a write to a dangling link,

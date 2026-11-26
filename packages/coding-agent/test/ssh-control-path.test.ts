@@ -34,16 +34,16 @@ describe("SSH control-path budget (#9070)", () => {
 });
 
 describe("sshControlFallbackDir", () => {
-	it("is deterministic and leaves 11 bytes of macOS sun_path slack", () => {
+	it("is deterministic and leaves 6 bytes of macOS sun_path slack", () => {
 		const canonicalDir = "/Users/arthur/.zeta/profiles/upstream/ssh-control";
 		const a = sshControlFallbackDir(canonicalDir, 501);
 		const b = sshControlFallbackDir(canonicalDir, 501);
 		expect(a).toBe(b);
-		expect(a).toBe("/tmp/omp-012e16d9a4abc01bed5f");
-		expect(Buffer.byteLength(a)).toBe(29);
+		expect(a).toBe("/tmp/zetacode-012e16d9a4abc01bed5f");
+		expect(Buffer.byteLength(a)).toBe(34);
 		const tempBind = path.join(a, `${"a".repeat(40)}.sock.${"b".repeat(16)}`);
-		expect(Buffer.byteLength(tempBind)).toBe(92);
-		expect(103 - Buffer.byteLength(tempBind)).toBe(11);
+		expect(Buffer.byteLength(tempBind)).toBe(97);
+		expect(103 - Buffer.byteLength(tempBind)).toBe(6);
 		expect(controlPathFitsBudget(a, "darwin")).toBe(true);
 	});
 
@@ -68,7 +68,7 @@ describe("resolveSshControlDir", () => {
 	it("relocates to the bounded shared fallback when the canonical dir overflows", () => {
 		const canonicalDir = "/Users/arthur/.zeta/profiles/upstream/ssh-control";
 		const choice = resolveSshControlDir({ canonicalDir, platform: "darwin", uid: 501, tmpBase: "/tmp" });
-		expect(choice).toEqual({ dir: "/tmp/omp-012e16d9a4abc01bed5f", shared: true });
+		expect(choice).toEqual({ dir: "/tmp/zetacode-012e16d9a4abc01bed5f", shared: true });
 		expect(controlPathFitsBudget(choice.dir, "darwin")).toBe(true);
 	});
 

@@ -1404,7 +1404,7 @@ class PromptError:
     model: str | None = None
     http_status: int | None = None
     code: Literal["cost_cap"] | None = None
-    """`cost_cap`: the session reached `session.maxCost` (`--max-cost`) and omp did not send the next request."""
+    """`cost_cap`: the session reached `session.maxCost` (`--max-cost`) and zetacode did not send the next request."""
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
