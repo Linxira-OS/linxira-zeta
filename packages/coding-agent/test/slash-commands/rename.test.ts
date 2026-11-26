@@ -92,6 +92,15 @@ function deferTitle() {
 	return { started, response, generate };
 }
 
+/**
+ * Conversation entries for rename assertions. A title request journals its own
+ * billed `model_usage` entry even when the generated title is discarded, so
+ * rename lifecycle tests compare everything else.
+ */
+function conversationEntries(sessionManager: SessionManager) {
+	return sessionManager.getEntries().filter(entry => entry.type !== "model_usage");
+}
+
 afterEach(async () => {
 	try {
 		await session?.dispose();
@@ -340,11 +349,11 @@ for (const mode of ["TUI", "headless"] as const) {
 				await Promise.race([started.promise, pending]);
 				expect(await session.switchSession(otherFile)).toBe(true);
 				expect(await session.switchSession(sourceFile)).toBe(true);
-				const entries = sessionManager.getEntries();
+				const entries = conversationEntries(sessionManager);
 				response.resolve("Stale title from before switching");
 				await pending;
 				expect(session.sessionName).toBeUndefined();
-				expect(sessionManager.getEntries()).toEqual(entries);
+				expect(conversationEntries(sessionManager)).toEqual(entries);
 				expect(output).not.toHaveBeenCalled();
 			} finally {
 				response.resolve(null);
@@ -361,13 +370,13 @@ for (const mode of ["TUI", "headless"] as const) {
 				await Promise.race([started.promise, pending]);
 				expect(generate).toHaveBeenCalledTimes(1);
 				await execute("/rename My chosen title");
-				const entries = sessionManager.getEntries();
+				const entries = conversationEntries(sessionManager);
 
 				response.resolve("Stale generated title");
 				await pending;
 
 				expect(session.sessionName).toBe("My chosen title");
-				expect(sessionManager.getEntries()).toEqual(entries);
+				expect(conversationEntries(sessionManager)).toEqual(entries);
 			} finally {
 				response.resolve(null);
 				await pending;
@@ -415,13 +424,13 @@ it("releases the RPC command while title inference runs in the background and pr
 		expect(await dispatched).toMatchObject({ consumed: true });
 		await started.promise;
 		await executeAcpBuiltinSlashCommand("/rename My newer RPC title", runtime);
-		const entries = sessionManager.getEntries();
+		const entries = conversationEntries(sessionManager);
 
 		response.resolve("Stale generated title");
 		await backgroundTask;
 
 		expect(session.sessionName).toBe("My newer RPC title");
-		expect(sessionManager.getEntries()).toEqual(entries);
+		expect(conversationEntries(sessionManager)).toEqual(entries);
 	} finally {
 		response.resolve(null);
 		await dispatched;

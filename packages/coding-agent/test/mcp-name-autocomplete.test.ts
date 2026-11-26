@@ -48,6 +48,7 @@ function createFakeCtx(discoveredNames: string[]) {
 		getAllServerNames: vi.fn((): string[] => discoveredNames),
 		getSource: vi.fn((): SourceMeta | undefined => undefined),
 		getConnectionStatus: vi.fn(() => "connected" as const),
+		getBuiltinDrops: vi.fn(() => new Map()),
 	};
 	// Real settings: the palette applies per-command configuration gates.
 	const ctx = { mcpManager, settings: Settings.isolated({}) } as never as InteractiveModeContext;

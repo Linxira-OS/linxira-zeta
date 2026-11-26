@@ -107,14 +107,14 @@ async function harness(
 	return { session, releaseUpdate };
 }
 
-describe("SDK data-less yield report", () => {
+describe("SDK data-less yield", () => {
 	for (const [doneOnly, delayed, budgetStop] of [
 		[false, false, false],
 		[true, false, false],
 		[false, true, false],
 		[false, false, true],
 	]) {
-		it(`submits preceding prose through the real loop (done-only=${doneOnly}, delayed=${delayed}, budget-stop=${budgetStop})`, async () => {
+		it(`rejects preceding prose through the real loop (done-only=${doneOnly}, delayed=${delayed}, budget-stop=${budgetStop})`, async () => {
 			const { session, releaseUpdate } = await harness({ doneOnly, delayed });
 			const report = "# Review\nNo confirmed defects.\n";
 			const history: AgentMessage[] = [
@@ -128,11 +128,10 @@ describe("SDK data-less yield report", () => {
 				const result = session.messages.find(
 					message => message.role === "toolResult" && message.toolCallId === "yield-report",
 				);
-				expect(result).toMatchObject({
-					role: "toolResult",
-					isError: false,
-					details: { status: "success", data: report },
-				});
+				expect(result).toMatchObject({ role: "toolResult", isError: true });
+				const serialized = JSON.stringify(result);
+				expect(serialized).toContain("only finalizes previously submitted sections");
+				expect(serialized).not.toContain(report);
 			} finally {
 				releaseUpdate.resolve();
 			}
@@ -182,12 +181,13 @@ describe("SDK data-less yield report", () => {
 		});
 	}
 
-	it("prefers report prose beside yield over a previous report", async () => {
+	it("refuses report prose beside a data-less yield", async () => {
 		const { session } = await harness({ doneOnly: true, text: "Current report" });
 		session.agent.replaceMessages([createAssistantMessage("Superseded report"), reminder()]);
 		await session.agent.continue();
 		const result = session.messages.find(message => message.role === "toolResult");
-		expect(result).toMatchObject({ isError: false, details: { data: "Current report" } });
+		expect(result).toMatchObject({ isError: true });
+		expect(JSON.stringify(result)).not.toContain("Current report");
 	});
 
 	it("never borrows another child's report", async () => {
@@ -212,12 +212,15 @@ describe("SDK data-less yield report", () => {
 		expect(JSON.stringify(result)).not.toContain("Earlier report");
 	});
 
-	it("retains strict-mode null-as-omitted semantics", async () => {
+	it("treats strict-mode null as omitted and rejects the empty result", async () => {
 		const { session } = await harness({ input: { type: "result", data: null, error: null } });
 		session.agent.replaceMessages([createAssistantMessage("Strict-mode report"), reminder()]);
 		await session.agent.continue();
 		const result = session.messages.find(message => message.role === "toolResult");
-		expect(result).toMatchObject({ isError: false, details: { data: "Strict-mode report" } });
+		expect(result).toMatchObject({ isError: true });
+		const serialized = JSON.stringify(result);
+		expect(serialized).toContain("only finalizes previously submitted sections");
+		expect(serialized).not.toContain("Strict-mode report");
 	});
 
 	for (const [input, details] of [
@@ -239,7 +242,7 @@ describe("SDK data-less yield report", () => {
 		});
 	}
 
-	it("preserves structured last-turn refusal before any retry downgrade", async () => {
+	it("refuses a data-less structured yield before schema validation or last-turn fallback", async () => {
 		const { session } = await harness({
 			outputSchema: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] },
 		});
@@ -249,10 +252,10 @@ describe("SDK data-less yield report", () => {
 		session.agent.replaceMessages([createAssistantMessage("Wrong schema report"), current]);
 		const tool = session.getToolByName("yield");
 		if (!tool) throw new Error("Missing yield tool");
-		for (let attempt = 0; attempt < 5; attempt++) {
-			await expect(tool.execute("yield-report", { type: "result" })).rejects.toThrow(
-				"structured output matching the declared schema",
-			);
-		}
+		// The declared schema never turns the empty payload into a last-turn
+		// result: the finalize-with-no-sections refusal fires first.
+		await expect(tool.execute("yield-report", { type: "result" })).rejects.toThrow(
+			/only finalizes previously submitted sections/,
+		);
 	});
 });

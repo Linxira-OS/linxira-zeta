@@ -49,11 +49,15 @@ describe("Codex and OpenCode slash-command frontmatter", () => {
 	let home = "";
 	let project = "";
 	let originalHome: string | undefined;
+	const originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
 
 	beforeEach(async () => {
 		clearFsCache();
 		resetSettingsForTest();
 		originalHome = process.env.HOME;
+		// These providers keep their commands in project directories that are
+		// foreign sources; approve them for this test's temporary project.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "codex,opencode,claude";
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-provider-commands-"));
 		home = path.join(root, "home");
 		project = path.join(root, "project");
@@ -68,6 +72,8 @@ describe("Codex and OpenCode slash-command frontmatter", () => {
 		vi.restoreAllMocks();
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		await removeWithRetries(root);
 	});
 

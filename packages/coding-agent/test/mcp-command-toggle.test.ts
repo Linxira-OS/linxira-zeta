@@ -20,6 +20,7 @@ import { initTheme } from "../src/ui/theme/service";
 
 const originalProjectDir = getProjectDir();
 const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 function restoreAgentDir(): void {
@@ -80,12 +81,17 @@ describe("/mcp enable and disable", () => {
 		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-toggle-agent-"));
 		setProjectDir(projectDir);
 		setAgentDir(agentDir);
+		// The dropped-server case lives in Codex's own project config, which is a
+		// foreign project source; approve it so reload discovery can find it.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "codex";
 	});
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
 		setProjectDir(originalProjectDir);
 		restoreAgentDir();
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		await removeWithRetries(projectDir);
 		await removeWithRetries(agentDir);
 	});

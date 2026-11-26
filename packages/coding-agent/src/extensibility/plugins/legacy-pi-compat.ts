@@ -819,7 +819,7 @@ const CANONICAL_PI_SCOPE = "@linxiraos";
 // packages. `@linxiraos` is intentionally included so direct
 // canonical imports still pass through the same host-bundled package resolution
 // path instead of pulling a duplicate copy from plugin node_modules.
-const PI_SCOPE_ALIASES = ["oh-my-pi", "mariozechner", "earendil-works"] as const;
+const PI_SCOPE_ALIASES = ["linxiraos", "oh-my-pi", "mariozechner", "earendil-works"] as const;
 
 // Internal host package basenames bundled inside the zetacode binary.
 const PI_PACKAGE_NAMES = [
@@ -839,7 +839,9 @@ const PI_PACKAGE_NAMES = [
  * the replacement instead of aliasing the import onto a package with another API.
  */
 const PI_TUI_SPECIFIER = new RegExp(
-	`^@(?:${PI_SCOPE_ALIASES.filter(scope => scope !== "oh-my-pi").join("|")})/pi-tui(?:/.*)?$`,
+	`^@(?:${PI_SCOPE_ALIASES.filter(
+		scope => scope !== "linxiraos" && scope !== "oh-my-pi",
+	).join("|")})/pi-tui(?:/.*)?$`,
 );
 
 /** Docs section describing the pi-tui → pi-tui migration. */
@@ -881,11 +883,11 @@ const PI_SUBPATH_REMAPS: ReadonlyMap<string, string> = new Map<string, string>([
 	["pi-ai/utils/oauth/", "pi-ai/oauth/"],
 	["pi-ai/compat", "pi-ai"],
 	// Helpers the old pi-tui carried that are no part of the UI: they kept their exports and moved.
-	["pi-tui/thinking", "pi-coding-agent/thinking/levels"],
-	["pi-tui/fuzzy", "pi-coding-agent/utils/fuzzy"],
-	["pi-tui/lang-from-path", "pi-coding-agent/utils/lang-from-path"],
-	["pi-tui/ttyid", "pi-coding-agent/utils/ttyid"],
-	["pi-tui/vim", "pi-coding-agent/ui/composer/vim"],
+	["pi-tui/thinking", "zeta/thinking/levels"],
+	["pi-tui/fuzzy", "zeta/utils/fuzzy"],
+	["pi-tui/lang-from-path", "zeta/utils/lang-from-path"],
+	["pi-tui/ttyid", "zeta/utils/ttyid"],
+	["pi-tui/vim", "zeta/ui/composer/vim"],
 	["pi-tui/loop-sampler", "pi-tui/diag/loop-sampler"],
 	["pi-tui/loop-watchdog", "pi-tui/diag/loop-watchdog"],
 ]);

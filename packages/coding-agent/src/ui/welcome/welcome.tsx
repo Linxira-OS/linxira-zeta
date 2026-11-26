@@ -10,11 +10,17 @@
  * `introStart`; a native terminal animates its own builtin mark.
  */
 import { type Accessor, computed, type JSXNode, Show, type Signal, signal } from "@linxiraos/pi-tui";
+import { registerBlob } from "@linxiraos/pi-tui/native";
+import { readFileSync } from "node:fs";
+import logoFile from "./zeta-mark.png" with { type: "file" };
 import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import type { VersionUpdate } from "../../modes/view-model/prompt/welcome";
 import "../styles/welcome";
 import { INTRO_MS } from "./logo";
 import { isNewTip, type TipKeyStyle, tipText } from "./tips";
+
+/** The real brand mark as a TSP blob; `builtin: "zeta"` is an OMP extension upstream Tern ignores. */
+const ZETA_LOGO_BLOB = registerBlob(readFileSync(logoFile), "image/png");
 
 export type { VersionUpdate };
 
@@ -79,12 +85,12 @@ export function Welcome(props: WelcomeProps): JSXNode {
 	return (
 		<card role="zeta.welcome" term={look}>
 			<row key="lockup" role="zeta.welcome.lockup" align="center" gap="md">
-				<image key="logo" role="zeta.welcome.logo" builtin="zeta" alt="Zeta" w={128} />
+				<image key="logo" role="zeta.welcome.logo" blob={ZETA_LOGO_BLOB} alt="Zeta" w={28} />
 				<col key="mark" role="zeta.welcome.mark">
 					<text
 						key="zeta.welcome.wordmark"
 						role="zeta.welcome.wordmark"
-						spans={[{ t: "omp", s: "strong" }]}
+						spans={[{ t: "zeta", s: "strong" }]}
 						wrap="none"
 					/>
 					<text

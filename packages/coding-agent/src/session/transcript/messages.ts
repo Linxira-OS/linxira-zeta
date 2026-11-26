@@ -312,11 +312,14 @@ export function isUserInvokedSkillPrompt(message: CustomMessage): boolean {
 
 /**
  * True for a custom message that initiates a user-attributed turn: a directly
- * invoked `/skill:` prompt. Agent redirects, reminders, and auto-continues are
- * not turn starts.
+ * invoked `/skill:` prompt or a writable-collab peer's prompt. Agent redirects,
+ * reminders, and auto-continues are not turn starts.
  */
 export function isUserTurnInitiator(message: CustomMessage): boolean {
-	return isUserInvokedSkillPrompt(message);
+	return (
+		isUserInvokedSkillPrompt(message) ||
+		(message.customType === COLLAB_PROMPT_MESSAGE_TYPE && message.attribution === "user")
+	);
 }
 
 /** Advisor note severities, weakest first; ranks severity thresholds such as `advisor.continueSeverity`. */
