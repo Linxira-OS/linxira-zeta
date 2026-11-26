@@ -12582,7 +12582,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#throwIfExtensionCommand(text);
 		}
 
-		const expandedText = expandPromptTemplate(text, [...this.#promptTemplates]);
+		const expandMention = options?.attribution !== "agent";
+		const expandedText = expandMention
+			? this.#modelMentions.expandMentions(expandPromptTemplate(text, [...this.#promptTemplates]))
+			: expandPromptTemplate(text, [...this.#promptTemplates]);
+		const mentionNotice = expandMention ? this.#tools.takeSessionAgentNotice() : undefined;
 		// Stamp before image preprocessing so a queued image steer measures from
 		// the operator's submission, not after the vision-model description.
 		const submittedAt = Date.now();
@@ -12593,6 +12597,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			language: options?.language,
 			client: options?.client,
 			onPromptQueued: options?.onPromptQueued,
+			...(mentionNotice ? { prependMessages: [mentionNotice] } : {}),
 		});
 	}
 
@@ -12608,8 +12613,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#throwIfExtensionCommand(text);
 		}
 
+		const expandMention = !options?.synthetic && options?.attribution !== "agent";
 		const expandedText =
-			options?.expandPromptTemplates === false ? text : expandPromptTemplate(text, [...this.#promptTemplates]);
+			options?.expandPromptTemplates === false
+				? expandMention
+					? this.#modelMentions.expandMentions(text)
+					: text
+				: expandMention
+					? this.#modelMentions.expandMentions(expandPromptTemplate(text, [...this.#promptTemplates]))
+					: expandPromptTemplate(text, [...this.#promptTemplates]);
+		const mentionNotice = expandMention ? this.#tools.takeSessionAgentNotice() : undefined;
 		// Stamp before image preprocessing so a queued image follow-up measures
 		// from the operator's submission.
 		const submittedAt = Date.now();
@@ -12621,6 +12634,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				language: options?.language,
 				client: options?.client,
 				onPromptQueued: options?.onPromptQueued,
+				...(mentionNotice ? { prependMessages: [mentionNotice] } : {}),
 			});
 			return;
 		}
@@ -12729,12 +12743,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			}
 		}
 		const mode = options?.queue === "followUp" ? "followUp" : "steer";
-		const expandedText = expandPromptTemplate(text, [...this.#promptTemplates]);
+		const expandedText = this.#modelMentions.expandMentions(expandPromptTemplate(text, [...this.#promptTemplates]));
+		const mentionNotice = this.#tools.takeSessionAgentNotice();
 		return await this.#queueUserMessage(expandedText, images, mode, {
 			timestamp: Date.now(),
 			rawText: text,
 			requireActiveRun: true,
 			skipIdleDrain: true,
+			...(mentionNotice ? { prependMessages: [mentionNotice] } : {}),
 		});
 	}
 
@@ -13754,10 +13770,18 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			if (images.length === 0) images = undefined;
 		}
 
+		if (options?.attribution !== "agent") text = this.#modelMentions.expandMentions(text);
+		const mentionNotice = options?.attribution === "agent" ? undefined : this.#tools.takeSessionAgentNotice();
+		const mentionPrepend = mentionNotice ? { prependMessages: [mentionNotice] } : {};
 		let deliveredAsAside = false;
 		if (options?.deliverAs === "aside") {
 			if (this.isStreaming) {
-				if (!(await this.#queueUserMessage(text, images, "aside", { attribution: options.attribution }))) {
+				if (
+					!(await this.#queueUserMessage(text, images, "aside", {
+						attribution: options.attribution,
+						...mentionPrepend,
+					}))
+				) {
 					throw new PromptDroppedError();
 				}
 				return;
@@ -13766,12 +13790,22 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			// deliverAs) — there is no live run to inject an aside into.
 			deliveredAsAside = true;
 		} else if (options?.deliverAs === "followUp") {
-			if (!(await this.#queueUserMessage(text, images, "followUp", { attribution: options.attribution }))) {
+			if (
+				!(await this.#queueUserMessage(text, images, "followUp", {
+					attribution: options.attribution,
+					...mentionPrepend,
+				}))
+			) {
 				throw new PromptDroppedError();
 			}
 			return;
 		} else if (options?.deliverAs === "steer") {
-			if (!(await this.#queueUserMessage(text, images, "steer", { attribution: options.attribution }))) {
+			if (
+				!(await this.#queueUserMessage(text, images, "steer", {
+					attribution: options.attribution,
+					...mentionPrepend,
+				}))
+			) {
 				throw new PromptDroppedError();
 			}
 			return;
