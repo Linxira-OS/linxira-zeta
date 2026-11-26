@@ -1,8 +1,8 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.22.0
+## Integrated through: v19.2.0
 
-**Integrated through**: `v18.22.0` (`3e8cff3b7ce19a805c11a26a6dd1703066435851`), merged into `main` as `f0446a56f09` (PR #324). The v19.0.0 branch is **not** integrated: PR #325 is `CONFLICTING`; see [`agents/merge/v19.0.0-conflict-audit.md`](./agents/merge/v19.0.0-conflict-audit.md). Latest observed remote releases are OMP `v19.1.0` and Studio `v0.2.8`; neither is a baseline.
+**Integrated through**: `v19.2.0` (`5c5ecb16fa4903c09a57a84983e482d9c9c2232e`), merged into `main` as `cc12f580c58`; `git merge-base --is-ancestor v19.2.0 HEAD` passes. Latest observed remote release is OMP `v19.2.1` (`b55cd1bb664d8ab46ddc77f2a34eb47555dbf1ac`); it is **not** integrated and is now the next candidate tag, not a baseline. The v19.0.0 branch was not merged directly; see [`agents/merge/v19.0.0-conflict-audit.md`](./agents/merge/v19.0.0-conflict-audit.md).
 
 _Historical headers were `v18.18.2` until 2026-11-09, then `v18.18.3` (PR #272),
 and `v18.19.0` until the current consolidation. Older probes below describe
