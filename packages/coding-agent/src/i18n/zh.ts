@@ -1899,6 +1899,7 @@ export const zh = {
 	settingsResetNothing: "没有已配置的设置可重置。",
 	cmdSetup: "打开提供商设置",
 	cmdSetupProviders: "配置登录与网页搜索提供商",
+	cmdPlanUltra: "切换 Ultra 计划模式（增量计划纪律与深度检查）",
 	cmdPlan: "切换计划模式（代理先计划再执行）",
 	toolTrackingLabel: "追踪更新",
 	toolTrackingSummary: "更新项目追踪文档（状态、索引、操作、计划）",

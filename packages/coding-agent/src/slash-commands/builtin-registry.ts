@@ -18,6 +18,7 @@ import { BUILTIN_CONTROL_SLASH_COMMANDS } from "./builtin-control";
 import { BUILTIN_LIFECYCLE_SLASH_COMMANDS } from "./builtin-lifecycle";
 import { BUILTIN_MARKETPLACE_SLASH_COMMANDS, reloadTuiPluginState } from "./builtin-marketplace";
 import { BUILTIN_MODE_SLASH_COMMANDS } from "./builtin-modes";
+import { BUILTIN_OUTPUT_SLASH_COMMANDS } from "./builtin-output";
 import { BUILTIN_SESSION_SLASH_COMMANDS } from "./builtin-session";
 import { BUILTIN_SKILLS_SLASH_COMMANDS } from "./builtin-skills";
 import { parseSlashCommand } from "./helpers/parse";
@@ -67,6 +68,7 @@ function localizeCommandDescription(
 
 const RAW_BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_MODE_SLASH_COMMANDS,
+	...BUILTIN_OUTPUT_SLASH_COMMANDS,
 	...BUILTIN_SESSION_SLASH_COMMANDS,
 	...BUILTIN_COMMIT_SLASH_COMMANDS,
 	...BUILTIN_LIFECYCLE_SLASH_COMMANDS,
@@ -102,6 +104,7 @@ export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BU
 		name: command.name,
 		aliases: command.aliases,
 		allowArgs: command.allowArgs === true,
+		argumentCompletionOnly: command.argumentCompletionOnly,
 		// Getter: some descriptions name keys, formatted at read time (theme/preset may change).
 		get description() {
 			return command.description;
@@ -141,7 +144,7 @@ function materializeTuiBuiltinSlashCommand(
 			materialized.getArgumentCompletions = buildArgumentCompletions(subcommands, options);
 			materialized.getInlineHint = buildSubcommandInlineHint(subcommands, options);
 		}
-	} else if (cmd.name === "move") {
+	} else if (cmd.name === "move" || cmd.name === "cd") {
 		materialized.getArgumentCompletions = buildDirectoryArgumentCompletions();
 		if (cmd.inlineHint) materialized.getInlineHint = buildStaticInlineHint(cmd.inlineHint);
 	} else if (cmd.name === "local" && runtime) {

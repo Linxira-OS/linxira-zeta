@@ -277,7 +277,7 @@ describe("unsynchronized frames", () => {
 						.every(row => row === ""),
 				).toBe(true);
 			}
-			const scrolled = vt.scrollback().filter(row => !row.startsWith("$ omp") && row !== "");
+			const scrolled = vt.scrollback().filter(row => !row.startsWith("$ zetacode") && row !== "");
 			expect(scrolled.length).toBeGreaterThan(10);
 			expect(transcript.slice(0, scrolled.length)).toEqual(scrolled);
 			// The session exercised both line shifts.

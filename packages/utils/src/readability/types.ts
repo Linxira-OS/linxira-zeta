@@ -11,6 +11,8 @@ export interface ReadabilityNode {
 	readonly childNodes: ArrayLike<ReadabilityNode>;
 	readonly firstChild: ReadabilityNode | null;
 	readonly textContent: string | null;
+	/** Mutable text payload; present on text nodes. */
+	data?: string;
 	appendChild(node: ReadabilityNode): ReadabilityNode;
 	cloneNode(deep?: boolean): ReadabilityNode;
 	remove(): void;

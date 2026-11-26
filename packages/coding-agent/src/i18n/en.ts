@@ -1920,6 +1920,7 @@ export const en = {
 	settingsResetNothing: "No configured settings to reset.",
 	cmdSetup: "Open provider setup",
 	cmdSetupProviders: "Configure sign-in and web search providers",
+	cmdPlanUltra: "Toggle ultra plan mode (incremental plan discipline and depth check)",
 	cmdPlan: "Toggle plan mode (agent plans before executing)",
 	toolTrackingLabel: "Tracking Update",
 	toolTrackingSummary: "Update project tracking documents (status, index, actions, plans)",

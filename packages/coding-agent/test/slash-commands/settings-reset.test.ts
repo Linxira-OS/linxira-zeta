@@ -27,24 +27,20 @@ function createRuntime() {
 	const showSettingsSelector = vi.fn();
 	const showStatus = vi.fn();
 	const showWarning = vi.fn();
-	const applySidebar = vi.fn();
 	const setText = vi.fn();
 	const invalidate = vi.fn();
-	const requestRender = vi.fn();
 	const runtime = {
 		ctx: {
-			editor: { setText },
-			statusLine: { invalidate },
-			ui: { requestRender },
+			composer: { setText, clearDraft: vi.fn(), addToHistory: vi.fn(), text: () => "" },
+			statusLine: { refresh: invalidate },
 			settings,
-			applySidebar,
 			showSettingsSelector,
 			showStatus,
 			showWarning,
 		} as unknown as InteractiveModeContext,
 		handleBackgroundCommand: () => {},
 	};
-	return { showSettingsSelector, showStatus, showWarning, applySidebar, invalidate, setText, runtime };
+	return { showSettingsSelector, showStatus, showWarning, invalidate, setText, runtime };
 }
 
 describe("registry-driven settings reset", () => {
@@ -126,7 +122,6 @@ describe("/settings reset", () => {
 		expect(harness.showStatus).toHaveBeenCalledWith(M.settingsResetDoneFmt.replace("%s", "2"));
 		expect(cfgTuiSidebar.get(settings)).toBe(false);
 		expect(cfgStatusLineTransparent.get(settings)).toBe(false);
-		expect(harness.applySidebar).toHaveBeenCalled();
 		expect(harness.invalidate).toHaveBeenCalled();
 	});
 

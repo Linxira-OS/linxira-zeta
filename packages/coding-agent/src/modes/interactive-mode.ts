@@ -149,6 +149,7 @@ import { type ConfiguredThinkingLevel } from "../utils/render-utils";
 import { isMCPToolName } from "../tools/builtin-names";
 import type { LspStartupServerInfo } from "../tools";
 import { resolvePlanFilePath } from "../plan-mode/plan-files";
+import type { PlanWorkflow } from "../plan-mode/state";
 import { resolveToCwd } from "../tools/path-utils";
 import type { StreamFrameSource } from "../stream/paint-encoder";
 import { StreamPublisher } from "../stream/publisher";
@@ -4623,7 +4624,7 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	async #enterPlanMode(options?: {
 		planFilePath?: string;
-		workflow?: "parallel" | "iterative";
+		workflow?: PlanWorkflow;
 		preserveRestoredModel?: boolean;
 		previousModelState?: PlanPreModelState;
 	}): Promise<void> {
@@ -5773,6 +5774,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	async handlePlanModeCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+		workflow: PlanWorkflow = "parallel",
 	): Promise<boolean> {
 		if (this.goalModeEnabled || this.goalModePaused) {
 			this.showWarning("Exit goal mode first.");
@@ -5808,7 +5810,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.showWarning("Plan mode is disabled. Enable it in settings (plan.enabled).");
 			return false;
 		}
-		await this.#enterPlanMode();
+		await this.#enterPlanMode({ workflow });
 		if (!initialPrompt) return false;
 		if (isKnownSkillCommand(this, initialPrompt)) {
 			await invokeSkillCommandFromText(this, initialPrompt, "steer", {
@@ -5844,6 +5846,13 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * the previous toolset, and kills every worker session so workers cannot
 	 * outlive the mode that directs them.
 	 */
+	async handlePlanUltraCommand(
+		initialPrompt?: string,
+		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+	): Promise<boolean> {
+		return this.handlePlanModeCommand(initialPrompt, input, "ultra");
+	}
+
 	async handleVibeModeCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,

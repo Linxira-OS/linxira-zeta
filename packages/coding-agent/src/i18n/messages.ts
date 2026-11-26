@@ -1939,6 +1939,7 @@ export interface Messages {
 	cmdSetup: string;
 	cmdSetupProviders: string;
 	cmdPlan: string;
+	cmdPlanUltra: string;
 	toolTrackingLabel: string;
 	toolTrackingSummary: string;
 	cmdTracking: string;

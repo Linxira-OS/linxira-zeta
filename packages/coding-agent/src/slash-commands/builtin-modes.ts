@@ -8,6 +8,7 @@ import {
 	type ResolveCliModelResult,
 	resolveCliModel,
 } from "../config/model-resolver";
+import { all as allSettings, type AnySetting, lookup as lookupSetting } from "../config/registry";
 import type { Settings } from "../config/settings";
 import {
 	applyModelPreset,
@@ -264,8 +265,59 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "settings",
 		icon: "settings",
 		description: "Open settings menu",
-		handleTui: (_command, runtime) => {
-			runtime.ctx.showSettingsSelector();
+		allowArgs: true,
+		subcommands: [{ name: "reset", description: "Reset configured settings to defaults", usage: "[confirm|<key>]" }],
+		handleTui: async (command, runtime) => {
+			const raw = command.args.trim();
+			const settings = runtime.ctx.settings;
+			const resetOne = (setting: AnySetting): void => {
+				setting.unset(settings);
+				setting.clearOverride(settings);
+			};
+			const refresh = (): void => {
+				runtime.ctx.statusLine.refresh();
+			};
+			if (raw === "") {
+				runtime.ctx.showSettingsSelector();
+				clearSubmittedText(runtime);
+				return;
+			}
+			const [verb, ...rest] = raw.split(/\s+/);
+			if (verb !== "reset") {
+				runtime.ctx.showWarning("Usage: /settings [reset [confirm|<key>]]");
+				clearSubmittedText(runtime);
+				return;
+			}
+			if (rest.length > 1) {
+				runtime.ctx.showWarning("Usage: /settings reset [confirm|<key>]");
+				clearSubmittedText(runtime);
+				return;
+			}
+			if (rest.length === 0) {
+				const count = allSettings().filter(setting => setting.isConfigured(settings)).length;
+				runtime.ctx.showStatus(
+					count === 0 ? M.settingsResetNothing : M.settingsResetConfirmHint.replace("%s", String(count)),
+				);
+				clearSubmittedText(runtime);
+				return;
+			}
+			if (rest[0] === "confirm") {
+				const configured = allSettings().filter(setting => setting.isConfigured(settings));
+				for (const setting of configured) resetOne(setting);
+				refresh();
+				runtime.ctx.showStatus(M.settingsResetDoneFmt.replace("%s", String(configured.length)));
+				clearSubmittedText(runtime);
+				return;
+			}
+			const setting = lookupSetting(rest[0]);
+			if (!setting) {
+				runtime.ctx.showWarning(`Unknown setting: ${rest[0]}`);
+				clearSubmittedText(runtime);
+				return;
+			}
+			resetOne(setting);
+			refresh();
+			runtime.ctx.showStatus(M.settingsResetKeyDoneFmt.replace("%s", rest[0]));
 			clearSubmittedText(runtime);
 		},
 	},
@@ -305,6 +357,18 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handleTui: async (command, runtime) => {
 			await runWithDetachedDraft(command, runtime, () =>
 				runtime.ctx.handlePlanModeCommand(command.args || undefined, runtime.input),
+			);
+		},
+	},
+	{
+		name: "plan-ultra",
+		icon: "plan",
+		description: () => M.cmdPlanUltra,
+		inlineHint: "[prompt]",
+		allowArgs: true,
+		handleTui: async (command, runtime) => {
+			await runWithDetachedDraft(command, runtime, () =>
+				runtime.ctx.handlePlanUltraCommand(command.args || undefined, runtime.input),
 			);
 		},
 	},

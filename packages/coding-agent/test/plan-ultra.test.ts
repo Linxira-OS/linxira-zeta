@@ -107,9 +107,9 @@ describe("/plan-ultra command dispatch", () => {
 		const handlePlanModeCommand = vi.fn(async () => true);
 		const ctx = {
 			collabGuest: false,
-			editor: {
+			composer: {
 				clearDraft() {},
-				getText: () => "",
+				text: () => "",
 				setText() {},
 				pendingImages: [],
 				pendingImageLinks: [],

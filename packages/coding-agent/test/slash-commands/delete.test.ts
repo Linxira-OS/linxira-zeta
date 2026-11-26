@@ -13,6 +13,7 @@ function createRuntimeHarness() {
 		handleDeleteCommand,
 		runtime: {
 			ctx: {
+				composer: { setText, clearDraft: vi.fn(), addToHistory: vi.fn(), text: () => "" },
 				showError,
 				handleDeleteCommand,
 				sessionManager: {

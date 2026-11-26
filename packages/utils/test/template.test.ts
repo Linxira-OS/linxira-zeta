@@ -24,7 +24,7 @@ const GOLDENS: { source: string; context: Record<string, unknown>; expected: str
 			],
 		},
 		expected:
-			"Generate conventional commit proposal for current staged changes.\n\nUser context:\nKeep API\n\nChangelog targets (must call propose_changelog for these files):\npackages/x\n\n## Existing Unreleased Changelog Entries\nMay include entries from list in propose_changelog `deletions` field for removal.\n### CHANGELOG.md\nAdded:\n- A\n- B\nFixed:\n- C\n\nUse git_* tools to inspect changes. Call analyze_files for deeper per-file summaries. Finish with propose_commit or split_commit.",
+			"Generate conventional commit proposal for current staged changes.\n\nUser context:\nKeep API\n\nChangelog targets (must call propose_changelog for these files):\npackages/x\n## Existing Unreleased Changelog Entries\n\nMay include entries from list in propose_changelog `deletions` field for removal.\n\n### CHANGELOG.md\n\nAdded:\n- A\n- B\nFixed:\n- C\n\nUse git_* tools to inspect changes. Call analyze_files for deeper per-file summaries. Finish with propose_commit or split_commit.",
 	},
 	{
 		source: frontmatter,
@@ -74,7 +74,7 @@ const GOLDENS: { source: string; context: Record<string, unknown>; expected: str
 ];
 
 describe("real template goldens", () => {
-	it("matches output captured from handlebars 4.7.9", () => {
+	it("renders the checked-in prompt fixtures", () => {
 		for (const fixture of GOLDENS) expect(prompt.render(fixture.source, fixture.context)).toBe(fixture.expected);
 	});
 });

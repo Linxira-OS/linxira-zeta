@@ -34,7 +34,7 @@ function runtime(overrides: { streaming?: boolean } = {}) {
 	const handleMoveCommand = vi.fn(async () => {});
 	const ctx = {
 		session: { isStreaming: overrides.streaming ?? false },
-		editor: { setText: vi.fn(), addToHistory: vi.fn() },
+		composer: { setText: vi.fn(), addToHistory: vi.fn(), clearDraft: vi.fn(), text: () => "" },
 		settings: Settings.instance,
 		showDirectoryPicker,
 		handleMoveCommand,
@@ -83,7 +83,7 @@ describe("/cd", () => {
 	it("moves directly when a path is given", async () => {
 		const { ctx, showDirectoryPicker, handleMoveCommand } = runtime();
 		expect(await executeBuiltinSlashCommand("/cd /work/project", { ctx })).toBe(true);
-		expect(handleMoveCommand).toHaveBeenCalledWith("/work/project", { allowCreate: false });
+		expect(handleMoveCommand).toHaveBeenCalledWith("/work/project");
 		expect(showDirectoryPicker).not.toHaveBeenCalled();
 	});
 

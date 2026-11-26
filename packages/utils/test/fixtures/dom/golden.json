@@ -34,7 +34,7 @@
 		]
 	},
 	"nitter": {
-		"primary": ["Hello world & friends", "Ada Lovelace", "@ada", "1h", "1 reply  2 likes"],
+		"primary": ["Hello world & friends", "Ada Lovelace", "@ada", "1h", "1 reply 2 likes"],
 		"replies": [
 			{
 				"text": "Hello world & friends",

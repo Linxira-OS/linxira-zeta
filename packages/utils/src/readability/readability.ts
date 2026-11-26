@@ -398,6 +398,91 @@ function visible(node: ReadabilityElement): boolean {
 	);
 }
 
+/** Keep whitespace meaningful inside code/preformatted containers. */
+function insidePreformatted(node: ReadabilityNode): boolean {
+	for (let parent = node.parentNode; parent; parent = parent.parentNode) {
+		const tag = (parent as ReadabilityElement).tagName;
+		if (tag === "PRE" || tag === "TEXTAREA" || tag === "CODE") return true;
+	}
+	return false;
+}
+
+const BLOCK_TAGS: Record<string, true> = {
+	ADDRESS: true,
+	ARTICLE: true,
+	ASIDE: true,
+	BLOCKQUOTE: true,
+	DIV: true,
+	DL: true,
+	FIELDSET: true,
+	FIGCAPTION: true,
+	FIGURE: true,
+	FOOTER: true,
+	FORM: true,
+	H1: true,
+	H2: true,
+	H3: true,
+	H4: true,
+	H5: true,
+	H6: true,
+	HEADER: true,
+	HR: true,
+	LI: true,
+	MAIN: true,
+	NAV: true,
+	OL: true,
+	P: true,
+	PRE: true,
+	SECTION: true,
+	TABLE: true,
+	UL: true,
+};
+
+/**
+ * Collapse source indentation in extracted text, matching the old
+ * `innerHTML` round-trip. Interior inline spacing is preserved; only
+ * boundaries next to a block element are trimmed.
+ */
+function normalizeFormattingText(root: ReadabilityElement): void {
+	const pending = [...Array.from(root.childNodes)];
+	while (pending.length > 0) {
+		const node = pending.pop();
+		if (!node) continue;
+		if (node.nodeType === TEXT_NODE && !insidePreformatted(node)) {
+			const parent = node.parentNode as ReadabilityElement;
+			const siblings = Array.from(parent.childNodes);
+			const index = siblings.indexOf(node);
+			const previous = index > 0 ? siblings[index - 1] : undefined;
+			const next = index + 1 < siblings.length ? siblings[index + 1] : undefined;
+			let value = (node.textContent ?? "").replace(/\s+/g, " ");
+			if (!previous || BLOCK_TAGS[(previous as ReadabilityElement).tagName] === true) value = value.trimStart();
+			if (!next || BLOCK_TAGS[(next as ReadabilityElement).tagName] === true) value = value.trimEnd();
+			node.data = value;
+			continue;
+		}
+		pending.push(...Array.from(node.childNodes));
+	}
+}
+
+/**
+ * Drop source-formatting whitespace between elements. The old Readability
+ * output did this implicitly when it round-tripped through `innerHTML`; the
+ * perf rewrite keeps the parsed tree, so do it explicitly to preserve the
+ * extracted-content contract.
+ */
+function pruneFormattingWhitespace(root: ReadabilityElement): void {
+	const pending = [...Array.from(root.childNodes)];
+	while (pending.length > 0) {
+		const node = pending.pop();
+		if (!node) continue;
+		if (node.nodeType === TEXT_NODE && (node.textContent ?? "").trim() === "") {
+			if (!insidePreformatted(node)) node.remove();
+			continue;
+		}
+		pending.push(...Array.from(node.childNodes));
+	}
+}
+
 function removeAll(root: ReadabilityNode, tags: readonly string[]): void {
 	const container = root as ReadabilityElement;
 	for (const tag of tags) {
@@ -804,6 +889,8 @@ export class Readability<T = string> {
 			])
 				node.removeAttribute(attr);
 		}
+		pruneFormattingWhitespace(root);
+		normalizeFormattingText(root);
 	}
 
 	/** Byline text when `node` is marked as one; the attribute checks run first so most nodes never build text. */
