@@ -34,7 +34,7 @@ type RootWildcard = "flat" | "nested" | null;
 
 interface BundledPackage {
 	readonly dir: string;
-	/** Directory of the package under the `@zeta` scope in an npm install (`agent` ships as `pi-agent-core`). */
+	/** Directory of the published package under the `@linxiraos` scope in an npm install (`agent` ships as `pi-agent-core`, `omptype` as `zeta-schema`). */
 	readonly npmDir: string;
 	readonly identifier: string;
 	readonly rootShim: string | null;

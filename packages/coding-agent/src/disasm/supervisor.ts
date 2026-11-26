@@ -3,8 +3,9 @@
  * host daemon (`host.ts`).
  *
  * Each backend keeps one analysis database per Python process, so each database gets its own
- * worker. The worker speaks NDJSON over stdin/stdout; requests are serialized, dirty databases
- * autosave when idle, and idle databases save and close themselves.
+ * worker. The worker listens on a private socket (Windows: a loopback TCP port written to a file)
+ * and speaks NDJSON over it; requests are serialized, dirty databases autosave when idle, and
+ * idle databases save and close themselves.
  */
 import * as fs from "node:fs";
 import * as net from "node:net";
@@ -327,7 +328,8 @@ export class DisasmWorker {
 	 * Send one request to the worker, serialized behind earlier requests. `timeoutMs` covers the
 	 * queue wait too: a request still queued at its deadline fails with a {@link ToolError} naming
 	 * the running request, without interrupting it (it belongs to another caller). A timeout or
-	 * abort while executing interrupts it (SIGINT; on Windows an `interrupt` frame on stdin) and
+	 * abort while executing interrupts it (SIGINT; on Windows or a frame-interrupt backend an
+	 * `interrupt` frame on the protocol socket) and
 	 * waits {@link INTERRUPT_GRACE_MS} for the answer; a worker that does not answer is killed.
 	 * Worker-side failures surface as {@link ToolError}.
 	 */
@@ -600,7 +602,7 @@ export class DisasmWorker {
 
 			try {
 				if (process.platform === "win32" || this.#backend.interrupt === "frame") {
-					// Windows has no per-process SIGINT (kill terminates); worker.py reads this frame on its stdin thread.
+					// Windows has no per-process SIGINT (kill terminates); worker.py reads this frame on its socket thread.
 					await this.#writeFrame(`${JSON.stringify({ interrupt: id })}\n`);
 				} else {
 					this.#proc.kill("SIGINT");

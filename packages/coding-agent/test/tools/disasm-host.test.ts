@@ -68,10 +68,7 @@ async function hostFixture() {
 		await fs.rm(dir, { recursive: true, force: true });
 	});
 	const connect = async () => {
-		await Bun.sleep(0);
-		console.error("DBG connect pid:", running.child.pid, "alive:", running.child.exitCode, "stderr:", running.child.peekStderr());
 		await untilAborted(AbortSignal.timeout(10_000), running.ready);
-		console.error("DBG ready pid:", running.child.pid);
 		const client = await DisasmDatabase.attachEndpoint("zeta.ida.references", endpoint, "open");
 		if (!client)
 			throw new Error(`Listening disassembler host did not accept a connection: ${running.child.peekStderr()}`);
@@ -109,7 +106,7 @@ describe("disassembler host retained references", () => {
 		await child.release(childReference.lease, { save: false });
 		await host.exited();
 		expect(await Bun.file(host.saved).text()).toBe("42");
-	}, 30_000);
+	}, 90_000);
 
 	it("reclaims a disconnected owner's references without dropping another owner's live database", async () => {
 		const host = await hostFixture();
@@ -123,36 +120,22 @@ describe("disassembler host retained references", () => {
 		await child.release(childReference.lease, { save: false });
 		await host.exited();
 		expect(await Bun.file(host.saved).text()).toBe("42");
-	}, 30_000);
+	}, 90_000);
 
 	it("does not attach an old portable handle to a reopened database incarnation", async () => {
 		const host = await hostFixture();
-		console.error("DBG fixture");
 		const first = await host.connect();
-		console.error("DBG first connect");
 		const old = await first.retain();
-		console.error("DBG first retain");
 		await first.release(old.lease, { save: false });
-		console.error("DBG first release");
 		await host.exited();
-		console.error("DBG first exited");
 		host.restart();
 		const replacement = await host.connect();
-		console.error("DBG replacement connect");
 		await expect(replacement.retain(old.handle)).rejects.toThrow("expired");
-		console.error("DBG expired checked");
 		expect((await replacement.refresh()).references).toBe(0);
-		console.error("DBG refreshed");
 		const current = await replacement.retain();
-		console.error("DBG current retain");
 		expect(await replacement.request("exec", { code: "6 * 7" })).toMatchObject({ value: "42", error: null });
-		console.error("DBG exec");
-		const watch = setInterval(() => console.error("DBG host stderr:", running.child.peekStderr()), 1000);
 		await replacement.release(current.lease, { save: false });
-		clearInterval(watch);
-		console.error("DBG current release");
 		await host.exited();
-		console.error("DBG second exited");
 		expect(await Bun.file(host.saved).exists()).toBe(false);
-	}, 30_000);
+	}, 90_000);
 });

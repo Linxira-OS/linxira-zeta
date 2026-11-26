@@ -49,7 +49,7 @@ export function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-/** Split a byte stream into LF-delimited UTF-8 lines; empty lines are skipped. */
+/** Split a UTF-8 byte stream or decoded line chunks into LF-delimited lines; empty lines are skipped. */
 export function lineReader(onLine: (line: string) => void): (chunk: Uint8Array | string) => void {
 	const decoder = new TextDecoder();
 	let buffered = "";

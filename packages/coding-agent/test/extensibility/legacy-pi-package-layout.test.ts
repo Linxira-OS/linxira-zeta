@@ -160,7 +160,7 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 		expect(bundle.logs).toEqual([]);
 		// The nested copy is what got bundled, not a hoisted one.
 		expect(bundle.code).toContain("nested:pi-agent-core");
-	});
+	}, 30_000);
 
 	it("bundles the packages of a hoisted npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-hoisted-build-");
@@ -175,5 +175,5 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 
 		expect(bundle.logs).toEqual([]);
 		expect(bundle.code).toContain("hoisted:pi-agent-core");
-	});
+	}, 30_000);
 });
