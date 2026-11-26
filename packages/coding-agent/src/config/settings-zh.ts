@@ -60,6 +60,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Git: "Git 仓库",
 	Compaction: "压缩",
 	"Zeta Context Cache": "Zeta 上下文缓存",
+	"Binary Ninja": "Binary Ninja（二进制分析）",
 	"Rules (TTSR)": "规则（TTSR）",
 	Experimental: "实验性",
 	"Auto-Learn": "自动学习",
@@ -586,6 +587,19 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tui.vimModeDisplay": {
 		label: "Vim 模式指示器",
 		description: "当前 Vim 模式在状态行中的呈现方式",
+	},
+	"tui.vimShowCommand": {
+		label: "Vim 命令显示",
+		description:
+			"在状态行显示正在输入的命令，类似 Vim 的 showcmd：例如输入到最后的 d 之前显示 15d；即使隐藏模式指示器也会显示",
+	},
+	"tui.vimYankToClipboard": {
+		label: "Vim 复制到剪贴板",
+		description: '每次 Vim 复制也写入系统剪贴板，等价于 Vim 的 clipboard=unnamed；关闭时只有 "+y 和 "*y 会写入',
+	},
+	"tui.vimStartMode": {
+		label: "Vim 起始模式",
+		description: "每个新提示开始时的模式：启动时、每次发送消息后，以及对话框文本框中",
 	},
 	"tui.sidebar": {
 		label: "侧边栏",
@@ -2485,6 +2499,109 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "Spotlight 实验",
 		description: "用 Stencil Spotlight 塑造工具输出并排序查找结果，并将每个塑造结果记录到会话",
 	},
+	"pty.notify": {
+		label: "控制台通知",
+		description: "交互式控制台（bash `pty`）等待你输入时发出通知",
+	},
+	"providers.cacheWarmingStrategy": {
+		label: "缓存预热策略",
+		description: "刷新不再划算后如何桥接长工具调用：在缓存过期前压缩历史，或让它过期",
+	},
+	"providers.cacheWarmingCompactPercent": {
+		label: "缓存桥接压缩百分比",
+		description: "长工具调用允许用压缩桥接前，提示必须达到的上下文窗口比例；与令牌上限取较低值",
+	},
+	"providers.cacheWarmingCompactTokens": {
+		label: "缓存桥接压缩令牌数",
+		description: "长工具调用允许用压缩桥接的提示令牌阈值；与窗口百分比取较低值",
+	},
+	"live.endpoint": {
+		label: "Live 端点",
+		description:
+			"用于实时语音的 OpenAI Realtime WebRTC 兼容服务器基础 URL（例如 http://127.0.0.1:8080/v1）；留空使用 Codex",
+	},
+	"live.apiKey": {
+		label: "Live 端点 API 密钥",
+		description: "只发送给 Live 端点的 Bearer 密钥：字面量、环境变量名或 !命令",
+	},
+	"providers.webKeyless": {
+		label: "无密钥 Web 服务",
+		description:
+			"允许网页搜索和 URL 读取使用无需凭据的第三方服务：Parallel、Exa、Firecrawl、Keenable、Perplexity、Jina reader，以及抓取型引擎（Startpage、DuckDuckGo、Ecosia、Google、Mojeek、Hacker News）。关闭时只运行你配置的服务",
+	},
+	"edit.magic.model": {
+		label: "魔法编辑模型",
+		description: "应用魔法模式修改的模型选择器或角色别名（@slow）；留空使用 smol 角色",
+	},
+	"todo.backend": {
+		label: "待办后端",
+		description: "待办列表镜像到的扩展；Native 只保留在会话内",
+	},
+	"computer.takeover": {
+		label: "计算机接管",
+		description: "窗口输入何时接管真实指针和键盘（按 Escape 停止），而不是在后台运行",
+	},
+	"tools.commands": {
+		label: "工具命令",
+		description:
+			"把较少使用的（可发现）工具挂载为带 schema 生成 `--help` 的 bash 命令，而不是每次请求都发送它们的 schema。需要 bash 工具：没有 bash 的会话会让所有已启用工具保持在顶层。关闭后所有已启用工具都在顶层",
+	},
+	"tools.commandDocs": {
+		label: "工具命令提示文档",
+		description: "选择哪些挂载命令的 `--help` 文本内联到系统提示。仅内置让核心工具内联，MCP 和扩展工具按需获取",
+	},
+	"tools.commandInline": {
+		label: "工具命令内联帮助",
+		description:
+			"当工具命令提示文档为“仅内置”时，额外内联名称匹配这些 glob 模式的动态命令（例如 mcp__context_mode_*）。仅目录模式忽略此设置",
+	},
+	"tools.commandNotices": {
+		label: "工具命令挂载通知",
+		description: "MCP 或扩展工具作为命令挂载/卸载时显示通知；模型仍会在下一次提示时获知变化",
+	},
+	"task.crossInstance": {
+		label: "跨实例智能体消息",
+		description: "允许此文件夹中的其他 zetacode 实例读取智能体输出并发送可唤醒智能体的消息",
+	},
+	"browser.zeta": {
+		label: "Tern 浏览器",
+		description:
+			'在 Tern 窗格内，把浏览器标签作为 zeta 窗格上的画中画（原生 Web 视图）打开，而不是 zeta 自己的无头浏览器；没有可承载的 Tern 窗口时回退到该浏览器。子智能体默认跳过，除非打开时传 app: "tern"。显式 app、relay 和 Browser CDP URL 优先；app "own" 可让单次打开退出。可用 ZETA_BROWSER_TERN=0/1 覆盖',
+	},
+	"binja.installDir": {
+		label: "Binary Ninja 安装目录",
+		description:
+			"包含 Binary Ninja 核心库的目录，或 macOS .app 包；留空依次使用 $BN_INSTALL_DIR、Binary Ninja 用户目录中的 lastrun 文件、默认安装位置",
+	},
+	"binja.python": {
+		label: "Binary Ninja Python 解释器",
+		description: "能从安装目录的 python 子目录加载 Binary Ninja API 的 Python 3 解释器；留空自动检测",
+	},
+	"mcp.shared": {
+		label: "共享 MCP 服务器",
+		description:
+			"通过守护进程运行 MCP 服务器，让每个 zetacode 实例共享每个服务器的一个进程和缓存工具目录。持有会话的服务器仍每个实例一个进程（不可用时回退到私有服务器）",
+	},
+	"mcp.idleStopMinutes": {
+		label: "MCP 空闲停止",
+		description: "共享 MCP 服务器空闲这么多分钟后停止；下一次请求时重启",
+	},
+	"mcp.evalNamespaces": {
+		label: "MCP Eval 命名空间",
+		description: "把每个 MCP 服务器暴露为 eval 全局（github.create_issue(...)），而不是顶层工具或工具命令",
+	},
+	"mcp.builtinTransforms": {
+		label: "MCP 内置转换",
+		description: "跳过已被 omp 自身工具替代的已知 MCP 服务器（例如 eval 能运行 JavaScript 时的 Codex node_repl）",
+	},
+	"share.serverUrl": {
+		label: "分享服务器",
+		description: "/share 使用的查看/上传基础地址（加密 blob 上传 + 查看器；链接为 <base>/<id>#<key>）",
+	},
+	"share.store": {
+		label: "分享存储",
+		description: "/share 把加密会话 blob 上传到哪里",
+	},
 };
 export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
 
@@ -2658,6 +2775,14 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tui.vimModeDisplay::none": {
 		label: "隐藏",
 		description: "不在状态行显示模式",
+	},
+	"tui.vimStartMode::insert": {
+		label: "插入",
+		description: "直接输入；按 Escape 进入普通模式",
+	},
+	"tui.vimStartMode::normal": {
+		label: "普通",
+		description: "从 Vim 命令开始；按 i、a、o 等进入输入",
 	},
 	"tui.titleSpinner::braille": {
 		label: "盲文",
@@ -5837,6 +5962,77 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"claudeResets.autoRedeemFable::no": {
 		label: "否",
 		description: "此窗口绝不花费已保存的重置。",
+	},
+	"prewalk.auto::escalate": {
+		label: "升级",
+		description:
+			"类似“开启”，但先在 Prewalk 规划模型（prewalk.from）上规划：有把握的前置任务会在设置前移到该模型并从它交接；下一个任务从本任务开始的位置开始。规划模型已激活时等同于“开启”，只是 '@initial' 没有可交回的位置",
+	},
+	"providers.cacheWarmingStrategy::auto": {
+		label: "自动",
+		description: "刷新花费仍低于更便宜的买断成本时继续刷新，然后压缩大提示或让缓存项过期",
+	},
+	"providers.cacheWarmingStrategy::keepalive": {
+		label: "保持存活",
+		description: "从不压缩；持续刷新直到不再划算",
+	},
+	"providers.cacheWarmingStrategy::compact": {
+		label: "压缩",
+		description: "提示达到桥接压缩阈值后，在第一次决策时压缩",
+	},
+	"providers.cacheWarmingCompactPercent::40": { label: "40%" },
+	"providers.cacheWarmingCompactPercent::50": { label: "50%" },
+	"providers.cacheWarmingCompactPercent::60": { label: "60%" },
+	"providers.cacheWarmingCompactPercent::70": { label: "70%" },
+	"providers.cacheWarmingCompactPercent::80": { label: "80%" },
+	"providers.cacheWarmingCompactTokens::50000": { label: "5 万令牌" },
+	"providers.cacheWarmingCompactTokens::100000": { label: "10 万令牌" },
+	"providers.cacheWarmingCompactTokens::150000": { label: "15 万令牌" },
+	"providers.cacheWarmingCompactTokens::200000": { label: "20 万令牌" },
+	"providers.cacheWarmingCompactTokens::300000": { label: "30 万令牌" },
+	"computer.takeover::fallback": {
+		label: "回退",
+		description:
+			"优先后台；后台路径不可用的调用会短暂把目标窗口带到前台，然后把焦点还给你的应用（macOS 即使你继续输入也会归还）。智能体也可在单次调用中请求接管",
+	},
+	"computer.takeover::foreground": {
+		label: "前台",
+		description: "由 omp 而非智能体决定：对已在你前方的窗口，以及后台路径不可用的调用，接管输入；其他情况留在后台",
+	},
+	"computer.takeover::always": {
+		label: "总是",
+		description:
+			"由 omp 而非智能体决定：每次窗口和元素输入调用都接管，为该调用把目标带到前台，然后把焦点还给你的应用",
+	},
+	"computer.takeover::refuse": {
+		label: "拒绝",
+		description:
+			"从不接管：后台路径不可用的调用会失败，智能体发起的接管、raise、激活式打开、桌面输入和 macOS 菜单（上下文菜单、弹出菜单和菜单按钮；打开时会占用键盘）也会被拒绝",
+	},
+	"tools.commandDocs::inline": {
+		label: "所有命令",
+		description: "每个挂载命令的帮助都内联。",
+	},
+	"tools.commandDocs::builtins": {
+		label: "仅内置",
+		description: "内置帮助内联；MCP 和扩展帮助按需获取。",
+	},
+	"tools.commandDocs::catalog": {
+		label: "仅目录",
+		description: "列出所有命令；按需运行 `--help`。",
+	},
+	"disassembler.backend::binja": {
+		label: "Binary Ninja",
+		description:
+			"通过其无头 Python API 使用 Binary Ninja（需要支持无头的许可证）；自动模式绝不选择它；找不到安装时禁用分析",
+	},
+	"share.store::blob": {
+		label: "加密 Blob",
+		description: "上传到分享服务器（无需 GitHub 账号；避开 gist API 速率限制）",
+	},
+	"share.store::gist": {
+		label: "GitHub Gist",
+		description: "推送到秘密 gist（需要已认证的 gh），失败时回退到分享服务器",
 	},
 };
 

@@ -37,11 +37,13 @@ import { invalidate as invalidateCapabilityFsCache } from "../capability/fs";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
 import type { ModelRole } from "../config/model-roles";
 import { loadCapability } from "../discovery";
+import { registerLanguageConfigOverride } from "../i18n";
 import { AgentStorage, type AgentStorageApi } from "../session/agent-storage";
 import { type CompactionMethod, DEFAULT_COMPACTION_METHOD_ORDER } from "../session/compaction-methods";
 import { writeFileAtomically } from "../utils/atomic-file";
 import { isRegisteredSearchEngine } from "../web/search/provider";
 import { stringifyYamlConfig } from "@linxiraos/pi-utils/yaml-config";
+import { cfgLanguage } from "../zeta-settings";
 import {
 	type AnySetting,
 	all as allSettings,
@@ -4633,6 +4635,10 @@ export const settings = new Proxy({} as Settings, {
 		return value;
 	},
 });
+
+// Once settings load, the `language` setting (including its schema default `en`)
+// is authoritative; environment detection only covers startup-prepaint reads.
+registerLanguageConfigOverride(() => (isSettingsInitialized() ? cfgLanguage.get(settings) : undefined));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helpers

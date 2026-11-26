@@ -5,8 +5,8 @@
  * from dropping them while preserving the legacy defaults and settings-panel
  * metadata.
  */
-import { register } from "./config/registry";
-import type { ZetaLanguage } from "./i18n";
+import { effect, register } from "./config/registry";
+import { type ZetaLanguage, setLanguage } from "./i18n";
 
 const LANGUAGE_VALUES = ["en", "zh"] as const satisfies readonly ZetaLanguage[];
 
@@ -26,4 +26,9 @@ export const cfgLanguage = register({
 			{ value: "zh", label: "中文", description: "Simplified Chinese UI" },
 		],
 	},
+});
+
+/** Apply the effective setting immediately, including writes from the settings panel. */
+effect(cfgLanguage, value => {
+	setLanguage(value);
 });
