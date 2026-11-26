@@ -29,6 +29,7 @@ import {
 	RESOLVE_DEVICE_PATH,
 	type ResolutionDeviceName,
 } from "./xd-url";
+export { PROPOSE_DEVICE_NAME };
 import { ToolError } from "./tool-errors";
 import { prompt } from "@linxiraos/pi-utils";
 import resolveReminderPrompt from "../prompts/system/resolve-reminder.md" with { type: "text" };
