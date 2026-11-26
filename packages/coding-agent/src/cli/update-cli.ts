@@ -17,6 +17,7 @@ import {
 	getProjectDir,
 	getUpdateStateDir,
 	isCompiledBinary,
+	shippedCliAssetName,
 	isEnoent,
 	logger,
 	VERSION,
@@ -39,6 +40,8 @@ import {
 	downloadBuildFile,
 	type Fetch,
 	fetchBuild,
+	type BuildSelector,
+	currentBuildHost,
 	type UpdateChannel,
 } from "./build-service";
 import { managedInstallName } from "./managed-install";
@@ -1655,7 +1658,7 @@ function packageManagerUpdateSteps(
 		repair: async launcherPath => {
 			// The launcher is a manager's script or shim, never a build a patch
 			// could start from, so the check names no installed version.
-			const build = await fetchBuild({ version: release.version });
+			const build = await resolveBuild({ version: release.version });
 			// npm's script shims outrank `.exe` in PowerShell and Git Bash, so
 			// they must be retired rather than merely shadowed.
 			if (isWindowsScriptLauncherPath(launcherPath)) {
@@ -2168,6 +2171,96 @@ function announceOffer(version: string, request: UpdateRequest): boolean {
 	return true;
 }
 
+const GITHUB_API = "https://api.github.com";
+const GITHUB_REPO = "Linxira-OS/linxira-zeta";
+const GITHUB_RELEASE_TIMEOUT_MS = 30_000;
+
+interface GitHubReleaseAsset {
+	name: string;
+	size: number;
+	browser_download_url: string;
+	digest?: string | null;
+}
+interface GitHubRelease {
+	tag_name: string;
+	prerelease: boolean;
+	draft: boolean;
+	assets: GitHubReleaseAsset[];
+}
+
+async function githubReleaseJson(url: string): Promise<unknown> {
+	const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+	const headers: Record<string, string> = {
+		Accept: "application/vnd.github+json",
+		"X-GitHub-Api-Version": "2022-11-28",
+	};
+	if (token) headers.Authorization = `Bearer ${token}`;
+	const response = await fetch(url, {
+		headers,
+		signal: AbortSignal.timeout(GITHUB_RELEASE_TIMEOUT_MS),
+	});
+	if (!response.ok) throw new Error(`GitHub release request failed: HTTP ${response.status}`);
+	return response.json();
+}
+
+/** Zeta releases are GitHub releases; the build service is optional and never the default. */
+async function fetchGitHubBuild(selector: BuildSelector): Promise<BuildAnswer> {
+	const host = await currentBuildHost();
+	const binaryName = `zeta-cli-${host.asset}${host.windows ? ".exe" : ""}`;
+	if (
+		shippedCliAssetName(process.platform, process.arch, {
+			musl: host.asset.includes("-musl"),
+		}) === undefined
+	) {
+		throw new Error(`No standalone ${CLI_BIN_NAME} binary is published for ${process.platform}-${process.arch}.`);
+	}
+	let release: GitHubRelease;
+	if ("version" in selector) {
+		release = (await githubReleaseJson(
+			`${GITHUB_API}/repos/${GITHUB_REPO}/releases/tags/v${encodeURIComponent(selector.version)}`,
+		)) as GitHubRelease;
+	} else {
+		const releases = (await githubReleaseJson(
+			`${GITHUB_API}/repos/${GITHUB_REPO}/releases?per_page=30`,
+		)) as GitHubRelease[];
+		const wanted = releases.find(
+			item => !item.draft && (selector.channel === "canary" ? item.prerelease : !item.prerelease),
+		);
+		if (!wanted) throw new Error(`No ${selector.channel} GitHub release is published.`);
+		release = wanted;
+	}
+	const version = release.tag_name.replace(/^v/, "");
+	const asset = release.assets.find(item => item.name === binaryName);
+	if (!asset) throw new Error(`GitHub release ${release.tag_name} has no ${binaryName}.`);
+	if (!Number.isSafeInteger(asset.size) || asset.size <= 0) throw new Error(`${binaryName} has an invalid size.`);
+	let sha256 = asset.digest?.replace(/^sha256:/, "");
+	if (!sha256 || !/^[0-9a-f]{64}$/i.test(sha256)) {
+		const sums = release.assets.find(item => item.name === "SHA256SUMS.txt");
+		if (!sums) throw new Error(`GitHub release ${release.tag_name} has no SHA256SUMS.txt.`);
+		const response = await fetch(sums.browser_download_url, {
+			signal: AbortSignal.timeout(GITHUB_RELEASE_TIMEOUT_MS),
+		});
+		if (!response.ok) throw new Error(`Could not read SHA256SUMS.txt: HTTP ${response.status}`);
+		const line = (await response.text()).split(/\r?\n/).find(entry => entry.trim().endsWith(`  ${binaryName}`));
+		sha256 = line?.trim().split(/\s+/)[0];
+	}
+	if (!sha256 || !/^[0-9a-f]{64}$/i.test(sha256)) throw new Error(`${binaryName} has no valid SHA-256.`);
+	return {
+		version,
+		file: { name: binaryName, size: asset.size, sha256: sha256.toLowerCase() },
+		download: asset.browser_download_url,
+	};
+}
+
+async function resolveBuild(selector: BuildSelector, options?: { fromVersion?: string }): Promise<BuildAnswer> {
+	try {
+		return await fetchBuild(selector, options);
+	} catch (error) {
+		if ((process.env.PI_BUILD_URL ?? "").trim().length > 0) throw error;
+		return fetchGitHubBuild(selector);
+	}
+}
+
 /**
  * Update a standalone binary install from the build service: the newest build
  * on the channel, asked with the installed version so the answer can carry a
@@ -2181,7 +2274,7 @@ async function runBinaryUpdate(
 	let build: BuildAnswer;
 	try {
 		const fromVersion = target ? await installedBuildVersion(target.path) : VERSION;
-		build = await fetchBuild({ channel: request.channel }, { fromVersion });
+		build = await resolveBuild({ channel: request.channel }, { fromVersion });
 	} catch (err) {
 		throw updateError("Failed to check for updates", err);
 	}
@@ -2220,7 +2313,7 @@ async function updateToStandaloneBinary(
 ): Promise<string> {
 	const target = await resolveUpdateTarget({ allowPackageManagers: false });
 	const fromVersion = target.method === "binary" ? await installedBuildVersion(target.path) : VERSION;
-	const build = await fetchBuild({ channel }, { fromVersion });
+	const build = await resolveBuild({ channel }, { fromVersion });
 	if (compareVersions(build.version, release.version) < 0 && compareVersions(build.version, VERSION) <= 0) {
 		throw new Error(
 			`${release.version} ships as a standalone binary, but the newest ${channel} build of it published for this platform is ${build.version}; retry in a few minutes once it finishes uploading, or reinstall with: ${installerHint()}`,
