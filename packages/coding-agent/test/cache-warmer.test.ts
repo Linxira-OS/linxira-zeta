@@ -172,7 +172,12 @@ function change(h: Harness): PromptCacheChange | undefined {
 }
 
 function start(h: Harness, options: SimpleStreamOptions = {}): void {
-	h.warmer.start({ model: makeModel(), context: { messages: [] }, options }, () => change(h));
+	// These lifecycle tests exercise the replay cut-off path; a forced tool
+	// choice makes the warmer choose replay instead of the endpoint prewarm.
+	h.warmer.start(
+		{ model: makeModel(), context: { messages: [] }, options: { toolChoice: "required", ...options } },
+		() => change(h),
+	);
 }
 
 async function advance(ms: number): Promise<void> {
@@ -330,9 +335,10 @@ describe("cache warmer lifecycle", () => {
 		expect(h.warmed[0]?.message.usage.cost.total).toBeGreaterThan(0);
 		expect(h.warmer.status.state).toBe("scheduled");
 		expect(h.refreshes).toEqual([
-			{ type: "start", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
+			{ type: "start", method: "replay", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
 			{
 				type: "end",
+				method: "replay",
 				phase: "streaming",
 				provider: "anthropic",
 				model: "claude-sonnet-5",
@@ -385,9 +391,10 @@ describe("cache warmer lifecycle", () => {
 		await advance(SHORT_DELAY_MS);
 		expect(thrown.warmer.status).toMatchObject({ state: "inactive", reason: "refresh failed" });
 		expect(thrown.refreshes).toEqual([
-			{ type: "start", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
+			{ type: "start", method: "replay", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
 			{
 				type: "end",
+				method: "replay",
 				phase: "streaming",
 				provider: "anthropic",
 				model: "claude-sonnet-5",
@@ -684,7 +691,7 @@ describe("cache warmer lifecycle", () => {
 		start(h);
 		await advance(SHORT_DELAY_MS);
 		expect(h.refreshes).toEqual([
-			{ type: "start", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
+			{ type: "start", method: "replay", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
 		]);
 		h.warmer.onAgentSettled();
 		h.mode = "off";
@@ -694,9 +701,10 @@ describe("cache warmer lifecycle", () => {
 		expect(h.warmed).toHaveLength(1);
 		expect(h.warmed[0]?.message.usage.cacheRead).toBe(PROMPT_TOKENS);
 		expect(h.refreshes).toEqual([
-			{ type: "start", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
+			{ type: "start", method: "replay", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
 			{
 				type: "end",
+				method: "replay",
 				phase: "streaming",
 				provider: "anthropic",
 				model: "claude-sonnet-5",
@@ -725,6 +733,7 @@ describe("cache warmer lifecycle", () => {
 		expect(h.warmed).toEqual([]);
 		expect(h.refreshes.at(-1)).toEqual({
 			type: "end",
+			method: "replay",
 			phase: "streaming",
 			provider: "anthropic",
 			model: "claude-sonnet-5",
@@ -743,9 +752,10 @@ describe("cache warmer lifecycle", () => {
 		expect(h.replays[0]?.options?.signal?.aborted).toBe(true);
 		expect(h.warmed).toHaveLength(1);
 		expect(h.refreshes).toEqual([
-			{ type: "start", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
+			{ type: "start", method: "replay", phase: "streaming", provider: "anthropic", model: "claude-sonnet-5" },
 			{
 				type: "end",
+				method: "replay",
 				phase: "streaming",
 				provider: "anthropic",
 				model: "claude-sonnet-5",
