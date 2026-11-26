@@ -3,20 +3,17 @@
 CLI commands for one-click startup of the Stats Dashboard and Web UI, backed by
 ZetaServer's unified reverse proxy.
 
-> **Status (2026-11-06).** The shipped Web UI is **Work Studio**: the renderer in
-> `web-app/`, served same-origin by `zetacode serve` (next section). Two earlier
-> distributions are retired — `@linxiraos/zeta-web` (the Next.js `web-ui/`
-> snapshot; frozen, no new builds) and the zetawork desktop bundle (Rust GUI
-> paused, no installers published). Neither is a supported way to run the UI.
+> **Status (2026-11-26).** Work Studio is retired (ADR-0100). `zetacode serve`
+> is now a headless backend/API for sessions and remote clients; it does not
+> build or serve `web-app/dist`, and `--web-only`/renderer static serving is not
+> a supported product path. The renderer sections below are kept as historical
+> implementation notes only. Zeta Terminal is the next terminal/TSP product
+> line under `terminal/`.
 >
 > Ports stay the Zeta block, not OMP's: gateway `43143`
 > (`--gateway-port`/`ZETA_WEB_GATEWAY_PORT`), stats `43147`
-> (`--stats-port`/`NEXT_PUBLIC_STATS_URL`), UI `43141` (`--web-port`).
->
-> ```bash
-> zetacode serve --web-only --web-port 43141 --gateway-port 43143
-> # then open http://127.0.0.1:43141/ — that origin is Work Studio
-> ```
+> (`--stats-port`/`NEXT_PUBLIC_STATS_URL`). The old UI port `43141` is not a
+> product surface.
 
 ## Studio renderer and host (same origin)
 

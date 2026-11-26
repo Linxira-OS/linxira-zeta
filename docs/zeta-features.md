@@ -116,7 +116,7 @@ Details and the approval matrix are in [plan-approval.md](./plan-approval.md).
 An opt-in, cross-session project record kept in `<project>/.zeta/tracking/`
 (`tracking.enabled`). It holds progress, todo-phase state, decisions, actions,
 compaction summaries and approved plans, written for people, agents, and
-collaborators; the Work Studio tracking panel reads the same documents. See
+collaborators; the Terminal tracking surface reads the same documents. See
 [zeta-tracking.md](./zeta-tracking.md).
 
 ## Learning layers (memory, taste, tracking)
@@ -163,7 +163,7 @@ Structure lives in one SQLite database (`~/.zeta/data/zeta.db`); markers are
 discovery hints and `team doctor` reports drift. The TUI adds path entry, the
 Team Hub, and database-only rooms; `/lead` (alias `/pm`) runs a PM main agent in
 a PM workspace with `room_read`/`room_post` and one PM-owned persistent
-Secretary subagent, and no coding tools. Work Studio adds the Team pane:
+Secretary subagent, and no coding tools. The Terminal line adds the Team page on TSP:
 dry-run bootstrap/apply/resume/rollback, doctor, PM/repo/engineer setup, the
 task queue with leases and review, room member/kind management, incremental
 room events with subscription/ack cursors, and the real relationship graph. Its
@@ -177,14 +177,14 @@ bindings, and Vibe auto-start are not included.
 Plugins come from the marketplace plus npm, git and local-link sources; the
 installed set is the CLI's plugin lockfile, not a second store.
 `GET /api/plugins` returns installed plugins with their declared `ui.panels`,
-and the Work Studio Plugins page toggles the same store. See
+and the Terminal plugin surface toggles the same store. See
 [plugins.md](./plugins.md) and [marketplace.md](./marketplace.md).
 
 ## Usage dashboard
 
 `zetacode stats` (and `zetacode serve`) hosts the local usage dashboard on
 `127.0.0.1:43147`: year-long activity heatmap, per-model breakdown with legend,
-today's hourly series, and deep links (`range=all`) from Work Studio. Reading
+today's hourly series, and deep links (`range=all`) from the Terminal dashboard. Reading
 `GET /api/usage/daily` covers the same 400-day window.
 
 ## zetaide
