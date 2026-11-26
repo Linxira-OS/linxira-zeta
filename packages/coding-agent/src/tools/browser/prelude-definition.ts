@@ -36,6 +36,20 @@ function browserX11Guidance(settings: Settings, platform: NodeJS.Platform = proc
  */
 export type BrowserRelayGuidance = { mode: "only" } | { mode: "default"; fallback: BrowserKind };
 
+/** Render the relay guidance for one resolved fallback; pure so its wording is testable. */
+export function renderBrowserRelayGuidance(guidance: BrowserRelayGuidance | undefined): string | undefined {
+	if (!guidance) return undefined;
+	const fallback = guidance.mode === "default" ? guidance.fallback : undefined;
+	return prompt.render(relayGuidance, {
+		only: guidance.mode === "only",
+		// The block reaches the model provider: never echo userinfo or token params.
+		cdpUrl: fallback?.kind === "connected" ? redactUrlForLog(fallback.cdpUrl) : undefined,
+		tern: fallback?.kind === "tern",
+		webkit: fallback?.kind === "webkit",
+		cmux: fallback?.kind === "cmux",
+	});
+}
+
 /** Build the browser eval facade after an eval runtime first requests preludes. */
 export function createBrowserPreludeDefinition(
 	session: ToolSession,
@@ -52,17 +66,7 @@ export function createBrowserPreludeDefinition(
 		},
 		firstCallDocumentation: browserCoreDescription,
 		get guidance() {
-			const mode = host.relay;
-			const fallback = mode?.mode === "default" ? mode.fallback : undefined;
-			const relay = mode
-				? prompt.render(relayGuidance, {
-						only: mode.mode === "only",
-						// The block reaches the model provider: never echo userinfo or token params.
-						cdpUrl: fallback?.kind === "connected" ? redactUrlForLog(fallback.cdpUrl) : undefined,
-						tern: fallback?.kind === "tern",
-						cmux: fallback?.kind === "cmux",
-					})
-				: undefined;
+			const relay = renderBrowserRelayGuidance(host.relay);
 			return prompt.render(userSessionGuidance, { relay, x11: browserX11Guidance(session.settings) }).trim();
 		},
 		javascript: browserJavascript,
