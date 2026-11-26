@@ -41,17 +41,13 @@ const EXCLUDED: Record<string, string> = {
 	release_gate: "release chain",
 	release_binary: "release chain",
 	release_product_binaries: "release chain",
-	release_desktop_archives: "release chain",
-	release_desktop: "release chain (Electron/browser desktop packaging is GitHub-runner only)",
 	release_native_leaves: "release chain",
 	release_github: "release chain",
 	verify_linux_upgrade: "release chain (post-release advisory; needs published release assets + docker)",
 	release_npm: "release chain",
 	release_ide_packages: "release chain",
-	release_main_packages: "release chain",
 	release_plugin_packages: "release chain",
 	release_plugin_packages_manual: "release chain",
-	release_web_ui_packages: "release chain",
 	"notify-packages": "GitHub-only release dispatch (packages reusable workflow + org secret)",
 	native_addons_cross: "cross-target leg (darwin/win32 arm64)",
 	android_tier1_build_manual: "source-only manual Android gate; owner paused all Android builds (REQ-018)",
@@ -61,7 +57,6 @@ const EXCLUDED: Record<string, string> = {
 const MIRRORED: Record<string, string> = {
 	check: "check",
 	bazel_lock: "bazel_lock",
-	rust_validate: "rust_validate",
 	native_addons: "native_addons",
 	test_coding_agent_native: "test_coding_agent_native",
 	test_workspace: "test_workspace",
@@ -77,7 +72,6 @@ const MIRRORED: Record<string, string> = {
 	// The local desktop_tests job is the mirror of the GitHub job that carries
 	// the cheap web/desktop contracts (desktop `npm test` + the launcher/serve
 	// reuse suites); the release-only desktop_linux/windows packaging stays out.
-	web_desktop_tests: "desktop_tests",
 };
 
 /**
@@ -86,6 +80,7 @@ const MIRRORED: Record<string, string> = {
  * verification GitHub only performs in the release state.
  */
 const LOCAL_ONLY: Record<string, string> = {
+	rust_validate: "mirrors the path-triggered Rust workflow; local full gate keeps it",
 	preflight: "mirror scaffolding: refuses tag refs / tagged HEAD",
 	toolchains: "mirror scaffolding: persistent toolchain + bun install",
 };

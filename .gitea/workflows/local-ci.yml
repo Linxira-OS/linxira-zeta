@@ -421,33 +421,7 @@ jobs:
               # test buckets, desktop launcher tests).
               export PATH="$extra:$PATH"
               bun install --frozen-lockfile
-         # Mirror GitHub `check`: the renderer is the product UI, and web-app is
-         # its own npm project (not a root workspace member), so it installs and
-         # builds on its own — `build` is `tsc -b && vite build`, which is the
-         # only gate the renderer's types get. The job name advertises a web
-         # build; without these steps it quietly did not run one.
-         - name: Install web-app dependencies
-           working-directory: web-app
-           run: npm ci
-         - name: Build web-app
-           working-directory: web-app
-           run: npm run build
-         - name: Studio naming guard
-           working-directory: web-app
-           run: bun run check:naming
-         # Same read-model regression as GitHub `check`: "no managed install"
-         # on a host that is its own runtime must not read as a missing runtime.
-         - name: Test the Studio diagnostics read model
-           working-directory: web-app
-           run: bun test src/studio/diagnosticsModel.test.ts src/studio/deck/capabilitySupport.test.ts
-         - name: Web UI naming guard
-           working-directory: web-ui
-           run: bun run check:naming
-         # Parallel to ci.yml: read the built output and fail if the 3 MB
-         # diagram renderer is back on the boot path.
-         - name: First-load guard (diagram renderer stays lazy)
-           working-directory: web-app
-           run: bun run check:first-load
+         # Work Studio is retired (ADR-0100): no renderer build here.
          - name: Verify Rust license compliance (cargo-deny)
            shell: bash
            run: |
@@ -1496,73 +1470,6 @@ jobs:
    # npm test 平台契约 + web-ui 依赖。打包（electron-builder）、冒烟与产物
    # 上传属于发布链，不在此处。同一 job 也镜像 ci.yml 的 `web_desktop_tests`
    #（desktop 契约 + launcher/serve 复用决策，PR 路径常跑）。
-   desktop_tests:
-      name: Test web/desktop contracts (Linux)
-      needs: [preflight, toolchains]
-      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates') }}
-      runs-on: self-hosted
-      timeout-minutes: 60
-      steps:
-         # The NAS runner's egress to github.com is intermittent (observed:
-         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
-         # SSL unexpected eof` fetching a release asset), and actions/checkout
-         # has no retry - one reset loses the whole run. Clone from the Gitea
-         # instance instead: it is on the LAN and needs no action download.
-         - name: Checkout (local Gitea remote)
-           shell: bash
-           run: |
-              set -euo pipefail
-              ref="${{ github.ref }}"
-              sha="${{ github.sha }}"
-              host="${{ github.server_url }}"
-              host="${host#*://}"
-              token="${{ github.token }}"
-              auth=""
-              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
-              url="http://${auth}${host}/${{ github.repository }}.git"
-              if [ ! -d .git ]; then git init -q .; fi
-              if git remote get-url origin >/dev/null 2>&1; then
-                 git remote set-url origin "$url"
-              else
-                 git remote add origin "$url"
-              fi
-              git fetch -q --depth=1 --tags origin "$ref"
-              # --depth=1 only brings the ref tip; fall back to the full branch
-              # when the run's SHA is not that tip (branch moved mid-run).
-              if ! git checkout -q -f "$sha" 2>/dev/null; then
-                 git fetch -q --tags origin "$ref"
-                 git checkout -q -f "$sha"
-              fi
-              git log -1 --format='checked out %h %s'
-         - name: Toolchain PATH
-           shell: bash
-           run: |
-              set -euo pipefail
-              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
-              extra="${PATH_EXTRA:-}"
-              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
-              if [ -z "$extra" ]; then
-                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
-                 exit 1
-              fi
-              echo "$extra:$PATH" >> "$GITHUB_PATH"
-              # The host executor gives every job its own act/<hash> workdir;
-              # the toolchains job's node_modules is not visible here. Install
-              # the workspace graph before the job's bun commands (`oxlint`,
-              # test buckets, desktop launcher tests).
-              export PATH="$extra:$PATH"
-              bun install --frozen-lockfile
-         - name: Install desktop dependencies
-           working-directory: desktop
-           run: npm ci
-         - name: Test desktop platform contracts
-           working-directory: desktop
-           run: npm test
-         # Mirror of ci.yml `web_desktop_tests`: the desktop platform contracts
-         # and the port-scoped serve reuse decision.
-         - name: Test the serve reuse decision
-           run: bun test packages/coding-agent/test/serve-registry.test.ts
-
    # ── 8. vendor 工作区（镜像 termide_tests / main_tests）──────────────────
    termide_tests:
       name: Test termide (vendored TermIDE)
