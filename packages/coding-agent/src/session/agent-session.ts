@@ -6776,11 +6776,17 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				await this.#goalRuntime.onToolCompleted(event.toolName);
 			}
 			this.#planModeReminderAwaitingProgress = false;
-			if (
-				!event.isError &&
-				(event.toolName === "ask" ||
-					writeDeviceDispatch(event.toolName, event.result)?.tool === PROPOSE_DEVICE_NAME)
-			) {
+			const askDetails =
+				event.toolName === "ask" ? (event.result as { details?: AskToolDetails } | undefined)?.details : undefined;
+			if (!event.isError && event.toolName === "ask") {
+				// A decision tool call resets the convergence counter, but only an
+				// answered form means the host now owns the next move. A form that
+				// closed without answers (or a test/extension tool that returns no
+				// form details) must not suppress the remaining reminders.
+				this.#planModeReminderCount = 0;
+				this.#planModeReminderAwaitingProgress = false;
+				if (askDetails?.answers?.length) this.#planModeDecisionSubmitted = true;
+			} else if (!event.isError && writeDeviceDispatch(event.toolName, event.result)?.tool === PROPOSE_DEVICE_NAME) {
 				this.#planModeReminderCount = 0;
 				this.#planModeReminderAwaitingProgress = false;
 				this.#planModeDecisionSubmitted = true;

@@ -740,6 +740,7 @@ export class PrewalkCoordinator {
 		if (!this.#planYolo || this.#planYoloArmed) return;
 		this.#planYoloArmed = true;
 		const previousEnabledTools = this.#host.getEnabledToolNames();
+		const previousActiveTools = new Set(this.#host.getActiveToolNames());
 		const previousMountedTools = this.#host.getMountedXdevToolNames?.() ?? [];
 		const previousRegisteredTools = this.#host.getAllToolNames();
 		const previousPlanModeState = this.#host.getPlanModeState();
@@ -766,7 +767,10 @@ export class PrewalkCoordinator {
 			throw error;
 		}
 		this.#planYoloPreviousNonMCPPresentation = {
-			enabled: previousEnabledTools.filter(name => name !== "propose" && !isMCPToolName(name)),
+			enabled: previousEnabledTools.filter(
+				name =>
+					name !== "propose" && !isMCPToolName(name) && (name !== "write" || previousActiveTools.has("write")),
+			),
 			mounted: previousMountedTools.filter(name => name !== "propose" && !isMCPToolName(name)),
 			registered: previousRegisteredTools,
 		};
