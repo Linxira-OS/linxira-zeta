@@ -41,6 +41,10 @@ const ALLOW: Array<{ pattern: RegExp; why: string }> = [
 		why: "published third-party-side packages referenced by plugins/scripts",
 	},
 	{
+		pattern: /^@linxiraos\/pi-tui\/(thinking|fuzzy)$/,
+		why: "legacy-pi alias fixture: the loader bridges these old subpaths to coding-agent modules; the fixture must spell them literally",
+	},
+	{
 		pattern: /^@linxiraos\/pi-utils\/virtual-fixture$/,
 		why: "a virtual module that exists only inside the fixture text of legacy-pi-bundled-virtual.test.ts",
 	},
