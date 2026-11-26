@@ -36,8 +36,8 @@ import { en } from "../src/i18n/en";
  * and intersected with the key set — an exact, boundary-respecting match, so a
  * key named `cmdDump` is not "referenced" by `cmdDumpAcp`.
  *
- * `tipN` keys are the one dynamic family: `packages/tui/src/prompt/welcome.ts`
- * builds them as `` tuiText(`tip${entry.line}`) `` from `tips.txt`, so a literal
+ * `tipN` keys are the one dynamic family: `packages/coding-agent/src/ui/welcome/tips.ts`
+ * builds them as `` tuiText(`tip${line}`) `` from `tips.txt`, so a literal
  * scan cannot see them. They are guarded structurally by
  * `test/i18n-tips-coverage.test.ts` (key set == tips.txt line numbers), which is
  * why the family is allowlisted here rather than left to rot.

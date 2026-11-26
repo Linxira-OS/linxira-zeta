@@ -9,6 +9,7 @@
  * - `[label](url)`: a link.
  */
 import { formatKey, formatKeys, formatKeyTwice, type KeyStyle } from "../keys/format";
+import { tuiText } from "@linxiraos/pi-tui";
 import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import tipsText from "./tips.txt" with { type: "text" };
 
@@ -17,17 +18,28 @@ const NEW = /\s*\[NEW\]\s*$/;
 /** Pick weight of a `[NEW]` tip; others weigh 1. */
 const NEW_WEIGHT = 4;
 
-const LINES: readonly string[] = tipsText
-	.split("\n")
-	.map(line => line.trim())
-	.filter(line => line.length > 0);
+/** A `tips.txt` line: its 1-based number names the catalogue key, and the raw
+ * line keeps the `[NEW]` marker for pool weighting and the tag. */
+interface TipLine {
+	readonly line: number;
+	readonly raw: string;
+	readonly english: string;
+}
+
+const LINES: readonly TipLine[] = tipsText.split("\n").flatMap((line, index) => {
+	const raw = line.trim();
+	if (raw.length === 0) return [];
+	return [{ line: index + 1, raw, english: raw.replace(NO_TERN, "").replace(NEW, "") }];
+});
 
 /** The nag shown instead of a tip to one in ten sessions on the plain unicode preset. */
 export const NERD_FONT_NAG = "Please use nerdfont 😭.";
 
 /** Every tip with its markers resolved for the renderer: Tern pitches dropped under Tern, unmarked otherwise. */
 export function tipPool(tern: boolean): string[] {
-	return tern ? LINES.filter(line => !NO_TERN.test(line)) : LINES.map(line => line.replace(NO_TERN, ""));
+	return tern
+		? LINES.filter(line => !NO_TERN.test(line.raw)).map(line => line.raw)
+		: LINES.map(line => line.raw.replace(NO_TERN, ""));
 }
 
 /** A tip from `tips` for the uniform sample `roll` in [0, 1), `[NEW]` tips weighted up; "" when empty. */
@@ -49,8 +61,18 @@ export function welcomeTip(options: {
 	readonly preset: string;
 	readonly tern: boolean;
 }): string | undefined {
-	if (options.preset === "unicode" && options.nagRoll < 0.1) return NERD_FONT_NAG;
-	return pickTip(tipPool(options.tern), options.tipRoll) || undefined;
+	if (options.preset === "unicode" && options.nagRoll < 0.1) {
+		return tuiText("welcomeNerdFontJoke", NERD_FONT_NAG);
+	}
+	const picked = pickTip(tipPool(options.tern), options.tipRoll);
+	if (!picked) return undefined;
+	// `tipPool` strips `[NO-TERN]` outside Tern, so match either form back to its
+	// catalogue line. The marker is structural: re-append `[NEW]` after the
+	// translation so `isNewTip` and the rainbow tag keep working.
+	const entry = LINES.find(line => line.raw === picked || line.raw.replace(NO_TERN, "") === picked);
+	if (!entry) return picked;
+	const localized = tuiText(`tip${entry.line}`, entry.english);
+	return NEW.test(entry.raw) ? `${localized} [NEW]` : localized;
 }
 
 /** Whether `tip` ends in the `[NEW]` marker. */

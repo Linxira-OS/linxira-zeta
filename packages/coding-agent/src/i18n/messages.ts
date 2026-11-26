@@ -631,16 +631,6 @@ export interface Messages {
 	resumeEmptyProject: string; // No conversations in this repository.
 	resumeEmptyAll: string; // No conversations yet.
 	resumeNoMatchFmt: string; // No conversations match “%s”
-	resumeClearSearchHint: string; // Esc clears the search
-	resumeSwitchScopeHint: string; // Tab switches scope
-	resumeHideAction: string;
-	resumeUnhideAction: string;
-	resumeHideFolderAction: string;
-	resumeShowHiddenFmt: string; // Show hidden (%d)
-	resumeHideHiddenAction: string;
-	resumeHiddenRowsShown: string;
-	resumeHiddenRowsHintFmt: string; // %d hidden · v show
-	resumeHiddenByFilterFmt: string; // %d conversations hidden by filter
 	resumeMoreProjectsFmt: string; // + %d more projects
 	resumeMoreConversationsFmt: string; // + %d more conversations
 	resumeLoading: string; // Loading conversations…
@@ -653,40 +643,7 @@ export interface Messages {
 	resumeConversationCountOfFmt: string; // %d of %d conversations
 	resumeWorkspaceCountOne: string; // 1 workspace
 	resumeWorkspaceCountFmt: string; // %d workspaces
-	resumeDeleteTrashFmt: string; // Move “%s” to trash?
-	resumeDeletePermanentFmt: string; // Permanently delete “%s”?
-	resumeDeleteTrashHint: string; // The conversation can be restored from the trash.
-	resumeDeletePermanentHint: string; // This cannot be undone.
-	resumeConfirmKeys: string; // y confirm · n cancel
-	resumeScanWarningFmt: string; // Some conversation folders could not be read: %s. Showing what was found.
-	resumeRetryHint: string; // r retries
-	resumeFooterScope: string; // scope
-	resumeFooterSearch: string; // search
-	resumeFooterRefresh: string; // refresh
-	resumeFooterPin: string; // pin
-	resumeFooterClose: string; // clear/close
-	resumeFooterClick: string; // click select
-	resumeFooterDoubleClick: string; // dbl-click resume
-	resumeFooterWheel: string; // wheel
-	resumeFooterMenu: string; // menu
-	resumeFooterPaths: string; // full paths
 	resumeFullPathsWorkspaceHint: string; // Full paths matter outside this workspace
-	resumeMenuRename: string; // rename
-	resumeMenuCollapse: string; // collapse
-	resumeMenuExpand: string; // expand
-	resumeMenuOpen: string; // open in file manager
-	resumeMenuWorkspace: string; // workspace
-	resumeMenuConversation: string; // conversation
-	resumeRenameHint: string; // Enter saves · Esc cancels
-	resumeRenameWorkspaceTitle: string; // Rename workspace
-	resumeRenameConversationTitle: string; // Rename conversation
-	resumeRenameEmpty: string; // A name is required.
-	resumeRenameFailed: string; // The name was not changed.
-	resumeRenameFailedFmt: string; // Rename failed: %s
-	resumeRenameMismatchFmt: string; // Renamed, but the list still shows “%s”
-	resumeDeleteTitle: string; // Delete conversation
-	resumeConfirmButton: string; // Confirm
-	resumeCancelButton: string; // Cancel
 
 	// compaction summary / handoff / branch dividers
 	csLabelCompacted: string; // compacted
@@ -1887,7 +1844,6 @@ export interface Messages {
 	attachHint2fa: string;
 	attachHintChannels: string;
 	attachHintGeneric: string;
-	attachLocalExecutionUnavailable: string;
 	attachClientSideCommandFmt: string;
 	attachFullTuiFmt: string;
 	attachNewOrResumeFmt: string;
@@ -2002,9 +1958,6 @@ export interface Messages {
 	editsEmptyFiltered: string;
 	editsHeaderRecent: (n: number) => string;
 	editsHeaderForPath: (p: string, n: number) => string;
-	cmdSidebar: string;
-	acSidebarOn: string;
-	acSidebarOff: string;
 	cmdPause: string;
 	cmdForgetApprovals: string;
 	cmdQuit: string;
@@ -2396,6 +2349,7 @@ export interface Messages {
 	toolsMarkdownDescription: string; // "Description" header
 	toolsMarkdownNoTools: string; // empty state
 	toolsMarkdownNoDescription: string; // per-row fallback
+	toolsMarkdownMountedCommand: string; // row copy for a /command-mounted tool
 
 	// ── Extensions dashboard (pi-tui overlays/extensions) ───────────────────
 	extDashboardTitle: string; // top border title
@@ -2588,19 +2542,6 @@ export interface Messages {
 	askMultiMeta: string; // "multi"
 	askQuestionOne: string; // "1 question"
 	askQuestionManyFmt: string; // "%d questions"
-	hbIrcInboxTitle: string; // "IRC inbox"
-	hbIrcPeersTitle: string; // "IRC peers"
-	hbInboxEmpty: string; // "empty"
-	hbPeekMeta: string; // "peek"
-	hbNoOtherAgents: string; // "no other agents"
-	hbUnreadOne: string; // "1 unread"
-	hbUnreadManyFmt: string; // "%d unread"
-	hbMessageOne: string; // "1 message"
-	hbMessageManyFmt: string; // "%d messages"
-	hbIrcAnyone: string; // "anyone"
-	hbIrcCallFailed: string; // "IRC call failed."
-	hbMoreLineOneFmt: string; // "… +%s more line"
-	hbMoreLinesManyFmt: string; // "… +%s more lines"
 	gitNoChanges: string; // "No changes"
 	gitNoCommitsYet: string; // "No commits yet"
 	gitLoadingDiff: string; // "Loading diff…"
@@ -2954,11 +2895,6 @@ export interface Messages {
 
 	// ── Session selector (session-selector.ts) ─────────────────────────────
 	ssEmptyNoSessions: string; // "No sessions found" (no indent)
-	ssRunningAgents: string;
-	ssRunningAgentCreated: string;
-	ssRunningAgentOpen: string;
-	ssRunningAgentActivity: string;
-	ssRunningAgentIdle: string;
 	ssEmptyNoFolderSessions: string; // no indent
 	ssLoadingProjects: string; // "Loading all projects…" (no indent)
 	ssCurrentMark: string; // "current"
@@ -2968,8 +2904,6 @@ export interface Messages {
 	// ── Resume picker (native picker + ANSI resume tree) ───────────────────
 	resumePinAction: string;
 	resumeUnpinAction: string;
-	resumeRefreshAction: string;
-	resumeDeleteTrash: string;
 	resumeDeletePermanent: string;
 
 	// ── History search (history-search.ts) ─────────────────────────────────

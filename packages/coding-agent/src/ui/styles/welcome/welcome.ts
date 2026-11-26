@@ -12,7 +12,7 @@
  *
  * While the intro runs the logo follows the terminal clock.
  */
-import type { UiNode } from "@linxiraos/pi-tui";
+import { tuiText, type UiNode } from "@linxiraos/pi-tui";
 import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
 import { replaceTabs, spaces, visibleWidth, wrap } from "@linxiraos/pi-tui/text/width";
 import type { ColorDepth } from "@linxiraos/pi-tui/theme/color";
@@ -31,9 +31,10 @@ const UPDATE_BAR = 10;
 const TIP_MEASURE = 72;
 /** Narrowest terminal that shows the tip. */
 const TIP_MIN_COLUMNS = 50;
-const TIP_LABEL = "Tip: ";
-/** Text of the `[NEW]` tag and one hue turn of its rainbow. */
-const NEW_TAG = "NEW!";
+/** `Tip: ` label; resolved per paint so `/language` applies without a restart. */
+function tipLabel(): string {
+	return tuiText("welcomeTipLabel", "Tip: ");
+}
 const NEW_GLOW_MS = 1500;
 
 /** `lines` indented as one block whose widest line centers in `width`. */
@@ -63,7 +64,7 @@ function updateForms(theme: Theme, update: VersionUpdate): string[] {
 
 /** The rainbow `NEW!` tag at hue offset `phase`. */
 function newTag(phase: number, depth: ColorDepth): string {
-	const chars = [...NEW_TAG];
+	const chars = [...tuiText("welcomeNewTag", "NEW!")];
 	let out = "\x1b[1m";
 	chars.forEach((ch, i) => {
 		const hue = Math.round(((i / chars.length + (((phase % 1) + 1) % 1)) % 1) * 360);
@@ -86,21 +87,23 @@ function tipBody(tip: TspText, cx: PaintContext): string {
 
 /** The tip rows at `width` (at most), before centering; none when the width leaves no useful line. */
 function tipRows(look: WelcomeLook, width: number, cx: PaintContext, phase: number): string[] {
-	if (look.tip === undefined || width - TIP_LABEL.length < 8) return [];
+	const label = tipLabel();
+	if (look.tip === undefined || width - label.length < 8) return [];
 	const { theme } = cx;
-	const lines = wrap(replaceTabs(`${TIP_LABEL}${tipBody(look.tip, cx)}`), width).map(line => line.trimEnd());
+	const lines = wrap(replaceTabs(`${label}${tipBody(look.tip, cx)}`), width).map(line => line.trimEnd());
 	const rows = lines.map((line, index) =>
 		theme.style(
 			"em",
-			index === 0 && line.startsWith(TIP_LABEL)
-				? `${theme.style("customMessageLabel", TIP_LABEL)}${theme.style("muted", line.slice(TIP_LABEL.length))}`
+			index === 0 && line.startsWith(label)
+				? `${theme.style("customMessageLabel", label)}${theme.style("muted", line.slice(label.length))}`
 				: theme.style("muted", line),
 		),
 	);
 	if (look.isNew && rows.length > 0) {
+		const tagText = tuiText("welcomeNewTag", "NEW!");
 		const tag = newTag(phase, theme.depth);
 		const last = rows[rows.length - 1]!;
-		if (visibleWidth(last) + 1 + NEW_TAG.length <= width) rows[rows.length - 1] = `${last} ${tag}`;
+		if (visibleWidth(last) + 1 + tagText.length <= width) rows[rows.length - 1] = `${last} ${tag}`;
 		else rows.push(tag);
 	}
 	return rows;

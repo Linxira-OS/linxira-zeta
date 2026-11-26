@@ -5,15 +5,14 @@ import { zh } from "../src/i18n/zh";
 /**
  * Welcome-tip catalogue coverage guard.
  *
- * `packages/tui/src/prompt/welcome.ts` embeds `tips.txt` line by line and
- * resolves the picked tip through the host text bridge as
- * `tuiText(\`tip${line}\`, english)`, where `line` is the 1-based number in the
- * *raw* split (blank lines are dropped but still consume their number). A
- * `tips.txt` line with no `tipN` key in a catalogue therefore silently renders
- * its English body in *every* language — the reported "some tips never
- * translate": v18.6.0 shipped 33 lines against 26 keys, with the keys several
- * lines out of step, so the tail fell back to English and the middle served
- * the wrong translation.
+ * `src/ui/welcome/tips.ts` embeds `tips.txt` line by line and resolves the
+ * picked tip through the host text bridge as `tuiText(\`tip${line}\`, english)`,
+ * where `line` is the 1-based number in the *raw* split (blank lines are dropped
+ * but still consume their number). A `tips.txt` line with no `tipN` key in a
+ * catalogue therefore silently renders its English body in *every* language — the
+ * reported "some tips never translate": v18.6.0 shipped 33 lines against 26 keys,
+ * with the keys several lines out of step, so the tail fell back to English and
+ * the middle served the wrong translation.
  *
  * `scripts/check-i18n-consistency.ts` only proves en/zh agree with *each other*,
  * so both failure modes stayed green: a missing key, and a key that drifted out
@@ -28,12 +27,12 @@ import { zh } from "../src/i18n/zh";
  * only exclusion.
  */
 
-const TIPS_PATH = `${import.meta.dir}/../../tui/src/prompt/tips.txt`;
+const TIPS_PATH = `${import.meta.dir}/../src/ui/welcome/tips.txt`;
 
-/** Mirrors `NEW_TIP_MARKER` in welcome.ts: pool weighting only, never rendered. */
+/** Mirrors `NEW` in ui/welcome/tips.ts: pool weighting only, never rendered. */
 const NEW_TIP_MARKER = /\s*\[NEW\]\s*$/;
 
-/** Mirrors `TIP_KEY_PLACEHOLDER` in welcome.ts. */
+/** Mirrors `TIP_KEY_PLACEHOLDER` in ui/welcome/tips.ts. */
 const TIP_KEY_PLACEHOLDER = /\{(?:key|keys|tap|action):[^}]+\}/g;
 
 const TIP_KEY_NAME = /^tip(\d+)$/;

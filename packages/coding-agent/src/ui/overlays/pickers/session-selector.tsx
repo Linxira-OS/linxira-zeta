@@ -20,6 +20,7 @@ import {
 	signal,
 } from "@linxiraos/pi-tui";
 import { formatBytes } from "@linxiraos/pi-utils";
+import { M } from "../../../i18n";
 import type { TspPickerAction, TspPickerGroup, TspPickerItem, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import {
 	rankSessionSearchMatches,
@@ -384,7 +385,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 		if (!global()) {
 			if (!props.loadAllSessions) return;
 			toggling = true;
-			message.set({ kind: "loading", text: "Loading all projects…" });
+			message.set({ kind: "loading", text: M.resumeLoading });
 			try {
 				const listing = await props.loadAllSessions();
 				global.set(listing.sessions);
@@ -548,7 +549,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 			out.push(
 				pickerAction(
 					"pin",
-					pinned ? "Unpin" : "Pin",
+					pinned ? M.resumeUnpinAction : M.resumePinAction,
 					pinned ? actionKbd("app.session.unpin", "alt+shift+k") : actionKbd("app.session.pin", "alt+k"),
 				),
 			);
@@ -632,7 +633,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 			look: "zeta.sessions",
 			title:
 				props.title ??
-				`Resume Session (${props.scopeLabel ?? (scope() === "all" ? "all projects" : "current folder")})`,
+				`${M.ssTitleResume} (${props.scopeLabel ?? (scope() === "all" ? "all projects" : "current folder")})`,
 			field: search(),
 			sessions: visible().map(session => ({
 				id: session.path,
@@ -691,7 +692,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 		);
 		return (
 			<card
-				head={props.title ?? (props.scopeLabel ? `Resume Session (${props.scopeLabel})` : "Resume Session")}
+				head={props.title ?? (props.scopeLabel ? `${M.ssTitleResume} (${props.scopeLabel})` : M.ssTitleResume)}
 				role="zeta.overlay.sessions"
 				term={term}
 				onKey={onKey}
@@ -772,7 +773,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 						? {
 								text: `Delete “${sessionLabel(choice)}”? This removes the session file.`,
 								act: "delete-confirm",
-								label: "Delete",
+								label: M.resumeDeletePermanent,
 							}
 						: null;
 				}}

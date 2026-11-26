@@ -5,8 +5,8 @@ import { en } from "../src/i18n/en";
 import { zh } from "../src/i18n/zh";
 
 /**
- * S2 guard: every `tuiText` key passed by `packages/tui` must resolve to a real
- * catalogue entry.
+ * S2 guard: every `tuiText` key passed by the terminal UI must resolve to a
+ * real catalogue entry.
  *
  * ## The mechanism being guarded
  *
@@ -22,28 +22,33 @@ import { zh } from "../src/i18n/zh";
  * catalogue, renders the inline English in *every* language — no error, no
  * warning, and no visible difference in the English UI. Nothing inside either
  * package can catch it: pi-tui cannot see the catalogue, and the catalogue
- * cannot see the call sites. Walking the tui sources and cross-checking the
+ * cannot see the call sites. Walking both source trees and cross-checking the
  * extracted keys is the only mechanical check available.
  *
- * ## Measured (before this guard existed)
+ * ## Measured (19.2 reactive rewrite)
  *
- * `packages/tui/src/**` holds 341 `tuiText`/`tuiTextFmt` call sites across 38
- * files, of which 285 pass a string literal (the remaining ones pass a
- * conditional branch, e.g. `tuiTextFmt(count === 1 ? "todoReminderHeaderOneFmt"
- * : "…ManyFmt", …)`, whose keys are covered by the same catalogue entries but are
- * not extracted here). All 285 exist in `en` and `zh`, and every zh value
- * differs from its en counterpart except the four language-neutral proper nouns
- * below — so this guard is green on arrival; its job is to stay green.
+ * The rewrite moved the terminal UI out of `packages/tui/src` into
+ * `packages/coding-agent/src` (`modes/view-model`, `ui`, and the transcript/
+ * command helpers). Call sites therefore span both roots. Most of the new
+ * reactive components still paint inline English instead of going through the
+ * bridge, so the literal set is 56 keys today (the pre-rewrite tree had 285);
+ * `MIN_LITERAL_KEYS` only needs to catch a scanner that stops finding sites at
+ * all, not to assert the old coverage.
  *
- * The one dynamic family is `` tuiText(`tip${entry.line}`) `` in
- * `prompt/welcome.ts`, pinned below and structurally covered by
- * `test/i18n-tips-coverage.test.ts` against `prompt/tips.txt`.
+ * The one dynamic family is `` tuiText(`tip${line}`) `` in
+ * `src/ui/welcome/tips.ts`, where the line number is the catalogue key suffix;
+ * `test/i18n-tips-coverage.test.ts` guards that family against `tips.txt`.
  */
 
-const TUI_SRC = path.resolve(import.meta.dir, "..", "..", "..", "packages/tui/src");
+const REPO_ROOT = path.resolve(import.meta.dir, "..", "..", "..");
+const TUI_SRC = path.join(REPO_ROOT, "packages", "tui", "src");
+const HOST_SRC = path.resolve(import.meta.dir, "..", "src");
+
+/** Both trees that call the host bridge (see the header). */
+const SCAN_ROOTS: readonly string[] = [TUI_SRC, HOST_SRC];
 
 /** Repo-relative label for failure messages (absolute paths do not travel). */
-const TUI_SRC_LABEL = "packages/tui/src";
+const SCAN_LABEL = "packages/tui/src + packages/coding-agent/src";
 
 /**
  * `packages/tui/src/i18n.ts` *defines* the bridge; its `tuiText(key: string, …)`
@@ -53,7 +58,7 @@ const TUI_SRC_LABEL = "packages/tui/src";
 const BRIDGE_MODULE = path.join(TUI_SRC, "i18n.ts");
 
 /** A broken scanner (bad glob, bad regex) must fail loudly, not pass vacuously. */
-const MIN_LITERAL_KEYS = 250;
+const MIN_LITERAL_KEYS = 50;
 
 /**
  * Proper nouns and language-neutral tokens: the zh value is intentionally the
@@ -78,7 +83,7 @@ function walkSources(root: string): string[] {
 	for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
 		const full = path.join(root, entry.name);
 		if (entry.isDirectory()) files.push(...walkSources(full));
-		else if (entry.isFile() && entry.name.endsWith(".ts")) files.push(full);
+		else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))) files.push(full);
 	}
 	return files;
 }
@@ -93,19 +98,18 @@ interface KeySites {
 function collectKeySites(): KeySites {
 	const literal = new Map<string, string>();
 	const families = new Set<string>();
-	for (const file of walkSources(TUI_SRC)) {
-		if (file === BRIDGE_MODULE) continue;
-		const text = fs.readFileSync(file, "utf8");
-		const label = path
-			.relative(path.resolve(TUI_SRC, "..", "..", ".."), file)
-			.split(path.sep)
-			.join("/");
-		for (const match of text.matchAll(CALL_SITE)) {
-			const line = text.slice(0, match.index).split("\n").length;
-			if (!literal.has(match[1])) literal.set(match[1], `${label}:${line}`);
-		}
-		for (const match of text.matchAll(TEMPLATE_CALL_SITE)) {
-			families.add(match[1]);
+	for (const root of SCAN_ROOTS) {
+		for (const file of walkSources(root)) {
+			if (file === BRIDGE_MODULE) continue;
+			const text = fs.readFileSync(file, "utf8");
+			const label = path.relative(REPO_ROOT, file).split(path.sep).join("/");
+			for (const match of text.matchAll(CALL_SITE)) {
+				const line = text.slice(0, match.index).split("\n").length;
+				if (!literal.has(match[1])) literal.set(match[1], `${label}:${line}`);
+			}
+			for (const match of text.matchAll(TEMPLATE_CALL_SITE)) {
+				families.add(match[1]);
+			}
 		}
 	}
 	return { literal, families };
@@ -114,7 +118,7 @@ function collectKeySites(): KeySites {
 describe("pi-tui text keys resolve in the catalogue", () => {
 	test("every literal tuiText key exists in en and zh", () => {
 		const { literal } = collectKeySites();
-		expect(literal.size, `${TUI_SRC_LABEL} scan is broken: only ${literal.size} literal keys`).toBeGreaterThanOrEqual(
+		expect(literal.size, `${SCAN_LABEL} scan is broken: only ${literal.size} literal keys`).toBeGreaterThanOrEqual(
 			MIN_LITERAL_KEYS,
 		);
 		const offenders: string[] = [];
