@@ -91,34 +91,18 @@ pids are cleaned up instead of blocking. Autostart is explicit (a user-level
 service on Linux, a login item on Windows) and the command prints the written
 path and how to undo it. See [daemon.md](./daemon.md).
 
-## Work Studio (browser workbench)
+## Work Studio (retired)
 
-Work Studio is the shipped browser surface. `zetacode serve` serves the
-renderer (`web-app/`, a maintained fork of OMP Studio) same-origin with the
-gateway, so one port is enough:
+Work Studio is retired from release (ADR-0100). `web-app/` and the Electron
+`desktop/` shell are archived: they are not built, packaged, or served by
+`@linxiraos/zeta`, and `zetacode serve` is now a headless backend/API for
+sessions and remote clients. There is no browser workbench to enable.
 
-- the renderer build ships inside `@linxiraos/zeta` (`dist/web-app`); a source
-  checkout can point `ZETA_WEB_APP_DIR` at `web-app/dist`, and the placeholder
-  only appears when no build exists;
-- the host contract is `/api/v1/*` (pair, CSRF, query, command, events), and
-  the legacy Web Gateway REST surface (`/api/*`) is still served for
-  compatibility;
-- the retired `web-ui/` snapshot is abandoned and ships no build; it is not a
-  supported way to run the UI.
+The next product line is **Zeta Terminal** under `terminal/`, built on the TSP
+surface. See [`terminal/README.md`](../terminal/README.md) and
+[`document/adr/0100-terminal-product-line-work-studio-retirement.md`](../document/adr/0100-terminal-product-line-work-studio-retirement.md).
 
-See [zeta-serve-web.md](./zeta-serve-web.md) and
-[web-ui/api.md](./web-ui/api.md).
-
-## Desktop editions
-
-Work Studio ships as a desktop application in two editions from one runtime:
-the Electron edition (bundled Chromium, NSIS/zip/AppImage/deb) and the browser
-edition (no bundled engine, launcher starts `zetacode serve` and opens the
-default browser). Both carry the compiled `zeta` kernel, native addons and the
-`web-app` renderer, so a target machine needs neither Bun nor Node. See
-[desktop-app.md](./desktop-app.md).
-
-## Ultra plan mode
+## Ultra plan mode## Ultra plan mode
 
 Plan mode has three workflows: `/plan` (parallel, the default), `/plan-ultra`
 (fan-out scouting, incremental plan writes, and the deepest decision floor), and

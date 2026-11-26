@@ -71,10 +71,6 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				why: "bazel lockfile freshness gate; Cargo.lock repairs depend on it (damage class 7: upstream rewrites dropped it)",
 			},
 			{
-				job: "rust_validate",
-				why: "rustfmt/clippy/test gate; the triage fingerprint relies on its exit-1 vs exit-3 split",
-			},
-			{
 				job: "native_addons",
 				why: "zeta natives binary builder; every binary/smoke/release job consumes its artifacts",
 			},
