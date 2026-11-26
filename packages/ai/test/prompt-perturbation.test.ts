@@ -70,7 +70,7 @@ describe("per-install prompt perturbation", () => {
 
 	it("drops the system-prompt opener instead of paraphrasing it", async () => {
 		const promptUrl = new URL("../../coding-agent/src/prompts/system/system-prompt.md", import.meta.url);
-		const prompt = await Bun.file(promptUrl).text();
+		const prompt = (await Bun.file(promptUrl).text()).replace(/\r\n/g, "\n");
 		expect(prompt.startsWith("You are Zeta's trusted coding assistant.\n\n")).toBe(true);
 		expect(perturbPromptText(prompt).startsWith("# Engineering\n")).toBe(true);
 	});
