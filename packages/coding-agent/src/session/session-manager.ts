@@ -22,6 +22,7 @@ import {
 	isFsError,
 	logger,
 	pathIsWithin,
+	spillIdOfFileName,
 	stringifyJson,
 	toError,
 	withLoopPhase,
@@ -30,6 +31,7 @@ import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "../task/ta
 import { splitCardTitle } from "../utils/title-card";
 import type { ConfiguredThinkingLevel } from "../utils/render-utils";
 import { isUserRequestEntry } from "./transcript/transcript-entry";
+import { resolveLocalRoot } from "../internal-urls/local-root";
 import type { SessionTreePosition } from "../modes/view-model/status-line/host";
 import * as snapcompact from "@linxiraos/zeta-compact";
 import { moveFileAcrossDevices } from "../utils/atomic-file";
@@ -228,9 +230,11 @@ export async function copySessionArtifacts(sourceSessionFile: string, destinatio
 	}
 }
 
-/** The numeric id an artifact file name (`<id>.<tool>.log`) carries, if any. */
-function artifactIdOf(name: string): string | undefined {
-	return /^(\d+)\./.exec(name)?.[1];
+/** The spill id a file `prefix + name` of a session directory carries (`local/<id>.log`), if any. */
+function artifactIdOf(name: string, prefix: string): string | undefined {
+	if (prefix !== "local/") return undefined;
+	const id = spillIdOfFileName(name);
+	return id === undefined ? undefined : String(id);
 }
 
 /**
@@ -259,15 +263,16 @@ async function moveEntryWithoutReplacing(from: string, to: string, isDirectory: 
 	}
 }
 
-/** What `destination` currently holds: entries by name, and the artifact ids (`<id>.<tool>.log`) already in use. */
+/** What `destination` currently holds: entries by name, and the spill ids (`local/<id>.log`) already in use. */
 async function destinationOccupancy(
 	destination: string,
+	prefix: string,
 ): Promise<{ occupants: Map<string, fs.Dirent>; takenIds: Set<string> }> {
 	const present = await fs.promises.readdir(destination, { withFileTypes: true });
 	const occupants = new Map(present.map(entry => [entry.name, entry]));
 	const takenIds = new Set<string>();
 	for (const entry of present) {
-		const id = artifactIdOf(entry.name);
+		const id = artifactIdOf(entry.name, prefix);
 		if (id !== undefined) takenIds.add(id);
 	}
 	return { occupants, takenIds };
@@ -276,8 +281,8 @@ async function destinationOccupancy(
 /**
  * Move `source`'s entries into `destination`, recursing into directories that
  * exist on both sides, then remove `source` once it is empty. Nothing at the
- * destination is ever replaced: an entry whose name — or, for `<id>.<tool>.log`
- * artifact files, whose id — is already taken stays at the source, as does one
+ * destination is ever replaced: an entry whose name — or, for `local/<id>.log`
+ * spill files, whose id — is already taken stays at the source, as does one
  * whose move fails. Once moving has begun this never throws, so the caller is
  * never left with a session file rolled back away from artifacts that already
  * moved. Returns the entries left at the source, each with its reason.
@@ -288,20 +293,20 @@ async function mergeDirectoryInto(
 	stranded: string[] = [],
 	prefix = "",
 ): Promise<string[]> {
-	let { occupants, takenIds } = await destinationOccupancy(destination);
+	let { occupants, takenIds } = await destinationOccupancy(destination, prefix);
 	const strandedBefore = stranded.length;
 	for (const entry of await fs.promises.readdir(source, { withFileTypes: true })) {
 		const from = path.join(source, entry.name);
 		const to = path.join(destination, entry.name);
 		const label = prefix + entry.name;
-		const id = artifactIdOf(entry.name);
+		const id = artifactIdOf(entry.name, prefix);
 		try {
-			// A writer can publish another `<id>.*` file while earlier entries move,
+			// A writer can publish another `<id>.log` file while earlier entries move,
 			// and a different file name slips past link(2)'s EEXIST; list again right
 			// before an id-bearing move so the check is one syscall old, not the
 			// whole merge. Inside the boundary: a failed listing strands this entry
 			// like a failed move would, instead of aborting a merge already under way.
-			if (id !== undefined) ({ occupants, takenIds } = await destinationOccupancy(destination));
+			if (id !== undefined) ({ occupants, takenIds } = await destinationOccupancy(destination, prefix));
 			const occupant = occupants.get(entry.name);
 			if (occupant === undefined && (id === undefined || !takenIds.has(id))) {
 				if (entry.isDirectory()) {
@@ -348,14 +353,14 @@ async function mergeDirectoryInto(
  * (ENOTEMPTY, EEXIST, EPERM on Windows), so the fallback is decided by what is
  * there, not by the code: an existing directory is merged into.
  *
- * A name or artifact id taken on both sides is left at the source rather than
- * resolved: artifact ids resolve by `<id>.` prefix against one directory, so
+ * A name or spill id taken on both sides is left at the source rather than
+ * resolved: `local://<id>.log` names one file of one directory, so
  * overwriting the destination copy or parking a renamed duplicate beside it
  * would each destroy or misdirect a referenced artifact. The copy already at
  * the destination keeps the id; the session's own copy stays at the source,
  * retained on disk under the path the header's `previousSessionFiles` records
- * but not reachable through `artifact://` — two writers that shared one id
- * space cannot both be.
+ * but not reachable as a spill — two writers that shared one id space cannot
+ * both be.
  */
 async function relocateArtifactsDirectory(source: string, destination: string): Promise<"renamed" | "merged"> {
 	try {
@@ -1139,7 +1144,7 @@ export class SessionManager {
 	#atomicEntryBatch: AtomicEntryBatch | undefined;
 
 	#artifactManager: ArtifactManager | null = null;
-	#artifactManagerSessionFile: string | null = null;
+	#artifactManagerLocalRoot: string | null = null;
 	#adoptedArtifactManager: ArtifactManagerApi | null = null;
 	#inMemoryArtifacts: Map<string, string> | null = null;
 	#inMemoryArtifactCounter = 0;
@@ -1459,7 +1464,7 @@ export class SessionManager {
 		this.#fileIsCurrent = false;
 		this.#rewriteRequired = true;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#pendingArtifactCopy = { sessionFile: to, done: copySessionArtifacts(from, to) };
 		this.#rememberBreadcrumb(this.#cwd, to);
 		this.#claimSession();
@@ -2233,7 +2238,7 @@ export class SessionManager {
 		this.#turnOutputBaseline = 0;
 		this.#turnEvalOutput = 0;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#adoptedArtifactManager = null;
 		this.#inMemoryArtifacts = null;
 		this.#inMemoryArtifactCounter = 0;
@@ -2361,25 +2366,32 @@ export class SessionManager {
 		}
 	}
 
+	/**
+	 * The spill manager: the adopted parent's, else one over this session's
+	 * `local://` root — `<session>/local`, or the short temp root when the
+	 * artifact path is too long for Windows. Rebuilt when that root moves.
+	 */
 	#artifactManagerForSession(): ArtifactManagerApi | null {
 		if (this.#adoptedArtifactManager) return this.#adoptedArtifactManager;
 
 		const sessionFile = this.#sessionFile;
 		if (!sessionFile) {
 			this.#artifactManager = null;
-			this.#artifactManagerSessionFile = null;
+			this.#artifactManagerLocalRoot = null;
 			return null;
 		}
 
-		if (this.#artifactManager && this.#artifactManagerSessionFile === sessionFile) return this.#artifactManager;
+		const sessionDir = artifactsDirectoryFor(sessionFile);
+		const localRoot = resolveLocalRoot({ getArtifactsDir: () => sessionDir, getSessionId: () => this.#sessionId });
+		if (this.#artifactManager && this.#artifactManagerLocalRoot === localRoot) return this.#artifactManager;
 
 		const pendingCopy = this.#pendingArtifactCopy;
 		this.#artifactManager = new ArtifactManager(
-			sessionFile.slice(0, -JSONL_SUFFIX_LENGTH),
-			null,
+			localRoot,
+			sessionDir,
 			pendingCopy?.sessionFile === sessionFile ? pendingCopy.done : undefined,
 		);
-		this.#artifactManagerSessionFile = sessionFile;
+		this.#artifactManagerLocalRoot = localRoot;
 		return this.#artifactManager;
 	}
 
@@ -2480,7 +2492,7 @@ export class SessionManager {
 		this.#titleUpdatedAt = snapshot.titleUpdatedAt;
 		this.#hasTitleSlot = snapshot.hasTitleSlot;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#adoptedArtifactManager = null;
 
 		if (this.#sessionFile) this.#rememberBreadcrumb(this.#cwd, this.#sessionFile);
@@ -2614,7 +2626,7 @@ export class SessionManager {
 		this.#loadedMalformedRecords = loaded.malformedRecords;
 		this.#forceFileCreation = true;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 
 		if (this.sanitizeLoadedOpenAIResponsesReplayMetadata()) this.#rewriteRequired = true;
 	}
@@ -2696,7 +2708,7 @@ export class SessionManager {
 		this.#forceFileCreation = true;
 		this.#draftOnlySessionCleanupArmed = false;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#rememberBreadcrumb(this.#cwd, this.#sessionFile);
 
 		await this.#rewriteAtomically();
@@ -2875,7 +2887,7 @@ export class SessionManager {
 				// publish against an absent file rather than a stale size.
 				if (sessionPathChanged && !sessionMoved) this.#expectedDiskSize = null;
 				this.#artifactManager = null;
-				this.#artifactManagerSessionFile = null;
+				this.#artifactManagerLocalRoot = null;
 				// Path is repointed; hot-path appends may use `#sessionFile` again.
 				this.#sessionFileRelocating = null;
 			}
@@ -3439,7 +3451,7 @@ export class SessionManager {
 	}
 
 	getArtifactsDir(): string | null {
-		if (this.#adoptedArtifactManager) return this.#adoptedArtifactManager.dir;
+		if (this.#adoptedArtifactManager) return this.#adoptedArtifactManager.sessionDir;
 		return artifactsDirectoryFor(this.#sessionFile);
 	}
 
@@ -4575,7 +4587,7 @@ export class SessionManager {
 		this.#hasTitleSlot = true;
 		this.#index.rebuild(this.#entries);
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#forceFileCreation = this.#persist;
 
 		if (!this.#persist) {

@@ -266,7 +266,7 @@ describe("/channels command", () => {
 			const output: string[] = [];
 			const runtime = {
 				ctx: {
-					presentCommandOutput: (content: { getText: () => string }) => output.push(content.getText()),
+					presentCommandOutput: (factory: () => string) => output.push(factory()),
 					showError: () => {},
 				} as unknown as InteractiveModeContext,
 			};

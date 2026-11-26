@@ -9,6 +9,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { setForeignProjectSourceConsent } from "@linxiraos/zeta/config/foreign-sources";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { cfgEvalJs } from "@linxiraos/zeta/eval/settings";
 import { loadAllMCPConfigs } from "@linxiraos/zeta/mcp/config";
@@ -65,6 +66,10 @@ describe("built-in MCP transforms", () => {
 		setAgentDir(userAgentDir);
 		clearFsCache();
 		await Bun.write(path.join(projectDir, ".codex", "config.toml"), CODEX_CONFIG);
+		// A foreign project source (`.codex/`) is inert until the operator
+		// approves it for this repository; these tests exercise the transforms,
+		// not that consent gate.
+		setForeignProjectSourceConsent("codex", projectDir, true, userAgentDir);
 	});
 
 	afterEach(async () => {

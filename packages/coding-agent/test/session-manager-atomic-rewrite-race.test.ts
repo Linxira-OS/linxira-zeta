@@ -560,7 +560,9 @@ describe("SessionManager cross-process rewrite freshness", () => {
 			// Recorded `artifact://` references keep resolving after the move, and the
 			// artifact saved during the copy got a fresh id instead of overwriting one.
 			const artifactPath = await ours.getArtifactPath(artifactId);
-			expect(artifactPath && path.dirname(artifactPath)).toBe(sibling.slice(0, -".jsonl".length));
+			expect(artifactPath && path.dirname(artifactPath)).toBe(
+				path.join(sibling.slice(0, -".jsonl".length), "local"),
+			);
 			expect(artifactPath && (await Bun.file(artifactPath).text())).toBe("tool output");
 			expect(laterArtifactId).toBeDefined();
 			expect(laterArtifactId).not.toBe(artifactId);

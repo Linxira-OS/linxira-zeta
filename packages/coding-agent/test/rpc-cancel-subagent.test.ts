@@ -223,6 +223,7 @@ describe("handleRpcCancelSubagent", () => {
 			getActiveToolNames: () => ["read", "yield"],
 			getEnabledToolNames: () => ["read", "yield"],
 			getMountedXdevToolNames: () => [],
+			getMountedToolCommandNames: () => [],
 			getToolByName: () => undefined,
 			setActiveToolsByName: async () => {},
 			setWorkPoolYieldItems: () => {},

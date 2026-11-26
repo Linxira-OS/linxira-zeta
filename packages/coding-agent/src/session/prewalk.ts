@@ -50,34 +50,33 @@ const PREWALK_ACTION_TOOLS: Record<string, true> = {
 const PLAN_YOLO_HANDOFF_MESSAGE_TYPE = "plan-yolo-handoff";
 
 /**
- * Whether a completed tool result is the first workspace-mutating action that
- * arms the prewalk hand-off. A direct `edit`/`write` call counts unless the
- * write touched no files: a subagent messaging its parent through
- * `write agent://…`, a reply, process stdin, or background-work control is
- * coordination, not implementation, and must not hand the plan off. A `write`
- * that dispatched an `xd://` device (e.g. `lsp`, `ast_edit`, `debug`)
- * counts only when the wrapped tool resolved to the `write` approval tier.
- * Read-only device calls — LSP navigation, `debug` inspection, `ast_edit` on
- * internal URLs, help lookups — leave the tier `read` (or absent) and must not
- * switch the model mid-investigation (issue #7312). Exec-tier devices (test
- * runners, remote commands, and any tool without a declared approval) count no
- * more than the same tool called directly, which never arms the hand-off
- * (issue #19002). MCP approval stays conservatively `write`, so an MCP tool the
- * server declared read-only is excluded through the hint the dispatch recorded
- * for the tool that ran.
+ * Name of the tool behind a completed result that is a workspace-mutating
+ * action arming the prewalk hand-off; undefined when the result does not arm
+ * it. A direct `edit`/`write` call counts unless the write touched no files: a
+ * subagent messaging its parent through `write agent://…`, a reply, process
+ * stdin, or background-work control is coordination, not implementation, and
+ * must not hand the plan off. A `bash` run counts only through the tool
+ * commands it executed: one whose wrapped tool resolved to the `write`
+ * approval tier arms the hand-off, named after that tool. Read-only tool
+ * commands — LSP navigation, `debug` inspection, `ast_edit` on internal URLs,
+ * `--help` lookups — leave the tier `read` (or absent) and must not switch the
+ * model mid-investigation (issue #7312); an unresolved tier declines the switch
+ * too. Exec-tier tool commands (test runners, remote commands, and any tool
+ * without a declared approval) count no more than a plain shell command, which
+ * never arms the hand-off (issue #19002). MCP approval stays conservatively
+ * `write`, so an MCP tool the server declared read-only is excluded through the
+ * hint its dispatch recorded for the tool that ran.
  */
-function isPrewalkImplementationAction(result: ToolResultMessage): boolean {
-	if (!PREWALK_ACTION_TOOLS[result.toolName]) return false;
-	const details = result.details;
-	if (!details || typeof details !== "object") return true;
-	if ("touchesNoFiles" in details && details.touchesNoFiles === true) return false;
-	// A direct filesystem edit/write carries no `xd://` dispatch metadata.
-	if (!("xdev" in details) || !details.xdev) return true;
-	const xdev = details.xdev;
-	// Device dispatch: switch only on the mutation tier. An absent tier (help
-	// lookup, unresolved approval) declines the switch.
-	if (typeof xdev !== "object" || !("tier" in xdev) || xdev.tier !== "write") return false;
-	return !("readOnlyHint" in xdev && xdev.readOnlyHint === true);
+function prewalkImplementationTool(result: ToolResultMessage): string | undefined {
+	if (PREWALK_ACTION_TOOLS[result.toolName]) {
+		const details = result.details;
+		const touchesNoFiles =
+			!!details && typeof details === "object" && "touchesNoFiles" in details && details.touchesNoFiles === true;
+		return touchesNoFiles ? undefined : result.toolName;
+	}
+	return toolCommandDispatches(result.toolName, result).find(
+		dispatch => dispatch.mode === "execute" && dispatch.tier === "write" && dispatch.readOnlyHint !== true,
+	)?.tool;
 }
 
 /** Capabilities the prewalk coordinator borrows from its owning session. */
@@ -523,10 +522,14 @@ export class PrewalkCoordinator {
 		}
 
 		const todoGateOpen = this.#todoSeen || !this.#host.getActiveToolNames().includes("todo");
-		const action = todoGateOpen
-			? context.toolResults.find(result => isPrewalkImplementationAction(result))
-			: undefined;
-		if (!action) {
+		let actionTool: string | undefined;
+		if (todoGateOpen) {
+			for (const result of context.toolResults) {
+				actionTool = prewalkImplementationTool(result);
+				if (actionTool) break;
+			}
+		}
+		if (!actionTool) {
 			if (!this.#planInjected) {
 				this.#planInjected = true;
 				this.#continuePending = true;
@@ -589,7 +592,7 @@ export class PrewalkCoordinator {
 			// The target landed, but a selection during the switch took ownership: implement here, never restore.
 			this.#host.emitNotice(
 				"info",
-				`Prewalk: switched to ${target.provider}/${target.id} after first ${action.toolName} call; your selection during the switch keeps the session here.`,
+				`Prewalk: switched to ${target.provider}/${target.id} after first ${actionTool} call; your selection during the switch keeps the session here.`,
 				"prewalk",
 			);
 			this.#steerChecklist();
@@ -606,7 +609,7 @@ export class PrewalkCoordinator {
 		}
 		this.#host.emitNotice(
 			"info",
-			`Prewalk: switched to ${target.provider}/${target.id} after first ${action.toolName} call.`,
+			`Prewalk: switched to ${target.provider}/${target.id} after first ${actionTool} call.`,
 			"prewalk",
 		);
 		this.#steerChecklist();

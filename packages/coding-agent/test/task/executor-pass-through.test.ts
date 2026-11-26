@@ -21,7 +21,7 @@ import type { ToolPathWithSource } from "@linxiraos/zeta/extensibility/custom-to
 import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
 import type { LoadExtensionsResult, PreparedExtension } from "@linxiraos/zeta/extensibility/extensions/types";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
-import type { MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
+import type { MCPHttpServerConfig } from "@linxiraos/zeta/mcp/types";
 import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import * as sdkModule from "@linxiraos/zeta/sdk";
 import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
@@ -30,6 +30,7 @@ import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 import { manyToolName } from "../fixtures/many-tools-mcp";
+import { FakeHost, type FakeTunnel, type Message } from "../mcp-host/link-fake-host";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 import { cfgTierAnthropic, cfgTierGoogle, cfgTierOpenai } from "@linxiraos/zeta/session/settings";
@@ -775,30 +776,53 @@ describe("runSubprocess per-agent service-tier overrides", () => {
 	});
 });
 
+/**
+ * The parent side is a scripted MCP host rather than a stdio fixture: these
+ * contracts are about the manager's tool set and the child rebinding to it,
+ * not about spawning a server, so the host answers `server/discover` and
+ * `tools/list` in memory.
+ */
 describe("runSubprocess follows the parent's MCP manager", () => {
-	const FIXTURE_PATH = path.join(import.meta.dir, "..", "fixtures", "many-tools-mcp.ts");
-	const fixtureConfig = (): MCPStdioServerConfig => ({
-		type: "stdio",
-		command: process.execPath,
-		args: [FIXTURE_PATH],
-	});
 	const toolOf = (server: string) => `mcp__${server}_${manyToolName(0)}`;
+	const serverConfig = (name: string): MCPHttpServerConfig => ({
+		type: "http",
+		url: `https://mcp.example.test/${name}/mcp`,
+	});
+	const toolsList = {
+		tools: [0, 1].map(index => ({
+			name: manyToolName(index),
+			inputSchema: { type: "object", properties: {} },
+		})),
+	};
 	let workDir: string;
+	let host: FakeHost;
 	let manager: MCPManager;
 
-	/**
-	 * Connects and awaits the initial tool loads. `connectServers` alone returns after
-	 * its startup window (250 ms by default), which a loaded runner outlasts while the
-	 * stdio fixture spawns, leaving the server's tools unregistered.
-	 */
-	const connectReady = async (configs: Record<string, MCPStdioServerConfig>): Promise<void> => {
+	/** Connects and awaits the initial tool loads. */
+	const connectReady = async (configs: Record<string, MCPHttpServerConfig>): Promise<void> => {
 		await manager.connectServers(configs, {});
 		expect(await manager.waitForStartup(0)).toEqual({ connected: Object.keys(configs), pending: [], failed: [] });
 	};
 
 	beforeEach(() => {
 		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-subagent-mcp-follow-"));
-		manager = new MCPManager(workDir);
+		host = new FakeHost();
+		host.answer = (message: Message, tunnel: FakeTunnel) => {
+			const method = message.method;
+			if (typeof method !== "string" || message.id === undefined) return;
+			if (method === "subscriptions/listen") {
+				queueMicrotask(() => tunnel.acknowledge(message));
+				return;
+			}
+			const result =
+				method === "server/discover"
+					? { resultType: "complete", capabilities: { tools: {} } }
+					: method === "tools/list"
+						? toolsList
+						: undefined;
+			if (result) queueMicrotask(() => tunnel.push({ id: message.id, result }));
+		};
+		manager = new MCPManager(workDir, undefined, undefined, host);
 	});
 
 	afterEach(async () => {
@@ -841,11 +865,11 @@ describe("runSubprocess follows the parent's MCP manager", () => {
 	}
 
 	it("rebinds a live subagent's MCP tools when the parent adds a server and reloads mid-run", async () => {
-		await connectReady({ alpha: fixtureConfig() });
+		await connectReady({ alpha: serverConfig("alpha") });
 		const child = followingChild(async ({ refreshedWith }) => {
 			// `/mcp add bravo` then `/mcp reload` in the parent while the child runs.
 			await manager.disconnectAll();
-			await manager.connectServers({ alpha: fixtureConfig(), bravo: fixtureConfig() }, {});
+			await manager.connectServers({ alpha: serverConfig("alpha"), bravo: serverConfig("bravo") }, {});
 			await refreshedWith([toolOf("alpha"), toolOf("bravo")]);
 		});
 		const spy = vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue(createSessionResult(child.session));
@@ -872,7 +896,7 @@ describe("runSubprocess follows the parent's MCP manager", () => {
 		});
 		const spy = vi.spyOn(sdkModule, "createAgentSession").mockImplementation(async () => {
 			// The server finishes connecting after proxies were minted but before bind.
-			await connectReady({ alpha: fixtureConfig() });
+			await connectReady({ alpha: serverConfig("alpha") });
 			return createSessionResult(child.session);
 		});
 
@@ -894,10 +918,10 @@ describe("runSubprocess follows the parent's MCP manager", () => {
 			execute: async () => ({ content: [{ type: "text", text: "kernel" }] }),
 		};
 		const siblingProxy = `mcp__alpha_${manyToolName(1)}`;
-		await connectReady({ alpha: fixtureConfig() });
+		await connectReady({ alpha: serverConfig("alpha") });
 		const child = followingChild(async ({ refreshedWith }) => {
 			await manager.disconnectAll();
-			await manager.connectServers({ alpha: fixtureConfig() }, {});
+			await manager.connectServers({ alpha: serverConfig("alpha") }, {});
 			await refreshedWith([siblingProxy]);
 		});
 		const spy = vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue(createSessionResult(child.session));

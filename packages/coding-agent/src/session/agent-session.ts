@@ -4219,6 +4219,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			model: () => this.model,
 			thinkingLevel: () => this.thinkingLevel,
 			isDisposed: () => this.#isDisposed,
+			isSessionTransitioning: () => this.isSessionTransitioning,
+			waitForIdle: () => this.waitForIdle(),
 			modelFallbackDisabled: () => this.#disableModelFallback,
 			isStreaming: () => this.isStreaming,
 			isGeneratingHandoff: () => this.isGeneratingHandoff,

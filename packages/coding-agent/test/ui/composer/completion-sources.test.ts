@@ -191,7 +191,7 @@ describe("composer completion sources", () => {
 		await offered(composer, "issue://24");
 		expect(offers(composer.node, "pr://24")).toBe(false);
 		const doc = getDocFilenames()[0]!;
-		type(composer, ` (omp:/${doc}`);
+		type(composer, ` (zeta:/${doc}`);
 		await offered(composer, `zeta://${doc}`);
 	});
 

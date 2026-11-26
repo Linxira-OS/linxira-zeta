@@ -413,6 +413,23 @@ function findPendingToolCall<T>(items: readonly T[], messageOf: (item: T) => Age
 	return -1;
 }
 
+interface ReadyCompaction {
+	/** Apply once, from an idle session or a paused turn boundary. */
+	apply(activeMessages?: AgentMessage[]): Promise<boolean>;
+	fail(error: unknown): void;
+}
+
+/** Locate a snapshot that can still be extended by the live branch's tail. */
+function findCompactionSnapshot(branch: readonly SessionEntry[], leafId: string): number {
+	const index = branch.findIndex(entry => entry.id === leafId);
+	if (index < 0) return -1;
+	for (let i = index + 1; i < branch.length; i++) {
+		const type = branch[i].type;
+		if (type === "compaction" || type === "reset_boundary") return -1;
+	}
+	return index;
+}
+
 interface SpeculationRun {
 	/** Progress pass for this background attempt (no commit: the applying pass commits). */
 	passId?: string;
@@ -479,6 +496,10 @@ export interface SessionMaintenanceHost {
 	model(): Model | undefined;
 	thinkingLevel(): ThinkingLevel | undefined;
 	isDisposed(): boolean;
+	/** Whether a switch is applying or rolling back, so the owning conversation may change. */
+	isSessionTransitioning(): boolean;
+	/** Wait until streaming, event persistence, and deferred recovery work are fully settled. */
+	waitForIdle(): Promise<void>;
 	/** Model fallback is disabled (a per-call `model` subagent): no context promotion. */
 	modelFallbackDisabled?(): boolean;
 	isStreaming(): boolean;
@@ -633,6 +654,9 @@ export class SessionMaintenance {
 	#handoffCleanup: Promise<void> | undefined;
 	/** Resolves after an idle pass finishes rewriting history; holds new prompt setup outside that pass. */
 	#idleCompactionCleanup: Promise<void> | undefined;
+	/** A prepared background compaction waiting for a safe boundary to commit. */
+	#readyCompaction: ReadyCompaction | undefined;
+	#watchingForIdleCompaction = false;
 	/** Dispatches holding an unreleased claim from {@link waitForMaintenanceCleanup}/{@link claimPendingResume}; any one may supersede the interrupted-turn resume. */
 	#promptsAwaitingCleanup = 0;
 	/** Interrupted-turn resume withheld from a compaction `finally` because a claim was open; consumed by `release(false)`, {@link noteTurnStarted}, or the next manual pass. */
@@ -1344,15 +1368,18 @@ export class SessionMaintenance {
 		onCommitted?: () => void,
 	): Promise<CompactionResult> {
 		const ownsCompactionController = retryController === undefined;
+		const compactMode = options?.mode ? findCompactMode(options.mode) : undefined;
+		const background = compactMode?.background === true;
 		if (
 			this.#handoffCleanup ||
-			(this.#compactionAbortController && this.#compactionAbortController !== retryController)
+			(this.#compactionAbortController && this.#compactionAbortController !== retryController) ||
+			(background && (this.isCompacting || this.#idleCompactionCleanup))
 		) {
 			throw new Error("Compaction already in progress");
 		}
-		// Resolve the `/compact <mode>` subcommand up front so input validation
-		// runs before we disconnect/abort the active agent operation below.
-		const compactMode = options?.mode ? findCompactMode(options.mode) : undefined;
+		if (background && (this.#host.isSessionTransitioning() || this.#host.isDisposed())) {
+			throw new ManualCompactionNoOpError("Conversation is changing; cannot compact");
+		}
 		// Modes that produce no LLM summary (snapcompact) have nothing to focus.
 		// Reject focus text loudly so programmatic callers don't silently lose
 
@@ -1364,6 +1391,15 @@ export class SessionMaintenance {
 		if (compactMode?.rejectsFocus && (customInstructions || options?.internalGuidance)) {
 			throw new Error(`/compact ${compactMode.name} does not take focus instructions.`);
 		}
+		const manager = this.#host.sessionManager;
+		const snapshot = background
+			? {
+					entries: manager.getBranch(),
+					sessionId: manager.getSessionId(),
+					generation: this.#host.promptGeneration(),
+					messages: this.#host.messages().slice(),
+				}
+			: undefined;
 		let methods: CompactionMethod[] = [];
 		let selectedMethodIndex = -1;
 		// Next method in `methods` this pass can run if the selected one fails; -1 when none remains.
@@ -1399,10 +1435,17 @@ export class SessionMaintenance {
 			return result;
 		};
 		const compactionAbortController = retryController ?? new AbortController();
-		const manualCompactionCleanup = ownsCompactionController ? Promise.withResolvers<void>() : undefined;
+		const compactionSignal = options?.signal
+			? AbortSignal.any([compactionAbortController.signal, options.signal])
+			: compactionAbortController.signal;
+		if (compactionSignal.aborted) throw new CompactionCancelledError(undefined, { cause: compactionSignal.reason });
+		const manualCompactionCleanup =
+			ownsCompactionController && !background ? Promise.withResolvers<void>() : undefined;
 		if (ownsCompactionController) {
 			this.#compactionAbortController = compactionAbortController;
-			this.#manualCompactionCleanup = manualCompactionCleanup?.promise;
+		}
+		if (manualCompactionCleanup) {
+			this.#manualCompactionCleanup = manualCompactionCleanup.promise;
 			// A resume still withheld from an earlier pass belongs to this pass now:
 			// the earlier pass's abort already bumped the generation it captured, so
 			// re-decide with this pass's generation instead of stranding the turn.
@@ -1420,8 +1463,8 @@ export class SessionMaintenance {
 		if (ownsCompactionController) this.#activeCompactionPass = pass;
 
 		try {
-			if (ownsCompactionController) {
-				// A manual compaction aborts the live turn, tool loop included. Without a
+			if (manualCompactionCleanup) {
+				// Foreground compaction aborts the live turn, tool loop included. Without a
 				// resume the agent sits idle on a half-finished loop (an autoresearch run,
 				// a pending tool result) until the user types "continue" by hand.
 				// Only a turn the agent actually owns counts: the session-level busy flag
@@ -1436,6 +1479,8 @@ export class SessionMaintenance {
 					options?.suppressContinuation !== true &&
 					cfgCompactionAutoContinue.get(this.#host.settings) !== false;
 				interruptedTurnGeneration = this.#host.promptGeneration();
+			}
+			if (ownsCompactionController) {
 				manualCompactionStarted = true;
 				await this.#emitLifecycleEvent(
 					{ type: "manual_compaction_start", ...(compactMode ? { mode: compactMode.name } : {}) },
@@ -1452,11 +1497,7 @@ export class SessionMaintenance {
 				!customInstructions &&
 				!options?.internalGuidance
 			) {
-				const result = await this.#compactExperimentalContext(
-					activeModel,
-					compactionAbortController,
-					markCommitted,
-				);
+				const result = await this.#compactExperimentalContext(activeModel, compactionSignal, markCommitted);
 				await pass?.commit({ tokensBefore: result.tokensBefore, summaryChars: result.summary.length });
 				options?.onComplete?.(result);
 				return finish(result);
@@ -1486,6 +1527,7 @@ export class SessionMaintenance {
 					case "soft":
 						return true;
 					case "handoff":
+						return compactMode?.name === "handoff";
 					case "shake":
 						return false;
 				}
@@ -1510,18 +1552,20 @@ export class SessionMaintenance {
 			};
 
 			const effectiveSettings = resolveMethodSettings(compactionSettings, selectedMethod);
-			const availableModels = this.#host.modelRegistry.getAvailable();
 			const requireProviderRemote = selectedMethod === "remote" && !effectiveSettings.remoteEndpoint;
 			const remoteReader = selectedMethod === "remote" ? options?.readerModel : undefined;
-			const compactionCandidates = this.#getCompactionModelCandidates(
-				availableModels,
-				requireProviderRemote || remoteReader
-					? candidate =>
-							(!requireProviderRemote ||
-								canUseLiveProviderNativeCompaction(candidate, activeModel, effectiveSettings)) &&
-							(!remoteReader || canReplayRemoteCompactionFrom(candidate, remoteReader))
-					: undefined,
-			);
+			const compactionCandidates =
+				selectedMethod === "handoff"
+					? []
+					: this.#getCompactionModelCandidates(
+							this.#host.modelRegistry.getAvailable(),
+							requireProviderRemote || remoteReader
+								? candidate =>
+										(!requireProviderRemote ||
+											canUseLiveProviderNativeCompaction(candidate, activeModel, effectiveSettings)) &&
+										(!remoteReader || canReplayRemoteCompactionFrom(candidate, remoteReader))
+								: undefined,
+						);
 			if ((requireProviderRemote || remoteReader) && compactionCandidates.length === 0) {
 				// Reached only after an earlier soft pass failed; its warning already named the cause.
 				if (fallbackMethodIndex === -1) {
@@ -1544,7 +1588,7 @@ export class SessionMaintenance {
 					),
 				);
 			}
-			const pathEntries = this.#host.sessionManager.getBranch();
+			const pathEntries = snapshot?.entries ?? manager.getBranch();
 			const preparation = prepareCompaction(pathEntries, effectiveSettings, activeModel, this.#tokenizer);
 			if (!preparation) {
 				// Check why we can't compact
@@ -1572,7 +1616,7 @@ export class SessionMaintenance {
 					preparation,
 					branchEntries: pathEntries,
 					customInstructions,
-					signal: compactionAbortController.signal,
+					signal: compactionSignal,
 				})) as SessionBeforeCompactResult | undefined;
 
 				if (result?.cancel) {
@@ -1585,11 +1629,7 @@ export class SessionMaintenance {
 				}
 			}
 
-			const compactionPrep = await this.#prepareCompactionFromHooks(
-				preparation,
-				hookCompaction,
-				compactionAbortController.signal,
-			);
+			const compactionPrep = await this.#prepareCompactionFromHooks(preparation, hookCompaction, compactionSignal);
 			if (compactionPrep.kind !== "fromHook") methodAttempted = true;
 
 			// Focus instructions require an LLM summary, so the preference resolver
@@ -1723,6 +1763,23 @@ export class SessionMaintenance {
 				tokensBefore = snapcompactResult.tokensBefore;
 				details = snapcompactResult.details;
 				preserveData = { ...compactionPrep.preserveData, ...snapcompactResult.preserveData };
+			} else if (selectedMethod === "handoff") {
+				if (
+					snapshot &&
+					(snapshot.generation !== this.#host.promptGeneration() || this.#host.isSessionTransitioning())
+				) {
+					throw new CompactionCancelledError(undefined, { cause: compactionSignal.reason });
+				}
+				await pass?.enter("summarize", { tokensBefore: preparation.tokensBefore });
+				const document = await this.#host.generateHandoffDocument(options?.internalGuidance ?? customInstructions, {
+					messages: snapshot?.messages,
+					signal: compactionSignal,
+				});
+				if (document === undefined) throw new Error("Handoff generation returned no document");
+				({ summary, details } = handoffSummaryFromDocument(document, preparation));
+				shortSummary = undefined;
+				firstKeptEntryId = preparation.firstKeptEntryId;
+				tokensBefore = preparation.tokensBefore;
 			} else {
 				codexCompaction = createCodexCompactionContext({
 					trigger: "manual",
@@ -1745,7 +1802,7 @@ export class SessionMaintenance {
 					const result = await this.#compactWithFallbackModel(
 						preparation,
 						options?.internalGuidance ?? customInstructions,
-						compactionAbortController.signal,
+						compactionSignal,
 						{
 							promptOverride: this.#host.obfuscateTextForProvider(compactionPrep.hookPrompt),
 							extraContext: compactionPrep.hookContext,
@@ -1767,47 +1824,69 @@ export class SessionMaintenance {
 					providerReplayThroughEntryId = result.providerReplayThroughEntryId;
 				} catch (err) {
 					if (err instanceof CompactionCancelledError) {
-						if (!compactionAbortController.signal.aborted || err.cause !== undefined) throw err;
+						if (!compactionSignal.aborted || err.cause !== undefined) throw err;
 						throw new CompactionCancelledError(err.message, {
-							cause: compactionAbortController.signal.reason,
+							cause: compactionSignal.reason,
 						});
 					}
-					if (compactionAbortController.signal.aborted && err instanceof Error && err.name === "AbortError") {
+					if (compactionSignal.aborted && err instanceof Error && err.name === "AbortError") {
 						throw new CompactionCancelledError(undefined, {
-							cause: compactionAbortController.signal.reason,
+							cause: compactionSignal.reason,
 						});
 					}
 					throw err;
 				}
 			}
 
-			if (compactionAbortController.signal.aborted) {
-				throw new CompactionCancelledError(undefined, {
-					cause: compactionAbortController.signal.reason,
+			const commit = async (activeMessages?: AgentMessage[]): Promise<void> => {
+				if (compactionSignal.aborted) {
+					throw new CompactionCancelledError(undefined, { cause: compactionSignal.reason });
+				}
+				if (snapshot) {
+					const branch = manager.getBranchView();
+					const leaf = snapshot.entries.at(-1);
+					const last = leaf ? findCompactionSnapshot(branch, leaf.id) : -1;
+					const firstKept = branch.findIndex(entry => entry.id === firstKeptEntryId);
+					if (
+						this.#host.isDisposed() ||
+						this.#host.isSessionTransitioning() ||
+						this.#manualCompactionCleanup !== undefined ||
+						this.#autoCompactionAbortController !== undefined ||
+						this.#idleCompactionCleanup !== undefined ||
+						snapshot.sessionId !== manager.getSessionId() ||
+						snapshot.generation !== this.#host.promptGeneration() ||
+						firstKept < 0 ||
+						firstKept > last
+					) {
+						throw new Error("Conversation changed while compacting; discarded the summary");
+					}
+				}
+				markCommitted();
+				const committedEntry = await this.#commitCompactionEntry({
+					summary,
+					shortSummary,
+					firstKeptEntryId,
+					tokensBefore,
+					details,
+					fromExtension,
+					preserveData,
+					method: fromExtension ? undefined : selectedMethod,
+					codexCompaction,
+					providerReplayThroughEntryId,
+					advisorResetReason: "compact",
+					detachExtensionEmit: activeMessages !== undefined,
 				});
-			}
-
-			markCommitted();
-			const committedEntry = await this.#commitCompactionEntry({
-				summary,
-				shortSummary,
-				firstKeptEntryId,
-				tokensBefore,
-				details,
-				fromExtension,
-				preserveData,
-				method: fromExtension ? undefined : selectedMethod,
-				codexCompaction,
-				providerReplayThroughEntryId,
-				advisorResetReason: "compact",
-			});
-			const fidelity = fidelityCounts(readCompactionFidelity(preserveData));
-			await pass?.commit({
-				...(committedEntry ? { entryId: committedEntry.id } : {}),
-				tokensBefore,
-				summaryChars: summary.length,
-				...(fidelity ? { fidelity } : {}),
-			});
+				if (activeMessages) this.#replaceActiveMessages(activeMessages);
+				const fidelity = fidelityCounts(readCompactionFidelity(preserveData));
+				await pass?.commit({
+					...(committedEntry ? { entryId: committedEntry.id } : {}),
+					tokensBefore,
+					summaryChars: summary.length,
+					...(fidelity ? { fidelity } : {}),
+				});
+			};
+			if (background) await this.#waitForCompactionBoundary(commit, compactionSignal);
+			else await commit();
 
 			const compactionResult: CompactionResult = {
 				summary,
@@ -1827,7 +1906,7 @@ export class SessionMaintenance {
 			if (
 				methodAttempted &&
 				!compactionCommitted &&
-				!compactionAbortController.signal.aborted &&
+				!compactionSignal.aborted &&
 				!(error instanceof CompactionCancelledError) &&
 				fallbackMethodIndex !== -1
 			) {
@@ -1857,8 +1936,7 @@ export class SessionMaintenance {
 		} finally {
 			if (ownsCompactionController) {
 				// Cancellation is the only `aborted`; every other non-commit is `failed`.
-				const cancelled =
-					manualCompactionError instanceof CompactionCancelledError || compactionAbortController.signal.aborted;
+				const cancelled = manualCompactionError instanceof CompactionCancelledError || compactionSignal.aborted;
 				await pass?.settle(cancelled ? "aborted" : "failed", {
 					...(cancelled
 						? {}
@@ -1874,12 +1952,14 @@ export class SessionMaintenance {
 					await this.#emitManualCompactionEnd(
 						manualCompactionResult,
 						manualCompactionError,
-						compactionAbortController.signal.aborted,
+						compactionSignal.aborted,
 					);
 				}
 				if (this.#compactionAbortController === compactionAbortController) {
 					this.#compactionAbortController = undefined;
 				}
+			}
+			if (manualCompactionCleanup) {
 				this.#host.reconnectToAgent();
 				// Compaction disconnected before `await abort()`, so abort's finally drain
 				// (and any steer/follow-up that arrived mid-compaction — async IRC, an
@@ -1888,10 +1968,10 @@ export class SessionMaintenance {
 				// queues, so nothing else resumes them: re-drain now that the listener is back
 				// and `isCompacting` is false, or the queued turn hangs until the next prompt.
 				this.#host.drainStrandedQueuedMessages();
-				if (this.#manualCompactionCleanup === manualCompactionCleanup?.promise) {
+				if (this.#manualCompactionCleanup === manualCompactionCleanup.promise) {
 					this.#manualCompactionCleanup = undefined;
 				}
-				manualCompactionCleanup?.resolve();
+				manualCompactionCleanup.resolve();
 				// An inherited resume was earned by the pass that committed it; this
 				// pass's own outcome (hook cancel, summarizer failure) only decides the
 				// turn it interrupted itself, so the inherited one stays owed.
@@ -1966,7 +2046,7 @@ export class SessionMaintenance {
 	 */
 	async #compactExperimentalContext(
 		model: Model,
-		signalController: AbortController,
+		signal: AbortSignal,
 		onCommitted: () => void,
 	): Promise<CompactionResult> {
 		const entries = this.#host.sessionManager.getBranch();
@@ -1986,7 +2066,7 @@ export class SessionMaintenance {
 				preparation,
 				branchEntries: entries,
 				customInstructions: undefined,
-				signal: signalController.signal,
+				signal: signal,
 			})) as SessionBeforeCompactResult | undefined;
 			if (hookResult?.cancel) throw new CompactionCancelledError();
 			if (hookResult?.compaction) {
@@ -1995,23 +2075,23 @@ export class SessionMaintenance {
 			}
 		}
 		if (
-			signalController.signal.aborted ||
+			signal.aborted ||
 			!this.#usesExperimentalContextManagement() ||
 			this.#host.sessionId() !== sourceSessionId ||
 			this.#branchRewrittenSince(sourceLeafId) ||
 			(this.#model && `${this.#model.provider}/${this.#model.id}` !== sourceModel)
 		) {
-			throw new CompactionCancelledError(undefined, { cause: signalController.signal.reason });
+			throw new CompactionCancelledError(undefined, { cause: signal.reason });
 		}
-		const prepared = await this.#prepareCompactionFromHooks(preparation, hookCompaction, signalController.signal);
+		const prepared = await this.#prepareCompactionFromHooks(preparation, hookCompaction, signal);
 		if (
-			signalController.signal.aborted ||
+			signal.aborted ||
 			!this.#usesExperimentalContextManagement() ||
 			this.#host.sessionId() !== sourceSessionId ||
 			this.#branchRewrittenSince(sourceLeafId) ||
 			(this.#model && `${this.#model.provider}/${this.#model.id}` !== sourceModel)
 		) {
-			throw new CompactionCancelledError(undefined, { cause: signalController.signal.reason });
+			throw new CompactionCancelledError(undefined, { cause: signal.reason });
 		}
 		const result =
 			prepared.kind === "fromHook"
@@ -2452,6 +2532,65 @@ export class SessionMaintenance {
 			this.#idleCompactionCleanup = undefined;
 			cleanup.resolve();
 		}
+	}
+
+	/** Keep a prepared result ready for the next turn boundary, or apply it once idle. */
+	#waitForCompactionBoundary(
+		commit: (activeMessages?: AgentMessage[]) => Promise<void>,
+		signal: AbortSignal,
+	): Promise<void> {
+		const finished = Promise.withResolvers<void>();
+		const ready: ReadyCompaction = {
+			apply: async activeMessages => {
+				if (this.#readyCompaction !== ready) return false;
+				this.#readyCompaction = undefined;
+				try {
+					await commit(activeMessages);
+					finished.resolve();
+					return true;
+				} catch (error) {
+					finished.reject(error);
+					return false;
+				}
+			},
+			fail: error => {
+				if (this.#readyCompaction !== ready) return;
+				this.#readyCompaction = undefined;
+				finished.reject(error);
+			},
+		};
+		const cancel = () => ready.fail(new CompactionCancelledError(undefined, { cause: signal.reason }));
+		this.#readyCompaction = ready;
+		if (signal.aborted) cancel();
+		else {
+			signal.addEventListener("abort", cancel, { once: true });
+			void this.#applyCompactionWhenIdle();
+		}
+		return finished.promise.finally(() => signal.removeEventListener("abort", cancel));
+	}
+
+	async #applyCompactionWhenIdle(): Promise<void> {
+		// Reuse the same idle wait if a continuing tool loop applies one result
+		// and the user starts another pass before the run ends.
+		if (this.#watchingForIdleCompaction) return;
+		this.#watchingForIdleCompaction = true;
+		try {
+			while (this.#readyCompaction) {
+				await this.#host.waitForIdle();
+				if (!this.#host.agent.state.isStreaming) await this.#readyCompaction?.apply();
+			}
+		} catch (error) {
+			this.#readyCompaction?.fail(error);
+		} finally {
+			this.#watchingForIdleCompaction = false;
+		}
+	}
+
+	#replaceActiveMessages(activeMessages: AgentMessage[]): void {
+		const compactedMessages = this.#host.agent.state.messages;
+		if (compactedMessages === activeMessages) return;
+		activeMessages.splice(0, activeMessages.length, ...compactedMessages);
+		invalidateConvertToLlmArrayCache(activeMessages);
 	}
 
 	/**
@@ -3262,6 +3401,20 @@ export class SessionMaintenance {
 		signal: AbortSignal | undefined,
 		context: AgentTurnEndContext | undefined,
 	): Promise<void> {
+		const ready = this.#readyCompaction;
+		if (ready && context) {
+			try {
+				if (
+					(await this.#host.persistTurnMessagesForMidRunCompaction(context)) &&
+					!signal?.aborted &&
+					(await ready.apply(activeMessages))
+				) {
+					return;
+				}
+			} catch (error) {
+				ready.fail(error);
+			}
+		}
 		if (
 			signal?.aborted ||
 			this.#host.isDisposed() ||

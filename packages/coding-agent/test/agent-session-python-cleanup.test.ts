@@ -704,28 +704,30 @@ describe("AgentSession python cleanup", () => {
 			displayOutputs: [],
 			stdinRequested: false,
 		});
-		const artifactStarted = Promise.withResolvers<void>();
-		const releaseArtifact = Promise.withResolvers<void>();
-		const sessionManager = SessionManager.inMemory(cwd);
-		vi.spyOn(sessionManager, "allocateArtifactPath").mockImplementation(async () => {
-			artifactStarted.resolve();
-			await releaseArtifact.promise;
-			return {};
+		// Backend availability is the async preflight an eval start passes before
+		// execution; hold it open to dispose the session in that window.
+		const availabilityStarted = Promise.withResolvers<void>();
+		const releaseAvailability = Promise.withResolvers<void>();
+		vi.spyOn(pythonKernel, "checkPythonKernelAvailability").mockImplementation(async () => {
+			availabilityStarted.resolve();
+			await releaseAvailability.promise;
+			return { ok: true };
 		});
+		const sessionManager = SessionManager.inMemory(cwd);
 
 		const session = await createSession(tempDir, cwd, { sessionManager });
 		const EvalTool = session.getToolByName("eval");
 		expect(EvalTool).toBeDefined();
 		const execution = EvalTool!.execute(
 			"call-id",
-			{ language: "py", code: "print('late after artifact')" },
+			{ language: "py", code: "print('late after preflight')" },
 			undefined,
 			undefined,
 			undefined,
 		);
-		await artifactStarted.promise;
+		await availabilityStarted.promise;
 		const disposeSession = session.dispose();
-		releaseArtifact.resolve();
+		releaseAvailability.resolve();
 		await expect(execution).rejects.toThrow("Python execution is unavailable while session disposal is in progress");
 		await disposeSession;
 		expect(executeSpy).not.toHaveBeenCalled();
