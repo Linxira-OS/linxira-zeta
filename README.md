@@ -69,6 +69,7 @@ The editor is a workbench pane, not a standalone tool: `@linxiraos/editor` is a
 reserved package name whose payload is not published today.
 
 Zeta Terminal is built and released from `terminal/` with its own toolchain;
+NixOS is source-build only (the flake is best-effort and not part of the release gate); Linux releases are AppImage/deb/rpm/pacman.
 it is not a root Bun workspace member.
 
 From a source checkout:
