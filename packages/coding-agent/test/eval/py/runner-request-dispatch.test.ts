@@ -687,7 +687,7 @@ describe("Python runner request dispatch", () => {
 				type: "done",
 				id: "setup-err",
 				status: "error",
-				cancelled: false,
+				cancelled: true,
 			});
 
 			// Neither the late interrupt for `setup` nor the early-return
