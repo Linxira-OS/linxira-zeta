@@ -5,16 +5,17 @@ import { TabRpcClient } from "@/app/store/wshrpcutil";
 import type { WaveConfigViewModel } from "@/app/view/waveconfig/waveconfig-model";
 import type { WaveConfigEnv } from "@/app/view/waveconfig/waveconfigenv";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
+import { ConnectionsModel } from "@/app/store/connections-model";
+import { isWindows } from "@/util/platformutil";
 import { useAtomValue } from "jotai";
 import { memo, useEffect, useState } from "react";
 import { t, useI18n } from "../../../i18n";
 
-const shellPresets = [
+const posixShellPresets = [
     { id: "nu", labelKey: "shell.nu" as const, path: "nu" },
     { id: "bash", labelKey: "shell.bash" as const, path: "/bin/bash" },
     { id: "zsh", labelKey: "shell.zsh" as const, path: "/bin/zsh" },
     { id: "fish", labelKey: "shell.fish" as const, path: "fish" },
-    { id: "pwsh", labelKey: "shell.pwsh" as const, path: "pwsh" },
 ];
 
 const ShellSettings = memo(({ model }: { model: WaveConfigViewModel }) => {
@@ -22,6 +23,14 @@ const ShellSettings = memo(({ model }: { model: WaveConfigViewModel }) => {
     const env = useWaveEnv<WaveConfigEnv>();
     const fullConfig = useAtomValue(env.atoms.fullConfigAtom);
     const configured = fullConfig?.settings?.["term:localshellpath"] ?? "";
+    const gitBashPath = useAtomValue(ConnectionsModel.getInstance().gitBashPathAtom);
+    const shellPresets = isWindows()
+        ? [
+              { id: "nu", labelKey: "shell.nu" as const, path: "nu" },
+              ...(gitBashPath ? [{ id: "gitbash", labelKey: "shell.gitbash" as const, path: gitBashPath }] : []),
+              { id: "pwsh", labelKey: "shell.pwsh" as const, path: "pwsh" },
+          ]
+        : posixShellPresets;
     const [shellPath, setShellPath] = useState(configured);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
