@@ -37,12 +37,10 @@ import { distributionPins, NPM_DISTRIBUTIONS } from "./npm-distributions";
 const repoRoot = path.join(import.meta.dir, "..");
 const DRY_RUN = process.argv.includes("--dry-run");
 
-// Mirrors scripts/release-v2.ts ALL_PACKAGES, plus web-ui: release-v2 keeps
-// web-ui in its VERSION_ONLY_PACKAGES list instead, because its ALL_PACKAGES
-// doubles as the CHANGELOG set and web-ui ships no CHANGELOG.md — same bump,
-// different bookkeeping. Keep the three lists (here, release-v2,
-// check-version-consistency) in lock-step. Entries are repo-relative package
-// directories: official plugins ride the same line.
+// Mirrors scripts/release-v2.ts ALL_PACKAGES. Keep the two lists (here and
+// release-v2) in lock-step. Entries are repo-relative package directories:
+// official plugins ride the same line. The retired web-ui snapshot is no
+// longer published or versioned.
 const ALL_PACKAGES = [
 	"packages/utils",
 	"packages/agent",
@@ -58,10 +56,6 @@ const ALL_PACKAGES = [
 	"packages/omptype",
 	"packages/wire",
 	"plugins/official/pi-messenger",
-	// The standalone web-ui snapshot (@linxiraos/zeta-web): not a Bun workspace
-	// member, but published by release_web_ui_packages in ci.yml, so its version
-	// has to ride the same line as the gateway it serves.
-	"web-ui",
 ] as const;
 
 // Mirrors release-v2.ts CATALOG_KEYS — the exact @linxiraos workspace-catalog keys.
@@ -205,30 +199,6 @@ async function main(): Promise<void> {
 		changed.push(rel);
 	}
 
-	// 1a. web-ui's npm lockfile (its own, like desktop's): the root version and
-	// the packages[""] entry move with the manifest so the pair never drifts.
-	// npm ci only reads the manifest, but a half-moved pair is exactly the kind
-	// of stale-lockfile drift the release chain keeps rediscovering.
-	{
-		const rel = "web-ui/package-lock.json";
-		const lock = readJson(rel) as { version?: string; packages?: Record<string, { version?: string }> };
-		let touched = false;
-		if (lock.version !== version) {
-			lock.version = version;
-			touched = true;
-		}
-		const rootEntry = lock.packages?.[""];
-		if (rootEntry && rootEntry.version !== version) {
-			rootEntry.version = version;
-			touched = true;
-		}
-		if (touched) {
-			writeJson(rel, lock);
-			changed.push(rel);
-		} else {
-			unchanged.push(rel);
-		}
-	}
 
 	// 2. Cargo workspace version.
 	const cargoRel = "Cargo.toml";
@@ -238,15 +208,6 @@ async function main(): Promise<void> {
 		unchanged.push(cargoRel);
 	}
 
-	// 2a. Main workbench workspace — a separate Cargo workspace riding the same
-	// release line; its version stamps the published workbench binary
-	// (`zeta --version`), so it must move in lockstep.
-	const mainCargoRel = "main/Cargo.toml";
-	if (replaceInFile(mainCargoRel, /^version = "[^"]+"/m, `version = "${version}"`)) {
-		changed.push(mainCargoRel);
-	} else {
-		unchanged.push(mainCargoRel);
-	}
 
 	// 3. Desktop shell.
 	for (const rel of ["desktop/package.json", "desktop/package-lock.json"]) {

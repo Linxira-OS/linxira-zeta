@@ -1,10 +1,25 @@
 ## [Unreleased]
 
-## [1.5.14] - 2026-11-22
-
 ### Added
 
-- `/team` opens a fullscreen Team workspace; room attachments render as Ctrl+click file links.
+- Added support for asynchronous `onSubmit` handlers by allowing the callback to return a `Promise<void>`
+
+Older entries are archived in [packages/tui/CHANGELOG.md@a95c0a0773af](https://github.com/Linxira-OS/linxira-zeta/blob/a95c0a0773afdfdc7f1f40ef21e79af46c86c11e/packages/tui/CHANGELOG.md).
+- Hosts now report when the terminal displays the checkout itself through `checkoutShown`.
+- Theme files are polled for changes, keeping live reload working when editors replace files during save.
+- Terminal animations now skip unchanged frames and share redraws with streaming content; shimmer motion runs at 20 fps.
+
+### Fixed
+
+- Fixed streaming Tern content being unnecessarily redrawn as newly inserted when content above it changes.
+- Fixed keyboard events used to open a page from being delivered to the newly opened page as well.
+- Fixed detection of LaTeX blocks beginning with `\begin`.
+- Fixed Cmd+A selection in terminal-forwarded editors and inputs so typing, deletion, and paste replace the selected text.
+- Fixed native overlays losing alignment with their anchored fields when the fields move or share local keys.
+- Fixed native menu and tree interactions being delivered to the wrong control or branch, and prevented clicks behind modal sheets from moving focus outside the modal.
+- Fixed terminal-row modal sheets allowing interaction with the content behind them, incorrect click and hover targets after scrolling, and mouse settings not being restored after closing fullscreen views.
+- Fixed terminal replies leaking into the shell prompt after returning from a native session, including after fatal errors.
+- Improved handling of large Tern transcript redraws when resuming sessions or returning from a subagent view.
 
 ## [8.4.1] - 2026-01-25
 
@@ -98,6 +113,12 @@
 
 Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
+## [1.5.14] - 2026-11-22
+
+### Added
+
+- `/team` opens a fullscreen Team workspace; room attachments render as Ctrl+click file links.
+
 ## [1.5.13] - 2026-11-21
 
 ### Changed
@@ -126,171 +147,6 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 ### Fixed
 
 - Fixed the `/usage` activity calendar replacing its painted history with "Usage history unavailable" when the refresh after it fails; the history stays, marked not synced ([#19896](https://github.com/Linxira-OS/linxira-zeta/pull/19896) by [@Xytronix](https://github.com/Xytronix))
-
-## [19.1.0] - 2026-11-21
-
-### Breaking Changes
-
-- Retired the `ComposerPreferences.completeScrollback`, `TranscriptContainer.completeScrollback`, and `Composer.setRunActive` APIs, along with the `transientChrome`, `selfClearingChrome`, and `billedChrome` options of `Composer.setRuntimeChildren`. Retirement now consistently uses the height left by on-screen chrome.
-- Moved `convertImageToPng`, `convertImageToPngShared`, `cachedPngConversion`, and `imagePayloadKey` from `@linxiraos/pi-tui/chat/image-loading` to `@linxiraos/pi-tui/png-conversion`.
-- Replaced `OutputSinkOptions.artifactPath` and `artifactId` with the `allocateArtifact` (`ArtifactAllocator`) callback, which allocates an artifact only when output first exceeds its inline view.
-- Removed the `windows-altgr` module; Windows AltGr recovery is now provided by `translateWindowsAltGrSequence` in `@linxiraos/pi-natives`.
-
-### Added
-
-- The editor now displays described changes for `magic` mode as Markdown in the transcript while it waits for the apply model to return final diffs.
-- The UI now responds to terminal `features` events without waiting for a new hello message.
-
-### Changed
-
-- Tool commands run inside a bash call render as nested tool cards in the bash card
-- Tool activity and job titles show the brief label of a structured intent; the Spotlight inspector still exposes the full request.
-- Improved transcript layout around docked reports, waiting asks, completion lists, dialogs, todo lists, subagent panels, queued messages, and other lower-screen chrome so visible content and reclaimed rows behave more predictably.
-- Native chat and web search cards now present tool results and sources more clearly, including expandable page excerpts, multi-line titles, and a unified sources grid.
-- Windows console VT input and AltGr handling now use the native terminal integration.
-- Background jobs and running Bash commands now provide live, step-specific output for pipelines, redirects, and command stages, with controls to switch streams or follow the live output. Job cards also show the active command step and more compact metadata.
-- Bash command footers now use a compact, icon-based layout for timing, exit status, job and process details, artifacts, and minimizers.
-
-### Fixed
-
-- Fixed the TUI freezing at 100% CPU while streaming text that begins with a blank line followed by a line containing `|`.
-- Fixed the TUI freezing when charting a table whose numbers overflow (`1e400`, a `p999…` header with hundreds of digits, a `1e-300 → 1e300` change) or sit above 2^53 and differ only slightly.
-- Fixed the editor freezing when a vim count is typed with hundreds of digits; counts now cap at 99,999.
-- Fixed Windows input mode freezing on a key record with an impossibly large repeat count.
-- Fixed backward character jump (`Ctrl+Alt+]`) at the start of a line finding the cursor's own character instead of searching earlier lines.
-- Fixed light-theme detection inside Zellij when the terminal reports a light background.
-- Preserved custom foreground colors and text styles in status-line segments while continuing to apply the accent color to unstyled statuses.
-- Fixed transcript rows and tool cards disappearing or appearing truncated when overlays and panels were open.
-- Fixed cursor flicker in kitty terminals during spinner updates.
-- Preserved background colors on truncated rows while scrolling.
-- Fixed WebP and JPEG images rendering as blank gaps on Kitty graphics-compatible terminals when displayed through a bare `Image`.
-- Improved terminal output handling so large repaints remain row-safe and slow or unavailable terminal writers no longer freeze input.
-- Preserved prefilled or hidden `__proto__` controls when ask HTML forms time out.
-- A single-question ask form now submits on the first Enter press.
-- Improved native-terminal ask forms so answering long questions no longer causes the entire card to resize and stall on every movement.
-
-## [19.0.1] - 2026-11-19
-
-### Added
-
-- The native session sheet shows a `Local` report line (the session's `local://` directory) as a copyable field beside the ID and file ([#19778](https://github.com/Linxira-OS/linxira-zeta/pull/19778) by [@farnoy](https://github.com/farnoy))
-
-### Fixed
-
-- Fixed images from a previous session reappearing at the top-left of the screen after `/new` in herdr-app ([#19749](https://github.com/Linxira-OS/linxira-zeta/pull/19749) by [@jaredlyon](https://github.com/jaredlyon))
-- Loop-stall diagnostics (`ui.loop-blocked`) no longer sample the JS thread while no TUI runs, such as in an external editor or after the session ends ([#19703](https://github.com/Linxira-OS/linxira-zeta/pull/19703) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed the usage dashboard rendering exhausted or pressured usage rows without a quota bar (prepaid balances, spent quotas) as dim informational text; they now take the error or warning color their reported status calls for, and a spent quota with no measurable amount reads "exhausted" instead of "no data" ([#19764](https://github.com/Linxira-OS/linxira-zeta/issues/19764))
-
-## [19.0.0] - 2026-11-18
-
-### Breaking Changes
-
-- Full-output references and the `[raw output: …]` footer now use `local://N.log` instead of `artifact://N`.
-
-### Added
-
-- Added the `btw` composer mode, including the `btwMode` theme color in all bundled themes.
-- Added feature-gated native docking for runtime children, allowing components to appear only on terminals that advertise the required capability.
-- Added options to preserve intraword underscores when stripping inline Markdown and to open `JobsSheet` on a selected job.
-- Custom message payloads can now be excluded from model context while remaining available in normalized and restored saved entries.
-- Added transcript blocks for output reported by running background jobs and services.
-
-### Changed
-
-- Reworked ask dialogs into a single stacked flow: the active question stays open while answered questions fold into compact summaries with their selected options visible. This applies across terminal and native interfaces and improves keyboard navigation, sizing, and host composer integration.
-- Improved composer behavior while an ask dialog is pending: the composer indicates that typing there will skip the question, folds to a compact state when appropriate, and offers an explicit Skip & send action for drafts that bypass the ask.
-- Added support for folded and faint composer states and clearer visual indication when the interface is awaiting an answer.
-- Model search now supports `provider/model` queries, prioritizing exact provider matches and searching that provider's model IDs first.
-
-### Fixed
-
-- Improved background-job notices in Tern by grouping all output under one header and showing the complete lines.
-- Fixed Tern composer handling of `->` and `=>` so typing them no longer unexpectedly inserts a line break.
-- Fixed web search results without a synthesized answer to show each source once with a concise cleaned excerpt.
-- Fixed long Tern tool-approval prompts so their details scroll within the available window and the choices and Approve/Deny controls remain visible.
-- Fixed table chart unit display and change-factor calculations for measurements with scaled units.
-- Fixed checkbox groups so pressing Enter with nothing selected first checks the focused box.
-- Ask forms now open each question with its preselected answer, allowing Enter to accept the recommendation without replacing it.
-
-## [18.22.2] - 2026-11-18
-
-### Added
-
-- `ui.loop-blocked` log records now name what held the event loop (`cause`, `causeShare`, `top`), sampled by an always-on profiler; `PI_LOOP_SAMPLER=0` turns it off
-
-### Changed
-
-- On Windows, terminal output is written off the JS thread, so input and rendering stay responsive while the console drains a large repaint
-
-### Fixed
-
-- On Windows, omp no longer freezes when the terminal stops reading its output (a hung Windows Terminal, a paused ssh client); it keeps running and catches up once the terminal reads again
-
-## [18.22.1] - 2026-11-17
-
-### Added
-
-- Task tool and agent hub rows now use distinct, theme-aware colours for the main agent and subagents; themes can optionally customize the six subagent colours.
-- Added word wrapping for table columns and rows, preserving hard line breaks so long table content remains readable.
-
-### Changed
-
-- Improved terminal UI responsiveness and reduced CPU usage while streaming long responses, monitoring the event loop, and typing with macOS spell checking enabled.
-- Status account identities can now include an optional credential ID, allowing usage to be attributed to API-key accounts and cached usage to refresh when the credential changes.
-
-### Fixed
-
-- Images in Ask forms now render correctly in Kitty-protocol terminals, including Kitty, Ghostty, and herdr.
-- Fixed model mentions followed by punctuation so they become editable chips without consuming the punctuation.
-- Fixed /copy to copy the visible prose from mid-turn out:// replies, including replies sent by commands, instead of the tool's internal result text.
-
-## [18.22.0] - 2026-11-16
-
-### Breaking Changes
-
-- Terminals that support output backpressure must now implement onOutputDrain(callback), which returns an unsubscribe function; terminals without backpressure can omit both pendingOutputBytes and onOutputDrain.
-- Updated PlanReviewOverlay options to use PlanReviewOverlayChoice objects and report choice IDs to onPick and selectOption. Refine and Save actions now reflect plan feedback and saving behavior; removed disabledIndices and externalEditorName, and updated describe to receive DescribeContext.
-
-### Added
-
-- Added configurable model search placement, provider scopes, and an optional thinking-level slider to ModelPickerComponent; selected thinking levels are reported through onPick metadata. The native picker sheet now supports anchoring, scope styling, level display, and icon actions.
-- Added a native plan review document and dock with editable and commentable plans, quote annotations, plan-edit notifications, Approve, Save, and Cancel actions, plus model selection.
-- Added support for pasting images into `HtmlFormDialog` option notes when opened with `acceptImages`, including image attachment, removal, and access to retained images through `OptionNote.images`.
-- Added live web-page and image rendering in assistant replies for supported terminals, including inline images and embedded page previews. Added the `/btw` transcript note for sharing side topics without interrupting the main conversation.
-- Added task counts to the Todo status line when work is assigned to multiple targets.
-- Added the ability to delete the selected prompt from history by pressing Delete at the end of the Ctrl+R search field.
-- Added distinct theming for Markdown links using registered extension schemes, with a muted fallback for themes that do not define the new color.
-- Improved compound Bash command approval dialogs by distinguishing allowed and approval-required segments and opening at the first segment requiring approval.
-- Added an optional Branch action to chat, including the `b` shortcut in the BTW history sheet.
-- `/cd` is a session command with a folder-only picker: real Windows volumes (drive type and volume label; A:/B: only when the system reports them) or POSIX mount points from `/proc/mounts`, pinned folders, type-to-filter, keyboard and mouse selection, `Ctrl+P` to pin, and `Ctrl+R` to open `/resume` on the highlighted folder instead of switching to it. A `/cd <path>` argument moves directly like `/move`.
-- Added the HTML form dialog used by `ask` and extension `ui.formDialog`: paginated terminal forms with keyboard navigation, images and inline SVG, free-text "Other" answers, and partial submission on inactivity timeout.
-- Added undo support to Editor with Ctrl+- hotkey. Undo coalesces consecutive word characters into one unit (fish-style). ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
-- Hardware cursor positioning for IME support in `Editor` and `Input` components. The terminal cursor now follows the text cursor position, enabling proper IME candidate window placement for CJK input. ([#719](https://github.com/badlogic/pi-mono/pull/719))
-- `Focusable` interface for components that need hardware cursor positioning. Implement `focused: boolean` and emit `CURSOR_MARKER` in render output when focused.
-- `CURSOR_MARKER` constant and `isFocusable()` type guard exported from the package
-
-### Changed
-
-- Provider scopes now show only the selected provider's models when a provider is chosen, with scope cycling able to return to the full model list.
-- Updated thinking-level controls to use left and right arrow keys, and refreshed the slider and footer hint presentation.
-- Retitled the plan-saving overlay to “Save plan” and updated its action label.
-- Improved reasoning-capability discovery so models awaiting discovery follow the session's thinking default and offer automatic thinking in addition to disabled and effort-level settings.
-- Renamed the public `html-form/media` APIs to `media`, including `loadMedia`, `Media`, and `MAX_MEDIA_BYTES`.
-
-### Fixed
-
-- Fixed slow scrolling and typing in long agent transcripts.
-- Fixed slow typing and cursor movement in drafts longer than 256 lines.
-- Fixed fallback model selection so roles are offered only models they can use, excluding incompatible image and speech models.
-- Fixed macOS spelling assistance, autocorrect, replacements, and word completion for shell (`!`) and Python (`) drafts.
-- Fixed asynchronous Bash commands switching from the interpreted shell view to the raw command line.
-- Improved transcript rendering when switching to a subagent, resuming a session, or rebuilding a long transcript so the newest messages appear immediately.
-- Fixed Markdown task lists displaying the wrong checkbox state for completed and open items.
-- Fixed iTerm2 inserting terminal resize data into the composer when reporting in-band resizes.
-- Improved working-row animation while waiting for tools or models on terminals without synchronized output, including tmux 3.6.
-- Fixed expanded IRC tool cards to show complete soft-wrapped output and added an expand hint to collapsed cards containing hidden text.
-- Fixed premature scrolling in the `/resume` session picker when navigating near the middle of the list.
-- The `/models` model action strip now offers **remove fallback** for a model already in the default retry chain. Each activation removes one matching entry while preserving other entries, effort variants, providers and order; role, provider and exact-model rules remain editable in Roles.
 
 ## [1.5.2] - 2026-11-13
 
@@ -574,8 +430,6 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 
 - Overlay compositing crash when rendered lines exceed terminal width due to complex ANSI/OSC sequences (e.g., hyperlinks in subagent output) ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
 
-## [19.2.0] - 2026-11-25
-
 ## [0.31.1] - 2026-01-02
 
 Older entries are archived in [packages/tui/CHANGELOG.md@fa14205f838f](https://github.com/Linxira-OS/linxira-zeta/blob/fa14205f838f282fcea048c64fca74026789a492/packages/tui/CHANGELOG.md).
@@ -606,25 +460,3 @@ Older entries are archived in [packages/tui/CHANGELOG.md@bdbb5c920f69](https://g
 - Fixed TUI renders repeatedly clearing terminal scrollback after content filled the viewport. Unknown viewport probes no longer let foreground-streaming offscreen growth take the destructive `historyRebuild` path on every frame; newly appended tail rows stay reachable while stale history waits for a safe checkpoint. ([#2154](https://github.com/Linxira-OS/linxira-zeta/issues/2154))
 
 Older entries are archived in [packages/tui/CHANGELOG.md@7049d1b1afeb](https://github.com/Linxira-OS/linxira-zeta/blob/7049d1b1afeb8e421e7f9fba5c1dcebd7c382232/packages/tui/CHANGELOG.md).
-
-### Added
-
-- Added support for asynchronous `onSubmit` handlers by allowing the callback to return a `Promise<void>`
-
-Older entries are archived in [packages/tui/CHANGELOG.md@a95c0a0773af](https://github.com/Linxira-OS/linxira-zeta/blob/a95c0a0773afdfdc7f1f40ef21e79af46c86c11e/packages/tui/CHANGELOG.md).
-
-- Hosts now report when the terminal displays the checkout itself through `checkoutShown`.
-- Theme files are polled for changes, keeping live reload working when editors replace files during save.
-- Terminal animations now skip unchanged frames and share redraws with streaming content; shimmer motion runs at 20 fps.
-
-### Fixed
-
-- Fixed streaming Tern content being unnecessarily redrawn as newly inserted when content above it changes.
-- Fixed keyboard events used to open a page from being delivered to the newly opened page as well.
-- Fixed detection of LaTeX blocks beginning with `\begin`.
-- Fixed Cmd+A selection in terminal-forwarded editors and inputs so typing, deletion, and paste replace the selected text.
-- Fixed native overlays losing alignment with their anchored fields when the fields move or share local keys.
-- Fixed native menu and tree interactions being delivered to the wrong control or branch, and prevented clicks behind modal sheets from moving focus outside the modal.
-- Fixed terminal-row modal sheets allowing interaction with the content behind them, incorrect click and hover targets after scrolling, and mouse settings not being restored after closing fullscreen views.
-- Fixed terminal replies leaking into the shell prompt after returning from a native session, including after fatal errors.
-- Improved handling of large Tern transcript redraws when resuming sessions or returning from a subagent view.

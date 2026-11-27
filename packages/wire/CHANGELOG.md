@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+
+- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
 ## [1.5.14] - 2026-11-22
 
 ### Changed
@@ -25,38 +28,6 @@
 - Released as part of Zeta 1.5.11; no package-specific user-visible changes.
 
 ## [1.5.10] - 2026-11-19
-
-## [19.2.0] - 2026-11-25
-
-### Added
-
-- Added a TSP checkout event to indicate when a pane displays its checkout view.
-- Added a waiting state for agent tray cards when an agent is running but waiting on its own agents or jobs.
-- Extended the TSP toggle event to support the open state used by menus and selectable controls, including the selected item ID when available.
-
-## [19.1.0] - 2026-11-21
-
-### Added
-
-- Added `toolIntentLabel` for displaying the brief prefix of a structured tool-call intent.
-- Added clickable shell-command steps with output selection and visual highlighting of the currently displayed step.
-- Added a terminal `features` event for notifying clients when terminal settings change.
-- Added collaboration guest support for resuming sessions and delivering queued messages, plus `followUp` prompts.
-
-## [19.0.0] - 2026-11-18
-
-### Added
-
-- Added tray state and interaction properties, including focus, peek, quiet, main status, item references, card status and actions, and event state.
-- Added layout transition properties to nodes for coordinating layout animations.
-- Added support for folding a dock composer into its compact row.
-
-## [18.22.0] - 2026-11-16
-
-### Added
-
-- Added optional picker icons for tooltips and accessible names, plus an option to control the placement of the search interface.
-- Added buttons, menu, and document component kinds, including menu-row action state changes and document text editing, commenting, and uncommenting events.
 
 ## [1.5.2] - 2026-11-13
 

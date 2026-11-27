@@ -1,24 +1,9 @@
 ## [Unreleased]
 
-## [1.5.14] - 2026-11-22
-
-## [19.1.0] - 2026-11-21
-
-### Fixed
-
-- Improved diagnostics when a configured embedding provider fails, making provider errors visible in logs while preserving the existing fallback behavior.
-
-## [18.22.1] - 2026-11-17
-
-### Fixed
-
-- Fixed embedding requests failing when oversized inputs were clipped in the middle of an emoji or other Unicode character.
-
-## [18.21.0] - 2026-11-16
-
 ### Changed
 
-- Included in Zeta 1.5.14; no package-specific user-visible changes.
+- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
+## [1.5.14] - 2026-11-22
 
 ## [1.5.13] - 2026-11-21
 

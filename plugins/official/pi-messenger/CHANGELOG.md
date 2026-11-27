@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+
+- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
 ## [1.5.14] - 2026-11-22
 
 ### Changed

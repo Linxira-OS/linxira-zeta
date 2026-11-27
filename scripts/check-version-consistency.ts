@@ -20,11 +20,6 @@
  * package/catalog lists and natives mechanism symbols in
  * scripts/release-v2.ts and scripts/set-version.ts (update all three together).
  *
- * web-ui/ is intentionally NOT checked: it aligns to the release version only
- * when the release tooling runs (`set-version.ts`, and `release-v2.ts` whose
- * pre-tag assertConsistency does verify it), so between releases its manifest
- * legitimately still carries the version it last published. This checker runs
- * between releases, which is why it ignores it.
  */
 
 import { Glob } from "bun";
@@ -159,7 +154,7 @@ function main(): void {
 	// package.json#version by the loader. The check therefore pins the
 	// mechanism symbols, not a version-derived name.
 	const mechanism: Array<[string, string]> = [
-		["crates/pi-natives/src/lib.rs", "pub fn pi_natives_build_version()"],
+		["crates/natives/src/lib.rs", "pub fn pi_natives_build_version()"],
 		["packages/natives/native/index.js", "__piNativesBuildVersion"],
 		["packages/natives/native/index.d.ts", "__piNativesBuildVersion"],
 	];
