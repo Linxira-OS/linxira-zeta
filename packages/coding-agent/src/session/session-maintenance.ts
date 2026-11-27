@@ -6602,7 +6602,7 @@ export class SessionMaintenance {
 									convertToLlm,
 									buildProviderContext: (summarized, retained, signal, model) =>
 										this.#host.buildLiveProviderContext(summarized, retained, signal, model),
-									omitDemotedReasoning: this.#host.omitsDemotedReasoning(candidate),
+									omitDemotedReasoning: this.#host.omitsDemotedReasoning?.(candidate) ?? false,
 									isUserAuthored: isUserAuthoredMessage,
 									telemetry,
 									// Honor the user's /model thinking selection on the

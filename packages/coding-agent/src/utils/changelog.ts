@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import { getLastChangelogVersionPath, isEnoent, logger } from "@linxiraos/pi-utils";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { Lexer } from "@linxiraos/pi-utils/marked";
 import type { BunFile } from "bun";
 import bundledChangelogPath from "../../CHANGELOG.md" with { type: "file" };
@@ -193,7 +194,14 @@ export async function parseChangelog(changelogPath: string | undefined): Promise
 	}
 	content ??= await Bun.file(resolveBundledChangelogPath(bundledChangelogPath, import.meta.url)).text();
 
-	return parseChangelogContent(content);
+	const entries = parseChangelogContent(content);
+	const [major = 0, minor = 0, patch = 0] = VERSION.split(".").map(part => Number.parseInt(part, 10));
+	return entries.filter(
+		entry =>
+			entry.major < major ||
+			(entry.major === major && entry.minor < minor) ||
+			(entry.major === major && entry.minor === minor && entry.patch <= patch),
+	);
 }
 
 function parseChangelogContent(content: string): ChangelogEntry[] {

@@ -18,7 +18,7 @@ const originalEnv: Record<string, string | undefined> = {};
 let tempDir: TempDir | undefined;
 
 beforeEach(() => {
-	tempDir = TempDir.createSync("@omp-stats-activity-lock-");
+	tempDir = TempDir.createSync(path.join(os.homedir(), "zeta-stats-activity-lock-"));
 	for (const key of [...XDG_KEYS, "PI_CONFIG_DIR", "ZETA_CONFIG_DIR", STATS_BUSY_TIMEOUT_MS_ENV]) {
 		originalEnv[key] = process.env[key];
 		delete process.env[key];

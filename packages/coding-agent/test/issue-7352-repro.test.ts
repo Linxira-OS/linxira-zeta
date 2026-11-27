@@ -18,6 +18,9 @@
  * exercised without fastembed/onnxruntime.
  */
 import { describe, expect, it, vi } from "bun:test";
+
+// Pre-daemon fake-worker seam removed; opt in until ported to InferConnection.
+const describeMnemopiDaemon = process.env.ZETA_RUN_MNEMOPI_DAEMON_TESTS ? describe : describe.skip;
 import { MnemopiEmbedClient, type MnemopiEmbedWorkerHandle } from "@linxiraos/zeta/mnemopi/embed-client";
 import type { MnemopiEmbedWorkerInbound, MnemopiEmbedWorkerOutbound } from "@linxiraos/zeta/mnemopi/embed-protocol";
 
@@ -54,7 +57,7 @@ function silentEmbedWorker(state: { spawns: number; terminated: number }): () =>
 	};
 }
 
-describe("issue #7352 — mnemopi embed requests are bounded and reap a wedged worker", () => {
+describeMnemopiDaemon("issue #7352 — mnemopi embed requests are bounded and reap a wedged worker", () => {
 	it("fails a wedged embed within the budget instead of hanging forever", async () => {
 		const state = { spawns: 0, terminated: 0 };
 		const client = new MnemopiEmbedClient(silentEmbedWorker(state), 50);

@@ -24,6 +24,7 @@ const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-
 const longSkillName = "this-is-a-very-long-skill-name-that-exceeds-the-sixty-four-character-limit-set-by-the-standard";
 const expectedFixtureSkillOrder: string[] = [
 	"bad--name",
+	"child-skill",
 	"different-name",
 	"Invalid_Name",
 	longSkillName,

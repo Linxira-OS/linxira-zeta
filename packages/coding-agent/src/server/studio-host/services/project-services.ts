@@ -1,7 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { sanitizeText } from "@linxiraos/pi-utils";
-import type { DaemonSnapshot } from "../../../launch/protocol";
+import { canonicalProjectDir } from "../../../daemon/client";
+import { projectScope, type UnitRef, type UnitSnapshot } from "../../../daemon/protocol";
 import { requestService, startService } from "../../../launch/services";
 import type { ToolSession } from "../../../tools";
 import { cfgLaunchEnabled } from "../../../tools/settings";
@@ -12,17 +13,40 @@ export type ServiceOperation = Extract<WorkbenchOperation, { kind: `services.${s
 export type ServiceKind = ServiceOperation["kind"];
 type ServiceResult = WorkbenchResultMap[ServiceKind];
 
+/** Snapshot shape of the launch broker the daemon replaced; older rows still project through it. */
+interface LegacyServiceSnapshot {
+	name: string;
+	id: string;
+	state: StudioServiceRow["state"];
+	pid?: number;
+	startedAt: number;
+	readyAt?: number;
+	exitedAt?: number;
+	exitCode?: number;
+	restartCount: number;
+	outputBytes: number;
+	owner?: string;
+	persist: boolean;
+	detached: boolean;
+	previewUrl?: string;
+}
+
+type ServiceSnapshot = UnitSnapshot | LegacyServiceSnapshot;
+
+/** Snapshot identity; the daemon's launch generation changes on every restart. */
+function instanceIdOf(daemon: ServiceSnapshot): string {
+	return daemon.id + ":" + ("generation" in daemon ? daemon.generation : daemon.startedAt);
+}
+
 /** Only public process facts; no command, environment or runtime directory. */
-export function projectService(
-	daemon: DaemonSnapshot | import("@linxiraos/pi-tui/tools/daemon").UnitSnapshot,
-): StudioServiceRow {
+export function projectService(daemon: ServiceSnapshot): StudioServiceRow {
 	const name = "name" in daemon ? daemon.name : daemon.key;
 	const pid = "pid" in daemon ? daemon.pid : "pids" in daemon ? daemon.pids[0] : undefined;
 	const persist = "persist" in daemon ? daemon.persist : daemon.policy.hold === "persist";
 	const detached = "detached" in daemon ? daemon.detached : daemon.policy.survive === "detached";
 	return {
 		name,
-		instanceId: daemon.id + ":" + daemon.startedAt,
+		instanceId: instanceIdOf(daemon),
 		state: daemon.state,
 		startedAt: daemon.startedAt,
 		...("previewUrl" in daemon && daemon.previewUrl !== undefined ? { previewUrl: daemon.previewUrl } : {}),
@@ -35,6 +59,15 @@ export function projectService(
 		...(daemon.owner === undefined ? {} : { ownerId: daemon.owner, ownerAgentId: daemon.owner }),
 		mode: detached ? "detached" : persist ? "persist" : "session",
 	};
+}
+
+/** Refuse to touch a replacement generation when the row the client holds is stale. */
+function assertSameInstance(
+	daemon: UnitSnapshot,
+	expectedInstanceId: string,
+	message = "Service instance changed; refresh before trying again",
+): void {
+	if (instanceIdOf(daemon) !== expectedInstanceId) throw unavailable(message);
 }
 
 /** The official service seam uses the native ToolSession and its completion subscriptions. */
@@ -52,13 +85,6 @@ export async function executeProjectService(
 			services: result.units.slice(0, 500).map(projectService),
 		};
 	}
-	// Older brokers discard unknown fence fields; do not send them Studio control.
-	const ping = await requestService(session, { op: "ping" }, undefined, assertCurrent);
-	assertCurrent();
-	if (!(ping as any).instanceFencing)
-		throw unavailable(
-			"This project broker needs to be restarted with the updated Runtime before controlling services",
-		);
 	if (operation.kind === "services.start") {
 		const spec = operation.spec;
 		const root = await fs.realpath(session.cwd);
@@ -81,15 +107,19 @@ export async function executeProjectService(
 			assertCurrent,
 		);
 		assertCurrent();
-		return { service: projectService(result.daemon as any), readyTimedOut: result.readyTimedOut };
+		return { service: projectService(result.daemon), readyTimedOut: result.readyTimedOut };
 	}
-	const named = { unit: operation.name, expectedInstanceId: operation.instanceId };
+	const unit: UnitRef = {
+		kind: "proc",
+		scope: projectScope(await canonicalProjectDir(session.cwd)),
+		key: operation.name,
+	};
 	if (operation.kind === "services.logs") {
 		const result = await requestService(
 			session,
 			{
 				op: "logs",
-				unit: operation.name,
+				unit,
 				lines: operation.lines ?? 200,
 				head: false,
 				follow: false,
@@ -101,25 +131,35 @@ export async function executeProjectService(
 		);
 		assertCurrent();
 		return {
-			instanceId: operation.instanceId,
+			instanceId: instanceIdOf(result.unit),
 			text: sanitizeText(result.text).slice(-65536),
 			cursor: result.cursor,
-			state: (result as any).state ?? "running",
+			state: result.unit.state,
 		};
 	}
+	// The daemon fences only stops by generation. Read the row's generation first so
+	// restart/mode/send cannot target a replacement launched after the client's row.
+	const described = await requestService(session, { op: "describe", unit }, undefined, assertCurrent);
+	assertCurrent();
+	assertSameInstance(described.unit, operation.instanceId);
 	const result = await requestService(
 		session,
 		operation.kind === "services.stop"
-			? { op: "stop", ...named, timeoutMs: 5000 }
+			? {
+					op: "stop",
+					unit,
+					timeoutMs: 5000,
+					generation: operation.instanceId.slice(operation.instanceId.lastIndexOf(":") + 1),
+				}
 			: operation.kind === "services.restart"
-				? { op: "restart", ...named }
+				? { op: "restart", unit }
 				: operation.kind === "services.mode.set"
-					? { op: "mode", ...named, mode: operation.mode }
-					: { op: "send", ...named, data: operation.text },
+					? { op: "mode", unit, mode: operation.mode }
+					: { op: "send", unit, data: operation.text },
 		undefined,
 		assertCurrent,
 	);
 	assertCurrent();
-	if (!("daemon" in result)) throw new Error("Unexpected service response");
-	return { service: projectService(result.daemon as any) };
+	if (operation.kind !== "services.restart") assertSameInstance(result.unit, operation.instanceId);
+	return { service: projectService(result.unit) };
 }

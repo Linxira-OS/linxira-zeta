@@ -34,7 +34,16 @@ import {
 import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
 import { refreshOAuthToken } from "@linxiraos/pi-ai/oauth";
 import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
-import { $which, APP_NAME, CLI_BIN_NAME, getAgentDbPath, getConfigRootDir, logger, VERSION } from "@linxiraos/pi-utils";
+import {
+	$which,
+	APP_NAME,
+	CLI_BIN_NAME,
+	getAgentDbPath,
+	getConfigRootDir,
+	logger,
+	postmortem,
+	VERSION,
+} from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { setTransports as setLoggerTransports } from "@linxiraos/pi-utils/logger";
 import { $ } from "bun";
@@ -145,6 +154,9 @@ async function runServe(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	// stdout so a process supervisor (pm2, journald, k8s) captures them, and
 	// skip the rotating ~/.zeta/logs/ file the TUI default would have used.
 	setLoggerTransports({ console: true, file: false });
+	// SIGTERM/SIGINT are a supervisor's stop or restart, not a failure: exit 0 once
+	// the cleanup pass (which saves an in-flight token refresh) finishes.
+	postmortem.exitCleanlyOnStopSignals();
 
 	const bind = flags.bind ?? DEFAULT_AUTH_BROKER_BIND;
 	const token = await ensureToken();
