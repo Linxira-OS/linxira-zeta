@@ -536,9 +536,9 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean,
 	// doesn't fail with "cannot update the lock file" after the Cargo.toml
 	// bump (Cargo.toml at the new version vs a stale Cargo.lock).
 	const cargoLock = await Bun.file("Cargo.lock").text();
-	const updatedLock = cargoLock.replace(/^(name = "pi-[^"]+"\r?\n\s*version = ")[^"]+/gm, `$1${version}`);
+	const updatedLock = cargoLock.replace(/^(name = "(?:pi|omp)-[^"]+"\r?\n\s*version = ")[^"]+/gm, `$1${version}`);
 	await Bun.write("Cargo.lock", updatedLock);
-	console.log(`  Cargo.lock: pi-* members -> ${version}`);
+	console.log(`  Cargo.lock: pi-*/omp-* workspace members -> ${version}`);
 
 	// Step 2d-bis: MODULE.bazel.lock caches the crate_universe (@crates)
 	// extension result, keyed by Cargo.toml/Cargo.lock hashes - so every
