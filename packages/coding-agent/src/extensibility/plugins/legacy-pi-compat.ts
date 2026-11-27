@@ -1130,7 +1130,14 @@ function remapLegacyPiSpecifier(specifier: string): string | null {
 	}
 	const rest = specifier.slice(slashIdx + 1);
 	const remappedSubpath = remapLegacyPiSubpath(rest);
-	return `${CANONICAL_PI_SCOPE}/${remappedSubpath}`;
+	// The host package was renamed from `pi-coding-agent` to `zeta`; only its
+	// package root has a compat shim override, so subpaths (`sdk`, `session/...`,
+	// `extensibility/extensions`) must follow the rename or they resolve to a
+	// package that no longer exists.
+	const canonicalSubpath = remappedSubpath.startsWith("pi-coding-agent/")
+		? `zeta/${remappedSubpath.slice("pi-coding-agent/".length)}`
+		: remappedSubpath;
+	return `${CANONICAL_PI_SCOPE}/${canonicalSubpath}`;
 }
 
 function getResolvedSpecifier(specifier: string): string {

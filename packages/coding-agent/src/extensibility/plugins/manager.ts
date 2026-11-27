@@ -1182,7 +1182,7 @@ export class PluginManager {
 				status: hasManifest ? "ok" : "warning",
 				message: hasManifest
 					? `v${pluginPkg.version}${pluginPkg.description ? ` - ${pluginPkg.description}` : ""}`
-					: `v${pluginPkg.version} - No zeta/omp/pi manifest (not a plugin package)`,
+					: `v${pluginPkg.version} - No zeta/pi manifest (not a plugin package)`,
 			});
 
 			// Check tools path exists if specified

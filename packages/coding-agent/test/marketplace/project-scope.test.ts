@@ -50,14 +50,14 @@ describe("resolveActiveProjectRegistryPath", () => {
 	let originalConfigDir: string | undefined;
 
 	beforeEach(() => {
-		originalConfigDir = process.env.PI_CONFIG_DIR;
+		originalConfigDir = process.env.ZETA_CONFIG_DIR;
 		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-proj-scope-"));
 	});
 
 	afterEach(() => {
 		clearClaudePluginRootsCache();
 		vi.restoreAllMocks();
-		restoreEnvValue("PI_CONFIG_DIR", originalConfigDir);
+		restoreEnvValue("ZETA_CONFIG_DIR", originalConfigDir);
 		removeSyncWithRetries(tmpDir);
 	});
 
@@ -200,7 +200,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 		);
 		await Bun.write(
 			path.join(pluginDir, "package.json"),
-			JSON.stringify({ name: "omp-project-agent", version: "1.0.0", omp: { tools: "tools" } }),
+			JSON.stringify({ name: "omp-project-agent", version: "1.0.0", zeta: { tools: "tools" } }),
 		);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
 		vi.spyOn(piUtils, "getAgentDir").mockReturnValue(path.join(home, ".zeta", "agent"));
@@ -311,8 +311,8 @@ describe("resolveActiveProjectRegistryPath", () => {
 	it("does not use an aliased relocated user config as a project registry even at a git root", async () => {
 		const home = path.join(tmpDir, "home");
 		const project = path.join(home, "work");
-		const userConfigDir = path.join(".config", "omp");
-		restoreEnvValue("PI_CONFIG_DIR", userConfigDir);
+		const userConfigDir = path.join(".config", "zeta");
+		restoreEnvValue("ZETA_CONFIG_DIR", userConfigDir);
 		fs.mkdirSync(path.join(home, userConfigDir), { recursive: true });
 		fs.mkdirSync(path.join(project, ".git"), { recursive: true });
 		fs.symlinkSync(path.join(home, userConfigDir), path.join(project, ".zeta"), "dir");
@@ -325,7 +325,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 	it("defaults a fresh directory's project registry to .zeta with a relocated user root", async () => {
 		const cwd = path.join(tmpDir, "fresh");
 		fs.mkdirSync(cwd, { recursive: true });
-		restoreEnvValue("PI_CONFIG_DIR", path.join(".config", "omp"));
+		restoreEnvValue("ZETA_CONFIG_DIR", path.join(".config", "zeta"));
 		vi.spyOn(os, "tmpdir").mockReturnValue(tmpDir);
 		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "isolated-home"));
 
@@ -337,9 +337,9 @@ describe("resolveActiveProjectRegistryPath", () => {
 
 	it("keeps reading a registry an older build wrote under the relocated config dir until .zeta has one", async () => {
 		const project = path.join(tmpDir, "legacy-project");
-		const userConfigDir = path.join(".config", "omp");
+		const userConfigDir = path.join(".config", "zeta");
 		fs.mkdirSync(path.join(project, ".git"), { recursive: true });
-		restoreEnvValue("PI_CONFIG_DIR", userConfigDir);
+		restoreEnvValue("ZETA_CONFIG_DIR", userConfigDir);
 		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "isolated-home"));
 		const legacy = path.join(project, userConfigDir, "plugins", "installed_plugins.json");
 		const current = path.join(project, ".zeta", "plugins", "installed_plugins.json");
@@ -355,8 +355,8 @@ describe("resolveActiveProjectRegistryPath", () => {
 	it("keeps a custom-home plugin in user scope during discovery", async () => {
 		const home = path.join(tmpDir, "sdk-home");
 		const cwd = path.join(home, "work");
-		const userConfigDir = path.join(".config", "omp");
-		restoreEnvValue("PI_CONFIG_DIR", userConfigDir);
+		const userConfigDir = path.join(".config", "zeta");
+		restoreEnvValue("ZETA_CONFIG_DIR", userConfigDir);
 		const registryPath = path.join(home, userConfigDir, "plugins", "installed_plugins.json");
 		fs.mkdirSync(cwd, { recursive: true });
 		await writeInstalledPluginsRegistry(registryPath, {

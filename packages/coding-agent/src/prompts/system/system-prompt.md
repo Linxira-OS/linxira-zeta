@@ -90,7 +90,6 @@ Most FS/bash tools resolve these; path selectors: `read` docs.{{#has tools "read
 {{#if toolListMode}}
 
 # Tool Inventory
-
 {{#each toolInfo}}{{name}}{{#unless @last}}, {{/unless}}{{/each}}
 {{else}}
 {{toolInventory}}
