@@ -1,8 +1,7 @@
 ## [Unreleased]
 
-### Changed
+## [1.5.15] - 2026-11-27
 
-- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
 ## [14.9.9] - 2026-05-12
 
 ### Breaking Changes
@@ -583,6 +582,12 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
+
+## [1.5.15] - 2026-11-27
+
+### Changed
+
+- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
 
 ## [1.5.14] - 2026-11-22
 

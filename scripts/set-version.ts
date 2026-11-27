@@ -199,7 +199,6 @@ async function main(): Promise<void> {
 		changed.push(rel);
 	}
 
-
 	// 2. Cargo workspace version.
 	const cargoRel = "Cargo.toml";
 	if (replaceInFile(cargoRel, /^version = "[^"]+"/m, `version = "${version}"`)) {
@@ -207,7 +206,6 @@ async function main(): Promise<void> {
 	} else {
 		unchanged.push(cargoRel);
 	}
-
 
 	// 3. Desktop shell.
 	for (const rel of ["desktop/package.json", "desktop/package-lock.json"]) {

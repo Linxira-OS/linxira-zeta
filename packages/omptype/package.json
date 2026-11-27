@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/zeta-schema",
-	"version": "1.5.14",
+	"version": "1.5.15",
 	"description": "ArkType-compatible runtime schema validation with lazy JIT compilation",
 	"keywords": [
 		"arktype",

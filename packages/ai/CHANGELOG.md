@@ -1,5 +1,33 @@
 ## [Unreleased]
 
+## [1.5.15] - 2026-11-27
+
+### Added
+
+- Exported `shouldDropTruncatedThinkingOnlyAssistant` from `providers/transform-messages`, `isColdReplayableResponsesTurn` from `providers/openai-shared` and the new `openAIResponsesReplaysNativeHistory` from `providers/openai-responses`, so local token estimates can follow which turns replay drops and whether a session replays native history ([#15447](https://github.com/Linxira-OS/linxira-zeta/pull/15447) by [@will-bogusz](https://github.com/will-bogusz))
+- Added image support for native OpenAI Decisions and Workers AI judgments, prompted vision chat, and auth-gateway System One requests; images exceeding a judgment API's documented caps (e.g. Clef's 4 images, 4 MiB each) are rejected locally ([#15471](https://github.com/Linxira-OS/linxira-zeta/pull/15471) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy)).
+- `isSurvivingAssistant` in `providers/transform-messages`: whether an assistant turn reaches a replay, malformed tool calls dropped first, so callers outside `transformMessages` pick the same latest turn ([#15791](https://github.com/Linxira-OS/linxira-zeta/pull/15791) by [@will-bogusz](https://github.com/will-bogusz))
+- Added scoped clients to `startAuthGateway` (`clients`, `setClients`): each client bearer is limited to its own models and OAuth accounts, with no fallback to other accounts or API keys, and request log lines name the client and the credential a request started on ([#5098](https://github.com/Linxira-OS/linxira-zeta/issues/5098), [#15900](https://github.com/Linxira-OS/linxira-zeta/pull/15900) by [@alphastorm](https://github.com/alphastorm))
+- Added experimental native image judgments for TypeSafe Jev's `jev-latest`, `jev-preview`, `jev-1.13.0`, and `jev-1.14.0`, plus OpenRouter's `typesafe/jev-1.13`, `typesafe/jev-1.14`, and `~typesafe/jev-latest` models; images outside Jev's documented size bounds fall through to a vision chat judge instead of failing ([#15887](https://github.com/Linxira-OS/linxira-zeta/pull/15887) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy))
+
+## [1.5.15] - 2026-11-27
+
+### Breaking Changes
+
+- `PI_CODEX_ZSTD` is replaced by `PI_REQUEST_COMPRESSION`; set `PI_REQUEST_COMPRESSION=0` to send Codex (and every other) request body uncompressed ([#16086](https://github.com/Linxira-OS/linxira-zeta/pull/16086) by [@H4vC](https://github.com/H4vC))
+
+### Added
+
+- Added the `liquid-systemone` judgment API for Liquid AI's decision models, which rejects image sets over Liquid's 10,000 32×32-patch request cap before sending ([#18076](https://github.com/Linxira-OS/linxira-zeta/issues/18076), [#18100](https://github.com/Linxira-OS/linxira-zeta/pull/18100) by [@SuperUserA](https://github.com/SuperUserA))
+- Added the `nace-systemone` judgment API for Nace's Drex decision models, which sends images as Drex's top-level `images` data URLs and replaces the base64 image, audio, video and PDF data URLs that Drex rejects in judged text with a description ([#18950](https://github.com/Linxira-OS/linxira-zeta/pull/18950) by [@alphastorm](https://github.com/alphastorm))
+- Added support for `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` on the `anthropic` provider: when set, requests omit pre-release fields (`context_management`, beta tool fields such as `strict` and `defer_loading`, task budgets, structured-output format, `thinking.block_binding`, and Anthropic server compaction) along with their beta headers, so `ANTHROPIC_BASE_URL` gateways that reject them keep working ([#15458](https://github.com/Linxira-OS/linxira-zeta/pull/15458) by [@H4vC](https://github.com/H4vC))
+- Added `reachesOfficialEndpoint(model)`: whether a request to the model reaches the official endpoint its compat was built for, following `ANTHROPIC_BASE_URL` and Foundry's `FOUNDRY_BASE_URL` reroutes of first-party Anthropic models ([#15434](https://github.com/Linxira-OS/linxira-zeta/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
+- Added `AssistantMessage.elidedOutputTokens`, the visible output tokens a history rewrite (shake) has removed from the turn, which `usage.output` still counts ([#15446](https://github.com/Linxira-OS/linxira-zeta/pull/15446) by [@will-bogusz](https://github.com/will-bogusz))
+
+### Changed
+
+- Released as part of Zeta 1.5.11; no package-specific user-visible changes.
+
 ### Fixed
 
 - Fixed OpenAI Codex credentials limited to one ChatGPT workspace per email: a personal Plus/Pro plan and a Team/Enterprise seat under the same email now coexist in the auth store — with separate rotation and usage pools — instead of the second login silently replacing the first. The workspace (`chatgpt_account_id`) is captured as the credential's org at login with the plan type as its display label, and two members of one workspace keep separate rows ([#2966](https://github.com/Linxira-OS/linxira-zeta/issues/2966)).
@@ -8,6 +36,9 @@
 - Classified zero-output Devin `invalid_argument` trailers as context overflow when the serialized message history is already large, routing cumulative tool-output payload failures through context maintenance—including artifact-backed shake rescue—instead of retrying the same rejected history.
 
 Older entries are archived in [packages/ai/CHANGELOG.md@de21c0ac454b](https://github.com/Linxira-OS/linxira-zeta/blob/de21c0ac454b1a66d8dfff32b0ed4751a08f809b/packages/ai/CHANGELOG.md).
+- Fixed sequential-cutoff reasoning summaries duplicating section headers across Codex reasoning items by tracking the cumulative summary response-globally, so replayed sections and replay-only items no longer re-emit text earlier thinking blocks already streamed.
+
+Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://github.com/Linxira-OS/linxira-zeta/blob/15b63dda377c99cead82ce07d5aac567f2b413b3/packages/ai/CHANGELOG.md).
 
 ## [1.5.14] - 2026-11-22
 
@@ -29,12 +60,6 @@ Older entries are archived in [packages/ai/CHANGELOG.md@de21c0ac454b](https://gi
 ### Changed
 
 - Included in Zeta 1.5.12; no package-specific user-visible changes.
-
-## [1.5.11] - 2026-11-20
-
-### Changed
-
-- Released as part of Zeta 1.5.11; no package-specific user-visible changes.
 
 ## [1.5.10] - 2026-11-19
 
@@ -69,9 +94,6 @@ Older entries are archived in [packages/ai/CHANGELOG.md@de21c0ac454b](https://gi
 - Stopped native judges from retrying gateway errors caused by exhausted upstream credentials while retaining retries for other transient 502 errors.
 - Fixed simple completion and authenticated gateway chat routes so supported providers receive stop-sequence and frequency-penalty settings.
 - Fixed Muse sessions after credential changes, key rotation, or idle resume so subsequent turns can continue normally.
-- Fixed sequential-cutoff reasoning summaries duplicating section headers across Codex reasoning items by tracking the cumulative summary response-globally, so replayed sections and replay-only items no longer re-emit text earlier thinking blocks already streamed.
-
-Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://github.com/Linxira-OS/linxira-zeta/blob/15b63dda377c99cead82ce07d5aac567f2b413b3/packages/ai/CHANGELOG.md).
 
 ## [1.5.2] - 2026-11-13
 
@@ -80,8 +102,6 @@ Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://gi
 - Added the `google-decisions` judgment API for Google's Gemini Decisions API (`gemini-decision-1`), with text and image input ([#19060](https://github.com/Linxira-OS/linxira-zeta/pull/19060) by [@kevcube](https://github.com/kevcube))
 - Added `apiKey` to successful `OAuthAccessResolution` results from `oauth.accessById()` and `oauth.accessAll()`: the key normal requests send for that account, which differs from `accessToken` for providers with structured credentials ([#19030](https://github.com/Linxira-OS/linxira-zeta/pull/19030) by [@Xytronix](https://github.com/Xytronix))
 - Added an optional `exemptionAlias` to `ToolCallLoopGuard` so transport calls can match the dispatched tool's name in `exemptTools` ([#18860](https://github.com/Linxira-OS/linxira-zeta/issues/18860))
-- Added the `liquid-systemone` judgment API for Liquid AI's decision models, which rejects image sets over Liquid's 10,000 32×32-patch request cap before sending ([#18076](https://github.com/Linxira-OS/linxira-zeta/issues/18076), [#18100](https://github.com/Linxira-OS/linxira-zeta/pull/18100) by [@SuperUserA](https://github.com/SuperUserA))
-- Added the `nace-systemone` judgment API for Nace's Drex decision models, which sends images as Drex's top-level `images` data URLs and replaces the base64 image, audio, video and PDF data URLs that Drex rejects in judged text with a description ([#18950](https://github.com/Linxira-OS/linxira-zeta/pull/18950) by [@alphastorm](https://github.com/alphastorm))
 
 ### Fixed
 
@@ -223,19 +243,10 @@ Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://gi
 ### Breaking Changes
 
 - `resolveGatewayApiKey` and `buildGatewayApiKeyResolver` (`@linxiraos/pi-ai/auth-gateway`) take the request's route options (`{ storage, client? }`) instead of an `AuthStorage`, their resolver callback receives the resolved credential, and `resolveGatewayAccount` takes that credential ([#15900](https://github.com/Linxira-OS/linxira-zeta/pull/15900) by [@alphastorm](https://github.com/alphastorm))
-- `PI_CODEX_ZSTD` is replaced by `PI_REQUEST_COMPRESSION`; set `PI_REQUEST_COMPRESSION=0` to send Codex (and every other) request body uncompressed ([#16086](https://github.com/Linxira-OS/linxira-zeta/pull/16086) by [@H4vC](https://github.com/H4vC))
 
 ### Added
 
-- Added support for `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` on the `anthropic` provider: when set, requests omit pre-release fields (`context_management`, beta tool fields such as `strict` and `defer_loading`, task budgets, structured-output format, `thinking.block_binding`, and Anthropic server compaction) along with their beta headers, so `ANTHROPIC_BASE_URL` gateways that reject them keep working ([#15458](https://github.com/Linxira-OS/linxira-zeta/pull/15458) by [@H4vC](https://github.com/H4vC))
 - Added `withoutUnverifiedThinking` utility to filter reasoning capability from models when no effort is requested
-- Added `reachesOfficialEndpoint(model)`: whether a request to the model reaches the official endpoint its compat was built for, following `ANTHROPIC_BASE_URL` and Foundry's `FOUNDRY_BASE_URL` reroutes of first-party Anthropic models ([#15434](https://github.com/Linxira-OS/linxira-zeta/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
-- Added `AssistantMessage.elidedOutputTokens`, the visible output tokens a history rewrite (shake) has removed from the turn, which `usage.output` still counts ([#15446](https://github.com/Linxira-OS/linxira-zeta/pull/15446) by [@will-bogusz](https://github.com/will-bogusz))
-- Exported `shouldDropTruncatedThinkingOnlyAssistant` from `providers/transform-messages`, `isColdReplayableResponsesTurn` from `providers/openai-shared` and the new `openAIResponsesReplaysNativeHistory` from `providers/openai-responses`, so local token estimates can follow which turns replay drops and whether a session replays native history ([#15447](https://github.com/Linxira-OS/linxira-zeta/pull/15447) by [@will-bogusz](https://github.com/will-bogusz))
-- Added image support for native OpenAI Decisions and Workers AI judgments, prompted vision chat, and auth-gateway System One requests; images exceeding a judgment API's documented caps (e.g. Clef's 4 images, 4 MiB each) are rejected locally ([#15471](https://github.com/Linxira-OS/linxira-zeta/pull/15471) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy)).
-- `isSurvivingAssistant` in `providers/transform-messages`: whether an assistant turn reaches a replay, malformed tool calls dropped first, so callers outside `transformMessages` pick the same latest turn ([#15791](https://github.com/Linxira-OS/linxira-zeta/pull/15791) by [@will-bogusz](https://github.com/will-bogusz))
-- Added scoped clients to `startAuthGateway` (`clients`, `setClients`): each client bearer is limited to its own models and OAuth accounts, with no fallback to other accounts or API keys, and request log lines name the client and the credential a request started on ([#5098](https://github.com/Linxira-OS/linxira-zeta/issues/5098), [#15900](https://github.com/Linxira-OS/linxira-zeta/pull/15900) by [@alphastorm](https://github.com/alphastorm))
-- Added experimental native image judgments for TypeSafe Jev's `jev-latest`, `jev-preview`, `jev-1.13.0`, and `jev-1.14.0`, plus OpenRouter's `typesafe/jev-1.13`, `typesafe/jev-1.14`, and `~typesafe/jev-latest` models; images outside Jev's documented size bounds fall through to a vision chat judge instead of failing ([#15887](https://github.com/Linxira-OS/linxira-zeta/pull/15887) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy))
 - Added `ThinkingContent.narration`, set on Anthropic and Bedrock thinking blocks whose signature marks them as between-tool narration, and `presentNarrationAsAnswer(message)` to show those blocks as reply text while replay keeps them as signed thinking
 - Added `keys.peek(provider, { includeExpired: true })` to name the stored account behind an expired OAuth token for reads that never send it, such as keying an offline model-cache lookup ([#16061](https://github.com/Linxira-OS/linxira-zeta/pull/16061) by [@gchai](https://github.com/gchai))
 - Added `prewarmModelConnection(model)` (`providers/connection-prewarm`), which opens the model's API connection ahead of a request using the same transport and TLS settings so the request reuses it instead of paying the connection handshake ([#16086](https://github.com/Linxira-OS/linxira-zeta/pull/16086) by [@H4vC](https://github.com/H4vC))
@@ -267,7 +278,6 @@ Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://gi
 Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://github.com/Linxira-OS/linxira-zeta/blob/a20cc0d04b64f4a68fcc559cbd258743d984c50e/packages/ai/CHANGELOG.md).
 
 Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://github.com/Linxira-OS/linxira-zeta/blob/b81a844b520af43d1d190a99fcdc8928e242b315/packages/ai/CHANGELOG.md).
-
 - Fixed DeepSeek and OpenAI Responses requests failing or entering retry loops when replayed tool calls contained repaired arguments, orphaned tool results, or missing reasoning context.
 - Fixed requests to models that do not support sampling parameters from failing with HTTP 400 errors when accessed through non-native providers. Sampling parameters are now omitted for incompatible models, including requests made by chat judging, title generation, skill descriptions, and memory extraction.
 - Fixed OpenRouter BYOK usage being reported as free; provider inference costs and applicable credits charges are now included in session and status-line cost reporting.

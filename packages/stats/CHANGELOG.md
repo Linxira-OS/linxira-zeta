@@ -1,8 +1,29 @@
 ## [Unreleased]
 
+## [1.5.15] - 2026-11-27
+
+### Fixed
+
+- Fixed usage stats pricing Google Antigravity and MiniMax Token Plan models at $0 when their catalog rows carry no price; they now use the catalog's pricing peer, as `xai-oauth` already did ([#16092](https://github.com/Linxira-OS/linxira-zeta/pull/16092) by [@H4vC](https://github.com/H4vC))
+
+### Removed
+
+- Two suites that imported symbols no longer present in the tree
+
+## [1.5.15] - 2026-11-27
+
+### Added
+
+- The "emotional pressure" page: the coverage card distinguishes "judged / regex / unscored" — languages the dictionary does not cover (e.g. Japanese, Korean, Cyrillic) show as **unscored** rather than being judged calm.
+
 ### Changed
 
 - Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
+
+### Fixed
+
+- Providers → Subscription windows no longer mixes Codex 5-hour and 7-day quotas across plans: Team and weekly-only (ProLite) accounts now share the 7-day row, the 5-hour row counts only accounts that have one, and labels no longer flip with whichever account reported last ([#15664](https://github.com/Linxira-OS/linxira-zeta/issues/15664))
+
 ## [1.5.14] - 2026-11-22
 
 ### Changed
@@ -114,10 +135,6 @@
 
 - Model-side AI breakdown beside the user-frustration metrics: per-model turn and token counts are shown in the dashboard
 
-### Removed
-
-- Two suites that imported symbols no longer present in the tree
-
 ## [1.3.2] - 2026-10-19
 
 - Version line moves to 1.3.2 with the rest of the suite; no user-visible change in this package.
@@ -129,7 +146,6 @@
 ### Added
 
 - The dashboard renders in the host language: the CLI's language setting (or the browser preference) is injected into the page, and the sidebar, cards, table headers, legends, empty states, and date/number formats all follow it; Simplified Chinese ships first, with English as the fallback. The language is fixed at startup (no in-page switcher) because the dashboard launches together with `zetacode stats`.
-- The "emotional pressure" page: the coverage card distinguishes "judged / regex / unscored" — languages the dictionary does not cover (e.g. Japanese, Korean, Cyrillic) show as **unscored** rather than being judged calm.
 
 ### Changed
 
@@ -140,8 +156,6 @@
 ### Fixed
 
 - Usage recorded at $0 for a model whose catalog price changes on a date (Gemini 4 Argon, Devin SWE-2) is now priced at the rate in force on the request's date, instead of staying $0 like peak/off-peak tariff usage ([#15620](https://github.com/Linxira-OS/linxira-zeta/pull/15620) by [@eggpeat](https://github.com/eggpeat))
-- Providers → Subscription windows no longer mixes Codex 5-hour and 7-day quotas across plans: Team and weekly-only (ProLite) accounts now share the 7-day row, the 5-hour row counts only accounts that have one, and labels no longer flip with whichever account reported last ([#15664](https://github.com/Linxira-OS/linxira-zeta/issues/15664))
-- Fixed usage stats pricing Google Antigravity and MiniMax Token Plan models at $0 when their catalog rows carry no price; they now use the catalog's pricing peer, as `xai-oauth` already did ([#16092](https://github.com/Linxira-OS/linxira-zeta/pull/16092) by [@H4vC](https://github.com/H4vC))
 
 ## [1.2.0] - 2026-10-12
 

@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/pi-mnemopi",
-	"version": "1.5.14",
+	"version": "1.5.15",
 	"description": "Local SQLite memory engine for Zeta agents",
 	"keywords": [
 		"agent",

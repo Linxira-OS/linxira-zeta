@@ -215,7 +215,7 @@ async function assertConsistency(version: string): Promise<void> {
 	// v18.3.3+ mechanism: no per-release sentinel name — verify the stamp
 	// mechanism symbols instead (same list as the Step-2c check below).
 	for (const [file, needle] of [
-		["crates/pi-natives/src/lib.rs", "pub fn pi_natives_build_version()"],
+		["crates/natives/src/lib.rs", "pub fn pi_natives_build_version()"],
 		["packages/natives/native/index.js", "__piNativesBuildVersion"],
 		["packages/natives/native/index.d.ts", "__piNativesBuildVersion"],
 	]) {
@@ -520,7 +520,7 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean,
 	// check-version-consistency.ts).
 	console.log("Verifying pi-natives version-stamp mechanism symbols...");
 	const mechanismChecks: Array<[string, string]> = [
-		["crates/pi-natives/src/lib.rs", "pub fn pi_natives_build_version()"],
+		["crates/natives/src/lib.rs", "pub fn pi_natives_build_version()"],
 		["packages/natives/native/index.js", "__piNativesBuildVersion"],
 		["packages/natives/native/index.d.ts", "__piNativesBuildVersion"],
 	];
@@ -619,10 +619,10 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean,
 		`$1${version}`,
 	);
 	if (bumpedLinkage === linkageText) {
-		console.error("Error: packaging/package-linkage.json has no npm zeta-desktop version row to bump.");
-		process.exit(1);
+		console.log("  package-linkage: no zeta-desktop version row (retired surface), skipping");
+	} else {
+		await Bun.write(linkagePath, bumpedLinkage);
 	}
-	await Bun.write(linkagePath, bumpedLinkage);
 
 	// Step 4: root catalog explicit mapping (workspace deps resolve to the
 	// release version — without this, catalog stays on the old version and

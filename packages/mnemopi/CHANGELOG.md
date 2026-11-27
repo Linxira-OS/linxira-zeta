@@ -1,9 +1,20 @@
 ## [Unreleased]
 
+## [1.5.15] - 2026-11-27
+
 ### Changed
 
 - Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
-## [1.5.14] - 2026-11-22
+
+### Fixed
+
+- Fixed `MNEMOPI_<LABEL>_WEIGHT` and `MNEMOPI_TIER<N>_WEIGHT` having no effect on recall ranking ([#13824](https://github.com/Linxira-OS/linxira-zeta/pull/13824) by [@sjawhar](https://github.com/sjawhar))
+
+## [1.5.15] - 2026-11-27
+
+### Fixed
+
+- Fixed polyphonic recall ranking unrelated memories above relevant ones when the query shared only a common word such as "that" with an extracted fact subject ([#15512](https://github.com/Linxira-OS/linxira-zeta/issues/15512)).
 
 ## [1.5.13] - 2026-11-21
 
@@ -110,8 +121,6 @@
 ### Fixed
 
 - Fixed a failing `mnemopi` CLI command or MCP memory call dropping the embeddings of memories it had just stored ([#15804](https://github.com/Linxira-OS/linxira-zeta/pull/15804) by [@yuzu-octopus](https://github.com/yuzu-octopus))
-- Fixed polyphonic recall ranking unrelated memories above relevant ones when the query shared only a common word such as "that" with an extracted fact subject ([#15512](https://github.com/Linxira-OS/linxira-zeta/issues/15512)).
-- Fixed `MNEMOPI_<LABEL>_WEIGHT` and `MNEMOPI_TIER<N>_WEIGHT` having no effect on recall ranking ([#13824](https://github.com/Linxira-OS/linxira-zeta/pull/13824) by [@sjawhar](https://github.com/sjawhar))
 
 ## [1.2.0] - 2026-10-12
 

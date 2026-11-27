@@ -1,8 +1,35 @@
 ## [Unreleased]
 
+## [1.5.15] - 2026-11-27
+
+### Breaking Changes
+
+- `maxFramesForDataBudget()` now takes the frame shape instead of a byte budget, so the default 1568px shapes get 26 frames instead of 17 ([#14277](https://github.com/Linxira-OS/linxira-zeta/pull/14277) by [@will-bogusz](https://github.com/will-bogusz)).
+
+### Changed
+
+- Released as part of Zeta 1.5.11; no package-specific user-visible changes.
+- `compact()` splits its synchronous work into two `compaction.snapcompact` loop phases (building the archive source, then planning the layout) with an event-loop turn between them, shortening the longest main-thread block on long histories ([#15689](https://github.com/Linxira-OS/linxira-zeta/issues/15689), [#18867](https://github.com/Linxira-OS/linxira-zeta/pull/18867) by [@wolfiesch](https://github.com/wolfiesch))
+- Included in Zeta 1.5.12; no package-specific user-visible changes.
+
+### Fixed
+
+- Fixed re-rendering an archive without reasoning keeping every paragraph after the first of a multi-paragraph `¶think:` section ([#15436](https://github.com/Linxira-OS/linxira-zeta/pull/15436) by [@will-bogusz](https://github.com/will-bogusz))
+
+## [1.5.15] - 2026-11-27
+
+### Breaking Changes
+
+- Removed `PROVIDER_IMAGE_BUDGETS` and `FRAME_DATA_BYTES_BUDGET`: image counts come from the catalog's `image-count-budget` rules, and frame byte budgets from `frameDataBytesBudget(model)` (`DEFAULT_FRAME_DATA_BYTES_BUDGET` where the host has none) ([#15434](https://github.com/Linxira-OS/linxira-zeta/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
+
 ### Changed
 
 - Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
+
+### Fixed
+
+- Fixed snapcompact frame token estimates following the gateway instead of the model reading the frames, which mispriced Claude behind OpenRouter or Vertex and Claude 4.6 and older ([#14286](https://github.com/Linxira-OS/linxira-zeta/pull/14286) by [@will-bogusz](https://github.com/will-bogusz)).
+
 ## [1.5.14] - 2026-11-22
 
 ### Changed
@@ -15,18 +42,6 @@
 
 - Included in Zeta 1.5.13; no package-specific user-visible changes.
 
-## [1.5.12] - 2026-11-20
-
-### Changed
-
-- Included in Zeta 1.5.12; no package-specific user-visible changes.
-
-## [1.5.11] - 2026-11-20
-
-### Changed
-
-- Released as part of Zeta 1.5.11; no package-specific user-visible changes.
-
 ## [1.5.10] - 2026-11-19
 
 ### Changed
@@ -38,7 +53,6 @@
 ### Changed
 
 - Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
-- `compact()` splits its synchronous work into two `compaction.snapcompact` loop phases (building the archive source, then planning the layout) with an event-loop turn between them, shortening the longest main-thread block on long histories ([#15689](https://github.com/Linxira-OS/linxira-zeta/issues/15689), [#18867](https://github.com/Linxira-OS/linxira-zeta/pull/18867) by [@wolfiesch](https://github.com/wolfiesch))
 
 ## [1.5.1] - 2026-11-10
 
@@ -110,7 +124,6 @@
 ### Breaking Changes
 
 - `providerImageBudget(provider)` and `providerFrameBudget(provider)` became `providerImageBudget(model)` and `providerFrameBudget(model)`, and `maxFramesForDataBudget(shape)` became `maxFramesForDataBudget(shape, budget)` with a required byte budget ([#15434](https://github.com/Linxira-OS/linxira-zeta/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
-- Removed `PROVIDER_IMAGE_BUDGETS` and `FRAME_DATA_BYTES_BUDGET`: image counts come from the catalog's `image-count-budget` rules, and frame byte budgets from `frameDataBytesBudget(model)` (`DEFAULT_FRAME_DATA_BYTES_BUDGET` where the host has none) ([#15434](https://github.com/Linxira-OS/linxira-zeta/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
 
 ### Added
 
@@ -120,7 +133,6 @@
 ### Fixed
 
 - Fixed snapcompact frames for Claude and GPT on Cursor, including its `default` (Auto) route, being drawn at 1568–1932px, which Cursor shrank to 1024px before the model read them; frames now render at the host's catalog `image-max-edge` ([#15448](https://github.com/Linxira-OS/linxira-zeta/pull/15448) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed re-rendering an archive without reasoning keeping every paragraph after the first of a multi-paragraph `¶think:` section ([#15436](https://github.com/Linxira-OS/linxira-zeta/pull/15436) by [@will-bogusz](https://github.com/will-bogusz))
 
 ## [1.2.0] - 2026-10-12
 
@@ -130,17 +142,9 @@
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
 
-### Breaking Changes
-
-- `maxFramesForDataBudget()` now takes the frame shape instead of a byte budget, so the default 1568px shapes get 26 frames instead of 17 ([#14277](https://github.com/Linxira-OS/linxira-zeta/pull/14277) by [@will-bogusz](https://github.com/will-bogusz)).
-
 ### Added
 
 - Added `frameBilling`, `frameTokens` and `frameBillingKey`, which price a rendered frame at what the model reading it is billed ([#14291](https://github.com/Linxira-OS/linxira-zeta/pull/14291) by [@will-bogusz](https://github.com/will-bogusz))
-
-### Fixed
-
-- Fixed snapcompact frame token estimates following the gateway instead of the model reading the frames, which mispriced Claude behind OpenRouter or Vertex and Claude 4.6 and older ([#14286](https://github.com/Linxira-OS/linxira-zeta/pull/14286) by [@will-bogusz](https://github.com/will-bogusz)).
 
 ## [1.1.25] - 2026-10-03
 

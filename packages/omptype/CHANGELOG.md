@@ -1,18 +1,11 @@
 ## [Unreleased]
 
+## [1.5.15] - 2026-11-27
+
 ### Changed
 
 - Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
-## [1.5.14] - 2026-11-22
-
-### Changed
-
 - Included in Zeta 1.5.14; no package-specific user-visible changes.
-
-## [1.5.13] - 2026-11-21
-
-### Changed
-
 - Included in Zeta 1.5.13; no package-specific user-visible changes.
 
 ## [1.5.12] - 2026-11-20

@@ -1,8 +1,27 @@
 ## [Unreleased]
 
+## [1.5.15] - 2026-11-27
+
+### Breaking Changes
+
+- Removed the Bun event-loop workaround utilities from `@linxiraos/pi-agent-core/utils/yield`; agent loops no longer insert cooperative sleeps while streaming or between tool calls.
+- Removed `ApprovalDetailsOptions`; `formatApprovalDetails` takes only `args` again, since the compact approval prompt no longer shows tool details ([#15642](https://github.com/Linxira-OS/linxira-zeta/pull/15642) by [@H4vC](https://github.com/H4vC))
+
 ### Changed
 
-- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
+- Released as part of Zeta 1.5.11; no package-specific user-visible changes.
+
+### Fixed
+
+- Fixed Claude context counts reading Opus 5.5 requests about 55% over their billed input: a replayed thinking turn now counts at the output size Claude billed for it, not its signature's bytes ([#15446](https://github.com/Linxira-OS/linxira-zeta/pull/15446) by [@will-bogusz](https://github.com/will-bogusz))
+- Fixed screenshots and other non-frame images being counted at the OpenAI rate for every model instead of the reading model's own; Claude billed them about 16% higher ([#15446](https://github.com/Linxira-OS/linxira-zeta/pull/15446) by [@will-bogusz](https://github.com/will-bogusz))
+- Fixed OpenAI Responses and Codex context estimates leaving out replayed reasoning: each turn whose encrypted reasoning actually replays now counts its reported reasoning tokens (its ciphertext when the backend reports none), and none while a cold session rebuilds it out of the request, so compaction and snapcompact sizing match billing; branch summaries no longer budget for encrypted reasoning they never send ([#15447](https://github.com/Linxira-OS/linxira-zeta/pull/15447) by [@will-bogusz](https://github.com/will-bogusz))
+- Fixed a Claude compaction or branch summarizer receiving assistant reasoning from a snapcompact archive rendered under another model, which Claude refuses (`reasoning_extraction`) ([#15436](https://github.com/Linxira-OS/linxira-zeta/pull/15436) by [@will-bogusz](https://github.com/will-bogusz))
+- Fixed native (OpenAI/Codex) remote compaction refusing or truncating sessions that fit the window: its preflight counted the JSON-escaped request, inflating quote-, backslash- and newline-heavy tool output such as disassembly by ~10–20%; it now counts text as the model reads it ([#15712](https://github.com/Linxira-OS/linxira-zeta/pull/15712) by [@H4vC](https://github.com/H4vC))
+- Fixed OpenAI V1/V2 remote compaction failing outright when the history, kept tail included, exceeds the context window (a large final response or tool output after the last check); it retries on the history before the kept tail ([#15712](https://github.com/Linxira-OS/linxira-zeta/pull/15712) by [@H4vC](https://github.com/H4vC))
+- Fixed fitted output caps overflowing the context window on strict hosts (llama.cpp-family) after turns with many parallel tool results; chat-template framing is now charged per locally counted message ([#15699](https://github.com/Linxira-OS/linxira-zeta/issues/15699))
+- Fixed leaked DeepSeek DSML markup reaching saved history from reasoning blocks and from turns that also made a valid tool call ([#15485](https://github.com/Linxira-OS/linxira-zeta/issues/15485))
+
 ## [9.2.2] - 2026-01-31
 
 ### Added
@@ -129,7 +148,20 @@
 
 Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
-## [1.5.14] - 2026-11-22
+## [1.5.15] - 2026-11-27
+
+### Changed
+
+- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
+- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
+- `prepareCompaction()` runs as the `compaction.prepare` loop phase, so a `ui.loop-blocked` stall from a cold token walk over a long branch names compaction instead of "unknown" ([#15027](https://github.com/Linxira-OS/linxira-zeta/issues/15027), [#18867](https://github.com/Linxira-OS/linxira-zeta/pull/18867) by [@wolfiesch](https://github.com/wolfiesch))
+- The failed-tool-call correction sent to DeepSeek models now also covers chat-template tool-call tokens written out as text, not only malformed DSML ([#16216](https://github.com/Linxira-OS/linxira-zeta/pull/16216) by [@H4vC](https://github.com/H4vC))
+
+### Fixed
+
+- Cancelling an `ask` after a background job finishes now reports the user cancellation instead of telling the model to retry a skipped tool ([#15985](https://github.com/Linxira-OS/linxira-zeta/issues/15985))
+- Fixed a Cursor tool call re-sent by the server persisting two results under one id; the re-run's result replaces the first ([#15749](https://github.com/Linxira-OS/linxira-zeta/issues/15749))
+- Fixed compaction keeping more recent history than `keepRecentTokens` when the latest Claude turn on the Anthropic Messages API ended its tool calls on `stop` or `length`: the replay keeps that turn's signed reasoning, but the cut point counted only its visible blocks ([#15791](https://github.com/Linxira-OS/linxira-zeta/pull/15791) by [@will-bogusz](https://github.com/will-bogusz))
 
 ## [1.5.13] - 2026-11-21
 
@@ -143,24 +175,11 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 
 - Included in Zeta 1.5.12; no package-specific user-visible changes.
 
-## [1.5.11] - 2026-11-20
-
-### Changed
-
-- Released as part of Zeta 1.5.11; no package-specific user-visible changes.
-
 ## [1.5.10] - 2026-11-19
 
 ### Fixed
 
 - Corrected context cost estimates for requests that omit reasoning history, so billing estimates now include thinking text only when it is sent or reconstructed for a tool call.
-
-## [1.5.2] - 2026-11-13
-
-### Changed
-
-- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
-- `prepareCompaction()` runs as the `compaction.prepare` loop phase, so a `ui.loop-blocked` stall from a cold token walk over a long branch names compaction instead of "unknown" ([#15027](https://github.com/Linxira-OS/linxira-zeta/issues/15027), [#18867](https://github.com/Linxira-OS/linxira-zeta/pull/18867) by [@wolfiesch](https://github.com/wolfiesch))
 
 ## [1.5.0] - 2026-11-09
 
@@ -192,10 +211,6 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 - Switched from local `@linxiraos/pi-ai` to upstream `@mariozechner/pi-ai` package
 
 ## [1.4.6] - 2026-10-28
-
-### Breaking Changes
-
-- Removed the Bun event-loop workaround utilities from `@linxiraos/pi-agent-core/utils/yield`; agent loops no longer insert cooperative sleeps while streaming or between tool calls.
 
 ### Added
 
@@ -232,10 +247,6 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 
 ## [1.3.1] - 2026-10-19
 
-### Changed
-
-- The failed-tool-call correction sent to DeepSeek models now also covers chat-template tool-call tokens written out as text, not only malformed DSML ([#16216](https://github.com/Linxira-OS/linxira-zeta/pull/16216) by [@H4vC](https://github.com/H4vC))
-
 ### Fixed
 
 - Fixed Ollama chat history estimates counting stripped native thinking and missing foreign thinking replayed as text, which skewed compaction after model switches ([#16164](https://github.com/Linxira-OS/linxira-zeta/issues/16164))
@@ -245,17 +256,6 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 ### Fixed
 
 - Fixed Cursor turns failing with `PROVIDER_ERROR` when a follow-up (a finished background job, a late diagnostic, a reminder) arrived while the previous turn was still streaming ([#15821](https://github.com/Linxira-OS/linxira-zeta/pull/15821) by [@robfeldmann](https://github.com/robfeldmann))
-- Cancelling an `ask` after a background job finishes now reports the user cancellation instead of telling the model to retry a skipped tool ([#15985](https://github.com/Linxira-OS/linxira-zeta/issues/15985))
-- Fixed a Cursor tool call re-sent by the server persisting two results under one id; the re-run's result replaces the first ([#15749](https://github.com/Linxira-OS/linxira-zeta/issues/15749))
-- Fixed compaction keeping more recent history than `keepRecentTokens` when the latest Claude turn on the Anthropic Messages API ended its tool calls on `stop` or `length`: the replay keeps that turn's signed reasoning, but the cut point counted only its visible blocks ([#15791](https://github.com/Linxira-OS/linxira-zeta/pull/15791) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed Claude context counts reading Opus 5.5 requests about 55% over their billed input: a replayed thinking turn now counts at the output size Claude billed for it, not its signature's bytes ([#15446](https://github.com/Linxira-OS/linxira-zeta/pull/15446) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed screenshots and other non-frame images being counted at the OpenAI rate for every model instead of the reading model's own; Claude billed them about 16% higher ([#15446](https://github.com/Linxira-OS/linxira-zeta/pull/15446) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed OpenAI Responses and Codex context estimates leaving out replayed reasoning: each turn whose encrypted reasoning actually replays now counts its reported reasoning tokens (its ciphertext when the backend reports none), and none while a cold session rebuilds it out of the request, so compaction and snapcompact sizing match billing; branch summaries no longer budget for encrypted reasoning they never send ([#15447](https://github.com/Linxira-OS/linxira-zeta/pull/15447) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed a Claude compaction or branch summarizer receiving assistant reasoning from a snapcompact archive rendered under another model, which Claude refuses (`reasoning_extraction`) ([#15436](https://github.com/Linxira-OS/linxira-zeta/pull/15436) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed native (OpenAI/Codex) remote compaction refusing or truncating sessions that fit the window: its preflight counted the JSON-escaped request, inflating quote-, backslash- and newline-heavy tool output such as disassembly by ~10–20%; it now counts text as the model reads it ([#15712](https://github.com/Linxira-OS/linxira-zeta/pull/15712) by [@H4vC](https://github.com/H4vC))
-- Fixed OpenAI V1/V2 remote compaction failing outright when the history, kept tail included, exceeds the context window (a large final response or tool output after the last check); it retries on the history before the kept tail ([#15712](https://github.com/Linxira-OS/linxira-zeta/pull/15712) by [@H4vC](https://github.com/H4vC))
-- Fixed fitted output caps overflowing the context window on strict hosts (llama.cpp-family) after turns with many parallel tool results; chat-template framing is now charged per locally counted message ([#15699](https://github.com/Linxira-OS/linxira-zeta/issues/15699))
-- Fixed leaked DeepSeek DSML markup reaching saved history from reasoning blocks and from turns that also made a valid tool call ([#15485](https://github.com/Linxira-OS/linxira-zeta/issues/15485))
 
 ### Added
 
@@ -272,7 +272,6 @@ Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mo
 
 - Removed `estimateImageContentTokens()` from `@linxiraos/pi-agent-core/image-tokens`; use `Tokenizer.imageTokens(size, detail)`, which prices with the reading model's catalog image rule ([#15446](https://github.com/Linxira-OS/linxira-zeta/pull/15446) by [@will-bogusz](https://github.com/will-bogusz))
 - `applyShakeRegion()` and `applyShakeRegions()` take the replacement's token count (`replacementTokens`); a block rewrite of an assistant turn adds the tokens it removes to `elidedOutputTokens`, so a replayed Claude turn's count stays lowered after a reload ([#15446](https://github.com/Linxira-OS/linxira-zeta/pull/15446) by [@will-bogusz](https://github.com/will-bogusz))
-- Removed `ApprovalDetailsOptions`; `formatApprovalDetails` takes only `args` again, since the compact approval prompt no longer shows tool details ([#15642](https://github.com/Linxira-OS/linxira-zeta/pull/15642) by [@H4vC](https://github.com/H4vC))
 
 ### Changed
 

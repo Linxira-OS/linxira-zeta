@@ -1,26 +1,30 @@
 ## [Unreleased]
 
-### Changed
-
-- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
-## [1.5.14] - 2026-11-22
-
-## [1.5.13] - 2026-11-21
+## [1.5.15] - 2026-11-27
 
 ### Changed
 
 - Included in Zeta 1.5.13; no package-specific user-visible changes.
 
-## [1.5.12] - 2026-11-20
+### Fixed
+
+- Fixed Windows archive extraction overwriting existing files or following existing symlinks when copying a symlink entry without symlink privileges ([#15931](https://github.com/Linxira-OS/linxira-zeta/pull/15931) by [@jchanghong023](https://github.com/jchanghong023)).
+- Fixed Markdown fence info-string parsing to keep backtick-containing backtick openers as paragraph text while accepting backticks in tilde info strings and Unicode line separators in either fence's info string ([#15928](https://github.com/Linxira-OS/linxira-zeta/pull/15928) by [@jchanghong023](https://github.com/jchanghong023)).
+- Fixed `parseHTML` treating `<link>` in RSS/Atom documents as an HTML void element, which dropped the URL text of RSS `<link>…</link>` ([#15954](https://github.com/Linxira-OS/linxira-zeta/issues/15954))
+- Fixed an unhandled rejection when a subprocess is spawned with an already-aborted signal ([#15750](https://github.com/Linxira-OS/linxira-zeta/pull/15750) by [@harshaygadekar](https://github.com/harshaygadekar))
+
+## [1.5.15] - 2026-11-27
+
+### Added
+
+- Added `sanitizeTextDeep()`, which applies `sanitizeText()` to every string in a JSON-shaped value without mutating it ([#15963](https://github.com/Linxira-OS/linxira-zeta/issues/15963))
+- Exported `sqliteFileIdentity()`, so a caller holding a long-lived SQLite connection can tell when its path now names a different file (e.g. after a corrupt store was quarantined and replaced) ([#14361](https://github.com/Linxira-OS/linxira-zeta/pull/14361) by [@F0Rextasy](https://github.com/F0Rextasy))
+- Added `slugify()`, the shared lowercase ASCII kebab-case helper with an optional `maxLength` ([#14283](https://github.com/Linxira-OS/linxira-zeta/pull/14283) by [@jaredlyon](https://github.com/jaredlyon))
 
 ### Changed
 
+- Aligned with the OMP 19.2 runtime merge and the Zeta 1.5.15 version line.
 - Included in Zeta 1.5.12; no package-specific user-visible changes.
-
-## [1.5.11] - 2026-11-20
-
-### Changed
-
 - Released as part of Zeta 1.5.11; no package-specific user-visible changes.
 
 ## [1.5.10] - 2026-11-19
@@ -109,17 +113,10 @@
 
 ### Added
 
-- Added `sanitizeTextDeep()`, which applies `sanitizeText()` to every string in a JSON-shaped value without mutating it ([#15963](https://github.com/Linxira-OS/linxira-zeta/issues/15963))
-- Exported `sqliteFileIdentity()`, so a caller holding a long-lived SQLite connection can tell when its path now names a different file (e.g. after a corrupt store was quarantined and replaced) ([#14361](https://github.com/Linxira-OS/linxira-zeta/pull/14361) by [@F0Rextasy](https://github.com/F0Rextasy))
-- Added `slugify()`, the shared lowercase ASCII kebab-case helper with an optional `maxLength` ([#14283](https://github.com/Linxira-OS/linxira-zeta/pull/14283) by [@jaredlyon](https://github.com/jaredlyon))
 - Added `getMnemopiEmbedRuntimeDir()` for the shared mnemopi embedding server endpoints and logs.
 
 ### Fixed
 
-- Fixed Windows archive extraction overwriting existing files or following existing symlinks when copying a symlink entry without symlink privileges ([#15931](https://github.com/Linxira-OS/linxira-zeta/pull/15931) by [@jchanghong023](https://github.com/jchanghong023)).
-- Fixed Markdown fence info-string parsing to keep backtick-containing backtick openers as paragraph text while accepting backticks in tilde info strings and Unicode line separators in either fence's info string ([#15928](https://github.com/Linxira-OS/linxira-zeta/pull/15928) by [@jchanghong023](https://github.com/jchanghong023)).
-- Fixed `parseHTML` treating `<link>` in RSS/Atom documents as an HTML void element, which dropped the URL text of RSS `<link>…</link>` ([#15954](https://github.com/Linxira-OS/linxira-zeta/issues/15954))
-- Fixed an unhandled rejection when a subprocess is spawned with an already-aborted signal ([#15750](https://github.com/Linxira-OS/linxira-zeta/pull/15750) by [@harshaygadekar](https://github.com/harshaygadekar))
 - Fixed `ChildProcess.kill()` silently leaving the child running when the native process handle could not be resolved or used; it now signals the child directly and escalates to SIGKILL after the grace period.
 
 ## [1.2.0] - 2026-10-12

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Linxira-OS/linxira-zeta/releases"><img src="https://img.shields.io/badge/zeta-1.5.14-8B5CF6?style=flat-square" alt="Zeta version"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/releases"><img src="https://img.shields.io/badge/zeta-1.5.15-8B5CF6?style=flat-square" alt="Zeta version"></a>
   <img src="https://img.shields.io/badge/runtime-Bun-black?style=flat-square&logo=bun&logoColor=white" alt="Runtime: Bun">
   <img src="https://img.shields.io/badge/language-TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="Language: TypeScript">
   <img src="https://img.shields.io/badge/native-Rust-dea584?style=flat-square&logo=rust&logoColor=white" alt="Native: Rust">
@@ -133,7 +133,7 @@ Three projects make Zeta possible, and we thank their authors and contributors.
 | Project | Integrated source | What Zeta takes from it |
 | --- | --- | --- |
 | [OMP](https://github.com/Linxira-OS/linxira-zeta) (Zeta), MIT | `v19.2.0` | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
-| [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | `v0.2.4` release tag (`v0.2.1` ancestry, 978 sync decisions accepted; v0.2.8 held on OMP 19) | the web UI: renderer, client, and the host contract it speaks |
+| [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | `v0.2.4` release tag (`v0.2.1` ancestry, 978 sync decisions accepted; v0.2.8 held on OMP 19) | the web UI: **v0.2.4** renderer, client, and the host contract it speaks |
 | [TermIDE](https://github.com/termide/termide), MIT | `0.49.0` | `zetaide` and the built-in editor pane |
 
 Further upstreams shaped earlier work and stay credited:

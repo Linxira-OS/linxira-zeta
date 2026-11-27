@@ -1,25 +1,6 @@
 ## [Unreleased]
 
-### Added
-
-- Added support for asynchronous `onSubmit` handlers by allowing the callback to return a `Promise<void>`
-
-Older entries are archived in [packages/tui/CHANGELOG.md@a95c0a0773af](https://github.com/Linxira-OS/linxira-zeta/blob/a95c0a0773afdfdc7f1f40ef21e79af46c86c11e/packages/tui/CHANGELOG.md).
-- Hosts now report when the terminal displays the checkout itself through `checkoutShown`.
-- Theme files are polled for changes, keeping live reload working when editors replace files during save.
-- Terminal animations now skip unchanged frames and share redraws with streaming content; shimmer motion runs at 20 fps.
-
-### Fixed
-
-- Fixed streaming Tern content being unnecessarily redrawn as newly inserted when content above it changes.
-- Fixed keyboard events used to open a page from being delivered to the newly opened page as well.
-- Fixed detection of LaTeX blocks beginning with `\begin`.
-- Fixed Cmd+A selection in terminal-forwarded editors and inputs so typing, deletion, and paste replace the selected text.
-- Fixed native overlays losing alignment with their anchored fields when the fields move or share local keys.
-- Fixed native menu and tree interactions being delivered to the wrong control or branch, and prevented clicks behind modal sheets from moving focus outside the modal.
-- Fixed terminal-row modal sheets allowing interaction with the content behind them, incorrect click and hover targets after scrolling, and mouse settings not being restored after closing fullscreen views.
-- Fixed terminal replies leaking into the shell prompt after returning from a native session, including after fatal errors.
-- Improved handling of large Tern transcript redraws when resuming sessions or returning from a subagent view.
+## [1.5.15] - 2026-11-27
 
 ## [8.4.1] - 2026-01-25
 
@@ -112,6 +93,29 @@ Older entries are archived in [packages/tui/CHANGELOG.md@a95c0a0773af](https://g
 ## [1.337.0] - 2026-01-02
 
 Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.5.15] - 2026-11-27
+
+### Added
+
+- Added support for asynchronous `onSubmit` handlers by allowing the callback to return a `Promise<void>`
+
+Older entries are archived in [packages/tui/CHANGELOG.md@a95c0a0773af](https://github.com/Linxira-OS/linxira-zeta/blob/a95c0a0773afdfdc7f1f40ef21e79af46c86c11e/packages/tui/CHANGELOG.md).
+- Hosts now report when the terminal displays the checkout itself through `checkoutShown`.
+- Theme files are polled for changes, keeping live reload working when editors replace files during save.
+- Terminal animations now skip unchanged frames and share redraws with streaming content; shimmer motion runs at 20 fps.
+
+### Fixed
+
+- Fixed streaming Tern content being unnecessarily redrawn as newly inserted when content above it changes.
+- Fixed keyboard events used to open a page from being delivered to the newly opened page as well.
+- Fixed detection of LaTeX blocks beginning with `\begin`.
+- Fixed Cmd+A selection in terminal-forwarded editors and inputs so typing, deletion, and paste replace the selected text.
+- Fixed native overlays losing alignment with their anchored fields when the fields move or share local keys.
+- Fixed native menu and tree interactions being delivered to the wrong control or branch, and prevented clicks behind modal sheets from moving focus outside the modal.
+- Fixed terminal-row modal sheets allowing interaction with the content behind them, incorrect click and hover targets after scrolling, and mouse settings not being restored after closing fullscreen views.
+- Fixed terminal replies leaking into the shell prompt after returning from a native session, including after fatal errors.
+- Improved handling of large Tern transcript redraws when resuming sessions or returning from a subagent view.
 
 ## [1.5.14] - 2026-11-22
 
