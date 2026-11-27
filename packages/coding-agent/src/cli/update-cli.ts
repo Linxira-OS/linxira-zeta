@@ -1123,6 +1123,30 @@ export async function syncRelayAfterVerifiedUpdate(launcher: string | undefined)
 async function finishVerifiedUpdate(result: InstalledVersionVerification, expectedVersion: string): Promise<void> {
 	if (result.ok) {
 		printVerifiedVersion(expectedVersion, result.path);
+		// A running serve process still owns the old code. Restart each live
+		// gateway so the next TUI attach/API call lands on the installed version.
+		// This is best-effort: an embed/library listener may refuse, and that
+		// must not turn a verified update into a failure.
+		const { listServeRegistrations } = await import("../server/serve-registry");
+		const { BackendClient } = await import("../backend/client");
+		for (const registration of listServeRegistrations()) {
+			const gatewayUrl = registration.gatewayUrl;
+			if (!gatewayUrl) continue;
+			try {
+				const restarted = await new BackendClient(gatewayUrl).restartServer();
+				if (restarted.accepted) {
+					console.log(chalk.dim(`Restarting backend at ${gatewayUrl} on ${expectedVersion}`));
+				} else {
+					console.log(
+						chalk.yellow(
+							`Backend at ${gatewayUrl} did not accept the restart${restarted.reason ? `: ${restarted.reason}` : ""}; restart it manually.`,
+						),
+					);
+				}
+			} catch (error) {
+				logger.warn("backend restart after update failed", { gatewayUrl, error: String(error) });
+			}
+		}
 		await syncRelayAfterVerifiedUpdate(result.path);
 		return;
 	}
