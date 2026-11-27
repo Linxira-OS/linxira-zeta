@@ -37,6 +37,14 @@ The next product line is Zeta Terminal, built on the TSP surface. The browser
 Work Studio and its desktop editions are archived and no longer built or
 released (ADR-0100).
 
+## TSP is the presentation surface
+
+> 一个TSP协议已经能够在很多情况下做出非常完美的显示了。现有的很多webui的显示其实都没有使用TSP协议来得更轻巧快捷，会显得比较笨重在我们第一次使用webui，后面又转了其他家的webapp之后，我们严肃地发现，还是TSP协议能够发挥的事情更好
+
+This is a standing product rule, recorded verbatim: a browser UI is not the
+default answer, and adding one is not progress by itself. TSP stays the
+lightweight presentation surface; `zetacode serve` stays the headless backend.
+
 ## Quick start
 
 Recommended terminal path (Node 18+ or Bun):
