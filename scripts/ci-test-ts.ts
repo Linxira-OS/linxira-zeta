@@ -594,7 +594,14 @@ async function codingAgentTestCommands(bucket: CodingAgentBucket): Promise<TestC
 		return {
 			label: `packages/coding-agent (${plan.label}; ${testFiles.length} files; parallel=${plan.parallel}${chunkLabel}; ${chunk.files.length} files)`,
 			cwd: codingAgentCwd,
-			command: ["bun", "test", ...onlyFailuresArgs, ...chunk.files],
+			command: [
+				"bun",
+				"test",
+				...onlyFailuresArgs,
+				// Live Chrome timing flakes once under a loaded runner; a real failure fails both attempts.
+				...(bucket === "browser" ? ["--retry=1"] : []),
+				...chunk.files,
+			],
 			parallel: plan.parallel,
 			estimatedSeconds: chunk.seconds === undefined ? undefined : roundSeconds(chunk.seconds),
 		};

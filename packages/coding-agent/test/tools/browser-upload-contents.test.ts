@@ -520,8 +520,15 @@ return "done";`);
 		} finally {
 			await prelude.invoke({ action: "close", name }, context);
 		}
-		// zetacode closed the page it launched, the last reader of the copies.
-		expect([...(await stagingFolders())].filter(folder => !before.has(folder))).toEqual([]);
+		// zetacode closed the page it launched, the last reader of the copies. The removal can trail the
+		// close by a turn of the event loop, so give it a bounded moment instead of sampling once.
+		let left: string[] = [];
+		for (let attempt = 0; attempt < 50; attempt++) {
+			left = [...(await stagingFolders())].filter(folder => !before.has(folder));
+			if (left.length === 0) break;
+			await Bun.sleep(100);
+		}
+		expect(left).toEqual([]);
 	}, 60_000);
 });
 
