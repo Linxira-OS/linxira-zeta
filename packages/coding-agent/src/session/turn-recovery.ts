@@ -116,6 +116,8 @@ const MALFORMED_FUNCTION_CALL_MAX_RETRIES = 3;
 const STREAM_STALL_CONTINUE_MAX_RETRIES = 3;
 const GENERIC_ABORT_MAX_RETRIES = 2;
 const SIBLING_UNBLOCK_BUFFER_MS = 1_000;
+/** Bounds best-effort usage-limit bookkeeping so a stalled report or sibling probe cannot hold the terminal agent_end event. */
+const USAGE_LIMIT_BOOKKEEPING_TIMEOUT_MS = 3_000;
 const NON_WHITESPACE_RE = /\S/;
 const USAGE_PREFLIGHT_BLOCKED_PREFIX = "Usage preflight blocked:";
 const STREAM_STALL_ERROR_RE = /stream stall/i;
@@ -882,27 +884,46 @@ export class TurnRecovery {
 			const parsedRetryAfterMs = this.#parseRetryAfterMsFromError(errorMessage);
 			const retryAfterMs = parsedRetryAfterMs ?? calculateRateLimitBackoffMs(parseRateLimitReason(errorMessage));
 			recorded = (async (): Promise<UsageLimitOutcome> => {
-				const outcome = await this.#host.modelRegistry.authStorage.limits.markReached(
-					activeModel.provider,
-					this.#host.sessionId(),
-					{
+				// This runs on the agent_end path: a stalled usage report or
+				// sibling probe must never hold the run's terminal event. Bound the
+				// bookkeeping and treat a timeout as "no usage report", so the
+				// retry policy falls back to the retry-after hint.
+				const bookkeepingTimeout = AbortSignal.timeout(USAGE_LIMIT_BOOKKEEPING_TIMEOUT_MS);
+				try {
+					const outcome = await this.#host.modelRegistry.authStorage.limits.markReached(
+						activeModel.provider,
+						this.#host.sessionId(),
+						{
+							retryAfterMs,
+							// Provider-stated timing only when the error text parsed;
+							// the 30-minute fallback is a guess.
+							providerTimed: parsedRetryAfterMs !== undefined,
+							baseUrl: activeModel.baseUrl,
+							modelId: activeModel.id,
+							signal: bookkeepingTimeout,
+						},
+					);
+					return {
+						switchedCredential: outcome.switched,
 						retryAfterMs,
-						// Provider-stated timing only when the error text parsed;
-						// the 30-minute fallback is a guess.
-						providerTimed: parsedRetryAfterMs !== undefined,
-						baseUrl: activeModel.baseUrl,
-						modelId: activeModel.id,
-					},
-				);
-				return {
-					switchedCredential: outcome.switched,
-					retryAfterMs,
-					retryAtMs: outcome.retryAtMs,
-					blockedUntilMs: outcome.blockedUntilMs,
-					priorBlockedUntilMs: outcome.priorBlockedUntilMs,
-					priorBlockedUntilTimed: outcome.priorBlockedUntilTimed,
-					reportResetAtMs: outcome.reportResetAtMs,
-				};
+						retryAtMs: outcome.retryAtMs,
+						blockedUntilMs: outcome.blockedUntilMs,
+						priorBlockedUntilMs: outcome.priorBlockedUntilMs,
+						priorBlockedUntilTimed: outcome.priorBlockedUntilTimed,
+						reportResetAtMs: outcome.reportResetAtMs,
+					};
+				} catch (error) {
+					if (!bookkeepingTimeout.aborted) throw error;
+					return {
+						switchedCredential: false,
+						retryAfterMs,
+						retryAtMs: undefined,
+						blockedUntilMs: undefined,
+						priorBlockedUntilMs: undefined,
+						priorBlockedUntilTimed: undefined,
+						reportResetAtMs: undefined,
+					};
+				}
 			})();
 			this.#usageLimitOutcomes.set(message, recorded);
 		}
@@ -3112,7 +3133,59 @@ export class TurnRecovery {
 			return maxDelayMs > 0 && waitMs > maxDelayMs && !waitForUsageReset;
 		};
 
-		if (!staleOpenAIResponsesReplayError && !switchedCredential && currentSelector) {
+		// A `reasoning_extraction` refusal of a request that replayed other models'
+		// reasoning as text: resend it once on this model without that reasoning,
+		// and leave it out for the rest of the session, before walking the chain.
+		// A refusal of a request that carried none would only be refused again.
+		const sessionId = this.#host.sessionManager.getSessionId();
+		const stripDemotedReasoning =
+			classifierRefusal &&
+			!retryBudgetExhausted &&
+			message.stopDetails?.category === "reasoning_extraction" &&
+			(message.demotedReasoningBlocks ?? 0) > 0 &&
+			currentModel !== undefined &&
+			resolveCatalogPolicy(currentModel).classifierCotExtraction === true &&
+			this.#demotedReasoningOmittedFor !== sessionId;
+		if (stripDemotedReasoning) {
+			this.#demotedReasoningOmittedFor = sessionId;
+			delayMs = 0;
+			logger.info("Classifier refused other models' reasoning replayed as text; retrying without it", {
+				model: `${currentModel.provider}/${currentModel.id}`,
+				demotedReasoningBlocks: message.demotedReasoningBlocks,
+			});
+		}
+
+		// A `reasoning_extraction` refusal that stopped output already streaming judged
+		// that sample, not the request: the same request on this model answers on the
+		// next try. Resample once per turn before walking the chain; a second refusal
+		// takes the existing path.
+		const resampleMidStreamRefusal =
+			classifierRefusal &&
+			!retryBudgetExhausted &&
+			!stripDemotedReasoning &&
+			!this.#midStreamRefusalResampled &&
+			message.stopDetails?.category === "reasoning_extraction" &&
+			message.content.some(
+				block =>
+					block.type === "toolCall" ||
+					(block.type === "thinking" && hasNonWhitespace(block.thinking)) ||
+					(block.type === "text" && hasNonWhitespace(block.text)),
+			);
+		if (resampleMidStreamRefusal) {
+			this.#midStreamRefusalResampled = true;
+			delayMs = 0;
+			logger.info("Classifier refused a turn mid-stream; resampling it on the same model", {
+				model: currentModel ? `${currentModel.provider}/${currentModel.id}` : undefined,
+			});
+		}
+
+		if (
+			!staleOpenAIResponsesReplayError &&
+			!switchedCredential &&
+			!stripDemotedReasoning &&
+			!resampleMidStreamRefusal &&
+			currentSelector
+		) {
 			// The retry budget bounds same-model retries against a failing provider. A
 			// classifier refusal is not that: retrying the same model reproduces it, and
 			// the next model in the chain is one request away and often answers. Stopping
@@ -3217,52 +3290,6 @@ export class TurnRecovery {
 				this.#genericAbortStreak = 0;
 			}
 		}
-		// A `reasoning_extraction` refusal of a request that replayed other models'
-		// reasoning as text: resend it once on this model without that reasoning,
-		// and leave it out for the rest of the session, before walking the chain.
-		// A refusal of a request that carried none would only be refused again.
-		const sessionId = this.#host.sessionManager.getSessionId();
-		const stripDemotedReasoning =
-			classifierRefusal &&
-			!retryBudgetExhausted &&
-			message.stopDetails?.category === "reasoning_extraction" &&
-			(message.demotedReasoningBlocks ?? 0) > 0 &&
-			currentModel !== undefined &&
-			resolveCatalogPolicy(currentModel).classifierCotExtraction === true &&
-			this.#demotedReasoningOmittedFor !== sessionId;
-		if (stripDemotedReasoning) {
-			this.#demotedReasoningOmittedFor = sessionId;
-			delayMs = 0;
-			logger.info("Classifier refused other models' reasoning replayed as text; retrying without it", {
-				model: `${currentModel.provider}/${currentModel.id}`,
-				demotedReasoningBlocks: message.demotedReasoningBlocks,
-			});
-		}
-
-		// A `reasoning_extraction` refusal that stopped output already streaming judged
-		// that sample, not the request: the same request on this model answers on the
-		// next try. Resample once per turn before walking the chain; a second refusal
-		// takes the existing path.
-		const resampleMidStreamRefusal =
-			classifierRefusal &&
-			!retryBudgetExhausted &&
-			!stripDemotedReasoning &&
-			!this.#midStreamRefusalResampled &&
-			message.stopDetails?.category === "reasoning_extraction" &&
-			message.content.some(
-				block =>
-					block.type === "toolCall" ||
-					(block.type === "thinking" && hasNonWhitespace(block.thinking)) ||
-					(block.type === "text" && hasNonWhitespace(block.text)),
-			);
-		if (resampleMidStreamRefusal) {
-			this.#midStreamRefusalResampled = true;
-			delayMs = 0;
-			logger.info("Classifier refused a turn mid-stream; resampling it on the same model", {
-				model: currentModel ? `${currentModel.provider}/${currentModel.id}` : undefined,
-			});
-		}
-
 		if (
 			(classifierRefusal || accountPolicyDenial) &&
 			!switchedCredential &&

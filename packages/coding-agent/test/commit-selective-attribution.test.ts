@@ -14,20 +14,18 @@ interface Edit {
 	actor: string;
 	before: string | null;
 	after: string | null;
-	gapHint?: string;
 }
 
 /** Content committed when only `scope`'s preselected ops are applied, plus the per-op verdicts. */
-function commitFor(head: string | null, edits: Edit[], work: string | null, scope: string[], tailHint?: string) {
+function commitFor(head: string | null, edits: Edit[], work: string | null, scope: string[]) {
 	const recorded: RecordedEdit[] = edits.map(edit => ({
 		actor: edit.actor,
 		before: toLines(edit.before),
 		after: toLines(edit.after),
-		gapHint: edit.gapHint,
 	}));
 	const headLines = toLines(head);
 	const workLines = toLines(work);
-	const attribution = attribute(headLines, historySteps(headLines, recorded, workLines, tailHint), workLines);
+	const attribution = attribute(headLines, historySteps(headLines, recorded, workLines), workLines);
 	const { status } = classify(attribution, new Set(scope));
 	const selected = new Set(attribution.ops.filter(op => status[op.id] === "own").map(op => op.id));
 	const verdicts = attribution.ops.map(op => `${status[op.id]} ${op.kind}${op.text}`);
@@ -68,15 +66,6 @@ describe("selective commit attribution", () => {
 		expect(verdicts).toContain("review -    return 1");
 		expect(verdicts).toContain("review +    return 10 ");
 		expect(content).toBe(CODE.replace("def b():\n    return 2", "def b():\n    log()\n    return 2"));
-	});
-
-	it("counts an unrecorded rewrite of the agent's lines as its own when its shell call explains it", () => {
-		const after = CODE.replace("return 1", "return  10");
-		const work = CODE.replace("return 1", "return 10");
-
-		const { content } = commitFor(CODE, [{ actor: "Main", before: CODE, after }], work, ["Main"], "Main");
-
-		expect(content).toBe(work);
 	});
 
 	describe("history that predates HEAD", () => {

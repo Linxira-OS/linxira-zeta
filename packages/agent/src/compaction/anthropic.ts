@@ -247,6 +247,7 @@ export interface AnthropicNativeCompactionOptions
 			| "promptCacheKey"
 			| "providerSessionState"
 			| "maxInFlightRequests"
+			| "omitDemotedReasoning"
 		>,
 		Pick<InstrumentedChatSpanOptions, "completeImpl" | "telemetry" | "retry"> {}
 
@@ -289,6 +290,7 @@ export async function requestAnthropicNativeCompaction(
 			promptCacheKey: options.promptCacheKey,
 			providerSessionState: options.providerSessionState,
 			maxInFlightRequests: options.maxInFlightRequests,
+			omitDemotedReasoning: options.omitDemotedReasoning,
 			anthropicCompaction: { instructions: request.instructions, filesDueBefore: request.filesDueBefore },
 		},
 		{

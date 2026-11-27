@@ -769,6 +769,11 @@ export interface SummaryOptions {
 	codexCompaction?: CodexCompactionContext;
 	/** Provider-visible tools for remote compaction transports that replay native tool history. */
 	tools?: Tool[];
+	/**
+	 * Leave other models' reasoning out of the native compaction request, as the
+	 * live turns stopped replaying it after a `reasoning_extraction` refusal.
+	 */
+	omitDemotedReasoning?: boolean;
 	/** Optional fetch implementation threaded into remote compaction calls. */
 	fetch?: FetchImpl;
 	/** Inspect or replace a generic remote-compaction payload before it is sent. */
@@ -1876,6 +1881,7 @@ export async function compact(
 		codexAccessPrograms: options?.codexAccessPrograms,
 		codexCompaction: options?.codexCompaction,
 		tools: options?.tools,
+		omitDemotedReasoning: options?.omitDemotedReasoning,
 		fetch: options?.fetch,
 		onPayload: options?.onPayload,
 		completeImpl: options?.completeImpl,
@@ -2368,6 +2374,7 @@ export async function compact(
 					sessionId: summaryOptions.sessionId,
 					promptCacheKey: summaryOptions.promptCacheKey,
 					providerSessionState: summaryOptions.providerSessionState,
+					omitDemotedReasoning: summaryOptions.omitDemotedReasoning,
 					completeImpl: summaryOptions.completeImpl,
 					telemetry: summaryOptions.telemetry,
 					retry: summaryOneshotRetry(summaryOptions),

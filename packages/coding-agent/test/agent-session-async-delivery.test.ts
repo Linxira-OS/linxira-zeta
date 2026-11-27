@@ -1319,6 +1319,8 @@ describe("AgentSession owner-routed async delivery", () => {
 		manager: AsyncJobManager;
 		mock: MockModel;
 		targetSessionFile: string;
+		sourceSessionFile: string;
+		sourceSessionId: string;
 	}> {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
@@ -1374,18 +1376,19 @@ describe("AgentSession owner-routed async delivery", () => {
 			ownedAsyncJobManager: manager,
 			extensionRunner,
 		});
-		return { manager, mock, targetSessionFile };
+		const sourceSessionFile = sessionManager.getSessionFile()!;
+		const sourceSessionId = sessionManager.getSessionId();
+		return { manager, mock, targetSessionFile, sourceSessionFile, sourceSessionId };
 	}
 
-	it("cancels the outgoing session's background jobs when resuming another session", async () => {
+	it("keeps the outgoing session's background job running and persists its result into that transcript", async () => {
 		using tempDir = TempDir.createSync("@pi-resume-async-jobs-");
-		const { manager, mock, targetSessionFile } = await startResumableSession(tempDir);
+		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
 		const gate = Promise.withResolvers<void>();
 		manager.register(
 			"bash",
 			"outgoing session job",
-			async ({ signal }) => {
-				signal.addEventListener("abort", () => gate.resolve(), { once: true });
+			async () => {
 				await gate.promise;
 				return "PRIOR SESSION RESULT";
 			},
@@ -1394,21 +1397,27 @@ describe("AgentSession owner-routed async delivery", () => {
 		expect(session.wakeSources).toBeDefined();
 
 		expect(await session.switchSession(targetSessionFile)).toBe(true);
+		expect(manager.getJob("outgoing-job")?.status).toBe("running");
 		gate.resolve();
 		await manager.waitForAll();
-		await manager.drainDeliveries({
-			timeoutMs: 1_000,
-			filter: { ownerId: "Main" },
-		});
+		await manager.drainDeliveries({ timeoutMs: 1_000, filter: { ownerId: "Main" } });
 		await settleOwnedJobs(session, manager);
 
-		expect(manager.getJob("outgoing-job")?.status).toBe("cancelled");
+		expect(manager.getJob("outgoing-job")?.status).toBe("completed");
 		expect(session.wakeSources).toBeUndefined();
+		// The completion never entered the resumed conversation and never started
+		// a turn there.
 		expect(mock.calls).toHaveLength(0);
-		const leaked = session.sessionManager
-			.getEntries()
-			.some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT"));
-		expect(leaked).toBe(false);
+		expect(
+			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT")),
+		).toBe(false);
+		// It was persisted into the transcript that owned the job.
+		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
+		try {
+			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT"))).toBe(true);
+		} finally {
+			await source.close();
+		}
 	});
 
 	it("keeps background jobs running across a same-session reload", async () => {

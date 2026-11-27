@@ -2858,9 +2858,17 @@ describe("Settings", () => {
 			fs.mkdirSync(path.dirname(claudeSettings), { recursive: true });
 			fs.writeFileSync(claudeSettings, JSON.stringify({ extensions: ["../claude-ext"] }));
 
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-			expect(cfgExtensions.get(settings)).toContain("../claude-ext");
-			expect(settings.extensionsSourceLevel()).toBe("project");
+			// `.claude/settings.json` is a foreign project source; approve it for this fixture.
+			const originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+			process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
+			try {
+				const settings = await Settings.init({ cwd: projectDir, agentDir });
+				expect(cfgExtensions.get(settings)).toContain("../claude-ext");
+				expect(settings.extensionsSourceLevel()).toBe("project");
+			} finally {
+				if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+				else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
+			}
 		});
 
 		it("reports user for a user-only setting and for runtime overrides", async () => {
