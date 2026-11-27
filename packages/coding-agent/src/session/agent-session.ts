@@ -3833,9 +3833,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				if (this.#advisors.autoResumeSuppressed && !this.#turnSettledSinceUserInterrupt) {
 					logger.debug("Background delivery folded into context without a turn", {
 						count: messages.length,
-						customTypes: messages.map(message =>
-							message.role === "custom" ? message.customType : message.role,
-						),
+						customTypes: messages.map(message => (message.role === "custom" ? message.customType : message.role)),
 					});
 					this.#recordWithoutTurn(messages);
 					return;

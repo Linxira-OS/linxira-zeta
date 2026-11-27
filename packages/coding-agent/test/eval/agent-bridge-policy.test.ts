@@ -1416,7 +1416,8 @@ describe("runEvalAgent isolation", () => {
 			}),
 		);
 		vi.spyOn(isolationRunner, "mergeIsolatedChanges").mockResolvedValue({
-			summary: "\n\n<system-notification>Branch merge failed: zetacode/task/x.\nConflict: foo.ts</system-notification>",
+			summary:
+				"\n\n<system-notification>Branch merge failed: zetacode/task/x.\nConflict: foo.ts</system-notification>",
 			changesApplied: false,
 			hadAnyChanges: false,
 			mergedBranchForNestedPatches: false,
