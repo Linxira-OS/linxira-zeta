@@ -141,7 +141,7 @@ describe("AskTool form dialog", () => {
 		);
 
 		expect(text(result)).toBe(
-			`User answers:\n${JSON.stringify({ store: "redis" }, null, 2)}\nOption notes:\n- Session store: Redis [store="redis"] — shared cache`,
+			`User answers:\n${JSON.stringify({ store: "redis" }, null, 2)}\nOption notes:\n\n- Session store: Redis [store="redis"] — shared cache`,
 		);
 		expect(result.details).toEqual({
 			answers: [
@@ -193,7 +193,7 @@ describe("AskTool form dialog", () => {
 		);
 
 		expect(text(result)).toBe(
-			`No answer before the timeout; submitted the form's current values:\n${JSON.stringify({ store: "sqlite", ttl: 30 }, null, 2)}\nOption notes:\n- Session store: SQLite [store="sqlite"] — no service needed`,
+			`No answer before the timeout; submitted the form's current values:\n${JSON.stringify({ store: "sqlite", ttl: 30 }, null, 2)}\nOption notes:\n\n- Session store: SQLite [store="sqlite"] — no service needed`,
 		);
 		expect(result.details?.timedOut).toBe(true);
 		expect(result.details?.notes).toEqual(notes);
@@ -747,15 +747,15 @@ describe("AskTool option note images", () => {
 			createContext({ formDialog }),
 		);
 
-		expect(result.content).toEqual([
-			{
-				type: "text",
-				text: `User answers:\n${JSON.stringify({ store: "redis" }, null, 2)}\nOption notes:\n- Session store: Redis [store="redis"] — see [Image #1, 1x1]\n- Lifetime (days): 7 [ttl="7"] — and [Image #2, 2x2]`,
-			},
-			{ type: "text", text: expect.stringContaining("/tmp/shot.png") },
-			image,
-			second,
-		]);
+		expect(result.content).toHaveLength(4);
+		expect(result.content[0]).toEqual({
+			type: "text",
+			text: `User answers:\n${JSON.stringify({ store: "redis" }, null, 2)}\nOption notes:\n\n- Session store: Redis [store="redis"] — see [Image #1, 1x1]\n\n- Lifetime (days): 7 [ttl="7"] — and [Image #2, 2x2]`,
+		});
+		expect(result.content[1]?.type === "text" ? result.content[1].text : "").toContain(
+			"The user attached an image as `[Image #1]`",
+		);
+		expect(result.content.slice(2)).toEqual([image, second]);
 		expect(result.details?.notes).toEqual([
 			{ name: "store", question: "Session store", option: "Redis", value: "redis", text: "see [Image #1, 1x1]" },
 			{ name: "ttl", question: "Lifetime (days)", option: "7", value: "7", text: "and [Image #2, 2x2]" },

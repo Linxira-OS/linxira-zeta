@@ -42,6 +42,8 @@ export function buildOperatorCommandManifest(instance?: Settings): OperatorComma
 	const unclassifiedBuiltins: string[] = [];
 	for (const spec of BUILTIN_SLASH_COMMANDS_INTERNAL) {
 		if (spec.hidden) continue;
+		// `/setup` is retired globally; the TUI-only handler must not resurface here.
+		if (spec.name === "setup") continue;
 		if (spec.enabled) {
 			effective ??= Settings.isolated();
 			if (!spec.enabled(effective)) continue;

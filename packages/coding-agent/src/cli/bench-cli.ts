@@ -623,12 +623,16 @@ async function runWithConcurrency<T>(
 	count: number,
 	concurrency: number,
 	run: (index: number) => Promise<T>,
+	signal?: AbortSignal,
 ): Promise<T[]> {
 	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
 	const results = new Array<T>(count);
 	let next = 0;
 	const worker = async (): Promise<void> => {
 		while (next < count) {
+			// A cancelled run must not start another provider request; results
+			// already collected stay in the report.
+			if (signal?.aborted) return;
 			const index = next++;
 			results[index] = await run(index);
 		}
@@ -1353,7 +1357,9 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 				if (!json) print(formatRunLine(failure, 0, runs, { tagKind }));
 				row.report = buildModelReport(selector, model, thinking, results);
 				if (cacheMode) row.report.cachePairs = [];
+				row.progress.failed++;
 				row.state = "done";
+				deps.onProgress?.(rows);
 				continue;
 			}
 
@@ -1468,53 +1474,58 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 				const startedAt = now();
 				// Runs finish out of order under concurrency; lines print in index order.
 				let nextToPrint = 0;
-				await runWithConcurrency(step.runs, step.concurrency, async index => {
-					const runIndex = offset + index;
-					const sessionId = runIndex === 0 ? testSessionId : randomSessionId();
-					const challenge = buildBenchChallenge(step.kinds[index % step.kinds.length]!, {
-						promptOverride,
-						prefillBytes,
-						nonce: randomSessionId(),
-						random,
-						maxTokensOverride,
-					});
-					progress.inFlight++;
-					board?.repaint();
-					deps.onProgress?.(rows);
-					const result: BenchRunResult = {
-						...(await runBenchRequest(
-							model,
-							{
-								apiKey: selectedResolver ?? runtime.modelRegistry.resolver(model, sessionId),
-								sessionId,
-								messages: challenge.messages,
-								maxTokens: challenge.maxTokens,
-								reasoning: toReasoningEffort(thinking),
-								disableReasoning: shouldDisableReasoning(thinking) ? true : undefined,
-								serviceTier,
-							},
-							streamFn,
-							now,
-						)),
-						challenge: challenge.kind,
-						phase,
-					};
-					results[runIndex] = result;
-					finished.push(result);
-					progress.inFlight--;
-					progress.completed++;
-					if (!result.ok) progress.failed++;
-					if (phase) phases[phase] = buildPhaseReport(step.concurrency, finished, now() - startedAt);
-					row.report = buildModelReport(selector, model, thinking, results, phases);
-					board?.repaint();
-					deps.onProgress?.(rows);
-					if (!json) {
-						while (nextToPrint < step.runs && results[offset + nextToPrint] !== undefined) {
-							print(formatRunLine(results[offset + nextToPrint]!, nextToPrint, step.runs, { tagKind }));
-							nextToPrint++;
+				await runWithConcurrency(
+					step.runs,
+					step.concurrency,
+					async index => {
+						const runIndex = offset + index;
+						const sessionId = runIndex === 0 ? testSessionId : randomSessionId();
+						const challenge = buildBenchChallenge(step.kinds[index % step.kinds.length]!, {
+							promptOverride,
+							prefillBytes,
+							nonce: randomSessionId(),
+							random,
+							maxTokensOverride,
+						});
+						progress.inFlight++;
+						board?.repaint();
+						deps.onProgress?.(rows);
+						const result: BenchRunResult = {
+							...(await runBenchRequest(
+								model,
+								{
+									apiKey: selectedResolver ?? runtime.modelRegistry.resolver(model, sessionId),
+									sessionId,
+									messages: challenge.messages,
+									maxTokens: challenge.maxTokens,
+									reasoning: toReasoningEffort(thinking),
+									disableReasoning: shouldDisableReasoning(thinking) ? true : undefined,
+									serviceTier,
+								},
+								streamFn,
+								now,
+							)),
+							challenge: challenge.kind,
+							phase,
+						};
+						results[runIndex] = result;
+						finished.push(result);
+						progress.inFlight--;
+						progress.completed++;
+						if (!result.ok) progress.failed++;
+						if (phase) phases[phase] = buildPhaseReport(step.concurrency, finished, now() - startedAt);
+						row.report = buildModelReport(selector, model, thinking, results, phases);
+						board?.repaint();
+						deps.onProgress?.(rows);
+						if (!json) {
+							while (nextToPrint < step.runs && results[offset + nextToPrint] !== undefined) {
+								print(formatRunLine(results[offset + nextToPrint]!, nextToPrint, step.runs, { tagKind }));
+								nextToPrint++;
+							}
 						}
-					}
-				});
+					},
+					deps.signal,
+				);
 				// Chat phases close with the combined output rate across every in-flight request.
 				const phaseReport = phase && phase !== "prefill" ? phases[phase] : undefined;
 				if (!json && phaseReport) {
@@ -1524,6 +1535,15 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 				}
 				offset += step.runs;
 			}
+			// A cancelled run stops scheduling requests, so drop the unstarted
+			// slots and report only the runs that actually settled.
+			row.report = buildModelReport(
+				selector,
+				model,
+				thinking,
+				results.filter(result => result !== undefined),
+				phases,
+			);
 			row.state = "done";
 		}
 		const reports = rows.map(row => row.report);

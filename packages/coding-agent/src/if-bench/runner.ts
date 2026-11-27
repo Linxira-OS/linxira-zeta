@@ -139,7 +139,9 @@ export async function runIfBench(options: IfBenchRunOptions): Promise<IfBenchSum
 
 	const worker = async (): Promise<void> => {
 		for (;;) {
-			options.signal?.throwIfAborted();
+			// Cancellation ends the run with the reports collected so far; the
+			// caller marks the cancelled state from the signal.
+			if (options.signal?.aborted) return;
 			const next = queue.shift();
 			if (!next) return;
 			ordered[next.index] = await runTarget(next.target, options);
@@ -199,7 +201,9 @@ async function runTarget(target: BenchTarget, options: IfBenchRunOptions): Promi
 
 	try {
 		for (let turn = 1; turn <= options.maxTurns; turn += 1) {
-			options.signal?.throwIfAborted();
+			// An abort between turns stops later requests but keeps the completed
+			// model report (turns already scored remain).
+			if (options.signal?.aborted) break;
 			const actions: Action[] = makeActions(options.arrayLength, cumulativeActions, turn);
 			const turnPrompt = buildTurnPrompt({
 				turn,
@@ -282,6 +286,7 @@ async function requestTurnWithRefusalRetry(
 ): Promise<TurnOutcome> {
 	let outcome: TurnOutcome = { text: "", error: "request failed", durationMs: 0 };
 	for (let attempt = 1; attempt <= REFUSAL_MAX_ATTEMPTS; attempt += 1) {
+		if (options.signal?.aborted) return outcome;
 		if (attempt > 1) await (options.sleep ?? Bun.sleep)(REFUSAL_BACKOFF_MS[attempt - 1] ?? 180_000);
 		const sessionId = options.randomSessionId();
 		const apiKey = options.runtime.modelRegistry.resolver(model, sessionId);

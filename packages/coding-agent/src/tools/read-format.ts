@@ -381,10 +381,8 @@ export async function buildInMemoryTextResult(
 	const spillThreshold = resolveArtifactSpillThreshold(session.settings);
 	const pageLines = Math.min(endLine - startLine, DEFAULT_MAX_LINES);
 	const prefixWidth = displayMode.lineNumbers ? String(startLine + pageLines).length + 1 : 0;
-	const maxBytes = Math.min(
-		DEFAULT_MAX_BYTES,
-		spillThreshold - Math.min(pageLines * prefixWidth, Math.floor(spillThreshold / 2)),
-	);
+	const reportedMaxBytes = Math.min(DEFAULT_MAX_BYTES, spillThreshold);
+	const maxBytes = reportedMaxBytes - Math.min(pageLines * prefixWidth, Math.floor(spillThreshold / 2));
 
 	const resultBuilder = toolResult(details);
 	if (options.sourcePath) {
@@ -541,7 +539,7 @@ export async function buildInMemoryTextResult(
 				direction: "head",
 				startLine: startLineDisplay,
 				totalFileLines: totalLines,
-				maxBytes,
+				maxBytes: reportedMaxBytes,
 			},
 		};
 	} else if (!rawDisplay && userLimitedLines !== undefined && startLine + userLimitedLines < totalLines) {

@@ -64,6 +64,8 @@ export type SearchToolParams = typeof webSearchSchema.infer;
 
 export interface SearchQueryParams extends SearchToolParams {
 	model?: string;
+	/** Zeta engine pin; aliases the upstream `model` selector. */
+	provider?: string;
 }
 
 /** Format response for LLM consumption. `notes` lead the output (e.g. relaxed-constraint warnings). */
@@ -274,9 +276,10 @@ async function executeSearch(
 	const modelRegistry =
 		options.modelRegistry ?? new ModelRegistry(authStorage, undefined, { settings: activeSettings });
 	const pool = roleCandidatePool("web", activeSettings, modelRegistry);
-	const candidates = params.model
+	const requestedModel = params.provider ?? params.model;
+	const candidates = requestedModel
 		? (() => {
-				const resolved = resolveModelRoleValue(params.model, pool, { settings: activeSettings });
+				const resolved = resolveModelRoleValue(requestedModel, pool, { settings: activeSettings });
 				return resolved.model
 					? [{ model: resolved.model, explicit: true, thinkingLevel: resolved.thinkingLevel }]
 					: [];
@@ -289,12 +292,12 @@ async function executeSearch(
 		activeSettings,
 	);
 	// Only xAI reaches X posts; X-only queries try it first even when the role prefers another engine.
-	if (!params.model && targetsX(parsedQuery)) expanded = preferXAI(expanded, modelRegistry, activeSettings);
+	if (!requestedModel && targetsX(parsedQuery)) expanded = preferXAI(expanded, modelRegistry, activeSettings);
 	// General engines index HN threads sparsely and late; a query whose every
 	// `site:` is Hacker News (with or without a path) tries the HN Search API first.
 	const hnOnly =
 		parsedQuery.sites.length > 0 && parsedQuery.sites.every(site => site.split("/", 1)[0] === "news.ycombinator.com");
-	if (!params.model && hnOnly) expanded = preferHackerNews(expanded, pool);
+	if (!requestedModel && hnOnly) expanded = preferHackerNews(expanded, pool);
 
 	// Invariant across candidates; resolve once before walking the role chain.
 	let antigravityEndpointMode: "auto" | "production" | "sandbox" | undefined;
@@ -315,7 +318,7 @@ async function executeSearch(
 	}
 
 	// Only a per-request selector reaches a keyless service once the user turned them off.
-	const keylessAllowed = params.model !== undefined || cfgProvidersWebKeyless.get(activeSettings);
+	const keylessAllowed = requestedModel !== undefined || cfgProvidersWebKeyless.get(activeSettings);
 	let keylessSkipped = false;
 	const failures: SearchProviderFailure[] = [];
 	let availableProviderCount = 0;
@@ -344,7 +347,7 @@ async function executeSearch(
 		lastProvider = candidateMeta;
 		const engineKey = `${candidate.model.provider}/${candidate.model.id}`;
 		const cooldownEnds = rateLimitedUntil.get(engineKey);
-		if (cooldownEnds !== undefined && !params.model) {
+		if (cooldownEnds !== undefined && !requestedModel) {
 			if (cooldownEnds > Date.now()) {
 				const minutes = RATE_LIMIT_COOLDOWN_MS / 60_000;
 				failures.push({
@@ -509,8 +512,8 @@ async function executeSearch(
 	if (availableProviderCount === 0 && failures.length === 0) {
 		const message = cfgOffline.get(activeSettings)
 			? "No web search backend is available on the active model's provider under --offline."
-			: params.model
-				? `No web search model matches selector "${params.model}".`
+			: requestedModel
+				? `No web search model matches selector "${requestedModel}".`
 				: keylessSkipped
 					? "No configured web search service is available, and providers.webKeyless is off. Configure a search credential or turn providers.webKeyless on."
 					: "No web search model configured.";

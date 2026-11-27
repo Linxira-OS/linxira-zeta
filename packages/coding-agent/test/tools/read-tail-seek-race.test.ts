@@ -69,6 +69,11 @@ describe("read :-N tail on a file edited between the count and the window read",
 		const output = textOf(await tool.execute("tail", { path: `${filePath}:-2` }));
 		expect(edited).toBe(true);
 		// The selected tail plus one leading context line, each whole.
-		expect(output.split("\n").map(row => row.slice(row.indexOf(":") + 1))).toEqual(lines.slice(-3));
+		expect(
+			output
+				.split("\n")
+				.filter(row => /^\d+:/.test(row))
+				.map(row => row.slice(row.indexOf(":") + 1)),
+		).toEqual(lines.slice(-3));
 	});
 });

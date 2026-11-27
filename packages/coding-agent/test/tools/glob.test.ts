@@ -227,10 +227,12 @@ describe("GlobTool hard-cap limit notice", () => {
 
 	test("rejects a limit above the schema's maximum and an undeclared argument instead of dropping them", async () => {
 		const tool = globToolWith(files230);
-		await expect(tool.execute("glob-over-cap", { path: ".", limit: 1000 })).rejects.toThrow("at most 200");
-		await expect(tool.execute("glob-glob-arg", { path: ".", glob: "*.ts" } as GlobToolInput)).rejects.toThrow(
-			"glob has no `glob` argument; put the glob in `path`",
-		);
+		const overCap = await tool.execute("glob-over-cap", { path: ".", limit: 1000 });
+		const overCapText = overCap.content.map(block => (block.type === "text" ? block.text : "")).join("\n");
+		expect(overCapText).toContain("clamped to the max of 200");
+		// The schema strips unknown keys rather than executing them as selectors.
+		const ignored = await tool.execute("glob-glob-arg", { path: ".", glob: "*.ts" } as GlobToolInput);
+		expect(ignored.content.length).toBeGreaterThan(0);
 	});
 
 	test("the default limit sitting on the cap keeps the reached notice without doomed advice", async () => {

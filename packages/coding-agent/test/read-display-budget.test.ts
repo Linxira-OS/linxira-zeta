@@ -151,7 +151,7 @@ describe("read charges column-cut lines their displayed width", () => {
 		expect(shown.has(150)).toBe(true);
 		expect(shown.has(151)).toBe(false);
 		expect(text).toContain("Use");
-		expect(text).toContain(":151 to continue");
+		expect(text).toContain(":151- to continue");
 	});
 
 	it("shows a first line whose cut display alone exceeds the budget, then pages on", async () => {
@@ -164,7 +164,7 @@ describe("read charges column-cut lines their displayed width", () => {
 		const text = await read(createSession(dir, 30_000), file);
 		expect(rows(text).get(1)).toStartWith("z".repeat(8_500));
 		expect(text).not.toContain("Showing 0");
-		expect(text).toContain("Use :2 to continue");
+		expect(text).toContain("Use :2- to continue");
 	});
 
 	it("ends a sole line whose cut display overflows the budget without a continuation", async () => {

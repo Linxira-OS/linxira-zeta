@@ -198,7 +198,7 @@ describe("github-cache db layer", () => {
 			kind: "issue",
 			number: 314,
 			includeComments: true,
-			payload: issuePayload(314, "old-body"),
+			payload: { ...issuePayload(314, "old-body"), state: "CLOSED" },
 			rendered: "fourteen-days-old",
 			fetchedAt: fourteenDaysAgo,
 		});
@@ -220,7 +220,7 @@ describe("github-cache db layer", () => {
 		const noopFetch = vi.fn(async () => ({
 			rendered: "should-not-run",
 			sourceUrl: undefined,
-			payload: issuePayload(314, "should-not-run"),
+			payload: { ...issuePayload(314, "should-not-run"), state: "CLOSED" },
 		}));
 		const lenient = await getOrFetchView({
 			authKey: TEST_AUTH_KEY,
@@ -245,7 +245,7 @@ describe("github-cache db layer", () => {
 		const refreshFetch = vi.fn(async () => ({
 			rendered: "refreshed-content",
 			sourceUrl: undefined,
-			payload: issuePayload(314, "refreshed"),
+			payload: { ...issuePayload(314, "refreshed"), state: "CLOSED" },
 		}));
 		const strict = await getOrFetchView({
 			authKey: TEST_AUTH_KEY,

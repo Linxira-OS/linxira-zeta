@@ -172,6 +172,8 @@ function ownerOf(session: ToolSession): string {
 export class JudgmentBatch {
 	readonly id: string;
 	readonly ownerId: string;
+	/** Agent session that created the batch; observer pages of the same agent must not share its cursor. */
+	readonly sessionId: string | undefined;
 	readonly intent: string;
 	readonly total: number;
 	readonly #inputs: BatchInput[];
@@ -202,6 +204,7 @@ export class JudgmentBatch {
 	) {
 		this.id = `jdgb-${Snowflake.next()}`;
 		this.ownerId = ownerOf(session);
+		this.sessionId = session.getSessionId?.() ?? undefined;
 		this.intent = intent;
 		this.total = inputs.length;
 		this.#inputs = inputs;
@@ -524,10 +527,12 @@ export class JudgmentBatch {
 
 const batches = new Map<string, JudgmentBatch>();
 
-/** Resolve a batch owned by the calling session. */
+/** Resolve a batch owned by the calling agent session. */
 export function getJudgmentBatch(id: string, session: ToolSession): JudgmentBatch | undefined {
 	const batch = batches.get(id);
-	return batch && batch.ownerId === ownerOf(session) ? batch : undefined;
+	return batch && batch.ownerId === ownerOf(session) && batch.sessionId === (session.getSessionId?.() ?? undefined)
+		? batch
+		: undefined;
 }
 
 /** Cancel and forget every batch owned by an agent session. */

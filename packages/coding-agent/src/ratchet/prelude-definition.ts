@@ -11,6 +11,7 @@ import type { ToolSession } from "../tools";
 // @ts-expect-error Bun imports this JavaScript source as text instead of evaluating its module shape.
 import ratchetJavascript from "./prelude.js" with { type: "text" };
 import ratchetPython from "./prelude.py" with { type: "text" };
+import { enforceStudioRatchetBoundary } from "../server/studio-host/services/ratchet-boundary";
 import {
 	applyPlan,
 	approvalStatus,
@@ -195,6 +196,7 @@ async function invokeRatchet(
 ): Promise<AgentToolResult<unknown>> {
 	const cwd = session.cwd;
 	const lockKey = `${cwd}\0${params.flow}`;
+	await enforceStudioRatchetBoundary(cwd, { action: params.action, flow: params.flow });
 	if (params.action === "init") {
 		const state = await withFlowLock(lockKey, () => initFlow(cwd, params.flow, params));
 		return result(`ratchet flow ${state.flow} ready`, state);

@@ -69,6 +69,11 @@ function invalidSelector(sel: string): ToolError {
 
 /** Parse a bare (non-compound) chunk as a line-range list, a tail count, or a list mixing both. */
 function parseRangeOrTail(chunk: string, raw: boolean): ParsedSelector | null {
+	// Non-raw `:N` is the documented open-ended start; `:raw:N` is the one-line exception.
+	if (!raw && /^L?\d+$/i.test(chunk)) {
+		const startLine = Number.parseInt(chunk.replace(/^L/i, ""), 10);
+		return { kind: "lines", ranges: [{ startLine, endLine: undefined }] };
+	}
 	const ranges = parseLineRanges(chunk);
 	if (ranges) return raw ? { kind: "lines", ranges, raw } : { kind: "lines", ranges };
 	// A list with tails (`1-12,-15`, `-15`) keeps the longest tail.

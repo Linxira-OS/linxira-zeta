@@ -959,6 +959,7 @@ export class DeferredMCPTool {
 	readonly mcpToolName: string;
 	readonly mcpServerName: string;
 	readonly approval = "write" as const;
+	readonly strict = false as const;
 
 	constructor(
 		serverName: string,
