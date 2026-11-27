@@ -345,10 +345,19 @@ async function untilNamed(name: string, extensionId: string, ...told: string[]):
 		timeoutMs: 10_000,
 		session,
 	};
+	const titleText = async () => {
+		try {
+			return shown(await runInTab(name, titleCall));
+		} catch (error) {
+			// A held-out tab is the documented state while another extension's frame is open; the relay
+			// reports what it hid on a later call, so keep polling instead of failing on this one.
+			return error instanceof Error ? error.message : String(error);
+		}
+	};
 	for (let call = 0; call < 20 && !told.some(text => text.includes(extensionId)); call++) {
-		told.push(shown(await runInTab(name, titleCall)));
+		told.push(await titleText());
 	}
-	told.push(shown(await runInTab(name, titleCall)));
+	told.push(await titleText());
 	return told;
 }
 
