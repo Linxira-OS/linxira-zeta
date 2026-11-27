@@ -626,25 +626,28 @@ test("checks the upload route again after a check that decided nothing, and keep
 });
 
 // Windows refuses a file symlink without Developer Mode or elevation; the behaviour is OS-independent.
-test.skipIf(process.platform === "win32")("stages a symlinked file's contents, once while the file is unchanged", async () => {
-	const target = path.join(tempDir, "link-target.txt");
-	await Bun.write(target, "linked");
-	const link = path.join(tempDir, "link.txt");
-	await fs.symlink(target, link, "file");
-	const staging = new UploadStaging(path.join(tempDir, "symlink-staging"));
-	const [first] = await staging.stage([await openUploadSource(link)]);
-	const [again] = await staging.stage([await openUploadSource(link)]);
-	expect(again).toBe(first);
-	// A copy that still pointed at the original would send the browser to it, and break once it is gone.
-	expect((await fs.lstat(first!)).isSymbolicLink()).toBe(false);
-	await fs.rm(target);
-	expect(await Bun.file(first!).text()).toBe("linked");
-	await Bun.write(target, "changed");
-	await fs.utimes(target, new Date(2_000_000_000_000), new Date(2_000_000_000_000));
-	const [changed] = await staging.stage([await openUploadSource(link)]);
-	expect(changed).not.toBe(first);
-	expect(await Bun.file(changed!).text()).toBe("changed");
-});
+test.skipIf(process.platform === "win32")(
+	"stages a symlinked file's contents, once while the file is unchanged",
+	async () => {
+		const target = path.join(tempDir, "link-target.txt");
+		await Bun.write(target, "linked");
+		const link = path.join(tempDir, "link.txt");
+		await fs.symlink(target, link, "file");
+		const staging = new UploadStaging(path.join(tempDir, "symlink-staging"));
+		const [first] = await staging.stage([await openUploadSource(link)]);
+		const [again] = await staging.stage([await openUploadSource(link)]);
+		expect(again).toBe(first);
+		// A copy that still pointed at the original would send the browser to it, and break once it is gone.
+		expect((await fs.lstat(first!)).isSymbolicLink()).toBe(false);
+		await fs.rm(target);
+		expect(await Bun.file(first!).text()).toBe("linked");
+		await Bun.write(target, "changed");
+		await fs.utimes(target, new Date(2_000_000_000_000), new Date(2_000_000_000_000));
+		const [changed] = await staging.stage([await openUploadSource(link)]);
+		expect(changed).not.toBe(first);
+		expect(await Bun.file(changed!).text()).toBe("changed");
+	},
+);
 
 test("marks the staging folder used when an upload reuses a copy, so the sweep keeps it", async () => {
 	const file = path.join(tempDir, "reused.txt");

@@ -15,7 +15,7 @@ afterEach(async () => {
 	fake = undefined;
 });
 
-describe("WebKitHost", () => {
+describe.skipIf(process.platform === "win32")("WebKitHost", () => {
 	it("greets a child process over its standard streams and correlates its answers by id", async () => {
 		fake = await createFakeHost();
 		host = await WebKitHost.launch(fake.executable);

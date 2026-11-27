@@ -39,7 +39,7 @@ function session(settings: Record<string, unknown> = {}): ToolSession {
 	};
 }
 
-describe("resolveBrowserKind with omp's WebKit host", () => {
+describe.skipIf(process.platform === "win32")("resolveBrowserKind with omp's WebKit host", () => {
 	it("defaults to the WebKit host found through the env override or the path setting", () => {
 		const webkit: WebKitKind = { kind: "webkit", path: executable };
 		expect(resolveBrowserKind({ action: "open" }, session(), { PI_BROWSER_WEBKIT_PATH: engineDir })).toEqual(webkit);

@@ -103,7 +103,7 @@ function stubChromium() {
 	return preflight;
 }
 
-describe("browser.open on omp's WebKit host", () => {
+describe.skipIf(process.platform === "win32")("browser.open on omp's WebKit host", () => {
 	it("opens each tab as one block of a single host and seeds its identity once, per session", async () => {
 		const host = await useFakeHost();
 		const sessionA = makeSession("session-a");

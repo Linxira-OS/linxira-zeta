@@ -333,10 +333,7 @@ describe("shared Chromium session-restore state", () => {
 
 			// A describe lost in transit, or rejected for a reason other than an
 			// unknown unit, proves nothing about the live Chrome, so neither may discard.
-			for (const failure of [
-				new Error("broker socket closed"),
-				new Error("Daemon authentication failed"),
-			]) {
+			for (const failure of [new Error("broker socket closed"), new Error("Daemon authentication failed")]) {
 				failNextDescribe = failure;
 				expect((await ensureSharedBrowser({ projectDir, headless: true }))?.wsEndpoint).toBe(wsEndpoint);
 				expect(await fs.promises.readdir(sessionsDir)).toEqual(["Session_13436291949708538"]);

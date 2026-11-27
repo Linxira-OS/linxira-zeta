@@ -1138,9 +1138,9 @@ describe("pickElectronTarget relay path", () => {
 			title: async () => "Cart",
 		} as unknown as Page);
 
-		await expect(
-			pickElectronTarget(makeBrowser([other.target, unreadable.target]), { relayJson }),
-		).rejects.toThrow(/selected tab.*not ready/i);
+		await expect(pickElectronTarget(makeBrowser([other.target, unreadable.target]), { relayJson })).rejects.toThrow(
+			/selected tab.*not ready/i,
+		);
 		expect(other.pageSpy).not.toHaveBeenCalled();
 	});
 
@@ -1187,9 +1187,9 @@ describe("pickElectronTarget relay path", () => {
 			evaluate: async () => false,
 		} as unknown as Page);
 
-		await expect(
-			pickElectronTarget(makeBrowser([unreadable.target, hidden.target]), { relayJson }),
-		).rejects.toThrow(/tab.*not ready/i);
+		await expect(pickElectronTarget(makeBrowser([unreadable.target, hidden.target]), { relayJson })).rejects.toThrow(
+			/tab.*not ready/i,
+		);
 	});
 
 	it("does not satisfy a connected-browser matcher from another page when one is unreadable", async () => {
