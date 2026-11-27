@@ -52,18 +52,22 @@ describe("/tan prompt-cache tool presentation", () => {
 				sessionManager: SessionManager.inMemory(cwd),
 			});
 			try {
+				// 19.2 presents discoverable MCP tools as bash tool commands, not xd:// devices.
+				const parentMountedToolNames = [
+					...new Set([...parent.getMountedXdevToolNames(), ...parent.getMountedToolCommandNames()]),
+				];
 				const { session: child } = await createAgentSession({
 					...base,
 					settings: createSubagentSettings(settings),
 					hasUI: false,
 					systemPrompt: [...parent.systemPrompt],
 					toolNames: parent.getEnabledToolNames(),
-					mountedToolNames: parent.getMountedXdevToolNames(),
+					mountedToolNames: parentMountedToolNames,
 					advertiseHeadlessAsk: parent.getActiveToolNames().includes("ask"),
 					parentTaskPrefix: "Tan-fixture",
 					sessionManager: SessionManager.inMemory(cwd),
 				});
-				await child.setActiveToolPresentation(parent.getEnabledToolNames(), parent.getMountedXdevToolNames());
+				await child.setActiveToolPresentation(parent.getEnabledToolNames(), parentMountedToolNames);
 				try {
 					const advertised = (session: typeof parent) =>
 						session.agent.state.tools.map(tool => ({
@@ -71,10 +75,11 @@ describe("/tan prompt-cache tool presentation", () => {
 							description: tool.description,
 							parameters: tool.parameters,
 						}));
-					if (xdev) expect(parent.getMountedXdevToolNames()).toContain(mcpTool.name);
-					else expect(parent.getMountedXdevToolNames()).toEqual([]);
+					if (!xdev) expect(parent.getMountedXdevToolNames()).toEqual([]);
+					expect(parent.getMountedToolCommandNames()).toContain(mcpTool.name);
 					expect(parent.getActiveToolNames()).toContain("ask");
 					expect(child.getMountedXdevToolNames()).toEqual(parent.getMountedXdevToolNames());
+					expect(child.getMountedToolCommandNames()).toEqual(parent.getMountedToolCommandNames());
 					expect(child.systemPrompt).toEqual(parent.systemPrompt);
 					expect(advertised(child)).toEqual(advertised(parent));
 					// Run a real turn: the model calls the inherited ask with a schema-valid payload, so the

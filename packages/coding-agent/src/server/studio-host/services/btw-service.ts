@@ -3,6 +3,7 @@ import type { BtwInjection } from "../protocol/contracts/btw.js";
 import { randomUUID } from "node:crypto";
 import { BtwHistoryStore, type BtwHistoryRecord, type BtwHistoryTurn, getBtwTurns } from "../../../session/btw-history";
 import { beginBtwTurn, runBtwTurn } from "../../../session/btw-turn";
+import { btwBranchPointCurrent } from "../../../session/session-entries";
 import type { AgentSession } from "../../../session/agent-session";
 import type { BtwImage, BtwTopicSummary } from "../protocol/contracts/runtime-upgrade.js";
 import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
@@ -32,6 +33,7 @@ export interface StudioBtwSessionPort {
 	readonly sessionManager: {
 		getSessionId(): string;
 		getLeafId(): string | null;
+		getBranch?(fromId?: string): readonly { id: string; type: string }[];
 		ensureOnDisk(): Promise<void>;
 		getArtifactsDir?(): string | null;
 	};
@@ -473,8 +475,7 @@ export class StudioBtwService {
 		}
 		if (
 			record.originalLeafId === null ||
-			record.originalSessionId !== this.session.sessionManager.getSessionId() ||
-			record.originalLeafId !== this.session.sessionManager.getLeafId()
+			!btwBranchPointCurrent(this.session.sessionManager, record.originalLeafId, record.originalSessionId)
 		) {
 			throw new StudioBtwError("INTERACTION_STALE", "The session changed since BTW started");
 		}

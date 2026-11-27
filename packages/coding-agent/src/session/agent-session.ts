@@ -645,7 +645,12 @@ import {
 	type SessionDumpLiveState,
 } from "./session-dump-format";
 import { collectSubSessions, type SubSession } from "./sub-sessions";
-import type { BranchSummaryEntry, NewSessionOptions, SessionEntry } from "./session-entries";
+import {
+	btwBranchPointCurrent,
+	type BranchSummaryEntry,
+	type NewSessionOptions,
+	type SessionEntry,
+} from "./session-entries";
 import { SessionHandoff, type SessionHandoffHost } from "./session-handoff";
 import type { CompactionCommitListener } from "./compaction-contract";
 import {
@@ -17821,7 +17826,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			throw new Error("Cannot branch /btw: session is not persisted");
 		}
 
-		if (!leafId || this.sessionManager.getSessionId() !== sessionId || this.sessionManager.getLeafId() !== leafId) {
+		if (!leafId || !btwBranchPointCurrent(this.sessionManager, leafId, sessionId)) {
 			throw new Error("Cannot branch /btw: session changed since /btw started");
 		}
 
@@ -17839,7 +17844,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			}
 		}
 
-		if (this.sessionManager.getSessionId() !== sessionId || this.sessionManager.getLeafId() !== leafId) {
+		if (!btwBranchPointCurrent(this.sessionManager, leafId, sessionId)) {
 			throw new Error("Cannot branch /btw: session changed since /btw started");
 		}
 
@@ -17872,7 +17877,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			advisorRecordersDetached = true;
 			await this.#advisors.drainAndDetachRecorders();
 			try {
-				if (this.sessionManager.getSessionId() !== sessionId || this.sessionManager.getLeafId() !== leafId) {
+				if (!btwBranchPointCurrent(this.sessionManager, leafId, sessionId)) {
 					throw new Error("Cannot branch /btw: session changed since /btw started");
 				}
 				// A prompt may have been admitted during the flush/drain awaits

@@ -71,16 +71,22 @@ describe("InternalUrlFilesystem local://", () => {
 		await expect(fs.stat(path.join(localRoot, "missing.txt"))).rejects.toThrow();
 	});
 
-	it("keeps a trailing read selector as part of the file name", async () => {
+	it("keeps an existing entry whose name ends like a read selector", async () => {
+		// `:` is illegal in Windows file names.
+		if (process.platform === "win32") return;
 		await fs.mkdir(localRoot, { recursive: true });
-		await fs.writeFile(path.join(localRoot, "notes.md"), "whole\n");
+		await fs.writeFile(path.join(localRoot, "notes.md"), "one\ntwo\n");
+		await fs.writeFile(path.join(localRoot, "notes.md:1"), "literal\n");
 
-		const response = await shellFs().handle({ op: ShellFsOp.Open, path: "local://notes.md:1-2", open: READ });
-
-		expect(response.error?.code).toBe("ENOENT");
+		await expect(shellFs().handle({ op: ShellFsOp.Open, path: "local://notes.md:1", open: READ })).resolves.toEqual({
+			local: path.join(localRoot, "notes.md:1"),
+		});
 	});
 
 	it("follows a symlink whose literal target is a URL while readlink keeps the link itself", async () => {
+		// Creating symlinks on Windows needs Developer Mode or elevation; the
+		// native `ln -s` the fixture relies on fails without either.
+		if (process.platform === "win32") return;
 		await fs.mkdir(localRoot, { recursive: true });
 		await fs.writeFile(path.join(localRoot, "source.txt"), "source\n");
 		const link = await shellFs().handle({
@@ -104,6 +110,8 @@ describe("InternalUrlFilesystem local://", () => {
 	});
 
 	it("applies the link target's write policy when writing through a URL symlink", async () => {
+		// See the symlink fixture note above: Windows needs elevated symlink rights.
+		if (process.platform === "win32") return;
 		await fs.mkdir(localRoot, { recursive: true });
 		await nativeSymlink("zeta://README.md", path.join(localRoot, "doc"));
 

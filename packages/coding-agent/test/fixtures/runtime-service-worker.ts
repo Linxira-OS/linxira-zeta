@@ -206,10 +206,11 @@ const probe: RuntimeProbe = async (op, ...args) => {
 			return events.splice(0);
 		case "allocate": {
 			const artifacts = artifactManager(args[0]);
-			const ids: number[] = [];
+			const ids: string[] = [];
 			const count = Number(args[1]);
 			for (let i = 0; i < count; i++) {
-				ids.push(artifacts.allocateId());
+				const { id } = await artifacts.allocatePath();
+				ids.push(id);
 				// Interleave with the other worker's allocations.
 				if (i % 5 === 0) await Bun.sleep(0);
 			}
@@ -217,7 +218,7 @@ const probe: RuntimeProbe = async (op, ...args) => {
 		}
 		case "save": {
 			const artifacts = artifactManager(args[0]);
-			const id = await artifacts.save(String(args[1]), "fixture");
+			const id = await artifacts.save(String(args[1]));
 			return { id, dir: artifacts.dir };
 		}
 		case "storage": {

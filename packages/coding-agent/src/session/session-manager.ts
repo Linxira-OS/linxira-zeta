@@ -1148,7 +1148,6 @@ export class SessionManager {
 	#artifactManagerLocalRoot: string | null = null;
 	#adoptedArtifactManager: ArtifactManagerApi | null = null;
 	#inMemoryArtifacts: Map<string, string> | null = null;
-	#inMemoryArtifactCounter = 0;
 
 	#suppressBreadcrumb = false;
 	/**
@@ -2242,7 +2241,6 @@ export class SessionManager {
 		this.#artifactManagerLocalRoot = null;
 		this.#adoptedArtifactManager = null;
 		this.#inMemoryArtifacts = null;
-		this.#inMemoryArtifactCounter = 0;
 
 		if (this.#persist) {
 			this.#sessionFile =
@@ -2369,19 +2367,14 @@ export class SessionManager {
 
 	/**
 	 * The spill manager: the adopted parent's, else one over this session's
-	 * `local://` root — `<session>/local`, or the short temp root when the
-	 * artifact path is too long for Windows. Rebuilt when that root moves.
+	 * `local://` root — `<session>/local`, or the session's temp root when it has
+	 * no session file or the artifact path is too long for Windows. Rebuilt when
+	 * that root moves.
 	 */
-	#artifactManagerForSession(): ArtifactManagerApi | null {
+	#artifactManagerForSession(): ArtifactManagerApi {
 		if (this.#adoptedArtifactManager) return this.#adoptedArtifactManager;
 
 		const sessionFile = this.#sessionFile;
-		if (!sessionFile) {
-			this.#artifactManager = null;
-			this.#artifactManagerLocalRoot = null;
-			return null;
-		}
-
 		const sessionDir = artifactsDirectoryFor(sessionFile);
 		const localRoot = resolveLocalRoot({ getArtifactsDir: () => sessionDir, getSessionId: () => this.#sessionId });
 		if (this.#artifactManager && this.#artifactManagerLocalRoot === localRoot) return this.#artifactManager;
@@ -2390,7 +2383,7 @@ export class SessionManager {
 		this.#artifactManager = new ArtifactManager(
 			localRoot,
 			sessionDir,
-			pendingCopy?.sessionFile === sessionFile ? pendingCopy.done : undefined,
+			sessionFile && pendingCopy?.sessionFile === sessionFile ? pendingCopy.done : undefined,
 		);
 		this.#artifactManagerLocalRoot = localRoot;
 		return this.#artifactManager;
@@ -3466,23 +3459,23 @@ export class SessionManager {
 
 	async allocateArtifactPath(toolType: string): Promise<{ id?: string; path?: string }> {
 		if (this.#released) return {};
-		return (await this.#artifactManagerForSession()?.allocatePath()) ?? {};
+		return this.#artifactManagerForSession().allocatePath();
 	}
 
 	async saveArtifact(content: string, toolType: string): Promise<string | undefined> {
 		if (this.#released) return undefined;
-		const manager = this.#artifactManagerForSession();
-		if (manager) return manager.save(content);
-
-		// Non-persistent session: keep an in-memory copy so spill truncation works.
-		this.#inMemoryArtifacts ??= new Map();
-		const id = String(this.#inMemoryArtifactCounter++);
-		this.#inMemoryArtifacts.set(id, content);
+		const id = await this.#artifactManagerForSession().save(content);
+		// A session without a session file still spills to its tmp local:// root;
+		// keep the bytes addressable through the legacy in-memory artifact API too.
+		if (!this.#sessionFile) {
+			this.#inMemoryArtifacts ??= new Map();
+			this.#inMemoryArtifacts.set(id, content);
+		}
 		return id;
 	}
 
 	async getArtifactPath(id: string): Promise<string | null> {
-		return (await this.#artifactManagerForSession()?.getPath(id)) ?? null;
+		return this.#artifactManagerForSession().getPath(id);
 	}
 
 	/**

@@ -14,6 +14,7 @@ import {
 	getBtwTurns,
 } from "../../session/btw-history";
 import { beginBtwTurn, patchLatestBtwTurn, runBtwTurn } from "../../session/btw-turn";
+import { btwBranchPointCurrent } from "../../session/session-entries";
 import { TRUNCATE_LENGTHS } from "../../utils/render-utils";
 import { copyToClipboard } from "../../utils/clipboard";
 import { BtwHistoryPanel, btwHistorySheet } from "../../ui/overlays/panels/btw-history-panel";
@@ -216,11 +217,8 @@ export class BtwController {
 		if (request.history?.length) return "multi-turn side conversations remain in BTW history";
 		if (!this.#lastQuestion || !this.#lastReplyText || !this.#lastAssistantMessage)
 			return "the answer is unavailable";
-		if (!this.#lastLeafId) return "the session has no branch point";
-		if (
-			this.#lastSessionId !== this.ctx.sessionManager.getSessionId() ||
-			this.#lastLeafId !== this.ctx.sessionManager.getLeafId()
-		)
+		if (!this.#lastLeafId || !this.#lastSessionId) return "the session has no branch point";
+		if (!btwBranchPointCurrent(this.ctx.sessionManager, this.#lastLeafId, this.#lastSessionId))
 			return "the session changed since /btw started";
 		if (this.ctx.session.isStreaming) return "a turn is still running";
 		return undefined;

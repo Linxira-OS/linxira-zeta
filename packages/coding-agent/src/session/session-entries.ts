@@ -550,6 +550,33 @@ export function sessionEntryLeafId(entry: SessionEntry): string | null {
 	return entry.activeLeafId !== undefined ? entry.activeLeafId : entry.id;
 }
 
+/** The slice of a session ledger `/btw` promotion checks before branching. */
+export interface BtwBranchPointLedger {
+	getSessionId(): string;
+	getLeafId(): string | null;
+	getBranch?(fromId?: string): readonly { id: string; type: string }[];
+}
+
+/**
+ * Whether `leafId` is still the conversation's branch point.
+ *
+ * A side-channel `/btw` turn journals its billed completion as a `model_usage`
+ * entry on the main session; the journal entry becomes the active leaf, but it
+ * carries no conversation. Treat that bookkeeping-only advance as unchanged,
+ * while any message, compaction, label, or other entry after `leafId` still
+ * counts as the session moving.
+ */
+export function btwBranchPointCurrent(ledger: BtwBranchPointLedger, leafId: string, sessionId: string): boolean {
+	if (!leafId || ledger.getSessionId() !== sessionId) return false;
+	const leaf = ledger.getLeafId();
+	if (leaf === leafId) return true;
+	if (!leaf || !ledger.getBranch) return false;
+	const path = ledger.getBranch(leaf);
+	const start = path.findIndex(entry => entry.id === leafId);
+	if (start < 0) return false;
+	return path.slice(start + 1).every(entry => entry.type === "model_usage");
+}
+
 /** Newest entry that selects itself on replay; skips late-usage markers. */
 export function lastSelfSelectedLeafId(entries: readonly SessionEntry[]): string | null {
 	for (let index = entries.length - 1; index >= 0; index--) {

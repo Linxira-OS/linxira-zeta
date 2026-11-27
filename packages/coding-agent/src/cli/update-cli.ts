@@ -1082,7 +1082,7 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
  */
 export async function verifyInstalledVersion(expectedVersion: string): Promise<InstalledVersionVerification> {
 	// A fresh lookup: the install may have moved what PATH resolves to (a Windows
-	// shim takeover retires `zetacode.cmd` for `zeta.exe`) since the target was resolved.
+	// shim takeover retires `zetacode.cmd` for `zetacode.exe`) since the target was resolved.
 	const ompPath = $which(CLI_BIN_NAME, { cache: WhichCachePolicy.Fresh }) ?? undefined;
 	if (!ompPath) return { ok: false };
 	const binaryPath = tryRealpath(ompPath) ?? ompPath;
@@ -1946,16 +1946,16 @@ export async function updateViaBinaryAt(
 /**
  * In-place forwarder bodies, by shim extension, for launchers that cannot be
  * renamed aside during a script-shim takeover; each execs the sibling
- * `zeta.exe`. Rewriting matters for the shims that outrank `.exe` at command
+ * `zetacode.exe`. Rewriting matters for the shims that outrank `.exe` at command
  * resolution: PowerShell prefers `.ps1` and Git Bash resolves the
  * extensionless sh shim first, so leaving the old body behind would keep
  * launching the replaced install.
  */
 const SHIM_FORWARDERS: Record<string, string> = {
-	"": `#!/bin/sh\nexec "$(dirname "$0")/${APP_NAME}.exe" "$@"\n`,
-	".cmd": `@"%~dp0${APP_NAME}.exe" %*\r\n`,
-	".bat": `@"%~dp0${APP_NAME}.exe" %*\r\n`,
-	".ps1": `& "$PSScriptRoot\\${APP_NAME}.exe" @args\nexit $LASTEXITCODE\n`,
+	"": `#!/bin/sh\nexec "$(dirname "$0")/${CLI_BIN_NAME}.exe" "$@"\n`,
+	".cmd": `@"%~dp0${CLI_BIN_NAME}.exe" %*\r\n`,
+	".bat": `@"%~dp0${CLI_BIN_NAME}.exe" %*\r\n`,
+	".ps1": `& "$PSScriptRoot\\${CLI_BIN_NAME}.exe" @args\nexit $LASTEXITCODE\n`,
 };
 
 /**
@@ -1963,7 +1963,7 @@ const SHIM_FORWARDERS: Record<string, string> = {
  *
  * npm-managed Windows installs are launched through script shims
  * (`zetacode`/`zetacode.cmd`/`zetacode.ps1`) that cannot be overwritten with a native
- * executable. The release binary is installed as `zeta.exe` beside them and
+ * executable. The release binary is installed as `zetacode.exe` beside them and
  * the shims are then renamed aside: cmd.exe would already prefer `.exe` via
  * PATHEXT, but PowerShell resolves `.ps1` first, so the takeover only sticks
  * once the shims are out of the way. A working launcher exists at every
@@ -1978,7 +1978,7 @@ export async function updateViaShimTakeover(
 	options: BuildDownloadOptions & { verifyBinary?: typeof verifyBinaryAtPath } = {},
 ): Promise<void> {
 	const launcherDir = path.dirname(shimPath);
-	const exePath = path.join(launcherDir, `${APP_NAME}.exe`);
+	const exePath = path.join(launcherDir, `${CLI_BIN_NAME}.exe`);
 	const attempt = `${Date.now()}.${process.pid}.${updateAttemptSeq++}`;
 	const tempPath = `${exePath}.${attempt}.new`;
 	await downloadBuild(build, { basePath: exePath, patchPath: `${exePath}.${attempt}.patch`, tempPath }, options);
@@ -1989,7 +1989,7 @@ export async function updateViaShimTakeover(
 	// never retire the same shims or reclaim a live run's backup before its
 	// verification can roll it back.
 	const verification = await withFileLock(exePath, async () => {
-		console.log(chalk.dim(`Installing ${APP_NAME}.exe beside the script launcher...`));
+		console.log(chalk.dim(`Installing ${CLI_BIN_NAME}.exe beside the script launcher...`));
 		await fs.promises.rename(tempPath, exePath);
 		// Retire the shims so PATH resolution lands on the new exe. Renamed, not
 		// deleted: restorable on verification failure, and Windows permits
@@ -2000,7 +2000,7 @@ export async function updateViaShimTakeover(
 		const backupSuffix = `${attempt}.bak`;
 		const retired: Array<{ launcher: string; backup: string }> = [];
 		for (const ext of ["", ".cmd", ".ps1", ".bat"]) {
-			const launcher = path.join(launcherDir, `${APP_NAME}${ext}`);
+			const launcher = path.join(launcherDir, `${CLI_BIN_NAME}${ext}`);
 			const backup = `${launcher}.${backupSuffix}`;
 			try {
 				await fs.promises.rename(launcher, backup);
@@ -2043,7 +2043,7 @@ export async function updateViaShimTakeover(
 		}
 		// Reclaim exe backups and retired-shim leftovers from earlier attempts.
 		for (const ext of [".exe", "", ".cmd", ".ps1", ".bat"]) {
-			await sweepStaleUpdateArtifacts(path.join(launcherDir, `${APP_NAME}${ext}`));
+			await sweepStaleUpdateArtifacts(path.join(launcherDir, `${CLI_BIN_NAME}${ext}`));
 		}
 		return verification;
 	});
@@ -2299,7 +2299,7 @@ async function runBinaryUpdate(
  * release is binary-only ({@link shouldForceBinaryUpdate}).
  *
  * The launcher is resolved again without package-manager routing: a manager
- * symlink is taken over in place, a Windows script launcher gets `zeta.exe`
+ * symlink is taken over in place, a Windows script launcher gets `zetacode.exe`
  * beside it. The binary is the build service's newest on the channel. A build
  * older than npm's release that would not move the install forward means the
  * release is still uploading, so the update stops instead of reinstalling or

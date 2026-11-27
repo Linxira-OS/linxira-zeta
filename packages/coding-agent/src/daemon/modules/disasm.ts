@@ -1,4 +1,3 @@
-// @ts-nocheck — merge checkpoint: pending OMP 19.1 API migration
 /**
  * `disasm` daemon module: one unit per open disassembler database, shared by every zetacode process.
  *

@@ -19,7 +19,7 @@ import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { RACY_STAMP_WINDOW_MS } from "@linxiraos/zeta/tools/racy-stamp";
 import * as toolTimeouts from "@linxiraos/zeta/tools/tool-timeouts";
 import { WriteTool } from "@linxiraos/zeta/tools/write";
-import { $which, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { $which, removeSyncWithRetries, Snowflake, spillFileName, spillUrl } from "@linxiraos/pi-utils";
 import { openArchive, readArchiveEntries } from "@linxiraos/pi-utils/ar";
 import { GlobTool } from "../src/tools/glob";
 import { DEFAULT_FILE_LIMIT, GrepTool, MULTI_FILE_PER_FILE_MATCHES } from "../src/tools/grep";
@@ -524,10 +524,10 @@ function createTestToolSession(
 		getSessionFile: () => sessionFile,
 		getSessionSpawns: () => "*",
 		getArtifactsDir: () => sessionDir,
-		allocateOutputArtifact: async (toolType: string) => {
-			fs.mkdirSync(sessionDir, { recursive: true });
+		allocateOutputArtifact: async () => {
+			fs.mkdirSync(path.join(sessionDir, "local"), { recursive: true });
 			const id = String(++artifactCounter);
-			return { id, path: path.join(sessionDir, `${id}.${toolType}.log`) };
+			return { id, path: path.join(sessionDir, "local", spillFileName(id)) };
 		},
 		settings,
 		...overrides,
@@ -763,7 +763,7 @@ describe("Coding Agent Tools", () => {
 			expect(output).toContain("Line 1");
 			expect(output).toContain(`Line ${defaultLimit}`);
 			expect(output).not.toContain(`Line ${defaultLimit + 1}`);
-			expect(output).toContain(`[Showing lines 1-${defaultLimit} of 3500. Use :${defaultLimit + 1} to continue]`);
+			expect(output).toContain(`[Showing lines 1-${defaultLimit} of 3500. Use :${defaultLimit + 1}- to continue]`);
 		});
 
 		it("applies a read.defaultLimit change made after the tool was built", async () => {
@@ -792,7 +792,7 @@ describe("Coding Agent Tools", () => {
 
 			expect(output).toContain("Line 1:");
 			// Should show byte limit message
-			expect(output).toMatch(/\[Showing lines 1-\d+ of 1000 \(\d+(\.\d+)?\s*KB limit\)\. Use :\d+ to continue\]/);
+			expect(output).toMatch(/\[Showing lines 1-\d+ of 1000 \(\d+(\.\d+)?\s*KB limit\)\. Use :\d+- to continue\]/);
 		});
 
 		it("should handle offset parameter (with leading context expansion)", async () => {
@@ -800,7 +800,7 @@ describe("Coding Agent Tools", () => {
 			const lines = Array.from({ length: 100 }, (_, i) => `Line ${i + 1}`);
 			fs.writeFileSync(testFile, lines.join("\n"));
 
-			const result = await readTool.execute("test-call-5", { path: `${testFile}:L51` });
+			const result = await readTool.execute("test-call-5", { path: `${testFile}:L51-` });
 			const output = getTextOutput(result);
 
 			// Read tool widens by 1 leading + 3 trailing unanchored context lines
@@ -828,7 +828,7 @@ describe("Coding Agent Tools", () => {
 			expect(output).toContain("Line 10");
 			expect(output).toContain("Line 13");
 			expect(output).not.toContain("Line 14");
-			expect(output).toContain("[Showing lines 1-13 of 100. Use :14 to continue]");
+			expect(output).toContain("[Showing lines 1-13 of 100. Use :14- to continue]");
 		});
 
 		it("does not expand on the leading side when offset is 1 or unspecified", async () => {
@@ -847,7 +847,7 @@ describe("Coding Agent Tools", () => {
 			expect(output).toContain("Line 5");
 			expect(output).toContain("Line 8");
 			expect(output).not.toContain("Line 9");
-			expect(output).toContain("[Showing lines 1-8 of 50. Use :9 to continue]");
+			expect(output).toContain("[Showing lines 1-8 of 50. Use :9- to continue]");
 		});
 
 		it("clamps leading context at file start without errors", async () => {
@@ -885,7 +885,7 @@ describe("Coding Agent Tools", () => {
 			expect(output).toContain("Line 60");
 			expect(output).toContain("Line 63");
 			expect(output).not.toContain("Line 64");
-			expect(output).toContain("[Showing lines 40-63 of 100. Use :64 to continue]");
+			expect(output).toContain("[Showing lines 40-63 of 100. Use :64- to continue]");
 		});
 
 		it("should show error when offset is beyond file length", async () => {
@@ -896,7 +896,7 @@ describe("Coding Agent Tools", () => {
 			const output = getTextOutput(result);
 
 			expect(output).toContain("Line 100 is beyond end of file (3 lines total)");
-			expect(output).toContain("Use :1 to read from the start, or :3 to read the last line.");
+			expect(output).toContain("Use :1- to read from the start, or :3 to read the last line.");
 		});
 
 		it("should refuse binary files (NUL or invalid UTF-8) instead of emitting mojibake", async () => {
@@ -980,7 +980,7 @@ describe("Coding Agent Tools", () => {
 			const output = getTextOutput(result);
 
 			expect(output).toContain("not scanned to EOF");
-			expect(output).toContain("Use :7 to continue");
+			expect(output).toContain("Use :7- to continue");
 			expect(output).not.toMatch(/\[Showing lines 1-6 of \d+/);
 			expect(result.details?.meta?.truncation).toBeUndefined();
 			expect(result.details?.truncation).toBeUndefined();
@@ -1006,12 +1006,12 @@ describe("Coding Agent Tools", () => {
 			expect(output).not.toContain("Showing line 1");
 		});
 
-		it("raw tail selects the last two addressable lines, not the terminal newline", async () => {
+		it("raw tail selects the last two addressable lines verbatim, with no empty line after them", async () => {
 			const testFile = path.join(testDir, "tail-raw.txt");
 			fs.writeFileSync(testFile, "alpha\nbeta\ngamma\n");
 
 			const raw = getTextOutput(await readTool.execute("test-tail-raw", { path: `${testFile}:raw:-2` }));
-			expect(raw).toBe("beta\ngamma");
+			expect(raw).toBe("beta\ngamma\n");
 
 			const clamped = getTextOutput(await readTool.execute("test-tail-clamp", { path: `${testFile}:-50` }));
 			expect(clamped).toContain("alpha");
@@ -1053,7 +1053,7 @@ describe("Coding Agent Tools", () => {
 			expect(output).toContain("[Showing lines 2-2 of 4 (50.0KB limit)]");
 			expect(output).toContain("Line 3 is 60.0KB");
 			expect(output).toContain("artifact://7:raw:3-3");
-			expect(output).not.toContain("Use :3 to continue");
+			expect(output).not.toContain("Use :3- to continue");
 		});
 
 		it("pages oversized file reads at the spill threshold instead of eliding their middle (#16277)", async () => {
@@ -1105,7 +1105,7 @@ describe("Coding Agent Tools", () => {
 					expect(truncation.outputBytes).toBeLessThanOrEqual(20 * 1024);
 					for (let n = firstRow; n <= lastRow; n++) expect(output).toContain(row(n));
 					expect(output).not.toContain(row(lastRow + 1));
-					expect(output).toContain(`Use :${truncation.nextOffset} to continue`);
+					expect(output).toContain(`Use :${truncation.nextOffset}- to continue`);
 
 					// The named continuation picks up exactly where the page stopped.
 					const next = getTextOutput(
@@ -1162,7 +1162,7 @@ describe("Coding Agent Tools", () => {
 				const nextOffset = page.details?.meta?.truncation?.nextOffset;
 				expect(page.details?.meta?.truncation?.artifactId).toBeUndefined();
 				expect(getTextOutput(page)).not.toContain("elided");
-				expect(getTextOutput(page)).toContain(`Use :${nextOffset} to continue`);
+				expect(getTextOutput(page)).toContain(`Use :${nextOffset}- to continue`);
 
 				// Block context is unbounded by the line budget, so that page still spills.
 				const closers = await read(`${nested}:${depth + 1}-${depth * 2}`);
@@ -1173,7 +1173,7 @@ describe("Coding Agent Tools", () => {
 			}
 		});
 
-		it("bounds oversized URL reads like plain files, except pages of artifact storage", async () => {
+		it("bounds oversized URL reads like plain files, except pages of local:// files", async () => {
 			const payload = Array.from({ length: 3000 }, (_, index) => `payload line ${index}`).join("\n");
 			const skillDir = path.join(testDir, "skills", "demo");
 			fs.mkdirSync(skillDir, { recursive: true });
@@ -1229,25 +1229,23 @@ describe("Coding Agent Tools", () => {
 					expect(Buffer.byteLength(output, "utf-8")).toBeLessThan(20 * 1024);
 				}
 				// Line pages of a URL-located file stop at the threshold and name their continuation.
-				for (const url of ["local://big.md:1-3000", "agent://Lines:1-3000"]) {
+				for (const url of ["agent://Lines:1-3000"]) {
 					const result = await spillReadTool.execute(`page-${url}`, { path: url }, undefined, undefined, context);
 					const truncation = result.details?.meta?.truncation;
 					expect(truncation?.artifactId).toBeUndefined();
 					expect(truncation?.outputBytes).toBeLessThanOrEqual(20 * 1024);
-					expect(getTextOutput(result)).toContain(`Use :${truncation?.nextOffset} to continue`);
+					expect(getTextOutput(result)).toContain(`Use :${truncation?.nextOffset}- to continue`);
 				}
 
+				// local:// files (spills included) are re-readable with selectors: a page keeps
+				// the full budget and is never copied into another spill.
 				const artifactId = await spillManager.saveArtifact(payload, "read");
 				const saveArtifact = vi.spyOn(spillManager, "saveArtifact");
-				const artifactPage = await spillReadTool.execute(
-					"spill-artifact-page",
-					{ path: `artifact://${artifactId}:1-3000` },
-					undefined,
-					undefined,
-					context,
-				);
-				expect(artifactPage.details?.meta?.truncation?.artifactId).toBeUndefined();
-				expect(getTextOutput(artifactPage)).toContain("payload line 2999");
+				for (const url of [`${spillUrl(artifactId!)}:1-3000`, "local://big.md:1-3000"]) {
+					const page = await spillReadTool.execute(`page-${url}`, { path: url }, undefined, undefined, context);
+					expect(page.details?.meta?.truncation?.artifactId).toBeUndefined();
+					expect(getTextOutput(page)).toContain("payload line 2999");
+				}
 				expect(saveArtifact).not.toHaveBeenCalled();
 			} finally {
 				await spillManager.close();
@@ -1321,11 +1319,8 @@ describe("Coding Agent Tools", () => {
 					mimeType: image.mimeType,
 				});
 
-				const artifactPath = path.join(
-					spillManager.getArtifactsDir()!,
-					`${truncation.artifactId}.mcp__server__tool.log`,
-				);
-				expect(await Bun.file(artifactPath).text()).toBe(payload);
+				const artifactPath = await spillManager.getArtifactPath(truncation.artifactId!);
+				expect(await Bun.file(artifactPath!).text()).toBe(payload);
 			} finally {
 				await spillManager.close();
 			}
@@ -2597,7 +2592,7 @@ function b() {
 			const artifactId = result.details?.meta?.truncation?.artifactId;
 			expect(artifactId).toBeDefined();
 			if (artifactId) {
-				const artifactPath = path.join(testDir, "session", `${artifactId}.bash.log`);
+				const artifactPath = path.join(testDir, "session", "local", spillFileName(artifactId));
 				expect(fs.existsSync(artifactPath)).toBe(true);
 			}
 		});

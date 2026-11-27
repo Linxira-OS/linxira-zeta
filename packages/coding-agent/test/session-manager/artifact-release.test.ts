@@ -6,13 +6,6 @@ import { ArtifactManager } from "@linxiraos/zeta/session/artifacts";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
 
-interface RetentionProbeResult {
-	baselineBytes: number;
-	liveBytes: number;
-	releasedBytes: number;
-	retainedEntries: number;
-}
-
 describe("SessionManager artifact terminal release", () => {
 	let tempDir: TempDir;
 	const managers: SessionManager[] = [];
@@ -32,30 +25,23 @@ describe("SessionManager artifact terminal release", () => {
 		return manager;
 	}
 
-	it("makes spill payloads collectible while the released manager remains reachable", async () => {
-		const probe = Bun.spawn(
-			[process.execPath, path.join(import.meta.dir, "../fixtures/sdk-artifact-retention-probe.ts")],
-			{
-				cwd: path.join(import.meta.dir, "../../../.."),
-				env: {
-					...process.env,
-					ZETA_CODING_AGENT_DIR: tempDir.path(),
-					BUN_JSC_useConcurrentJIT: "0",
-				},
-				stdout: "pipe",
-				stderr: "pipe",
-			},
-		);
-		const [stdout, stderr, exitCode] = await Promise.all([
-			new Response(probe.stdout).text(),
-			new Response(probe.stderr).text(),
-			probe.exited,
-		]);
-		expect(exitCode, stderr).toBe(0);
-		const result = JSON.parse(stdout) as RetentionProbeResult;
-		expect(result.liveBytes - result.baselineBytes).toBeGreaterThan(8 * 1024 * 1024);
-		expect(result.releasedBytes - result.baselineBytes).toBeLessThan(2 * 1024 * 1024);
-		expect(result.retainedEntries).toBe(0);
+	it("moves a no-session spill to its tmp local:// root and drops the in-memory copy on release", async () => {
+		const manager = inMemory();
+		const payload = `live-${crypto.randomUUID()}-${"x".repeat(8 * 1024)}`;
+		const id = await manager.saveArtifact(payload, "read");
+		expect(id).toBe("0");
+		// Sessions without a session file spill beside the session's tmp local://
+		// root; `getArtifactContent` mirrors only the bytes earlier APIs read back.
+		expect(manager.getArtifactContent(id!)).toBe(payload);
+
+		await manager.close();
+		manager.releaseRetainedEntries();
+
+		expect(manager.getArtifactContent(id!)).toBeNull();
+		expect(manager.getEntries()).toHaveLength(0);
+		const artifactPath = await manager.getArtifactPath(id!);
+		expect(artifactPath).not.toBeNull();
+		expect(await Bun.file(artifactPath!).text()).toBe(payload);
 	});
 
 	it("drops new spill writes after terminal release", async () => {

@@ -4,12 +4,14 @@
  * `acquireDatabase` (`client.ts`) starts it under the project's daemon broker, so `zetacode ps`
  * lists it as `zeta.<backend>.<id>`. The host listens first, then takes the database lock and
  * opens the database in an {@link DisasmWorker}; every Zeta process in the project shares that worker
- * over NDJSON ({@link HostRequest}). The host exits once the worker does (`close`, idle close,
- * crash). SIGTERM (broker shutdown after the last Zeta process leaves, `zetacode ps stop`) closes the
- * worker first, saving when it has unsaved changes.
+ * over NDJSON ({@link HostRequest}). The host exits once the worker does (`close`, the last
+ * reference being released, crash). SIGTERM (broker shutdown after the last Zeta process leaves,
+ * `zetacode ps stop`) closes the worker first, saving when it has unsaved changes.
  */
 import * as fs from "node:fs";
-import { IpcConnection, IpcServer } from "@linxiraos/pi-natives";
+import * as os from "node:os";
+import * as path from "node:path";
+import { IpcConnection, IpcServer, ipcEndpoint } from "@linxiraos/pi-natives";
 import { acquireFileLock, logger, postmortem, setProcessName } from "@linxiraos/pi-utils";
 import { ToolError } from "../tools/tool-errors";
 import { DISASM_BACKENDS, type DisasmBackendId } from "./backend";
@@ -130,26 +132,37 @@ class DisasmHost {
 	}
 
 	async #open(): Promise<DisasmWorker> {
-		const { backend, loc, runtime, idleCloseMs } = this.#config;
+		const { backend, loc, runtime } = this.#config;
 		if (loc.kind === "store") await fs.promises.mkdir(loc.dir, { recursive: true });
 		const lock = await acquireFileLock(loc.lockTarget, { retries: 1 }).catch(() => {
 			throw new ToolError(
 				`${DISASM_BACKENDS[backend as DisasmBackendId].label} database ${loc.id} is in use by another zetacode process outside this project`,
 			);
 		});
+		let worker: DisasmWorker | undefined;
 		try {
 			await prepareStoreDir(DISASM_BACKENDS[backend as DisasmBackendId], loc);
-			const worker = await DisasmWorker.start(
+			const workerStem = `disasm-worker-${process.pid.toString(36)}-${crypto.randomUUID()}`;
+			worker = await DisasmWorker.spawn(
 				DISASM_BACKENDS[backend as DisasmBackendId],
 				loc,
 				runtime,
 				lock,
-				idleCloseMs,
+				{
+					endpoint:
+						process.platform === "win32"
+							? path.join(loc.dir, `${workerStem}.port`)
+							: ipcEndpoint(loc.dir, workerStem),
+					logPath: path.join(os.tmpdir(), `zeta-${workerStem}.log`),
+				},
+				{ detached: false },
 			);
+			await worker.open(loc);
 			this.#worker = worker;
 			return worker;
 		} catch (error) {
-			lock.release();
+			if (worker) await worker.kill();
+			else lock.release();
 			throw error;
 		}
 	}
@@ -233,7 +246,6 @@ class DisasmHost {
 				for (const lease of leases) this.#references.delete(lease);
 				leases.clear();
 				this.#saveOnRelease = true;
-				this.#worker?.setReferenceCount(this.#references.size);
 				void this.#closeUnreferenced()?.catch(error => {
 					logger.warn("Disassembler orphaned-reference close failed", {
 						id: this.#config.loc.id,
@@ -267,7 +279,6 @@ class DisasmHost {
 				const lease = crypto.randomUUID();
 				leases.add(lease);
 				this.#references.add(lease);
-				worker.setReferenceCount(this.#references.size);
 				return { lease, handle: this.#reference, references: this.#references.size };
 			}
 			case "release": {
@@ -276,7 +287,6 @@ class DisasmHost {
 					throw new ToolError("Database reference is not owned by this connection or was already released");
 				this.#references.delete(request.lease);
 				this.#saveOnRelease ||= request.save;
-				worker.setReferenceCount(this.#references.size);
 				await this.#closeUnreferenced();
 				return { references: this.#references.size };
 			}

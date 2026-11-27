@@ -1,6 +1,5 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import { describe, expect, it } from "bun:test";
-import { getEvalDocTopics } from "../../src/tools/eval";
+import { getEvalDocTopics } from "../../src/tools/eval-doc-topics";
 
 describe("eval agents topic", () => {
 	it("advertises the first allowed spawn as the agent() default", () => {

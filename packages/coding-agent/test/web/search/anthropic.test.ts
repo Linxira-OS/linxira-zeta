@@ -139,12 +139,12 @@ describe("Anthropic search request body", () => {
 		}
 	});
 
-	it("maps site: to allowed_domains and strips the directive from the query", async () => {
+	it("maps site: to allowed_domains and keeps the query text intact for the model", async () => {
 		const fixture = createFixture();
 		try {
 			const cap = makeCaptureFetch();
 			await searchAnthropic({
-				query: "sdk docs site:docs.anthropic.com",
+				query: 'site:github.com/asmvik/yabai/blob/master/src/window.c "window_create"',
 				systemPrompt: "Use web search.",
 				sessionId: "session-2295",
 				authStorage: fixture.authStorage,
@@ -155,10 +155,10 @@ describe("Anthropic search request body", () => {
 
 			const body = cap.body();
 			const tool = (body?.tools as Record<string, unknown>[] | undefined)?.[0];
-			expect(tool?.allowed_domains).toEqual(["docs.anthropic.com"]);
+			expect(tool?.allowed_domains).toEqual(["github.com"]);
 			expect(tool).not.toHaveProperty("blocked_domains");
 			const messages = body?.messages as { content: string }[];
-			expect(messages[0]?.content).toBe("sdk docs");
+			expect(messages[0]?.content).toBe('site:github.com/asmvik/yabai/blob/master/src/window.c "window_create"');
 		} finally {
 			fixture.authStorage.close();
 		}
@@ -183,7 +183,7 @@ describe("Anthropic search request body", () => {
 			expect(tool?.blocked_domains).toEqual(["reddit.com"]);
 			expect(tool).not.toHaveProperty("allowed_domains");
 			const messages = body?.messages as { content: string }[];
-			expect(messages[0]?.content).toBe("rust async runtime");
+			expect(messages[0]?.content).toBe("rust async runtime -site:reddit.com");
 		} finally {
 			fixture.authStorage.close();
 		}

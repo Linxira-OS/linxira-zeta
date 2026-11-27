@@ -181,9 +181,9 @@ async function createPrFixture(): Promise<PrCheckoutFixture> {
 	runGit(repoRoot, ["remote", "set-url", "forksrc", forkBare]);
 
 	const worktreesDir = path.join(baseDir, "worktrees");
-	const previousWorktreesDir = process.env.OMP_WORKTREE_DIR;
+	const previousWorktreesDir = process.env.ZETA_WORKTREE_DIR;
 	const previousCacheDb = process.env.OMP_GITHUB_CACHE_DB;
-	process.env.OMP_WORKTREE_DIR = worktreesDir;
+	process.env.ZETA_WORKTREE_DIR = worktreesDir;
 	process.env.OMP_GITHUB_CACHE_DB = path.join(baseDir, "github-cache.db");
 	resetGithubCache();
 
@@ -201,8 +201,8 @@ async function createPrFixture(): Promise<PrCheckoutFixture> {
 			// A real pr_push opens the cache singleton to invalidate PR rows.
 			// Close its SQLite handle before removing the fixture on Windows.
 			resetGithubCache();
-			if (previousWorktreesDir === undefined) delete process.env.OMP_WORKTREE_DIR;
-			else process.env.OMP_WORKTREE_DIR = previousWorktreesDir;
+			if (previousWorktreesDir === undefined) delete process.env.ZETA_WORKTREE_DIR;
+			else process.env.ZETA_WORKTREE_DIR = previousWorktreesDir;
 			if (previousCacheDb === undefined) delete process.env.OMP_GITHUB_CACHE_DB;
 			else process.env.OMP_GITHUB_CACHE_DB = previousCacheDb;
 			await removeWithRetries(baseDir);

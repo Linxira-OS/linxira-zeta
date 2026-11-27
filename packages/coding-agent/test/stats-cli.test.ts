@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as statsCli from "../src/cli/stats-cli";
 import Stats from "../src/commands/stats";
 import * as themeService from "../src/ui/theme/service";
-import { parseStatsDashboardArgs } from "../src/slash-commands/helpers/stats-dashboard";
+import { DEFAULT_STATS_DASHBOARD_PORT, parseStatsDashboardArgs } from "../src/slash-commands/helpers/stats-dashboard";
 
 const TEST_CONFIG = { bin: "omp", version: "0.0.0-test", commands: new Map() };
 
@@ -27,7 +27,10 @@ describe("stats dashboard host arguments", () => {
 	});
 
 	it("keeps the slash command loopback-only unless a host is requested", () => {
-		expect(parseStatsDashboardArgs("")).toEqual({ port: 3847, host: "127.0.0.1" });
-		expect(parseStatsDashboardArgs("--host 0.0.0.0")).toEqual({ port: 3847, host: "0.0.0.0" });
+		expect(parseStatsDashboardArgs("")).toEqual({ port: DEFAULT_STATS_DASHBOARD_PORT, host: "127.0.0.1" });
+		expect(parseStatsDashboardArgs("--host 0.0.0.0")).toEqual({
+			port: DEFAULT_STATS_DASHBOARD_PORT,
+			host: "0.0.0.0",
+		});
 	});
 });

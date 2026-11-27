@@ -218,7 +218,7 @@ describe("Hindsight retain outbox", () => {
 		const dir = path.dirname((await eventFiles())[0]);
 		await Promise.all(
 			Array.from({ length: 998 }, (_, index) =>
-				Bun.write(path.join(dir, `zetacode-retain-${index.toString(16).padStart(32, "0")}.json`), "{}"),
+				Bun.write(path.join(dir, `zeta-retain-${index.toString(16).padStart(32, "0")}.json`), "{}"),
 			),
 		);
 		await expect(
@@ -513,7 +513,7 @@ describe("Hindsight retain outbox", () => {
 		const foreignFile = path.join(foreignDir, path.basename(ownFile));
 		await fs.mkdir(foreignDir);
 		await fs.rename(ownFile, foreignFile);
-		const malformed = path.join(path.dirname(ownFile), `zetacode-retain-${"f".repeat(32)}.json`);
+		const malformed = path.join(path.dirname(ownFile), `zeta-retain-${"f".repeat(32)}.json`);
 		await Bun.write(malformed, "{");
 
 		await state.flushRetainQueue();

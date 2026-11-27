@@ -615,6 +615,7 @@ test.each(["close", "revoke", "expiry", "disconnect", "dispose", "selection"] as
 		const tab = {
 			name: `view-${session.sessionId}`,
 			backend: "worker",
+			browser: { browser: { connected: false } },
 			state: "alive",
 			pending: new Map(),
 			info: { title: "Owned", url: "about:blank" },

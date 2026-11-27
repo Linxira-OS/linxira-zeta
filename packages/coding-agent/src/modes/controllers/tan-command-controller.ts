@@ -102,7 +102,11 @@ export class TanCommandController {
 		const parentMnemopiSessionState = session.getMnemopiSessionState?.();
 		const toolNames = session.getEnabledToolNames();
 		const activeToolNames = session.getActiveToolNames();
-		const mountedToolNames = session.getMountedXdevToolNames();
+		// A session presents discoverable tools either as xd:// devices or as bash
+		// tool commands; both are "mounted" and must survive the fork verbatim.
+		const mountedToolNames = [
+			...new Set([...session.getMountedXdevToolNames(), ...(session.getMountedToolCommandNames?.() ?? [])]),
+		];
 		const modelRegistry = session.modelRegistry;
 		// Snapshot the parent's rebindable extensions and root policy at dispatch.
 		// The child rebinds these (skipping discovery) so it re-registers the
@@ -228,7 +232,12 @@ export class TanCommandController {
 							systemPrompt: clone.systemPrompt ?? systemPrompt,
 							task: trimmedWork,
 							tools: clone.getEnabledToolNames(),
-							mountedTools: clone.getMountedXdevToolNames(),
+							mountedTools: [
+								...new Set([
+									...clone.getMountedXdevToolNames(),
+									...(clone.getMountedToolCommandNames?.() ?? []),
+								]),
+							],
 						});
 						const abortClone = () => {
 							void clone?.abort();

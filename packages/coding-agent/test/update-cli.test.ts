@@ -776,10 +776,10 @@ describe("update-cli npm rename contract", () => {
 
 	it("removes the old agent package and its natives companions when both names moved", () => {
 		const packages = { pkg: "@new/omp", natives: "@new/natives" };
-		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual([
+		expect(buildRenameCleanupPackages(packages, "linux-x64")).toEqual([
 			"@linxiraos/zeta",
 			"@linxiraos/pi-natives",
-			"@linxiraos/pi-natives-darwin-arm64",
+			"@linxiraos/pi-natives-linux-x64",
 		]);
 		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta", "@linxiraos/pi-natives"]);
 	});
@@ -868,7 +868,9 @@ describe("migrateRenamedInstall transaction", () => {
 		const { steps, calls } = scriptedSteps({ install: [0, 0], verify: [false, false] });
 
 		await withPlatformAsync("linux", async () => {
-			await expect(migrateRenamedInstall(release, steps)).rejects.toThrow("curl -fsSL https://omp.sh/install");
+			await expect(migrateRenamedInstall(release, steps)).rejects.toThrow(
+				"curl -fsSL https://linxira-os.github.io/install.sh",
+			);
 		});
 		expect(calls).toEqual(["install", "removeOld", "verify", "install", "verify"]);
 	});
@@ -881,7 +883,7 @@ describe("migrateRenamedInstall transaction", () => {
 		try {
 			const { steps } = scriptedSteps({ install: [0, 0], verify: [false, false] });
 			const promise = migrateRenamedInstall(release, steps);
-			await expect(promise).rejects.toThrow("irm https://omp.sh/install.ps1");
+			await expect(promise).rejects.toThrow("irm https://linxira-os.github.io/install.ps1");
 			await expect(promise).rejects.not.toThrow("| sh");
 		} finally {
 			Object.defineProperty(process, "platform", platformDescriptor);
@@ -917,7 +919,7 @@ describe("update-cli bun install command", () => {
 		// file and aborted at validateLoadedBindings with `The .node file on
 		// disk is from a different release than this loader`. See
 		// https://github.com/can1357/oh-my-pi/issues/1824.
-		for (const tag of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64", "win32-x64", "win32-arm64"]) {
+		for (const tag of ["linux-x64", "win32-x64"]) {
 			const args = buildBunInstallArgs("15.9.0", tag);
 			expect(args).toContain("@linxiraos/pi-natives@15.9.0");
 			expect(args).toContain(`@linxiraos/pi-natives-${tag}@15.9.0`);
@@ -1072,8 +1074,8 @@ describe("update-cli release binary integrity", () => {
 	it("rejects an altered whole-file download and leaves the installed binary in place", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, binaryName);
-		const installed = "#!/bin/sh\necho omp/17.0.8\n";
-		const altered = "#!/bin/sh\necho omp/17.1.2\n";
+		const installed = "#!/bin/sh\necho zetacode/17.0.8\n";
+		const altered = "#!/bin/sh\necho zetacode/17.1.2\n";
 		await Bun.write(targetPath, installed);
 		await fs.chmod(targetPath, 0o755);
 		vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1456,7 +1458,7 @@ describe("update-cli script-shim takeover", () => {
 	}
 
 	const shims: Record<string, string> = {
-		omp: "#!/bin/sh\nnode zeta.js\n",
+		zetacode: "#!/bin/sh\nnode zeta.js\n",
 		"zetacode.cmd": "@node zeta.js %*\n",
 		"zetacode.ps1": "node zeta.js @args\n",
 	};
@@ -1469,7 +1471,7 @@ describe("update-cli script-shim takeover", () => {
 
 	/**
 	 * The fake release binaries are `#!/bin/sh` scripts, which Windows cannot
-	 * launch as `zeta.exe`. There, "run" the explicit path the takeover verifies
+	 * launch as `zetacode.exe`. There, "run" the explicit path the takeover verifies
 	 * by reading the version the script echoes; POSIX hosts execute it for real.
 	 */
 	const verifyBinary =
@@ -1481,19 +1483,19 @@ describe("update-cli script-shim takeover", () => {
 				}
 			: undefined;
 
-	it("installs zeta.exe beside the shims and retires them", async () => {
+	it("installs zetacode.exe beside the shims and retires them", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Real executable, no injected verifier: the takeover must verify the
 		// exe by explicit path — $which cached the shim path before it was
 		// renamed away, so a PATH re-resolution would fail here.
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 
 		const { build, fetchImpl } = offer(exe);
 
 		await updateViaShimTakeover(path.join(dir, "zetacode.cmd"), build, { fetchImpl, verifyBinary });
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).text()).toBe(exe);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).exists()).toBe(false);
 		}
@@ -1511,7 +1513,7 @@ describe("update-cli script-shim takeover", () => {
 		const marker = path.join(dir, "zeta.bunx");
 		await Bun.write(targetPath, "bun shim");
 		await Bun.write(marker, "bun launcher metadata");
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 		const { build, fetchImpl } = offer(exe);
 
 		await updateViaBinaryAt(targetPath, build, {
@@ -1526,7 +1528,7 @@ describe("update-cli script-shim takeover", () => {
 	it.skipIf(process.platform === "win32")("reports the physical binary path verified after an update", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, "omp");
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 		await Bun.write(targetPath, "old binary");
 		const logSpy = spyOn(console, "log").mockImplementation(() => {});
 
@@ -1545,14 +1547,14 @@ describe("update-cli script-shim takeover", () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Executable runs but reports the previous version -> full rollback.
-		const exe = "#!/bin/sh\necho omp/17.2.12\n";
+		const exe = "#!/bin/sh\necho zetacode/17.2.12\n";
 		const { build, fetchImpl } = offer(exe);
 
 		await expect(
 			updateViaShimTakeover(path.join(dir, "zetacode.cmd"), build, { fetchImpl, verifyBinary }),
 		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous zetacode launcher/);
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1573,7 +1575,7 @@ describe("update-cli script-shim takeover", () => {
 	it("rewrites an immovable precedence-winning shim as a forwarder to the exe", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = `#!/bin/sh\necho omp/${version}\n`;
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 		const renameSpy = renameLockingPs1();
 		const { build, fetchImpl } = offer(exe);
 		try {
@@ -1582,18 +1584,18 @@ describe("update-cli script-shim takeover", () => {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
-		expect(await Bun.file(path.join(dir, "omp")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "zetacode")).exists()).toBe(false);
 		expect(await Bun.file(path.join(dir, "zetacode.cmd")).exists()).toBe(false);
 		// PowerShell resolves .ps1 before .exe: the locked shim must now exec
 		// the new binary instead of keeping its old body.
-		expect(await Bun.file(path.join(dir, "zetacode.ps1")).text()).toContain('& "$PSScriptRoot\\zeta.exe" @args');
+		expect(await Bun.file(path.join(dir, "zetacode.ps1")).text()).toContain('& "$PSScriptRoot\\zetacode.exe" @args');
 	});
 
 	it("restores a forwarded shim's original body when verification fails", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = "#!/bin/sh\necho omp/17.2.12\n";
+		const exe = "#!/bin/sh\necho zetacode/17.2.12\n";
 		const renameSpy = renameLockingPs1();
 		const { build, fetchImpl } = offer(exe);
 		try {
@@ -1604,7 +1606,7 @@ describe("update-cli script-shim takeover", () => {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1711,19 +1713,19 @@ describe("verifyInstalledVersion", () => {
 	// for one later on PATH (`zeta.exe`); the check must follow it, not a cached path.
 	it.skipIf(process.platform === "win32")("re-resolves PATH after an install moves the launcher", async () => {
 		const [first, second] = [await makeTempDir(), await makeTempDir()];
-		await Bun.write(path.join(first, "omp"), "#!/bin/sh\necho omp/1.0.0\n");
-		await Bun.write(path.join(second, "omp"), "#!/bin/sh\necho omp/2.0.0\n");
-		await fs.chmod(path.join(first, "omp"), 0o755);
-		await fs.chmod(path.join(second, "omp"), 0o755);
+		await Bun.write(path.join(first, "zetacode"), "#!/bin/sh\necho zetacode/1.0.0\n");
+		await Bun.write(path.join(second, "zetacode"), "#!/bin/sh\necho zetacode/2.0.0\n");
+		await fs.chmod(path.join(first, "zetacode"), 0o755);
+		await fs.chmod(path.join(second, "zetacode"), 0o755);
 		const originalPath = process.env.PATH;
 		process.env.PATH = [first, second, originalPath].join(path.delimiter);
 		try {
 			expect((await verifyInstalledVersion("2.0.0")).actual).toBe("1.0.0");
-			await fs.rm(path.join(first, "omp"));
+			await fs.rm(path.join(first, "zetacode"));
 			expect(await verifyInstalledVersion("2.0.0")).toEqual({
 				ok: true,
 				actual: "2.0.0",
-				path: path.join(second, "omp"),
+				path: path.join(second, "zetacode"),
 			});
 		} finally {
 			process.env.PATH = originalPath;

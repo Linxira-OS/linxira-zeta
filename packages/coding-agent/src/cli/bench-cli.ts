@@ -1228,8 +1228,13 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 			process.exitCode = code;
 		});
 	const upstreamStreamFn = deps.streamSimple ?? streamSimple;
-	const baseStreamFn: StreamSimpleFn = (model, context, options) =>
-		upstreamStreamFn(model, context, { ...options, signal: deps.signal ?? options?.signal });
+	const baseStreamFn: StreamSimpleFn = (model, context, options) => {
+		// A cancelled Studio evaluation must not schedule another provider request:
+		// providers that only react to a later `abort` event would leave the run
+		// (and the coordinator awaiting it) pending forever.
+		deps.signal?.throwIfAborted();
+		return upstreamStreamFn(model, context, { ...options, signal: deps.signal ?? options?.signal });
+	};
 	const now = deps.now ?? (() => performance.now());
 	const interactive = deps.stdoutIsTTY ?? process.stdout.isTTY === true;
 	if (command.models.length === 0) {
