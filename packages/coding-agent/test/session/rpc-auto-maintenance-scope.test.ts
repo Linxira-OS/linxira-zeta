@@ -233,9 +233,16 @@ describe("AgentSession auto-maintenance controls and cache-warming retention", (
 		expect(entries).toHaveLength(1);
 		expect(entries[0]?.purpose).toBe("cache-warm");
 		expect(events).toEqual([
-			{ type: "cache_warming_start", phase: "streaming", provider: model.provider, model: model.id },
+			{
+				type: "cache_warming_start",
+				method: "prewarm",
+				phase: "streaming",
+				provider: model.provider,
+				model: model.id,
+			},
 			{
 				type: "cache_warming_end",
+				method: "prewarm",
 				phase: "streaming",
 				provider: model.provider,
 				model: model.id,

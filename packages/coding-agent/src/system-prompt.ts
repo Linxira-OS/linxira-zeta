@@ -24,6 +24,7 @@ import { findConfigFile } from "./config";
 import type { SkillsSettings } from "./extensibility/settings";
 import type { Personality } from "./session/settings";
 import { type ContextFile, loadCapability, type SystemPrompt as SystemPromptFile } from "./discovery";
+import { loadWorkspacePersona } from "./default-workspace";
 import { expandAtImports } from "./discovery/at-imports";
 import type { EvalPreludeDefinition } from "./eval/preludes";
 import { SkillDescriptionCatalog } from "./extensibility/skill-descriptions";
@@ -941,6 +942,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 			: skillsSettings?.enabled !== false
 				? loadSkills({ ...skillsSettings, cwd: resolvedCwd }).then(result => result.skills)
 				: Promise.resolve([]);
+	const workspacePersonaPromise = loadWorkspacePersona(resolvedCwd);
 	const activeRepoContextPromise =
 		providedActiveRepoContext !== undefined
 			? Promise.resolve(providedActiveRepoContext)
@@ -963,6 +965,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		workspaceTree,
 		activeRepoContext,
 		personalityBlock,
+		workspacePersona,
 	] = await Promise.all([
 		withDeadline(
 			"customPrompt",
@@ -986,6 +989,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		withDeadline("buildWorkspaceTree", workspaceTreePromise, prepDefaults.workspaceTree),
 		withDeadline("resolveActiveRepoContext", activeRepoContextPromise, prepDefaults.activeRepoContext),
 		withDeadline("loadPersonalityOverride", personalityPromise, bundledPersonality),
+		withDeadline("loadWorkspacePersona", workspacePersonaPromise, null),
 	]);
 	clearTimeout(deadlineTimer);
 	const agentsMdFiles = noContextFiles
@@ -1196,6 +1200,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		rendered = prompt.renderTracked(systemPromptTemplate, data, sourceItems);
 	}
 	const systemPrompt = [rendered.text];
+	if (workspacePersona) systemPrompt.push(`## Persona (default workspace)\n\n${workspacePersona}`);
 	const sources = trackedSources(rendered, 0, sourceIdentities);
 	for (const prelude of evalPreludes) {
 		const guidance = prelude.guidance?.trim();

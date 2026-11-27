@@ -92,7 +92,7 @@ import { formatModelSelectorValue, parseModelString } from "./config/model-selec
 import { loadPromptTemplates as loadPromptTemplatesInternal, type PromptTemplate } from "./config/prompt-templates";
 import { buildServiceTierByFamily } from "./config/service-tier";
 import { bindEffects, combine } from "./config/registry";
-import { Settings } from "./config/settings";
+import { findScopedSettings, Settings } from "./config/settings";
 import type { CursorMcpResourceAdapter } from "./cursor";
 import type * as CursorBridgeTools from "./cursor-bridge-tools";
 import { daemonMutex } from "./daemon/modules/mutex";
@@ -2058,9 +2058,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	registerSshCleanup();
 	registerEvalCleanup();
 
-	const settings = await (options.settings ??
-		options.settingsManager ??
-		logger.time("settings", Settings.init, { cwd, agentDir }));
+	const settings = await (async () => {
+		if (options.settings) return options.settings;
+		if (options.settingsManager) return options.settingsManager;
+		const global = await logger.time("settings", Settings.init, { cwd, agentDir });
+		// A second SDK/web session in another project must not inherit the first
+		// project's layer from the process-global instance.
+		return findScopedSettings(cwd, agentDir) ?? (await global.cloneForCwd(cwd));
+	})();
 	// Discovery provider toggles and process-wide setting effects (theme, request limits, …)
 	// follow the newest holder: each top-level session holds both on its settings until disposed,
 	// then hands them back to the previous holder. Subagents and helper sessions never take them,

@@ -317,8 +317,7 @@ export function archivePrompts(query: string | undefined, scope: ArchiveScope): 
 	let entries: HistoryEntry[] = [];
 	if (query === undefined) entries = history.getRecent(scope.limit, filter);
 	else {
-		const words = wordQuery(query);
-		if (words) entries = history.searchWords(words, scope.limit, filter);
+		entries = history.search(query, scope.limit, filter);
 	}
 	const records = entries.map(toArchivePrompt);
 	const subject = query ? `${scopeLabel(scope)} matching ${JSON.stringify(query)}` : scopeLabel(scope);
