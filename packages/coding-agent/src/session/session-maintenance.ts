@@ -4408,7 +4408,7 @@ export class SessionMaintenance {
 						convertToLlm,
 						buildProviderContext: (summarized, retained, signal, model) =>
 							this.#host.buildLiveProviderContext(summarized, retained, signal, model),
-						omitDemotedReasoning: this.#host.omitsDemotedReasoning(candidate),
+						omitDemotedReasoning: this.#host.omitsDemotedReasoning?.(candidate) ?? false,
 						isUserAuthored: isUserAuthoredMessage,
 						onPayload: this.#host.extensionRunner?.hasHandlers("before_provider_request")
 							? (payload, model, signal) =>
