@@ -6609,6 +6609,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			});
 		}
 		startDeferredMCPDiscovery?.(session);
+		const engineerSkills = await session.applyEngineerSkills().catch(error => {
+			logger.warn("Failed to apply engineer skill assignments", { error: String(error) });
+			return undefined;
+		});
 
 		startupCleanup.move();
 		return {

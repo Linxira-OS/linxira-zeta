@@ -9836,6 +9836,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return applyEngineerSkillAssignments(this);
 	}
 
+	/** Apply PM engineer-skill assignments to the already discovered skill set. */
+	applyEngineerSkills(): Promise<EngineerSkillInjectionResult> {
+		return applyEngineerSkillAssignments(this);
+	}
+
 	/**
 	 * This session as the holder `skill://`, `/skill:` and autoload rediscover through when a skill
 	 * goes stale: a reloadable session refreshes its skills (also when the plugin registries replaced
