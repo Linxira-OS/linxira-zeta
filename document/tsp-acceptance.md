@@ -2,6 +2,10 @@
 
 Two independent gates. Passing one does not imply the other.
 
+The same agent UI has two selectable renderers: the ANSI TUI is always
+available, and TSP is negotiated/opt-in. Every gate below must pass in both
+modes unless a gate explicitly names TSP only.
+
 ## Gate A — Zeta Terminal is a TSP host
 
 The product terminal (`terminal/`, the Wave fork) must run the agent natively,
