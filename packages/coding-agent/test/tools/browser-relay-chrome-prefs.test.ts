@@ -259,7 +259,7 @@ describe("registerUnpackedExtension", () => {
 				authenticator(SEED, DEVICE, "extensions.ui.developer_mode", true),
 			);
 			expect(written.protection.super_mac).toBe(authenticator(SEED, DEVICE, "", macs as JsonValue));
-			expect(await Bun.file(`${secureFile}.omp-backup`).exists()).toBe(true);
+			expect(await Bun.file(`${secureFile}.zeta-backup`).exists()).toBe(true);
 		} finally {
 			await fs.rm(dir, { recursive: true, force: true });
 			await fs.rm(extensionDir, { recursive: true, force: true });

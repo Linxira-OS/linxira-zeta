@@ -285,9 +285,9 @@ afterAll(async () => {
 	}
 });
 
-/** omp's upload staging folders now in the temp directory. */
+/** zetacode's upload staging folders now in the temp directory. */
 async function stagingFolders(): Promise<Set<string>> {
-	return new Set((await fs.readdir(os.tmpdir())).filter(name => name.startsWith("omp-uploads-")));
+	return new Set((await fs.readdir(os.tmpdir())).filter(name => name.startsWith("zetacode-uploads-")));
 }
 
 describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser zetacode did not launch", () => {
@@ -342,9 +342,9 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser zetacode
 			} finally {
 				await close();
 			}
-			// A page zetacode only attached to can outlive omp's tab, so its staged copies stay for the sweep.
+			// zetacode opened its own page in that browser and closed it with the tab, so its staged copies went too.
 			const left = await stagingFolders();
-			expect(created.filter(name => left.has(name))).toEqual(created);
+			expect(created.filter(name => left.has(name))).toEqual([]);
 		}, 60_000);
 
 		test("fails a chooser upload whose input went away or another upload holds", async () => {
@@ -625,7 +625,8 @@ test("checks the upload route again after a check that decided nothing, and keep
 	expect(checks()).toBe(2);
 });
 
-test("stages a symlinked file's contents, once while the file is unchanged", async () => {
+// Windows refuses a file symlink without Developer Mode or elevation; the behaviour is OS-independent.
+test.skipIf(process.platform === "win32")("stages a symlinked file's contents, once while the file is unchanged", async () => {
 	const target = path.join(tempDir, "link-target.txt");
 	await Bun.write(target, "linked");
 	const link = path.join(tempDir, "link.txt");

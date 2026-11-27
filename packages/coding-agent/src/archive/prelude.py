@@ -23,7 +23,7 @@ def _make_archive():
         return normalized
 
     async def _call(action, params, silent):
-        response = await _omp_prelude("archive", {**_normalize(params), "action": action})
+        response = await _zeta_prelude("archive", {**_normalize(params), "action": action})
         if not isinstance(response, dict):
             raise RuntimeError("archive returned an invalid response")
         text = response.get("text")

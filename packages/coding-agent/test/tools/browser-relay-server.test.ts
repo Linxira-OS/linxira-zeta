@@ -1,5 +1,6 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import { afterEach, describe, expect, it } from "bun:test";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { findFreeCdpPort } from "@linxiraos/zeta/tools/browser/attach";
 import { relayCdpClientsOf } from "@linxiraos/zeta/tools/browser/relay/probe";
 import {
@@ -146,18 +147,23 @@ describe("browser relay discovery endpoint", () => {
 		expect(parseVersion(response).webSocketDebuggerUrl).toBe(`ws://127.0.0.1:${port}/cdp`);
 	});
 
-	it("reports 503 with extensionSeen=false while no extension has ever handshaken", async () => {
+	it("reports 503 naming this relay instance while no extension has handshaken", async () => {
 		const port = await findFreeCdpPort();
 		relay = startRelayServer({ port });
 		const response = await fetch(`http://127.0.0.1:${port}/json/version`);
 		expect(response.status).toBe(503);
 		const info = (await response.json()) as RelayUnavailableInfo;
-		expect(info.extensionSeen).toBeFalse();
-		expect(info.uptimeMs).toBeGreaterThanOrEqual(0);
+		expect(info.error).toBe("relay extension is not connected");
+		expect(info.ompRelayVersion).toBe(VERSION);
+		expect(typeof info.ompRelayInstance).toBe("string");
+		expect(info.ompRelayCdpClients).toBe(0);
 	});
 
-	it("keeps extensionSeen=true across an extension disconnect so clients wait for the service-worker revival", async () => {
+	it("keeps serving the same relay instance after an extension disconnect so clients wait for the service-worker revival", async () => {
 		const port = await startReadyRelay();
+		const ready = (await (await fetch(`http://127.0.0.1:${port}/json/version`)).json()) as {
+			ompRelayInstance: string;
+		};
 		extension!.close();
 		const deadline = Date.now() + 1_000;
 		let response = await fetch(`http://127.0.0.1:${port}/json/version`);
@@ -166,9 +172,10 @@ describe("browser relay discovery endpoint", () => {
 		}
 		expect(response.status).toBe(503);
 		const info = (await response.json()) as RelayUnavailableInfo;
-		expect(info.extensionSeen).toBeTrue();
-		// Clients measure the redial window from the disconnect.
-		expect(info.disconnectedMs).toBeGreaterThanOrEqual(0);
+		// A restarted relay would name another instance; this one is still waiting for the same browser.
+		expect(info.ompRelayInstance).toBe(ready.ompRelayInstance);
+		expect(info.error).toBe("relay extension is not connected");
+		expect(info.ompRelayCdpClients).toBe(0);
 	});
 
 	it("reports how many CDP clients are connected, both while waiting for the extension and once ready", async () => {

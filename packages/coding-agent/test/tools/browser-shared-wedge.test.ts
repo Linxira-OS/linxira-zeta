@@ -26,9 +26,8 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { withTimeout } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { DaemonBrokerClient } from "@linxiraos/zeta/launch/client";
+import type { DaemonClient, DaemonOp, UnitSnapshot } from "@linxiraos/zeta/daemon/protocol";
 import { daemonRuntimeDir } from "@linxiraos/zeta/launch/paths";
-import type { DaemonOperation } from "@linxiraos/zeta/launch/protocol";
 import {
 	forgetSharedTarget,
 	recordSharedTarget,
@@ -43,7 +42,6 @@ import { getTabsMapForTest, releaseTab, runInTab } from "@linxiraos/zeta/tools/b
 import type { WorkerTabSession } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
 import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 import { rejectionOf } from "../helpers/rejection";
 
@@ -172,48 +170,55 @@ function makeSession(): ToolSession {
 	} as unknown as ToolSession;
 }
 
-function makeSnapshot(readyMatch: string | undefined): DaemonSnapshot {
+function makeSnapshot(readyMatch: string | undefined): UnitSnapshot {
+	const now = Date.now();
 	return {
-		name: DAEMON_NAME,
 		id: "daemon-wedge",
+		kind: "proc",
+		scope: { kind: "project", dir: "/tmp/omp-wedge" },
+		key: DAEMON_NAME,
+		label: DAEMON_NAME,
+		generation: "generation-wedge",
 		state: "ready",
-		createdAt: 0,
-		startedAt: 0,
-		readyAt: 1,
+		pids: [4242],
+		createdAt: now,
+		startedAt: now,
+		readyAt: now,
 		restartCount: 0,
 		outputBytes: 0,
-		persist: false,
-		detached: false,
+		policy: { restart: "no", hold: "leases" },
+		supervised: true,
 		...(readyMatch === undefined ? {} : { readyMatch }),
-	};
+	} as unknown as UnitSnapshot;
 }
 
 /**
- * Broker double: answers `describe` with a snapshot, records every `stop`, and
- * reports a terminal snapshot for a stop unless told otherwise — a real broker
+ * Daemon double: answers `describe` with a snapshot, records every `stop`, and
+ * reports a terminal snapshot for a stop unless told otherwise — a real daemon
  * returns the post-stop record, so a stop that never landed is either a
  * rejected request (`stopFails`) or a non-terminal snapshot (`stopState`).
  */
 function makeBroker(
-	opts: { snapshot?: DaemonSnapshot; fail?: boolean; stopFails?: boolean; stopState?: DaemonSnapshot["state"] },
+	opts: { snapshot?: UnitSnapshot; fail?: boolean; stopFails?: boolean; stopState?: UnitSnapshot["state"] },
 	stops: string[],
-): DaemonBrokerClient {
+): DaemonClient {
 	return {
 		projectDir: "/tmp/omp-wedge-broker",
 		close: () => undefined,
-		onCompletion: () => () => undefined,
-		request: async (operation: DaemonOperation) => {
-			if (opts.fail === true) throw new Error("broker unreachable");
-			if (operation.op === "describe") return { op: "describe", daemon: opts.snapshot };
+		onReconnect: () => () => undefined,
+		release: async () => undefined,
+		request: async (operation: DaemonOp) => {
+			if (opts.fail === true) throw new Error("daemon unreachable");
+			if (operation.op === "describe") return { unit: opts.snapshot };
 			if (operation.op === "stop") {
-				stops.push(operation.name);
-				if (opts.stopFails === true) throw new Error("broker rejected the stop");
+				stops.push(opts.snapshot?.key ?? DAEMON_NAME);
+				if (opts.stopFails === true) throw new Error("daemon rejected the stop");
 				const stopped = { ...(opts.snapshot ?? makeSnapshot(undefined)), state: opts.stopState ?? "exited" };
-				return { op: "stop", daemon: stopped };
+				return { unit: stopped };
 			}
-			throw new Error(`unexpected broker op ${operation.op}`);
+			throw new Error(`unexpected daemon op ${operation.op}`);
 		},
-	} as unknown as DaemonBrokerClient;
+	} as unknown as DaemonClient;
 }
 
 /** Live endpoint string as the broker stamps it once Chrome's listener is up. */
@@ -558,19 +563,23 @@ describe("shared browser reachability check", () => {
 		const broker = {
 			projectDir: "/tmp/omp-wedge-replaced",
 			close: () => undefined,
-			onCompletion: () => () => undefined,
-			request: async (operation: DaemonOperation) => {
+			onReconnect: () => () => undefined,
+			release: async () => undefined,
+			request: async (operation: DaemonOp) => {
 				if (operation.op === "describe") {
 					describeCount++;
-					return { op: "describe", daemon: current };
+					return { unit: current };
 				}
 				if (operation.op === "stop") {
-					stops.push(operation.name);
-					return { op: "stop", daemon: current };
+					// A real daemon refuses a stop naming another generation.
+					if (operation.generation !== current.generation) return { unit: current };
+					stops.push(current.key);
+					current = { ...current, state: "exited" };
+					return { unit: current };
 				}
-				throw new Error(`unexpected broker op ${operation.op}`);
+				throw new Error(`unexpected daemon op ${operation.op}`);
 			},
-		} as unknown as DaemonBrokerClient;
+		} as unknown as DaemonClient;
 
 		const stopped = await stopSharedBrowserIfUnreachable(
 			{ projectDir: "/tmp/omp-wedge-replaced", daemonName: DAEMON_NAME },
@@ -580,7 +589,10 @@ describe("shared browser reachability check", () => {
 					probes.push(wsEndpoint);
 					// Another session replaced the daemon while we probe its
 					// predecessor: a healthy browser now answers to that name.
-					current = makeSnapshot("DevTools listening on ws://127.0.0.1:63199/devtools/browser/replacement");
+					current = {
+						...makeSnapshot("DevTools listening on ws://127.0.0.1:63199/devtools/browser/replacement"),
+						generation: "generation-replacement",
+					};
 					return false;
 				},
 			},
@@ -588,13 +600,12 @@ describe("shared browser reachability check", () => {
 
 		expect(stopped).toBe(false);
 		expect(stops).toEqual([]);
-		// Both probes addressed the instance we described, and the stop was
-		// withheld after re-describing found a different one.
+		// Both probes addressed the instance we described; the generation mismatch withheld the stop.
 		expect(probes).toEqual([
 			"ws://127.0.0.1:63199/devtools/browser/wedged",
 			"ws://127.0.0.1:63199/devtools/browser/wedged",
 		]);
-		expect(describeCount).toBe(2);
+		expect(describeCount).toBe(1);
 	});
 
 	it("settles and frees its single-flight slot when the CDP connect never opens", async () => {

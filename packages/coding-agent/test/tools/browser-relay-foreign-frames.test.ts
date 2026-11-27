@@ -24,10 +24,20 @@ function sweepsEmptying(emptied: number | null): number[] {
 	Reflect.set(globalThis, "chrome", {
 		runtime: { id: "selfextensionid" },
 		scripting: {
-			executeScript: async (injection: { target: { tabId: number } }) => {
+			executeScript: async (injection: { target: { tabId: number; allFrames?: boolean } }) => {
+				// The per-frame title probe a sweep reports through is not another sweep.
+				if (!injection.target.allFrames) return [{ frameId: 0, result: [] }];
 				sweeps.push(injection.target.tabId);
 				if (emptied === null) throw new Error("Cannot access contents of the page");
-				return [{ frameId: 0, result: emptied }];
+				return [
+					{
+						frameId: 0,
+						result: {
+							found: emptied,
+							emptied: emptied > 0 ? ["chrome-extension://otherextensionid/menu.html"] : [],
+						},
+					},
+				];
 			},
 		},
 	});
@@ -122,7 +132,7 @@ describe("pastForeignFrames", () => {
 				).toBeTrue();
 				expect(await page.$eval("iframe", frame => frame.hasAttribute("srcdoc"))).toBeTrue();
 			} finally {
-				await closeLaunchedBrowser(browser);
+				await closeLaunchedBrowser({ browser });
 			}
 		},
 		30_000,

@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import {
-	createBrowserPrelude,
-	DEFAULT_RELAY_URL,
-	resolveBrowserKind,
-	resolveRelayKind,
-} from "@linxiraos/zeta/tools/browser";
+import { createBrowserPrelude, resolveBrowserKind, resolveRelayKind } from "@linxiraos/zeta/tools/browser";
+import { discoverRelayEndpoints } from "@linxiraos/zeta/tools/browser/relay/discovery";
 import type { BrowserKindTag } from "@linxiraos/zeta/tools/browser/registry";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 
@@ -15,8 +11,10 @@ describe("resolveRelayKind", () => {
 		expect(resolveRelayKind({}, {})).toBeNull();
 	});
 
-	it("resolves the default endpoint when the setting enables it", () => {
-		expect(resolveRelayKind({ settingEnabled: true }, {})).toEqual({ kind: "relay", cdpUrl: DEFAULT_RELAY_URL });
+	it("resolves the discovered endpoint when the setting enables it", () => {
+		// The relay is served by the extension's native host on an OS-assigned port published per user.
+		const discovered = discoverRelayEndpoints()[0] ?? "";
+		expect(resolveRelayKind({ settingEnabled: true }, {})).toEqual({ kind: "relay", cdpUrl: discovered });
 	});
 
 	it("uses the configured URL and trims trailing slashes", () => {
@@ -26,10 +24,11 @@ describe("resolveRelayKind", () => {
 		});
 	});
 
-	it("falls back to the default endpoint for a blank URL", () => {
+	it("falls back to the discovered endpoint for a blank URL", () => {
+		const discovered = discoverRelayEndpoints()[0] ?? "";
 		expect(resolveRelayKind({ settingEnabled: true, url: "   " }, {})).toEqual({
 			kind: "relay",
-			cdpUrl: DEFAULT_RELAY_URL,
+			cdpUrl: discovered,
 		});
 	});
 
@@ -38,9 +37,10 @@ describe("resolveRelayKind", () => {
 	});
 
 	it("PI_BROWSER_RELAY=1 enables the relay when the setting is off", () => {
+		const discovered = discoverRelayEndpoints()[0] ?? "";
 		expect(resolveRelayKind({ settingEnabled: false }, { PI_BROWSER_RELAY: "1" })).toEqual({
 			kind: "relay",
-			cdpUrl: DEFAULT_RELAY_URL,
+			cdpUrl: discovered,
 		});
 	});
 });
@@ -88,8 +88,14 @@ describe("browser prelude relay guidance", () => {
 			const session = sessionWith(settings);
 			const onRelay = resolveBrowserKind({ action: "open" }, session).kind === "relay";
 			const guidance = createBrowserPrelude(session).guidance;
-			expect(guidance !== undefined).toBe(onRelay);
-			if (onRelay) expect(guidance).toContain('`app: "auto"` for a throwaway managed browser');
+			// User-session guidance is always present; only the relay block follows the resolved kind.
+			expect(guidance).toContain("Relay and CDP actions operate on real user sessions.");
+			if (onRelay) {
+				expect(guidance).toContain("The browser relay is on");
+				expect(guidance).toContain('`app: "auto"` for a throwaway managed browser');
+			} else {
+				expect(guidance).not.toContain("The browser relay is on");
+			}
 		}
 	});
 

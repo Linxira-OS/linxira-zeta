@@ -169,24 +169,18 @@ test("hands the caller a navigation's own promise, which a cancel leaves unanswe
 	let reported: Promise<unknown> | undefined;
 	let answered = false;
 	const cancel = new AbortController();
-	const wait = navigateMainFrame(
-		page,
-		"load",
-		10_000,
-		cancel.signal,
-		() => answer.promise,
-		navigation => {
-			reported = navigation;
-			void navigation.then(
-				() => {
-					answered = true;
-				},
-				() => {
-					answered = true;
-				},
-			);
-		},
-	);
+	const wait = navigateMainFrame(page, "load", 10_000, cancel.signal, () => {
+		reported = answer.promise;
+		void answer.promise.then(
+			() => {
+				answered = true;
+			},
+			() => {
+				answered = true;
+			},
+		);
+		return answer.promise;
+	});
 	expect(reported).toBe(answer.promise);
 	cancel.abort();
 	await expect(wait).rejects.toThrow("Aborted: The operation was aborted.");

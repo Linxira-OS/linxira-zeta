@@ -126,7 +126,7 @@ describe("browser relay install registry", () => {
 async function connectExtension(
 	port: number,
 	extensionId: string,
-	stamp: { ompVersion: string; ompBuild?: string } = { ompVersion: OLD },
+	stamp: { zetaVersion: string; zetaBuild?: string } = { zetaVersion: OLD },
 ): Promise<{ reloaded: Promise<void> }> {
 	const ws = new WebSocket(`ws://127.0.0.1:${port}/ext`, {
 		headers: { Origin: `chrome-extension://${extensionId}` },
@@ -224,8 +224,8 @@ describe("outdated extension reload", () => {
 		});
 
 		const { reloaded } = await connectExtension(port, extensionIdForPath(dir), {
-			ompVersion: VERSION,
-			ompBuild: "0000000000000000",
+			zetaVersion: VERSION,
+			zetaBuild: "0000000000000000",
 		});
 		await reloaded;
 		expect(await Bun.file(path.join(dir, "background.js")).text()).toBe(script);

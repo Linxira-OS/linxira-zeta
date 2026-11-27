@@ -535,7 +535,7 @@ describe("browser facade in real Eval runtimes", () => {
 			},
 		);
 
-		expect(result.exitCode).toBe(0);
+		expect(result.exitCode, result.output).toBe(0);
 		expect(result.output.trim().split("\n")).toEqual([
 			"opened display text",
 			"page title",
@@ -628,7 +628,7 @@ describe("browser facade in real Eval runtimes", () => {
 			},
 		);
 
-		expect(result.exitCode).toBe(0);
+		expect(result.exitCode, result.output).toBe(0);
 		expect(calls).toContainEqual({ action: "open", name: "py-opts", timeout: 7, persist: true });
 		expect(calls).toContainEqual({ action: "open", name: "py-plain" });
 	});

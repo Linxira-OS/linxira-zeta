@@ -82,7 +82,7 @@ function holdReconnects(): Array<{ delay: number; run: () => void }> {
 
 /** A side panel connected to the worker, which hears its relay status from now on. */
 async function openPanel(): Promise<FakePort> {
-	const panel = new FakePort("omp-panel");
+	const panel = new FakePort("zeta-panel");
 	fire("runtimeOnConnect", panel);
 	panel.deliver({ kind: "hello", windowId: 1 });
 	await settle();
@@ -98,7 +98,7 @@ await settle();
 
 switch (Bun.env.PROBE_SCENARIO) {
 	case "panel": {
-		const port = new FakePort("omp-panel");
+		const port = new FakePort("zeta-panel");
 		fire("runtimeOnConnect", port);
 		port.deliver({ kind: "hello", windowId: 1 });
 		port.deliver({ kind: "request", id: 1, request: { op: "collabHosts" } });

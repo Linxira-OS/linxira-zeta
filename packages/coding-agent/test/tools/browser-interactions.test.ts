@@ -167,7 +167,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser fill aborts", () => {
 				return Promise.withResolvers<void>().promise;
 			};
 
-			const error = await rejectionOf(fillViaHandle(editor, "new text", controller.signal));
+			const error = await rejectionOf(fillViaHandle(editor, "new text", "handle.fill()", controller.signal));
 			if (!(error instanceof TypingInterruptedError))
 				throw new Error(`Expected TypingInterruptedError, got ${error}`);
 			expect(error.progress).toContain("replacement text was already sent");
@@ -1593,7 +1593,7 @@ return picks;`,
 				result[id] = await clickElement(handle, `click #${id}`).then(
 					() => "clicked",
 					error =>
-						String(error).includes("did not deliver the click")
+						String(error).includes("could not confirm the click reached")
 							? "refused"
 							: String(error).includes("covered by")
 								? "covered"

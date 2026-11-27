@@ -7,7 +7,7 @@ import {
 	UPDATE_RELAY_EXTENSION,
 	waitForRelayExtension,
 } from "@linxiraos/zeta/tools/browser/relay/probe";
-import { DISCARDED_TABS_PROTOCOL_VERSION, isOlderZetaVersion } from "@linxiraos/zeta/tools/browser/relay/protocol";
+import { DISCARDED_TABS_PROTOCOL_VERSION, isOlderOmpVersion } from "@linxiraos/zeta/tools/browser/relay/protocol";
 import {
 	type RelayServer,
 	type RelayUnavailableInfo,
@@ -404,13 +404,13 @@ describe("relayExtensionNotice", () => {
 	});
 });
 
-describe("isOlderZetaVersion", () => {
+describe("isOlderOmpVersion", () => {
 	it("never calls a reported version older than a Zeta version it cannot rank, so restarts leave that relay alone", () => {
-		expect(isOlderZetaVersion("999.0.0", "18.8.7+build")).toBeFalse();
-		expect(isOlderZetaVersion("999.0.0", "18.8.7-canary-foo")).toBeFalse();
+		expect(isOlderOmpVersion("999.0.0", "18.8.7+build")).toBeFalse();
+		expect(isOlderOmpVersion("999.0.0", "18.8.7-canary-foo")).toBeFalse();
 	});
 
 	it("still counts an unreported version as older than one it cannot rank", () => {
-		expect(isOlderZetaVersion("", "18.8.7+build")).toBeTrue();
+		expect(isOlderOmpVersion("", "18.8.7+build")).toBeTrue();
 	});
 });

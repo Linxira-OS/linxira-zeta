@@ -59,8 +59,11 @@ export interface NativeHostIo {
 	log(message: string): void;
 }
 
-/** Entry for `zetacode browser-relay native-host`: serves Chrome on this process's stdio. */
-export async function runNativeHost(): Promise<void> {
+/**
+ * Entry for `zetacode browser-relay native-host`: serves Chrome on this process's stdio. `relayPort` is the port of a
+ * relay to join, or 0 to lead one on an OS-assigned port; tests pass the fixture relay's port.
+ */
+export async function runNativeHost(relayPort = 0): Promise<void> {
 	const command = [...resolveCliEntryCmd(), "--mode", "rpc"];
 	let flushed = Promise.resolve();
 	await serveNativeHost({
@@ -71,7 +74,7 @@ export async function runNativeHost(): Promise<void> {
 			flushed = promise;
 		},
 		spawn: (cwd, relayUrl) => spawnRpcChild(command, cwd, relayUrl),
-		relayPort: 0,
+		relayPort,
 		log: message => {
 			process.stderr.write(`zetacode native host: ${message}\n`);
 		},

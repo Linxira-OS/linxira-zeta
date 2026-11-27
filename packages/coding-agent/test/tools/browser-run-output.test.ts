@@ -49,33 +49,45 @@ describe("browser run output — stream text reaches the tool result", () => {
 // The tool docs promise `.fill()` on handles from tab.id()/tab.ref()/tab.waitFor();
 // raw puppeteer ElementHandles only expose `.type()`. `input.fill is not a function`
 // was a live failure.
+/** A focused text field: fill() clears its value in-page, then inserts through the page keyboard. */
+function fillTargetStub(node: { value: string; focused: boolean }): ElementHandle {
+	return {
+		evaluate: async (fn: (el: unknown) => unknown) =>
+			fn({
+				get value() {
+					return node.value;
+				},
+				set value(v: string) {
+					node.value = v;
+				},
+				focus: () => {
+					node.focused = true;
+				},
+				matches: () => false,
+				getRootNode() {
+					return { activeElement: this };
+				},
+			}),
+		remoteObject: () => ({ objectId: "fill-target" }),
+		type: async () => {},
+		frame: {
+			page: () => ({
+				keyboard: {
+					sendCharacter: async (text: string) => {
+						node.value += text;
+					},
+				},
+			}),
+			client: { send: async () => undefined },
+		},
+		dispose: async () => {},
+	} as unknown as ElementHandle;
+}
+
 describe("browser handle enrichment — fill()", () => {
 	it("adds a fill() that clears the current value before typing", async () => {
 		const node = { value: "old", focused: false };
-		const stub = {
-			evaluate: async (fn: (el: unknown) => unknown) =>
-				fn({
-					get value() {
-						return node.value;
-					},
-					set value(v: string) {
-						node.value = v;
-					},
-					focus: () => {
-						node.focused = true;
-					},
-					matches: () => false,
-				}),
-			frame: {
-				page: () => ({
-					keyboard: {
-						type: async (text: string) => {
-							node.value += text;
-						},
-					},
-				}),
-			},
-		} as unknown as ElementHandle;
+		const stub = fillTargetStub(node);
 
 		await toActionableHandle(stub).fill("fresh");
 
@@ -178,7 +190,13 @@ describe("browser handle enrichment — guarded actions", () => {
 		const stub = {
 			type: async () => {},
 			evaluate: async (fn: (el: unknown) => unknown) => {
-				fn({ focus: () => {}, matches: () => false });
+				fn({
+					focus: () => {},
+					matches: () => false,
+					getRootNode() {
+						return { activeElement: this };
+					},
+				});
 			},
 			frame: {
 				page: () => ({
@@ -246,31 +264,7 @@ describe("browser handle enrichment — guarded actions", () => {
 
 	it("runs the guarded fill as a single op without re-entering the wrapped type()", async () => {
 		const node = { value: "old", focused: false };
-		const stub = {
-			evaluate: async (fn: (el: unknown) => unknown) =>
-				fn({
-					get value() {
-						return node.value;
-					},
-					set value(v: string) {
-						node.value = v;
-					},
-					focus: () => {
-						node.focused = true;
-					},
-					matches: () => false,
-				}),
-			type: async () => {},
-			frame: {
-				page: () => ({
-					keyboard: {
-						type: async (text: string) => {
-							node.value += text;
-						},
-					},
-				}),
-			},
-		} as unknown as ElementHandle;
+		const stub = fillTargetStub(node);
 		const { guard, labels } = makeGuard(1_000);
 
 		await toActionableHandle(stub, guard).fill("fresh");

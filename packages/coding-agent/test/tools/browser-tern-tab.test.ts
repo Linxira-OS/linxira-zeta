@@ -85,7 +85,7 @@ function capture(message: Record<string, unknown>): Record<string, unknown> {
 		world: "page",
 		main: true,
 		url: "https://example.test/",
-		body: JSON.stringify({ omp: "tern", ts: 1, ...message }),
+		body: JSON.stringify({ zeta: "tern", ts: 1, ...message }),
 	};
 }
 

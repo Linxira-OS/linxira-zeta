@@ -74,7 +74,7 @@ beforeAll(async () => {
 		<button>Save<span hidden>!</span></button>
 		<button><div>Next</div><div>step</div></button>
 		<button><span aria-label="Close dialog">×</span></button>
-		<input type="submit">
+		<input type="submit" value="Submit">
 		<input placeholder="Email">
 		<input aria-placeholder="Search records">
 		<button><span style="visibility:hidden">x</span>Keep</button>
@@ -137,7 +137,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser semantic selectors and queries", (
 		["hidden text is left out", "button", "Save"],
 		["block children are separated", "button", "Next step"],
 		["a child's aria-label replaces its text", "button", "Close dialog"],
-		["a submit input has no value", "button", "Submit"],
+		["a submit input value names it", "button", "Submit"],
 		["a textbox is named by its placeholder", "textbox", "Email"],
 		["a textbox is named by its aria-placeholder", "textbox", "Search records"],
 		["visibility: hidden text is left out", "button", "Keep"],

@@ -120,9 +120,9 @@ describe("browser scroll acknowledgement", () => {
 });
 
 describe("browser wait-helper timeout resolution", () => {
-	it("defaults a wait to the action ceiling when no explicit timeout is given", () => {
+	it("defaults a wait to the cell budget when no explicit timeout is given", () => {
 		const cell = 30_000;
-		expect(resolveWaitTimeout(cell)).toBe(resolveOpTimeouts(cell).actionOpMs);
+		expect(resolveWaitTimeout(cell)).toBe(resolveOpTimeouts(cell).budgetBound);
 	});
 
 	it("honors a positive explicit timeout but clamps it under the cell budget", () => {
@@ -221,7 +221,7 @@ describe("browser selector guard", () => {
 				return this;
 			},
 		};
-		expect(() => normalizeSelector(handle as never)).toThrow(/must be a string; got an ElementHandle/);
+		expect(() => normalizeSelector(handle as never)).toThrow(/must be a string; got an element handle/);
 		expect(() => normalizeSelector(23 as never)).toThrow(/must be a string; got a number/);
 	});
 });

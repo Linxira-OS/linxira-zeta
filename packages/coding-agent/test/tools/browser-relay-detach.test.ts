@@ -286,7 +286,7 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 	});
 
 	afterAll(async () => {
-		if (chromium) await closeLaunchedBrowser(chromium);
+		if (chromium) await closeLaunchedBrowser({ browser: chromium });
 		site?.stop(true);
 	});
 
@@ -436,9 +436,14 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 					await settled.promise;
 					if (mode === "refused" || mode === "cancelled") {
 						if (!("error" in outcome)) throw new Error("expected open to fail");
-						if (mode === "cancelled") expect(outcome.error).toBeInstanceOf(ToolAbortError);
-						else expect(String(outcome.error)).toContain("could not reattach");
-						expect(getTab(name)).toBeUndefined();
+						if (mode === "cancelled") {
+							expect(outcome.error).toBeInstanceOf(ToolAbortError);
+							expect(getTab(name)).toBeUndefined();
+						} else {
+							expect(String(outcome.error)).toContain("could not reattach");
+							// Chrome refused while the tab is still open: it is kept, held out of the relay until its URL changes.
+							expect(getTab(name)).toMatchObject({ heldOut: true, state: "alive" });
+						}
 						return;
 					}
 					if ("error" in outcome) throw outcome.error;
@@ -514,7 +519,7 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 			await evaluating;
 			await ext.chromeDetach("target_closed");
 			const failure = String(await stalled);
-			expect(failure).toContain("Chrome detached zeta from this tab (target_closed) during this call");
+			expect(failure).toContain("Chrome detached zetacode from this tab (target_closed) during this call");
 			expect(failure).toContain("password manager");
 			expect(failure).toContain("may already have landed");
 			expect(failure).toContain("reattached to the same tab");
@@ -534,7 +539,7 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 			await evaluating;
 			await ext.chromeDetach("target_closed");
 			const failure = String(await stalled);
-			expect(failure).toContain("Chrome detached zeta from this tab (target_closed) during this call");
+			expect(failure).toContain("Chrome detached zetacode from this tab (target_closed) during this call");
 			expect(failure).toContain("reattached to the same tab");
 			expect((await invoke(readMark)).value).toBe("kept");
 		},
@@ -562,7 +567,7 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 				await evaluating;
 				await ext.chromeDetach("target_closed");
 				expect(String(await stalled)).toContain(
-					"Chrome detached zeta from this tab (target_closed) during this call",
+					"Chrome detached zetacode from this tab (target_closed) during this call",
 				);
 				expect(signal.aborted).toBe(true);
 			} finally {
@@ -584,13 +589,13 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 			await handled;
 			const next = await invoke(readMark);
 			expect(next.value).toBe("kept");
-			expect(next.text).toContain("Chrome had detached zeta from this tab since the last call");
+			expect(next.text).toContain("Chrome had detached zetacode from this tab since the last call");
 		},
 		60_000,
 	);
 
 	it.skipIf(!CHROMIUM_AVAILABLE)(
-		"runs a call on the re-adopted tab when Chrome detached zeta before its code started",
+		"runs a call on the re-adopted tab when Chrome detached zetacode before its code started",
 		async () => {
 			const ext = await openRelayTab();
 			// A user agent set by an earlier call is reapplied before each call's code starts.
@@ -602,7 +607,7 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 			const result = await next;
 			expect(result.value).toBe("kept");
 			expect(result.text).toContain(
-				"zeta reattached to the same tab on a new worker, without reloading it, and then ran this call",
+				"zetacode reattached to the same tab on a new worker, without reloading it, and then ran this call",
 			);
 		},
 		60_000,
@@ -628,7 +633,7 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 				await compiling.promise;
 				await ext.chromeDetach("target_closed");
 				expect(String(await next)).toContain(
-					"Chrome detached zeta from this tab (target_closed) before this call, so its code did not run",
+					"Chrome detached zetacode from this tab (target_closed) before this call, so its code did not run",
 				);
 				// The compile finishing after the detach must not evaluate the cell late. The runtime awaits the
 				// compile before this test does, so its evaluation, if any, has run once this await returns.
@@ -680,11 +685,11 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 			await evaluating;
 			await ext.chromeDetach("target_closed");
 			const failure = String(await stalled);
-			expect(failure).toContain("Chrome detached zeta from this tab (target_closed) during this call");
+			expect(failure).toContain("Chrome detached zetacode from this tab (target_closed) during this call");
 			expect(failure).toContain("could not reattach");
 			const later = String(await invoke(readMark).catch((error: unknown) => error));
-			expect(later).toContain("could not reattach");
-			expect(later).toContain("navigate it in Chrome first");
+			expect(later).toContain("Chrome still keeps zetacode out of tab");
+			expect(later).toContain("next call on it reattaches to it");
 			// The guidance holds: once the frame is gone and the tab's URL changed, it opens again, page state intact.
 			ext.refuseAttach = false;
 			await page?.evaluate("location.hash = 'moved'");
@@ -706,7 +711,7 @@ describe("relay tabs Chrome detaches zetacode from", () => {
 				await evaluating;
 				await ext.chromeDetach("canceled_by_user");
 				const failure = String(await stalled);
-				expect(failure).toContain("Chrome detached zeta from this tab (canceled_by_user) during this call");
+				expect(failure).toContain("Chrome detached zetacode from this tab (canceled_by_user) during this call");
 				expect(failure).toContain("The user cancelled Chrome's debugging bar");
 				expect(failure).toContain("navigate it in Chrome, then open it again");
 				expect(failure).not.toContain("password manager");

@@ -151,7 +151,7 @@ function readFirstPickedFile(picker: PagePicker): Promise<string> | string {
  * Staging folders are `zetacode-uploads-<pid>-<id>` in the temp directory; the pid names the zetacode process that owns one. The
  * route check's own folder shares the prefix, so one a crash left behind is swept the same way.
  */
-const STAGING_FOLDER = /^omp-uploads-(\d+)-/;
+const STAGING_FOLDER = /^zetacode-uploads-(\d+)-/;
 
 /**
  * How long a staging folder no open tab owns stays after its last upload: a page zetacode let go of may still be open in the
@@ -179,8 +179,8 @@ function processAlive(pid: number): boolean {
 }
 
 /**
- * Remove staging folders a day after their last upload once no open tab of this process owns them and the omp
- * process that made them is this one or gone. Another running zetacode sweeps its own.
+ * Remove staging folders a day after their last upload once no open tab of this process owns them and the
+ * zetacode process that made them is this one or gone. Another running zetacode sweeps its own.
  */
 export async function sweepUploadStaging(live: ReadonlySet<string>, now = Date.now()): Promise<void> {
 	const root = os.tmpdir();

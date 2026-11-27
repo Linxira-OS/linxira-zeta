@@ -35,8 +35,8 @@ describe("parseAriaRefSelector", () => {
 				return this;
 			},
 		};
-		expect(() => parseAriaRefSelector(handle as never)).toThrow(/must be a string; got an ElementHandle/);
-		expect(() => parseAriaRefSelector(handle as never)).toThrow(/\(await tab\.id\(n\)\)\.click\(\)/);
+		expect(() => parseAriaRefSelector(handle as never)).toThrow(/must be a string; got an element handle/);
+		expect(() => parseAriaRefSelector(handle as never)).toThrow(/tab\.id\(n\)\.click\(\)/);
 		const promise = Promise.resolve(handle);
 		expect(() => parseAriaRefSelector(promise as never)).toThrow(/got a Promise \(missing await\?\)/);
 		promise.catch(() => {});

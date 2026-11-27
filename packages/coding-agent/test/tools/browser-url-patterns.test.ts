@@ -15,7 +15,13 @@ describe("browser URL patterns", () => {
 		expect(matches(PAGE_URL)).toBe(true);
 		expect(matches("https://www.stardoll.com/en/starplaza.php?tab=sale")).toBe(false);
 		expect(urlMatcher("https://*.stardoll.com/en/*")(PAGE_URL)).toBe(true);
-		expect(urlMatcher("https://*.stardoll.com/*")(PAGE_URL)).toBe(false);
+		expect(urlMatcher("https://*.stardoll.com/*/x")(PAGE_URL)).toBe(false);
+	});
+
+	it("lets a * at either end span path segments", () => {
+		expect(urlMatcher(parseUrlPattern("*sort=X*"))("http://h/p?sort=X&page=1")).toBe(true);
+		expect(urlMatcher("https://*.stardoll.com/*")(PAGE_URL)).toBe(true);
+		expect(urlMatcher(parseUrlPattern("*sort=Y*"))("http://h/p?sort=X&page=1")).toBe(false);
 	});
 
 	it("keeps a string without * a substring and a RegExp a RegExp", () => {

@@ -182,7 +182,7 @@ export async function ensureSharedBrowser(opts: {
 	};
 	const claim = await claimProfile(userDataDir, opts.signal);
 	try {
-		const existing = await describeUnit(client, identity, opts.signal);
+		const existing = await describeSharedUnit(client, identity, opts.signal);
 		let reason: string | undefined;
 		if (isLiveUnit(existing)) {
 			const adopted = await openShared(client, request, projectDir, launch.executablePath, false, opts.signal);
@@ -251,6 +251,40 @@ async function openShared(
 	const tail = await outputTail(client, unit.id, signal);
 	await stopUnit(client, unit, signal);
 	return tail ? `${failure}; its last output: ${tail}` : failure;
+}
+
+/** Rounds a describe that failed for a reason other than "no such unit" gets before it is reported. */
+const DESCRIBE_ATTEMPTS = 2;
+
+/**
+ * The shared browser unit, or undefined when the daemon knows none. A failed
+ * describe is retried: treating it as a cold profile would discard the live
+ * Chrome's session-restore state before an adopt-or-start round. Only the
+ * daemon's own "Unknown unit" answer proves no unit exists.
+ */
+async function describeSharedUnit(
+	client: DaemonClient,
+	identity: UnitIdentity,
+	signal?: AbortSignal,
+): Promise<UnitSnapshot | undefined> {
+	let lastError: unknown;
+	for (let attempt = 0; attempt < DESCRIBE_ATTEMPTS; attempt++) {
+		try {
+			return (await client.request({ op: "describe", unit: identity }, signal)).unit;
+		} catch (error) {
+			throwIfAborted(signal);
+			// The daemon's answer for an identity it never registered; anything else proved nothing.
+			if (error instanceof Error && /^unknown (?:proc )?unit\b/i.test(error.message)) return undefined;
+			lastError = error;
+			logger.debug("Shared browser describe failed", {
+				unit: identity.key,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+	throw new ToolError(
+		`Shared browser daemon unavailable: could not inspect the ${identity.key} unit (${lastError instanceof Error ? lastError.message : String(lastError)}).`,
+	);
 }
 
 /** Claim the shared profile; null when another client held it past the wait. */

@@ -13,6 +13,7 @@ import {
 	unpackedExtensionId,
 	writeRelayExtension,
 } from "@linxiraos/zeta/tools/browser/relay/extension-files";
+import { installRelayExtension } from "@linxiraos/zeta/tools/browser/relay/installs";
 import type { RelayToExtMessage, TabSnapshot } from "@linxiraos/zeta/tools/browser/relay/protocol";
 import { type RelayServer, startRelayServer } from "@linxiraos/zeta/tools/browser/relay/server";
 
@@ -383,11 +384,13 @@ describe("Chrome's unpacked extension id", () => {
 
 describe("relay extension self-update on a real relay", () => {
 	let home: TempDir;
+	let registryFile: string;
 	let relay: RelayServer | undefined;
 	const sockets: WebSocket[] = [];
 
 	beforeEach(async () => {
 		home = await TempDir.create("@omp-relay-self-update-");
+		registryFile = home.join("installs.json");
 	});
 
 	afterEach(async () => {
@@ -409,7 +412,7 @@ describe("relay extension self-update on a real relay", () => {
 		relay = startRelayServer({
 			port,
 			group: false,
-			extensionDir: dir,
+			installRegistryFile: registryFile,
 			log: message => {
 				events.push(message);
 				if (message !== "extension reloading into update" && message !== "extension update stopped") return;
@@ -444,12 +447,17 @@ describe("relay extension self-update on a real relay", () => {
 	}
 
 	async function expectCurrentFiles(dir: string): Promise<void> {
-		const files = relayExtensionFiles(VERSION);
-		for (const name in files) expect(await Bun.file(`${dir}/${name}`).text()).toBe(files[name]!);
+		const files = await relayExtensionFiles(VERSION);
+		for (const name in files) {
+			const expected = files[name]!;
+			const actual = Buffer.from(await Bun.file(`${dir}/${name}`).bytes());
+			expect(actual).toEqual(Buffer.isBuffer(expected) ? expected : Buffer.from(expected));
+		}
 	}
 
 	it("rewrites the copy Chrome loaded from the install directory to this omp's files and asks for a reload", async () => {
 		const dir = home.join("extension");
+		await installRelayExtension(dir, { registryFile });
 		await writeRelayExtension(dir, OLD);
 		const { port, events, settled } = await startRelay(dir);
 		await dialExtension(port, dir);
@@ -460,6 +468,7 @@ describe("relay extension self-update on a real relay", () => {
 
 	it("reloads every Chrome profile that loaded the install directory, writing its files one at a time", async () => {
 		const dir = home.join("extension");
+		await installRelayExtension(dir, { registryFile });
 		await writeRelayExtension(dir, OLD);
 		const { port, events, settled } = await startRelay(dir, 3);
 		await Promise.all(["work", "home", "test"].map(profile => dialExtension(port, dir, profile)));
@@ -472,6 +481,7 @@ describe("relay extension self-update on a real relay", () => {
 	it("leaves an extension loaded from another directory alone", async () => {
 		const dir = home.join("extension");
 		const elsewhere = home.join("dev-build");
+		await installRelayExtension(dir, { registryFile });
 		await writeRelayExtension(dir, OLD);
 		await writeRelayExtension(elsewhere, OLD);
 		const { port, events, settled } = await startRelay(dir);
@@ -484,6 +494,7 @@ describe("relay extension self-update on a real relay", () => {
 
 	it("leaves files a newer zetacode installed for that omp's relay", async () => {
 		const dir = home.join("extension");
+		await installRelayExtension(dir, { registryFile });
 		await writeRelayExtension(dir, "999.0.0");
 		const { port, events, settled } = await startRelay(dir);
 		await dialExtension(port, dir);
@@ -494,6 +505,7 @@ describe("relay extension self-update on a real relay", () => {
 
 	it("writes background.js last, so an update that fails midway leaves the old version reported", async () => {
 		const dir = home.join("extension");
+		await installRelayExtension(dir, { registryFile });
 		await writeRelayExtension(dir, OLD);
 		// Publishing the new manifest fails (a full disk, an I/O error); background.js has not been written yet.
 		const rename = nodeFs.promises.rename.bind(nodeFs.promises);
@@ -509,12 +521,13 @@ describe("relay extension self-update on a real relay", () => {
 			spy.mockRestore();
 		}
 		expect(await Bun.file(home.join("extension/background.js")).text()).toBe(
-			relayExtensionFiles(OLD)["background.js"]!,
+			(await relayExtensionFiles(OLD))["background.js"]!,
 		);
 	});
 
 	it("replaces a file Windows refuses to rename over, as when Chrome or antivirus holds it", async () => {
 		const dir = home.join("extension");
+		await installRelayExtension(dir, { registryFile });
 		await writeRelayExtension(dir, OLD);
 		const rename = nodeFs.promises.rename.bind(nodeFs.promises);
 		let refused = 0;
@@ -533,7 +546,7 @@ describe("relay extension self-update on a real relay", () => {
 		expect(refused).toBeGreaterThan(1);
 		expect(await installedRelayExtensionVersion(dir)).toBe(VERSION);
 		expect(await Bun.file(home.join("extension/background.js")).text()).toBe(
-			relayExtensionFiles(VERSION)["background.js"]!,
+			(await relayExtensionFiles(VERSION))["background.js"]!,
 		);
 		expect((await fs.readdir(dir)).filter(name => name.endsWith(".tmp") || name.endsWith(".bak"))).toEqual([]);
 	});

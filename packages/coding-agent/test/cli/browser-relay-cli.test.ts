@@ -15,35 +15,105 @@ import { type RelayServer, startRelayServer } from "@linxiraos/zeta/tools/browse
 function runExtensionWorker(script: string, port: number, manifest: object): () => void {
 	let stopped = false;
 	const event = { addListener() {} };
+	const extensionId = "a".repeat(32);
+	const messageListeners: Array<(message: unknown) => void> = [];
+	const disconnectListeners: Array<() => void> = [];
+	let hostSocket: WebSocket | undefined;
+	const nativePort = {
+		onMessage: { addListener: (listener: (message: unknown) => void) => messageListeners.push(listener) },
+		onDisconnect: { addListener: (listener: () => void) => disconnectListeners.push(listener) },
+		postMessage(message: { t?: string; line?: string }) {
+			if (stopped) return;
+			if (message.t === "link") {
+				const socket = new WebSocket(`ws://127.0.0.1:${port}/ext`, {
+					headers: { Origin: `chrome-extension://${extensionId}` },
+				});
+				hostSocket = socket;
+				socket.addEventListener("open", () => {
+					if (!stopped) for (const listener of messageListeners) listener({ t: "linked" });
+				});
+				socket.addEventListener("message", received => {
+					if (typeof received.data === "string" && !stopped) {
+						for (const listener of messageListeners) listener({ t: "relay", line: received.data });
+					}
+				});
+				socket.addEventListener("close", () => {
+					if (!stopped) for (const listener of disconnectListeners) listener();
+				});
+				return;
+			}
+			if (message.t === "relay" && message.line !== undefined) hostSocket?.send(message.line);
+		},
+		disconnect() {
+			hostSocket?.close();
+		},
+	};
 	const chrome = {
 		storage: {
 			local: {
 				get: (defaults: Record<string, unknown>) =>
 					stopped ? Promise.withResolvers<never>().promise : Promise.resolve({ ...defaults, port }),
 				set: () => Promise.resolve(),
+				onChanged: event,
 			},
 			session: { get: () => Promise.resolve({}), set: () => Promise.resolve() },
 			onChanged: event,
 		},
 		tabs: {
 			query: () => Promise.resolve([]),
+			get: (tabId: number) => Promise.resolve({ id: tabId, windowId: 1, groupId: -1 }),
+			create: () => Promise.resolve({ id: 2, windowId: 1, groupId: -1 }),
+			update: (tabId: number) => Promise.resolve({ id: tabId, windowId: 1 }),
+			remove: () => Promise.resolve(),
+			group: () => Promise.resolve(1),
+			ungroup: () => Promise.resolve(),
 			onCreated: event,
 			onUpdated: event,
 			onActivated: event,
 			onRemoved: event,
 		},
-		tabGroups: { query: () => Promise.resolve([]) },
-		debugger: { getTargets: () => Promise.resolve([]), onEvent: event, onDetach: event },
+		tabGroups: { query: () => Promise.resolve([]), update: () => Promise.resolve({}) },
+		debugger: {
+			getTargets: () => Promise.resolve([]),
+			attach: () => Promise.resolve(),
+			detach: () => Promise.resolve(),
+			sendCommand: () => Promise.resolve({}),
+			onEvent: event,
+			onDetach: event,
+		},
 		downloads: { search: () => Promise.resolve([]), onCreated: event, onChanged: event },
-		alarms: { create() {}, onAlarm: event },
+		alarms: { create() {}, getAll: () => Promise.resolve([]), onAlarm: event },
 		action: {
 			setBadgeText: () => Promise.resolve(),
 			setBadgeBackgroundColor: () => Promise.resolve(),
+			setTitle: () => Promise.resolve(),
 			onClicked: event,
 		},
+		sidePanel: {
+			open: () => Promise.resolve(),
+			close: () => Promise.resolve(),
+			setPanelBehavior: () => Promise.resolve(),
+		},
+		notifications: {
+			create: () => Promise.resolve("notification"),
+			clear: () => Promise.resolve(true),
+			onClicked: event,
+		},
+		commands: { onCommand: event },
+		windows: {
+			update: () => Promise.resolve({ id: 1 }),
+			getLastFocused: () => Promise.resolve({ id: 1 }),
+		},
+		scripting: { executeScript: () => Promise.resolve([]) },
+		dom: { openOrClosedShadowRoot: () => null },
 		runtime: {
+			id: extensionId,
 			getManifest: () => manifest,
 			openOptionsPage: () => Promise.resolve(),
+			reload: () => {},
+			connectNative: () => nativePort,
+			onMessage: event,
+			onConnect: event,
 			onInstalled: event,
 			onStartup: event,
 		},
@@ -51,6 +121,7 @@ function runExtensionWorker(script: string, port: number, manifest: object): () 
 	new Function("chrome", "navigator", script)(chrome, { userAgent: "Mozilla/5.0 Chrome/154.0.0.0" });
 	return () => {
 		stopped = true;
+		hostSocket?.close();
 	};
 }
 
@@ -94,12 +165,12 @@ describe("zetacode browser-relay install", () => {
 				if (message === "extension update stopped") settled.resolve();
 			},
 		});
-		const runningScript = relayExtensionFiles("1.3.0")["background.js"]!;
-		const manifestOnDisk = JSON.parse(relayExtensionFiles(VERSION)["manifest.json"]!);
+		const runningScript = (await relayExtensionFiles("1.3.0"))["background.js"]!;
+		const manifestOnDisk = JSON.parse((await relayExtensionFiles(VERSION))["manifest.json"]!);
 		stopWorker = runExtensionWorker(runningScript, port, manifestOnDisk);
 		await settled.promise;
 		expect(await relayExtensionNotice(`http://127.0.0.1:${port}`)).toContain(
-			`installed by Zeta 1.3.0; this is Zeta ${VERSION}`,
+			`installed by zetacode 1.3.0; this is zeta ${VERSION}`,
 		);
 	});
 });

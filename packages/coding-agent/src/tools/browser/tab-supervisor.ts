@@ -3046,7 +3046,8 @@ async function targetIdForTarget(target: Target): Promise<string> {
 /** Say where `tab.run` code runs, after it failed reaching for a page global. */
 function addPageGlobalHint(error: Error): void {
 	const original = `${error.name}: ${error.message}`;
-	error.message += ": tab.run code runs in omp's Bun runtime, not in the page; run page code with tab.evaluate(...)";
+	error.message +=
+		": tab.run code runs in zetacode's Bun runtime, not in the page; run page code with tab.evaluate(...)";
 	if (error.stack?.startsWith(original))
 		error.stack = `${error.name}: ${error.message}${error.stack.slice(original.length)}`;
 }

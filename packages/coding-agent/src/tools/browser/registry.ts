@@ -280,7 +280,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 			kind,
 			browser,
 			wsEndpoint,
-			pid: browser.process()?.pid,
+			pid: browser.process?.()?.pid,
 			userDataDir,
 			refCount: 0,
 			stealth: { browserSession: null, override: null },

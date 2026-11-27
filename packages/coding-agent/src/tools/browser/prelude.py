@@ -41,7 +41,7 @@ def _make_browser():
 
     # `quiet`: the caller returns the structured value, so its listing (page URLs with tokens) is not printed.
     async def _invoke(action, options, quiet=False):
-        response = await _omp_prelude(
+        response = await _zeta_prelude(
             "browser",
             {
                 **{

@@ -160,7 +160,8 @@ describe("browser open options CDP helpers", () => {
 		expect(await Bun.file(path.join(directory, "report.txt")).exists()).toBe(false);
 	});
 
-	it("leaves a symlink named by a UUID GUID in place", async () => {
+	// Windows refuses a file symlink without Developer Mode or elevation; the behaviour is OS-independent.
+	it.skipIf(process.platform === "win32")("leaves a symlink named by a UUID GUID in place", async () => {
 		const { directory, elsewhere, complete } = await fakeDownloads();
 		const guid = crypto.randomUUID();
 		const link = path.join(elsewhere, guid);
@@ -882,7 +883,7 @@ await Promise.withResolvers().promise;`;
 				}),
 			) as { path: string; bytes: number };
 			tempDirs.push(path.dirname(download.path));
-			expect(path.dirname(download.path)).toStartWith(path.join(os.tmpdir(), "omp-downloads-"));
+			expect(path.dirname(download.path)).toStartWith(path.join(os.tmpdir(), "zetacode-downloads-"));
 			expect(download.bytes).toBe(payload.byteLength);
 			expect(new Uint8Array(await Bun.file(download.path).arrayBuffer())).toEqual(payload);
 		} finally {

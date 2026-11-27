@@ -81,7 +81,7 @@ export async function captureBrowserSession(
 	} finally {
 		try {
 			if (browser) {
-				const pid = browser.process()?.pid;
+				const pid = browser.process?.()?.pid;
 				try {
 					await withTimeout(browser.close(), 5_000, "Timed out closing sign-in browser");
 				} catch {

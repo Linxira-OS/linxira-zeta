@@ -228,11 +228,11 @@ it("injects the overlay for a relay mount, draws input only where mounted, and h
 		{ t: "rpcResult", id: 2, ok: true, result: {} },
 	]);
 	expect(tabMessages!.filter(sent => sent.tabId === 5).map(sent => sent.message)).toEqual([
-		{ omp: "overlay", op: "mount" },
-		{ omp: "overlay", op: "mount" },
-		{ omp: "overlay", op: "input", input: { kind: "move", x: 10, y: 20 } },
+		{ zeta: "overlay", op: "mount" },
+		{ zeta: "overlay", op: "mount" },
+		{ zeta: "overlay", op: "input", input: { kind: "move", x: 10, y: 20 } },
 	]);
 	expect(tabMessages!.filter(sent => sent.tabId === 6).map(sent => sent.message)).toEqual([
-		{ omp: "overlay", op: "hide" },
+		{ zeta: "overlay", op: "hide" },
 	]);
 });
