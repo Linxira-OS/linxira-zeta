@@ -21,7 +21,7 @@ import {
 } from "./tool-call-loop-redirect";
 
 import { cfgEditStreamingAbort } from "../edit/settings";
-import { toolCommandCallName } from "../tools/tool-commands";
+import { toolCallExemptionAlias } from "../tools/tool-commands";
 import {
 	cfgModelLoopGuardEnabled,
 	cfgModelLoopGuardToolCallReminder,
@@ -249,7 +249,7 @@ export class LoopGuards {
 			this.#toolCallLoopGuard = new ToolCallLoopGuard({
 				threshold,
 				exemptTools,
-				exemptionAlias: toolCommandCallName,
+				exemptionAlias: toolCallExemptionAlias,
 			});
 			this.#toolCallLoopGuardSettingsKey = settingsKey;
 		}

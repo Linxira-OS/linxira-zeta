@@ -1,3 +1,5 @@
+import { unwrapHashlineHeaderPath } from "./hashline-header-path";
+
 /** Canonical prefix for virtual tool-device URLs. */
 export const XD_URL_PREFIX = "xd://";
 
@@ -34,6 +36,25 @@ export function parseXdUrl(input: string): { name: string | null } | null {
 	if (name.length === 0) return { name: null };
 	if (/[/?#]/.test(name)) return null;
 	return { name };
+}
+
+/**
+ * Device a transport call dispatches through `write`: `xd://<tool>` in
+ * `path` (or the legacy `file_path`), after the same hashline unwrap the write
+ * tool applies. `undefined` for every other call: a topic URL, the device root,
+ * a leading-space spelling, or a plain file. Lets loop-guard exemptions name
+ * the dispatched device without exempting the transport itself.
+ */
+export function xdDeviceCallName(toolCall: { name: string; arguments?: Record<string, unknown> }): string | undefined {
+	if (toolCall.name !== "write") return undefined;
+	const args = toolCall.arguments;
+	const raw =
+		typeof args?.path === "string" ? args.path : typeof args?.file_path === "string" ? args.file_path : undefined;
+	if (raw === undefined) return undefined;
+	const target = unwrapHashlineHeaderPath(raw);
+	// The write tool routes an exactly-prefixed URL; whitespace makes it a file name.
+	if (!target.toLowerCase().startsWith(XD_URL_PREFIX)) return undefined;
+	return parseXdUrl(target)?.name ?? undefined;
 }
 
 /**

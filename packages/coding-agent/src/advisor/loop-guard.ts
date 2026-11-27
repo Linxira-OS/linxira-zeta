@@ -4,7 +4,7 @@ import { ToolCallLoopGuard } from "@linxiraos/pi-ai/utils/tool-call-loop-guard";
 import { logger } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { renderToolCallLoopRedirect } from "../session/tool-call-loop-redirect";
-import { toolCommandCallName } from "../tools/tool-commands";
+import { toolCallExemptionAlias } from "../tools/tool-commands";
 
 import {
 	cfgModelToolCallLoopGuardEnabled,
@@ -107,7 +107,7 @@ export class AdvisorLoopGuard {
 			.filter((tool): tool is string => typeof tool === "string" && tool.length > 0);
 		const settingsKey = `${threshold}:${JSON.stringify(exemptTools)}`;
 		if (!this.#guard || this.#guardSettingsKey !== settingsKey) {
-			this.#guard = new ToolCallLoopGuard({ threshold, exemptTools, exemptionAlias: toolCommandCallName });
+			this.#guard = new ToolCallLoopGuard({ threshold, exemptTools, exemptionAlias: toolCallExemptionAlias });
 			this.#guardSettingsKey = settingsKey;
 		}
 		return this.#guard;

@@ -38,6 +38,7 @@ import toolCommandCatalogPrompt from "../prompts/system/tool-command-catalog.md"
 import toolCommandDescriptionCutPrompt from "../prompts/system/tool-command-description-cut.md" with { type: "text" };
 import { resolveToolWireName } from "../utils/tool-wire-name";
 import { resolveToolTier, type ToolTier } from "./approval";
+import { xdDeviceCallName } from "./xd-url";
 import type { Tool } from "./index";
 import { renderError, ToolAbortError } from "./tool-errors";
 
@@ -504,6 +505,18 @@ export function toolCommandCallName(toolCall: {
 	if (typeof command !== "string") return undefined;
 	const word = LEADING_WORD_RE.exec(command)?.[1];
 	return word !== undefined && isToolCommandName(word) ? word : undefined;
+}
+
+/**
+ * Tool name a transport call acts for, for loop-guard exemptions: the command
+ * a `bash` call dispatches, else the device a `write` call addresses. One
+ * entry point keeps both transports' aliases on every guard.
+ */
+export function toolCallExemptionAlias(toolCall: {
+	name: string;
+	arguments?: Record<string, unknown>;
+}): string | undefined {
+	return toolCommandCallName(toolCall) ?? xdDeviceCallName(toolCall);
 }
 
 function isToolCommandDispatch(value: unknown): value is ToolCommandDispatch {

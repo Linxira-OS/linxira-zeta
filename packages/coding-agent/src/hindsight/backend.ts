@@ -20,6 +20,7 @@ import { type HindsightMessage, hasSubstantiveContent, prepareUserRetentionTrans
 import { HindsightSessionState } from "./state";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
+import { memoryToolRefs } from "../memory-backend/tool-names";
 
 /** Reload the active session's mental-model cache and prompt. */
 export async function reloadMentalModelsForSession(session: AgentSession): Promise<boolean> {
@@ -88,7 +89,7 @@ export const hindsightBackend: MemoryBackend = {
 		// Order: static instructions → mental models (stable, curated) → recall
 		// (volatile per turn). Stable context first so the LLM's prior is
 		// anchored on curated knowledge.
-		const parts = [prompt.render(hindsightInstructions)];
+		const parts = [prompt.render(hindsightInstructions, { toolRefs: memoryToolRefs(session?.getXdevToolEntries()) })];
 		if (mentalModelsSnippet) parts.push(mentalModelsSnippet);
 		if (recallSnippet) parts.push(recallSnippet);
 		return parts.join("\n\n");
