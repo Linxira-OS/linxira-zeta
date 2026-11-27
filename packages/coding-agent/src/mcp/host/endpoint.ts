@@ -1078,6 +1078,11 @@ export class McpEndpoint implements ModuleUnit {
 	}
 
 	#noteCrash(detail: string): void {
+		// The guard exists to bound process respawns (issue #1592). A remote
+		// server has no process budget: locking it out for 30 s would block a
+		// redeploy from ever recovering, so the manager's reconnect breaker is
+		// the only cap for HTTP/SSE.
+		if (this.#transport !== "stdio") return;
 		const now = Date.now();
 		this.#crashes = this.#crashes.filter(at => now - at < CRASH_WINDOW_MS);
 		this.#crashes.push(now);

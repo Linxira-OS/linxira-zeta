@@ -154,6 +154,13 @@ const NOTIFICATION_BUFFER_CAP = 100;
  */
 const RECONNECT_BURST_WINDOW_MS = 30_000;
 const RECONNECT_BURST_LIMIT = 5;
+/**
+ * Pause before re-arming automatic crash recovery, doubling to the cap. An
+ * upstream that fails at once must not be retried in a hot loop; the breaker
+ * still stops a burst that never recovers.
+ */
+const CRASH_RETRY_BASE_MS = 250;
+const CRASH_RETRY_MAX_MS = 1_000;
 
 function trackPromise<T>(promise: Promise<T>): TrackedPromise<T> {
 	const tracked: TrackedPromise<T> = { promise, status: "pending" };
@@ -442,6 +449,10 @@ export class MCPManager implements MCPManagerApi {
 	 * breaker opens or the host reports the upstream back up.
 	 */
 	#crashRecovering = new Set<string>();
+	/** Servers whose current outage already repainted the dashboard: one `failed` per outage, not per attempt. */
+	#crashOutageReported = new Set<string>();
+	/** Backoff timers for the next automatic crash-recovery attempt, by server. */
+	#crashRetryTimers = new Map<string, NodeJS.Timeout>();
 	/** Preserved configs for reconnection after connection loss. */
 	#serverConfigs = new Map<string, MCPServerConfig>();
 	#discoverOptions: MCPDiscoverOptions | undefined;
@@ -1582,6 +1593,8 @@ export class MCPManager implements MCPManagerApi {
 		this.#reconnectHistory.delete(name);
 		this.#reconnectRetryQueued.delete(name);
 		this.#crashRecovering.delete(name);
+		this.#crashOutageReported.delete(name);
+		this.#clearCrashRetry(name);
 		this.#sources.delete(name);
 		this.#serverConfigs.delete(name);
 		this.#pendingResourceRefresh.delete(name);
@@ -1641,6 +1654,8 @@ export class MCPManager implements MCPManagerApi {
 		this.#reconnectHistory.clear();
 		this.#reconnectRetryQueued.clear();
 		this.#crashRecovering.clear();
+		this.#crashOutageReported.clear();
+		for (const name of [...this.#crashRetryTimers.keys()]) this.#clearCrashRetry(name);
 		this.#pendingResourceRefresh.clear();
 		this.#sources.clear();
 		this.#builtinDrops.clear();
@@ -1688,7 +1703,9 @@ export class MCPManager implements MCPManagerApi {
 			this.#reconnectHistory.delete(name);
 			this.#reconnectRetryQueued.delete(name);
 			this.#crashRecovering.delete(name);
+			this.#crashOutageReported.delete(name);
 		}
+		this.#clearCrashRetry(name);
 		const pending = this.#pendingReconnections.get(name);
 		if (pending) return pending;
 		if (!options?.manual && this.#tripReconnectBreaker(name)) return null;
@@ -1697,17 +1714,42 @@ export class MCPManager implements MCPManagerApi {
 		let result: MCPServerConnection | null = null;
 		try {
 			result = await attempt;
-			if (result) this.#crashRecovering.delete(name);
+			if (result) {
+				this.#crashRecovering.delete(name);
+				this.#crashOutageReported.delete(name);
+			}
 			return result;
 		} finally {
 			if (this.#pendingReconnections.get(name) === attempt) this.#pendingReconnections.delete(name);
 			// A crash reported while this attempt ran would otherwise be dropped
 			// (the host only reports state changes), and a failed crash recovery
-			// has to keep trying until the breaker caps the burst.
+			// has to keep trying until the breaker caps the burst. Automatic
+			// retries back off so a dead server is not hammered.
 			if (this.#reconnectRetryQueued.delete(name) || (result === null && this.#crashRecovering.has(name))) {
-				void this.reconnectServer(name);
+				const attempts = (this.#reconnectHistory.get(name) ?? []).length;
+				const delay = this.#crashRecovering.has(name)
+					? Math.min(CRASH_RETRY_BASE_MS * 2 ** Math.max(0, attempts - 1), CRASH_RETRY_MAX_MS)
+					: 0;
+				if (delay === 0) {
+					void this.reconnectServer(name);
+				} else {
+					const timer = setTimeout(() => {
+						this.#crashRetryTimers.delete(name);
+						void this.reconnectServer(name);
+					}, delay);
+					timer.unref();
+					this.#crashRetryTimers.set(name, timer);
+				}
 			}
 		}
+	}
+
+	/** Cancel a queued automatic retry: a manual attempt, recovery, or disconnect supersedes it. */
+	#clearCrashRetry(name: string): void {
+		const timer = this.#crashRetryTimers.get(name);
+		if (timer === undefined) return;
+		clearTimeout(timer);
+		this.#crashRetryTimers.delete(name);
 	}
 
 	/**
@@ -1730,6 +1772,8 @@ export class MCPManager implements MCPManagerApi {
 		});
 		this.#reconnectRetryQueued.delete(name);
 		this.#crashRecovering.delete(name);
+		this.#crashOutageReported.delete(name);
+		this.#clearCrashRetry(name);
 		const stale = this.#connections.get(name);
 		if (stale) {
 			this.#detachConnection(name, stale);
@@ -1805,8 +1849,17 @@ export class MCPManager implements MCPManagerApi {
 			// Stale tools stay registered so they remain selected: a later call
 			// retries the reconnect, or the user runs /mcp reconnect <name>.
 			const msg = error instanceof Error ? error.message : String(error);
-			logger.error("MCP reconnect failed", { path: `mcp:${name}`, error: msg });
-			this.#emitConnectionStatus({ type: "failed", serverName: name, error: msg });
+			// Automatic crash recovery reports the outage once; retry failures
+			// stay out of the dashboard until the server recovers or the breaker
+			// suspends it. Other reconnect callers report every failure.
+			const alreadyReported = this.#crashRecovering.has(name) && this.#crashOutageReported.has(name);
+			if (alreadyReported) {
+				logger.debug("MCP reconnect still failing during outage", { path: `mcp:${name}`, error: msg });
+			} else {
+				if (this.#crashRecovering.has(name)) this.#crashOutageReported.add(name);
+				logger.error("MCP reconnect failed", { path: `mcp:${name}`, error: msg });
+				this.#emitConnectionStatus({ type: "failed", serverName: name, error: msg });
+			}
 			return null;
 		}
 	}
@@ -1966,6 +2019,10 @@ export class MCPManager implements MCPManagerApi {
 		if (status.state !== "failed") {
 			this.#reconnectRetryQueued.delete(name);
 			this.#crashRecovering.delete(name);
+			this.#clearCrashRetry(name);
+			// An idle upstream was stopped on purpose; the next failure starts a
+			// new outage and may report it again.
+			if (status.state === "idle") this.#crashOutageReported.delete(name);
 			return;
 		}
 		if (!this.#connections.has(name)) return;
@@ -1974,6 +2031,7 @@ export class MCPManager implements MCPManagerApi {
 			this.#reconnectRetryQueued.add(name);
 			return;
 		}
+		this.#clearCrashRetry(name);
 		logger.debug("MCP upstream failed, triggering reconnect", { path: `mcp:${name}` });
 		this.#ready.delete(name);
 		this.#emitConnectionStatus({ type: "reconnecting", serverName: name });

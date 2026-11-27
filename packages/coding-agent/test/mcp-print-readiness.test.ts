@@ -11,6 +11,8 @@ import { TempDir } from "@linxiraos/pi-utils";
 
 const FIXTURE = path.join(import.meta.dir, "fixtures", "readiness-mcp.ts");
 const SLOW_START_MS = 1_100;
+/** A startup that outlasts any test's readiness gate, for scenarios that require it pending. */
+const SLOW_START_PENDING_MS = 30_000;
 const expectedTools = ["mcp__instant_marker", "mcp__slowcall_marker", "mcp__slowstart_marker"];
 const managers: MCPManager[] = [];
 const originalTimeout = Bun.env.OMP_MCP_TIMEOUT_MS;
@@ -39,7 +41,7 @@ function server(name: string, startupMs = 0, callMs = 0): MCPStdioServerConfig {
 	};
 }
 
-async function startServers(): Promise<{ manager: MCPManager; elapsedMs: number }> {
+async function startServers(slowStartMs = SLOW_START_MS): Promise<{ manager: MCPManager; elapsedMs: number }> {
 	const manager = new MCPManager(import.meta.dir);
 	managers.push(manager);
 	const start = Date.now();
@@ -47,7 +49,7 @@ async function startServers(): Promise<{ manager: MCPManager; elapsedMs: number 
 		{
 			instant: server("instant"),
 			slowcall: server("slowcall", 0, 320),
-			slowstart: server("slowstart", SLOW_START_MS),
+			slowstart: server("slowstart", slowStartMs),
 		},
 		{},
 	);
@@ -135,7 +137,7 @@ describe("headless MCP readiness", () => {
 	}, 4_000);
 
 	it("names slowstart on stderr and skips the turn with exit 1 when strict readiness is required", async () => {
-		const { manager } = await startServers();
+		const { manager } = await startServers(SLOW_START_PENDING_MS);
 		const capture = printSession(manager);
 		Bun.env.OMP_MCP_TIMEOUT_MS = "100";
 		Bun.env.OMP_MCP_REQUIRE_READY = "1";
@@ -158,7 +160,7 @@ describe("headless MCP readiness", () => {
 	}, 4_000);
 
 	it("warns but still prompts with available tools when strict mode is disabled", async () => {
-		const { manager } = await startServers();
+		const { manager } = await startServers(SLOW_START_PENDING_MS);
 		const capture = printSession(manager);
 		Bun.env.OMP_MCP_TIMEOUT_MS = "80";
 		delete Bun.env.OMP_MCP_REQUIRE_READY;
@@ -203,7 +205,7 @@ describe("headless MCP readiness", () => {
 	}, 2_000);
 
 	it("returns from interactive discovery around the startup window with slowstart pending", async () => {
-		const { manager, elapsedMs } = await startServers();
+		const { manager, elapsedMs } = await startServers(SLOW_START_PENDING_MS);
 		expect(elapsedMs).toBeLessThan(900);
 		const status = await manager.waitForStartup(40);
 		expect(status.pending).toContain("slowstart");

@@ -241,6 +241,16 @@ describe("MCP Streamable HTTP initialization", () => {
 
 				const body = (await req.json()) as { id?: string | number; method: string };
 				requests.push(body.method);
+				// 19.2 probes the era with `server/discover` before any handshake.
+				// A handshake-era server refuses that method; the host then opens
+				// the legacy `initialize` session this test is about.
+				if (body.method === "server/discover") {
+					return Response.json({
+						jsonrpc: "2.0",
+						id: body.id,
+						error: { code: -32601, message: "Method not found" },
+					});
+				}
 				if (body.method === "initialize") {
 					const response = {
 						jsonrpc: "2.0",
@@ -270,7 +280,10 @@ describe("MCP Streamable HTTP initialization", () => {
 			timeout: GUARD_TIMEOUT_MS,
 		});
 
-		expect(requests).toEqual(["initialize", "notifications/initialized", "GET"]);
+		// 19.2 probes the era first (`server/discover`), then performs the legacy
+		// handshake on the probe's throwaway session: `initialized` must land
+		// before the optional GET stream opens.
+		expect(requests).toEqual(["server/discover", "initialize", "notifications/initialized", "GET"]);
 		await connection.transport.close();
 	});
 
@@ -286,6 +299,13 @@ describe("MCP Streamable HTTP initialization", () => {
 				}
 				if (req.method === "DELETE") return new Response(null, { status: 204 });
 				const body = (await req.json()) as { id?: string | number; method: string };
+				if (body.method === "server/discover") {
+					return Response.json({
+						jsonrpc: "2.0",
+						id: body.id,
+						error: { code: -32601, message: "Method not found" },
+					});
+				}
 				if (body.method === "initialize") {
 					const response = {
 						jsonrpc: "2.0",
