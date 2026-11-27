@@ -1228,6 +1228,18 @@ protocols and auth flows.
   来源快照：<https://frontierharness.org/live>；原始长条目已归档于
   `~/.zeta/parked-evidence/2026-11-17/main-consolidation/worktrees/toolcall-deferred-1400eb09/tracked.patch`。
 
+## Version and release gate (2026-11-27)
+
+- The next patch is **1.5.16**. 1.6.0 is explicitly gated on both TSP
+  acceptance gates in [`tsp-acceptance.md`](./tsp-acceptance.md): ANSI/TSP
+  selectable rendering in Zeta Terminal, and zetacode rendered correctly inside
+  upstream Tern.
+- Until Gate A and Gate B both pass on real builds, no 1.6.0 release is made,
+  regardless of other feature readiness.
+- In 1.6.0, rename the CI job `Lint, type check & web build` to
+  `Lint, type check & static gates` and update branch protection with it. The
+  web build part has been retired since ADR-0100.
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after
