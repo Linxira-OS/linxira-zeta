@@ -754,7 +754,18 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 				timeoutMs: 10_000,
 				session,
 			}).then(shown, (error: unknown) => String(error));
-			const after = await runInTab(name, title);
+			// Chrome may keep the save card's frame for a moment after zetacode clears it; the next call
+			// reattaches, so retry the title read instead of treating one held-out call as the final state.
+			let after!: Awaited<ReturnType<typeof runInTab>>;
+			for (let attempt = 0; ; attempt++) {
+				try {
+					after = await runInTab(name, title);
+					break;
+				} catch (error) {
+					if (attempt === 19) throw error;
+					await Bun.sleep(500);
+				}
+			}
 			expect(after.returnValue).toBe("Signed in");
 			const told = await untilNamed(name, vaultId, submitted, shown(after));
 			// The card's page, once, by the title the vault gave it.
