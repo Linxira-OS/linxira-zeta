@@ -388,7 +388,15 @@ function resolvePolicy(
 	context?: AgentToolContext,
 ): ResolvedApproval {
 	const decision = getToolDecision(tool, args, context);
-	const userPolicy = Object.hasOwn(userConfig, tool.name) ? normalizePolicy(userConfig[tool.name]) : undefined;
+	// A mounted sub-tool reports its own policyKey; the user override keys on that instead
+	// of the invoking tool (`write`), falling back to the invoker when unset.
+	const policyKey = (tool.approval as (typeof tool.approval & { policyKey?: string }) | undefined)?.policyKey;
+	const keyedPolicy =
+		policyKey !== undefined && Object.hasOwn(userConfig, policyKey)
+			? normalizePolicy(userConfig[policyKey])
+			: undefined;
+	const toolPolicy = Object.hasOwn(userConfig, tool.name) ? normalizePolicy(userConfig[tool.name]) : undefined;
+	const userPolicy = keyedPolicy ?? toolPolicy;
 
 	// Legacy-name fallback for renamed tools (e.g. MCP mints that gained digits).
 	// Fail-closed: only `deny`/`prompt` carry over from the old key, so a
@@ -404,7 +412,8 @@ function resolvePolicy(
 	const inheritedPolicy = legacyPolicy === "deny" || legacyPolicy === "prompt" ? legacyPolicy : undefined;
 	const inheritedPolicyKey = inheritedPolicy !== undefined ? tool.legacyName : undefined;
 	const combinedUserPolicy = userPolicy ?? inheritedPolicy;
-	const combinedUserPolicyKey = userPolicy !== undefined ? tool.name : inheritedPolicyKey;
+	const combinedUserPolicyKey =
+		userPolicy !== undefined ? (keyedPolicy !== undefined ? policyKey : tool.name) : inheritedPolicyKey;
 
 	if (decision.policy === "deny") {
 		return {

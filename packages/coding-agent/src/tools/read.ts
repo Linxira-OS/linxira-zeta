@@ -2903,6 +2903,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					// their worst-case width is reserved (at most half the threshold). Artifact-storage
 					// pages never spill, so they keep the full budget.
 					const budgetFor = (firstLine: number, lineCount: number): number => {
+						if (wholeFileShaping && maxColumns > 0) return MAX_SUMMARY_BYTES;
 						const scaled = Math.max(DEFAULT_MAX_BYTES, lineCount * 512);
 						if (located?.spec.unspilledPages) return scaled;
 						const threshold = resolveArtifactSpillThreshold(this.session.settings);
