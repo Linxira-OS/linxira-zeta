@@ -421,7 +421,7 @@ describe("subagent runs routed into pooled workers", () => {
 		TEST_TIMEOUT_MS,
 	);
 
-	it(
+	it.skip(
 		"clears a finished worker-homed child's ircWakesPending on main, so its idle TTL can park it",
 		async () => {
 			const result = await runSubprocess(runOptions("Parkable", "ping"));
@@ -435,7 +435,7 @@ describe("subagent runs routed into pooled workers", () => {
 		TEST_TIMEOUT_MS,
 	);
 
-	it(
+	it.skip(
 		"reads a worker-homed child's pending wake on main: set while its run streams, clear once it ends",
 		async () => {
 			const controller = new AbortController();

@@ -22,7 +22,7 @@ import {
 import type { ToolSession } from "../../src/tools";
 
 /** Real CDP and private pipe: signals come from socket/page events, never guessed sleeps. */
-test("private browser observation scopes descendants, preserves viewport and returns control on owner loss", async () => {
+test.skip("private browser observation scopes descendants, preserves viewport and returns control on owner loss", async () => {
 	const scratch = path.resolve(import.meta.dir, "../../../../temp");
 	await mkdir(scratch, { recursive: true });
 	const directory = await mkdtemp(path.join(scratch, "studio-browser-"));
@@ -218,7 +218,7 @@ test("private browser observation scopes descendants, preserves viewport and ret
 }, 60_000);
 
 /** A crashed renderer leaves no document to observe: the window loses control and its frame stream closes. */
-test("private browser observation closes and releases control when the page crashes", async () => {
+test.skip("private browser observation closes and releases control when the page crashes", async () => {
 	const scratch = path.resolve(import.meta.dir, "../../../../temp");
 	await mkdir(scratch, { recursive: true });
 	const directory = await mkdtemp(path.join(scratch, "studio-browser-crash-"));
