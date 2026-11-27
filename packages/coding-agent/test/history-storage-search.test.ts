@@ -39,7 +39,9 @@ describe("HistoryStorage.search", () => {
 		storage.delete(deleted.id);
 		expect(storage.getRecent(10).map(entry => entry.prompt)).toEqual(["commit two"]);
 		expect(storage.search("commit", 10).map(entry => entry.prompt)).toEqual(["commit two"]);
-		await storage.add("commit one");
+		const reinsert = storage.add("commit one");
+		vi.advanceTimersByTime(100);
+		await reinsert;
 		expect(storage.search("commit", 10).map(entry => entry.prompt)).toEqual(["commit one", "commit two"]);
 	});
 

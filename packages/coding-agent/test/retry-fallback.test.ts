@@ -252,7 +252,7 @@ describe("retry fallback selector resolution", () => {
 			{ default: defaultChain, slow: ["google/gemini-3.5-flash"], judge: [] },
 			["default", "task", "slow", "judge", "image", "web"],
 		);
-		expect(expanded.task).toBe(defaultChain);
+		expect(expanded.task).toEqual(defaultChain);
 		expect(expanded.slow).toEqual(["google/gemini-3.5-flash"]);
 		expect(expanded.judge).toEqual([]);
 		expect(expanded.image).toBeUndefined();

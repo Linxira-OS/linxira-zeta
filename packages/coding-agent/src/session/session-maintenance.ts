@@ -562,6 +562,8 @@ export interface SessionMaintenanceHost {
 		signal: AbortSignal | undefined,
 		model: Model,
 	): Promise<Context>;
+	/** Whether requests to `model` leave other models' reasoning out after a refusal. */
+	omitsDemotedReasoning(model: Model): boolean;
 	obfuscateTextForProvider(text: string | undefined): string | undefined;
 	obfuscatePreparationForProvider(preparation: CompactionPreparation): CompactionPreparation;
 	/** Gated cache identity: the agent's explicit key, else the Task family key when `model` opts in. */
@@ -1089,7 +1091,7 @@ export class SessionMaintenance {
 	 *   tokens that stay billed. Kept blocks are reported through
 	 *   {@link ShakeResult.thinkingBlocksKept}.
 	 * - `elide` replaces whole tool-call results and large fenced/XML blocks
-	 *   with short placeholders that embed an `artifact://` recovery link.
+	 *   with short placeholders that embed a `local://N.log` recovery link.
 	 *
 	 * Mutates the branch in place, persists via `rewriteEntries`, replays the
 	 * rebuilt context through the agent, and tears down provider sessions that
@@ -1343,7 +1345,7 @@ export class SessionMaintenance {
 
 	#shakeElidePlaceholder(region: ShakeRegion, index: number, artifactId: string | undefined): string {
 		if (artifactId) {
-			return `[shaken ~${region.tokens} tokens — recover: artifact://${artifactId} (region ${index + 1})]`;
+			return `[shaken ~${region.tokens} tokens — recover: local://${artifactId}.log (region ${index + 1})]`;
 		}
 		return `[shaken ~${region.tokens} tokens]`;
 	}
@@ -4406,6 +4408,7 @@ export class SessionMaintenance {
 						convertToLlm,
 						buildProviderContext: (summarized, retained, signal, model) =>
 							this.#host.buildLiveProviderContext(summarized, retained, signal, model),
+						omitDemotedReasoning: this.#host.omitsDemotedReasoning(candidate),
 						isUserAuthored: isUserAuthoredMessage,
 						onPayload: this.#host.extensionRunner?.hasHandlers("before_provider_request")
 							? (payload, model, signal) =>
@@ -6599,6 +6602,7 @@ export class SessionMaintenance {
 									convertToLlm,
 									buildProviderContext: (summarized, retained, signal, model) =>
 										this.#host.buildLiveProviderContext(summarized, retained, signal, model),
+									omitDemotedReasoning: this.#host.omitsDemotedReasoning(candidate),
 									isUserAuthored: isUserAuthoredMessage,
 									telemetry,
 									// Honor the user's /model thinking selection on the

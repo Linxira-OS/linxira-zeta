@@ -14,6 +14,8 @@ import {
 import { isEnoent } from "@linxiraos/pi-utils/fs-error";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import * as logger from "@linxiraos/pi-utils/logger";
+import type { Settings } from "../config/settings";
+import { worktreeFamily } from "../worktree/worktrees";
 import type { SessionStorage } from "./session-storage";
 
 const migratedSessionRoots = new Set<string>();
@@ -235,16 +237,22 @@ export function sessionDirForCwd(cwd: string, sessionsRoot: string = getSessions
  * is not cwd-derived (a custom `--session-dir`), or when git metadata is
  * unreadable.
  */
-export async function worktreeSessionDirs(cwd: string, sessionDir: string): Promise<string[]> {
+export async function worktreeSessionDirs(
+	cwd: string,
+	sessionDir: string,
+	options: { settings?: Settings; stranded?: boolean } = {},
+): Promise<string[]> {
 	const sessionsRoot = resolveManagedSessionRoot(sessionDir, cwd);
 	if (!sessionsRoot) return [];
 	try {
-		const repo = vcs.git(cwd);
-		const prefix = repo?.prefixOf(cwd);
-		if (!repo || prefix == null) return [];
-		const dirs = new Set(managedWorktreeSessionDirs(repo.primaryRoot(), prefix, sessionsRoot));
-		for (const worktree of await repo.worktrees()) {
-			dirs.add(sessionDirForCwd(path.resolve(worktree.path, prefix), sessionsRoot));
+		const family = await worktreeFamily(cwd, options.settings);
+		if (!family) return [];
+		const { primary, prefix, locations } = family;
+		const dirs = new Set(managedWorktreeSessionDirs(primary, prefix, sessionsRoot));
+		for (const location of locations) {
+			const dir = sessionDirForCwd(path.resolve(location.root, prefix), sessionsRoot);
+			if (options.stranded && location.offline) dirs.delete(dir);
+			else dirs.add(dir);
 		}
 		dirs.delete(path.resolve(sessionDir));
 		return [...dirs];

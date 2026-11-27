@@ -61,7 +61,7 @@ function urlStart(text: string): number | undefined {
 /** Whether `word` names the `zetacode` program, by any path. */
 function isOmp(word: string): boolean {
 	const name = word.slice(Math.max(word.lastIndexOf("/"), word.lastIndexOf("\\")) + 1).toLowerCase();
-	return name === "zeta" || name === "zeta.exe";
+	return name === "zetacode" || name === "zetacode.exe" || name === "zeta" || name === "zeta.exe";
 }
 
 /** `text` as one literal shell word. */

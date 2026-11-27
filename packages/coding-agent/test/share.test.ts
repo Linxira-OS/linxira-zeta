@@ -707,8 +707,8 @@ describe("normalizeShareServerUrl", () => {
 	test("strips trailing slashes and falls back to the default", () => {
 		expect(normalizeShareServerUrl("https://my.zeta.sh/s/")).toBe("https://my.zeta.sh/s");
 		expect(normalizeShareServerUrl("https://example.com/s///")).toBe("https://example.com/s");
-		expect(normalizeShareServerUrl(undefined)).toBe("https://my.zeta.sh/s");
-		expect(normalizeShareServerUrl("   ")).toBe("https://my.zeta.sh/s");
+		expect(normalizeShareServerUrl(undefined)).toBe("https://linxira-os.github.io/s");
+		expect(normalizeShareServerUrl("   ")).toBe("https://linxira-os.github.io/s");
 	});
 });
 

@@ -178,6 +178,7 @@ import {
 	postmortem,
 	prompt,
 	Snowflake,
+	spillUrl,
 	stringProperty,
 	toError,
 	untilAborted,
@@ -3817,8 +3818,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			injectIdle: async delivered => {
 				const first = delivered[0];
 				if (!first) return;
+				// A background job may have made a prelude's first call: its guide rides the job's delivery.
+				const guide = this.#tools.takeEvalPreludeGuide();
+				const messages = guide ? [...delivered, guide] : delivered;
 				if (this.#clientBridge?.deferAgentInitiatedTurns) {
-					this.#recordWithoutTurn(delivered);
+					this.#recordWithoutTurn(messages);
 					return;
 				}
 				// A user interrupt is still in effect: background completions (async job
@@ -3828,22 +3832,22 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				// turn has ended on its own.
 				if (this.#advisors.autoResumeSuppressed && !this.#turnSettledSinceUserInterrupt) {
 					logger.debug("Background delivery folded into context without a turn", {
-						count: delivered.length,
-						customTypes: delivered.map(message =>
+						count: messages.length,
+						customTypes: messages.map(message =>
 							message.role === "custom" ? message.customType : message.role,
 						),
 					});
-					this.#recordWithoutTurn(delivered);
+					this.#recordWithoutTurn(messages);
 					return;
 				}
 				const observation =
 					this.#ircWakeTurnObserver && !this.#openTurnObservation
-						? this.#startTurnObservation(delivered)
+						? this.#startTurnObservation(messages)
 						: undefined;
 				let turnError: unknown;
 				const inFlightEpoch = this.#beginInFlight();
 				try {
-					await this.agent.prompt(delivered.length === 1 ? first : delivered);
+					await this.agent.prompt(messages.length === 1 ? first : messages);
 				} catch (error) {
 					turnError = error;
 					throw error;
@@ -3918,8 +3922,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			// one: that turn's text is its result.
 			const keepPeerMessages =
 				boundary === "stop" && (this.#ircWakeHolds > 0 || this.#ircWakeTurnObserver !== undefined);
-			const thunks: AsideMessage[] = this.#irc.drainPending({ keepPeerMessages }).map(record => () => record);
-			thunks.push(...this.yieldQueue.drainLazy());
+			let hasDelivery = false;
+			const queued: AsideMessage[] = this.#irc.drainPending({ keepPeerMessages }).map(record => () => record);
+			queued.push(...this.yieldQueue.drainLazy());
+			const thunks: AsideMessage[] = queued.map(entry => () => {
+				const message = typeof entry === "function" ? entry() : entry;
+				if (message) hasDelivery = true;
+				return message;
+			});
+			// A guide follows work, or rides an actual delivery; a stale queued entry cannot extend the turn.
+			thunks.push(() => (boundary === "work" || hasDelivery ? (this.#tools.takeEvalPreludeGuide() ?? null) : null));
 			// Mid-run todo reconciliation — evaluated at injection time so a turn
 			// that flips a todo just before this poll suppresses the nudge.
 			thunks.push(() => this.#todo.takeMidRunNudge());
@@ -4313,6 +4325,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			imageDescriptionModel: reader => this.#providerBoundary.imageDescriptionModel(reader),
 			prepareImageDescriptions: (messages, model, signal) =>
 				this.#providerBoundary.prepareImageDescriptions(messages, model, signal),
+			omitsDemotedReasoning: model => this.#recovery.omitsDemotedReasoning(model),
 			buildLiveProviderContext: async (summarized, retained, signal, model) => {
 				// compact() rebuilds the previous summary message; send the live
 				// agent's own one. Conversion caches key on message identity, so a
@@ -4783,10 +4796,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			return {
 				soft: true,
 				id: head.id,
-				// Preview resolution is a `write` to xd://resolve or xd://reject;
-				// only those exact shapes satisfy the requirement — a plain write
-				// elsewhere is a detour.
-				toolName: "write",
+				// Any `resolve`/`reject` call satisfies it; escalation forces `bash`,
+				// or `reject` (recoverable) when commands are inactive.
+				toolName: toolCommands ? "bash" : REJECT_COMMAND_NAME,
 				satisfies: isPreviewResolutionToolCall,
 				unsatisfiedNotice: toolCall => buildResolveUnsatisfiedNotice(toolCall, head.sourceToolName),
 				reminder: [buildResolveReminderMessage({ toolCommands }, head.sourceToolName)],
@@ -5731,7 +5743,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	async #formatAsyncResultForFollowUp(result: string, meta?: OutputMeta): Promise<string> {
-		if (result.length <= ASYNC_INLINE_RESULT_MAX_CHARS) {
+		// The producing tool's output sink already mirrored the raw stream to an
+		// artifact; `result` may be its elided inline body under the inline cap, so
+		// the raw capture is linked even when the body itself is not previewed.
+		const rawArtifactId = meta?.truncation?.artifactId ?? meta?.limits?.columnTruncated?.artifactId;
+		if (rawArtifactId === undefined && result.length <= ASYNC_INLINE_RESULT_MAX_CHARS) {
 			return result;
 		}
 		// Strip the already-rendered source notice before taking the smaller preview,
@@ -5739,23 +5755,20 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const body = meta?.artifactError ? stripOutputNotice(result, meta).trimEnd() : result;
 		const preview = `${body.slice(0, ASYNC_PREVIEW_MAX_CHARS)}\n\n[Output truncated. Showing first ${ASYNC_PREVIEW_MAX_CHARS.toLocaleString()} characters.]`;
 		if (meta?.artifactError) return `${preview}\n[${formatArtifactErrorNotice(meta.artifactError)}]`;
-		// The producing tool's output sink already mirrored the raw stream to an
-		// artifact; `result` is its elided inline body, so link the raw capture.
 		// The capture lacks notices the tool appended after the stream (exit code,
 		// wall time, timeout), so the preview keeps `result`'s tail as well.
-		const rawArtifactId = meta?.truncation?.artifactId ?? meta?.limits?.columnTruncated?.artifactId;
-		if (rawArtifactId) {
+		if (rawArtifactId !== undefined) {
 			const headTail = truncateMiddle(result, {
 				maxBytes: ASYNC_PREVIEW_MAX_CHARS,
 				maxHeadBytes: ASYNC_PREVIEW_MAX_CHARS - ASYNC_PREVIEW_TAIL_CHARS,
 			}).content;
-			return `${headTail}\nFull output: artifact://${rawArtifactId}`;
+			return `${headTail}\nFull output: ${spillUrl(rawArtifactId)}`;
 		}
 		try {
 			const { path: artifactPath, id: artifactId } = await this.sessionManager.allocateArtifactPath("async");
 			if (artifactPath && artifactId) {
 				await writeArtifact(artifactPath, result);
-				return `${preview}\nFull output: artifact://${artifactId}`;
+				return `${preview}\nFull output: ${spillUrl(artifactId)}`;
 			}
 		} catch (error) {
 			logger.warn("Failed to persist async follow-up artifact", {
@@ -10692,6 +10705,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#toolChoiceQueue.clear();
 		this.#tools.clearAcpPermissionDecisions();
 		this.#tools.resetAnnouncedMounts();
+		this.#tools.clearEvalPreludeCalls();
 		// A `/new`, session switch, or tree navigation reuses tool-call ids, so a
 		// still-cached background-task snapshot from the old conversation must not
 		// survive to be replayed by a focus rebuild in the reset session (#10447).
@@ -16033,7 +16047,12 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#handoffAbortController = controller;
 		this.#isGeneratingHandoff = true;
 		try {
-			return await this.#inLogContext(() => this.#maintenance.handoff(customInstructions, { ...options, signal }));
+			const result = await this.#inLogContext(() =>
+				this.#maintenance.handoff(customInstructions, { ...options, signal }),
+			);
+			if (!result || !options?.autoTriggered) return result;
+			const savedPath = this.#handoff.lastSavedPath;
+			return savedPath ? { ...result, savedPath } : result;
 		} finally {
 			if (this.#handoffAbortController === controller) this.#handoffAbortController = undefined;
 			this.#isGeneratingHandoff = false;
@@ -16921,7 +16940,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// Reported where the provider settles the request, before any later step can throw it away.
 		const reportUsage = (message: AssistantMessage) => {
 			try {
-				args.onUsage?.(message);
+				usageReporter?.(message);
 			} catch (error) {
 				logger.debug("ephemeral-turn: usage reporter failed", {
 					error: error instanceof Error ? error.message : String(error),

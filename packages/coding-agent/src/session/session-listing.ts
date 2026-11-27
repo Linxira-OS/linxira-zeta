@@ -10,6 +10,7 @@ import * as logger from "@linxiraos/pi-utils/logger";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { parseJsonlLenient } from "@linxiraos/pi-utils/stream";
 import { toError } from "@linxiraos/pi-utils/type-guards";
+import type { Settings } from "../config/settings";
 import { EVAL_STATE_CONTEXT_TYPE } from "../eval/state";
 import { recoverBackendReplicas } from "./backend-replica-recovery";
 import { normalizeSessionClient, type SessionClient } from "./session-client";
@@ -1001,6 +1002,11 @@ export interface PickerListingOptions {
 	 * the resume data layer.
 	 */
 	includeTeam?: boolean;
+	/**
+	 * Settings whose worktree backends discover sibling checkouts (ovnfs
+	 * command, worktree base). Omitted uses the process's current settings.
+	 */
+	settings?: Settings;
 }
 
 /**

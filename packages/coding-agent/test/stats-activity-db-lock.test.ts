@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { closeDb, initDb, insertMessageStats, STATS_BUSY_TIMEOUT_MS_ENV } from "@linxiraos/pi-stats/db";
@@ -9,8 +10,8 @@ import { loadDailyActivity } from "../src/stats/activity-client";
 import type { StatsActivityWorkerOutbound } from "../src/stats/activity-protocol";
 
 // The activity worker resolves stats.db from the environment it inherits, so the
-// temp agent directory goes through PI_CONFIG_DIR, and XDG overrides are cleared
-// so the default profile cannot redirect it to a shared XDG data dir.
+// temp config directory goes through ZETA_CONFIG_DIR, and XDG overrides are
+// cleared so the default profile cannot redirect it to a shared XDG data dir.
 const XDG_KEYS = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
 const originalAgentDir = getAgentDir();
 const originalEnv: Record<string, string | undefined> = {};
@@ -18,12 +19,12 @@ let tempDir: TempDir | undefined;
 
 beforeEach(() => {
 	tempDir = TempDir.createSync("@omp-stats-activity-lock-");
-	for (const key of [...XDG_KEYS, "PI_CONFIG_DIR", STATS_BUSY_TIMEOUT_MS_ENV]) {
+	for (const key of [...XDG_KEYS, "PI_CONFIG_DIR", "ZETA_CONFIG_DIR", STATS_BUSY_TIMEOUT_MS_ENV]) {
 		originalEnv[key] = process.env[key];
 		delete process.env[key];
 	}
 	const configDir = path.relative(os.homedir(), tempDir.join("config"));
-	process.env.PI_CONFIG_DIR = configDir;
+	process.env.ZETA_CONFIG_DIR = configDir;
 	setAgentDir(path.join(os.homedir(), configDir, "agent"));
 });
 
@@ -38,9 +39,9 @@ afterEach(() => {
 	tempDir = undefined;
 });
 
-function request(timestamp: number): MessageStats {
+function request(timestamp: number, sessionFile = "/tmp/activity-lock.jsonl"): MessageStats {
 	return {
-		sessionFile: "/tmp/activity-lock.jsonl",
+		sessionFile,
 		entryId: "activity-lock",
 		folder: "/work/a",
 		model: "model-x",
@@ -114,7 +115,33 @@ describe("/usage activity load", () => {
 		process.env.TZ = "UTC";
 		try {
 			await initDb();
-			insertMessageStats([request(Date.now() - 60 * 60_000)]);
+			const timestamp = Date.now() - 60 * 60_000;
+			// The sync prunes rows whose transcript is gone, so give the stored
+			// usage a real transcript: a header and a model_usage entry. The sync
+			// re-parses it into the same row the legacy database already holds.
+			const transcript = path.join(getAgentDir(), "sessions", "activity-lock", "activity-lock.jsonl");
+			await fs.mkdir(path.dirname(transcript), { recursive: true });
+			const iso = new Date(timestamp).toISOString();
+			await Bun.write(
+				transcript,
+				`${JSON.stringify({ type: "session", version: 3, id: "activity-lock", timestamp: iso, cwd: "/work/a" })}\n${JSON.stringify(
+					{
+						type: "model_usage",
+						id: "activity-lock",
+						parentId: null,
+						timestamp: iso,
+						purpose: "title",
+						api: "openai-responses",
+						provider: "prov",
+						model: "model-x",
+						stopReason: "stop",
+						usage: request(timestamp).usage,
+						duration: 2000,
+						ttft: 300,
+					},
+				)}\n`,
+			);
+			insertMessageStats([request(timestamp, transcript)]);
 			closeDb();
 			// Strip the rollup back out, as a stats.db last opened by an zetacode release
 			// without it has none of its tables, triggers or version marks.

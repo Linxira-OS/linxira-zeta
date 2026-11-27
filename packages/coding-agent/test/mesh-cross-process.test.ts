@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import * as path from "node:path";
+import { Settings } from "../src/config/settings";
 import { IrcBus } from "../src/irc/bus";
 import { AgentProtocolHandler } from "../src/internal-urls/agent-protocol";
 import { setMeshNode } from "../src/mesh/global";
@@ -97,11 +98,12 @@ describe("mesh cross-process (S1)", () => {
 		expect(failed.error).toContain('Unknown agent "beta/Main"');
 	});
 
-	test("write agent://<workspace>/<agent> targets the cross-process address", async () => {
+	test("write agent://<pid>/<agent> targets the cross-process address", async () => {
 		const sent: Array<{ to: string; body: string }> = [];
+		const peerPid = 424_242;
 		const fake = {
 			stripLocalAddress: () => undefined,
-			isCrossProcessAddress: (raw: string) => raw.startsWith("zeta/"),
+			isCrossProcessAddress: (raw: string) => raw.startsWith(`${peerPid}/`),
 			send: async (input: { to: string; body: string }) => {
 				sent.push({ to: input.to, body: input.body });
 				return { to: input.to, outcome: "queued" as const };
@@ -113,8 +115,8 @@ describe("mesh cross-process (S1)", () => {
 			const result = await handler.write(
 				{
 					scheme: "agent",
-					rawHost: "zeta",
-					hostname: "zeta",
+					rawHost: String(peerPid),
+					hostname: String(peerPid),
 					pathname: "/Main",
 					searchParams: new URLSearchParams(),
 				} as never,
@@ -125,14 +127,14 @@ describe("mesh cross-process (S1)", () => {
 						getAgentId: () => "Main",
 						enableIrc: true,
 						taskDepth: 1,
-						settings: {},
+						settings: Settings.isolated({}),
 						getSessionFile: () => null,
 					},
 				} as never,
 			);
-			expect(sent).toEqual([{ to: "zeta/Main", body: "cross-process write" }]);
+			expect(sent).toEqual([{ to: `${peerPid}/Main`, body: "cross-process write" }]);
 			const first = result.content[0];
-			expect(first !== undefined && "text" in first ? first.text : "").toContain("Queued for zeta/Main");
+			expect(first !== undefined && "text" in first ? first.text : "").toContain(`Queued for ${peerPid}/Main`);
 		} finally {
 			setMeshNode(undefined);
 		}

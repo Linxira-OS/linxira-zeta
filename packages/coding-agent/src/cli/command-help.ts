@@ -146,6 +146,10 @@ export const sayHelp = {
 
 export const searchHelp = { description: "Test web search providers" } satisfies CommandMetadata;
 
+export const shareHelp = {
+	description: "Share a saved session via an encrypted link (same as /share)",
+} satisfies CommandMetadata;
+
 export const sessionHelp = {
 	description:
 		"Hand a session to another machine (pack, unpack, moved) or check which sessions a running Zeta process owns (lease)",

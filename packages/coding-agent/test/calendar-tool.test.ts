@@ -306,14 +306,14 @@ describe("calendar built-in registration and availability", () => {
 	});
 
 	it("is offered to a top-level session by default", async () => {
-		const xdevSession = makeSession(makeCwd());
-		await createTools(xdevSession);
-		// Discoverable built-ins mount under xd:// by default; the event tool is
-		// still in the session's toolset as that device.
-		expect(xdevSession.xdev?.mountedNames.has("calendar")).toBe(true);
+		const commandSession = makeSession(makeCwd());
+		await createTools(commandSession);
+		// Discoverable built-ins mount as bash tool commands by default; the
+		// event tool is still in the session's toolset as that command.
+		expect(commandSession.toolCommands?.mountedNames.has("calendar")).toBe(true);
 
 		const topLevel = await createTools(
-			makeSession(makeCwd(), { settings: Settings.isolated({ "tools.xdev": false }) }),
+			makeSession(makeCwd(), { settings: Settings.isolated({ "tools.commands": false }) }),
 		);
 		expect(names(topLevel)).toContain("calendar");
 	});

@@ -27,6 +27,7 @@ import {
 	toError,
 	withLoopPhase,
 } from "@linxiraos/pi-utils";
+import type { Settings } from "../config/settings";
 import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "../task/task-details";
 import { splitCardTitle } from "../utils/title-card";
 import type { ConfiguredThinkingLevel } from "../utils/render-utils";
@@ -4869,12 +4870,13 @@ export class SessionManager {
 		session: Pick<SessionInfo, "path" | "cwd">,
 		cwd: string,
 		sessionDir?: string,
+		settings?: Settings,
 	): Promise<boolean> {
 		if (!session.cwd || !(await directoryIsMissing(session.cwd))) return false;
 		const dir = path.resolve(sessionDir ?? SessionManager.getDefaultSessionDir(cwd));
 		const home = path.resolve(path.dirname(session.path));
 		if (home === dir) return resolveManagedSessionRoot(dir, cwd) !== undefined;
-		return (await worktreeSessionDirs(cwd, dir)).some(sibling => path.resolve(sibling) === home);
+		return (await worktreeSessionDirs(cwd, dir, { settings })).some(sibling => path.resolve(sibling) === home);
 	}
 
 	/**
@@ -5152,7 +5154,7 @@ export class SessionManager {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const [pinned, siblingDirs] = await Promise.all([
 			loadPinnedSessionIds(),
-			worktreeScope === "repo" ? worktreeSessionDirs(cwd, dir) : [],
+			worktreeScope === "repo" ? worktreeSessionDirs(cwd, dir, { settings: options?.settings }) : [],
 		]);
 		return listSessionsForPicker(dir, storage, pinned, siblingDirs, options);
 	}

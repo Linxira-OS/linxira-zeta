@@ -325,6 +325,7 @@ export function projectMountedMCPToolCommandGuidance(
 const TOOL_ROSTER_NOTICE_MESSAGE_TYPE = "tool-roster-notice";
 const TOOL_COMMAND_MOUNT_NOTICE_MESSAGE_TYPE = "tool-command-mount-notice";
 const EVAL_PRELUDE_NOTICE_MESSAGE_TYPE = "eval-prelude-notice";
+const EVAL_PRELUDE_GUIDE_MESSAGE_TYPE = "eval-prelude-guide";
 const SKILL_NOTICE_MESSAGE_TYPE = "skill-notice";
 
 /** Custom entry holding the digest of the base prompt the branch's primary model calls are built from. */
@@ -386,6 +387,11 @@ interface ToolCommandMountNoticeDetails {
 interface EvalPreludeNoticeDetails {
 	added: string[];
 	removed: string[];
+}
+
+/** Preludes whose first-call guide one hidden {@link EVAL_PRELUDE_GUIDE_MESSAGE_TYPE} message carries. */
+interface EvalPreludeGuideDetails {
+	names: string[];
 }
 
 /** Skills one hidden {@link SKILL_NOTICE_MESSAGE_TYPE} message announced or withdrew. */
@@ -478,6 +484,11 @@ export class SessionTools {
 	#evalBoundNames = new Set<string>();
 	/** Eval prelude names called in this session; drives first-call guides and prompt hints. */
 	readonly #evalPreludesCalled = new Set<string>();
+	/** Transcript positions where a whole first-call guide already sits, verified by identity. */
+	readonly #evalPreludeGuideHits = new Map<
+		string,
+		{ index: number; message: CustomMessage; content: string; guide: string }
+	>();
 	#pendingToolRosterDelta: { added: Set<string>; removed: Set<string> } | undefined;
 	#pendingToolRosterDeltaAfterBase: { added: Set<string>; removed: Set<string> } | undefined;
 	#pendingToolCommandMountDelta: { added: Set<string>; removed: Set<string> } | undefined;
@@ -927,6 +938,71 @@ export class SessionTools {
 	/** Drop recorded eval prelude calls (session reset/compaction boundaries). */
 	clearEvalPreludeCalls(): void {
 		this.#evalPreludesCalled.clear();
+		this.#evalPreludeGuideHits.clear();
+	}
+
+	/**
+	 * Builds the hidden message carrying the first-call guide of each prelude
+	 * this conversation has called, unless a guide message still in context
+	 * holds that guide whole. Like {@link takeEvalPreludeNotice}, what was sent
+	 * is read from the transcript's own typed messages, never from tool output
+	 * or a delivery flag: a message the loop discarded, or a compaction, rewind
+	 * or shake that dropped or shortened a guide, sends it again at the next
+	 * delivery point, and a resumed session does not repeat it.
+	 */
+	takeEvalPreludeGuide(): CustomMessage<EvalPreludeGuideDetails> | undefined {
+		const called = this.#evalPreludesCalled;
+		if (called.size === 0 || !this.getActiveToolNames().includes("read")) return undefined;
+		const messages = this.#host.agent.state.messages;
+		const definitions = this.#host.evalPreludes();
+		const guides: Array<{ name: string; guide: string }> = [];
+		for (const definition of definitions) {
+			const guide = called.has(definition.name) ? definition.firstCallDocumentation?.trim() : undefined;
+			if (!guide) continue;
+			const hit = this.#evalPreludeGuideHits.get(definition.name);
+			if (
+				hit &&
+				messages[hit.index] === hit.message &&
+				hit.message.customType === EVAL_PRELUDE_GUIDE_MESSAGE_TYPE &&
+				hit.message.content === hit.content &&
+				hit.guide === guide
+			) {
+				continue;
+			}
+			let found = false;
+			for (let index = messages.length - 1; index >= 0; index--) {
+				const message = messages[index];
+				if (message.role !== "custom" || message.customType !== EVAL_PRELUDE_GUIDE_MESSAGE_TYPE) continue;
+				const details = message.details;
+				if (!isRecord(details) || !Array.isArray(details.names) || !details.names.includes(definition.name))
+					continue;
+				const expected = details.names.flatMap(name => {
+					const prelude = definitions.find(candidate => candidate.name === name);
+					const text = prelude?.firstCallDocumentation?.trim();
+					return prelude && text ? [{ name: prelude.name, guide: text }] : [];
+				});
+				if (expected.length !== details.names.length) continue;
+				const content = prompt.render(evalPreludeGuidePrompt, { guides: expected });
+				if (message.content !== content) continue;
+				this.#evalPreludeGuideHits.set(definition.name, { index, message, content, guide });
+				found = true;
+				break;
+			}
+			if (!found) {
+				this.#evalPreludeGuideHits.delete(definition.name);
+				guides.push({ name: definition.name, guide });
+			}
+		}
+		if (guides.length === 0) return undefined;
+		return {
+			role: "custom",
+			customType: EVAL_PRELUDE_GUIDE_MESSAGE_TYPE,
+			content: prompt.render(evalPreludeGuidePrompt, { guides }),
+			details: { names: guides.map(guide => guide.name) },
+			attribution: "agent",
+			display: false,
+			timestamp: Date.now(),
+		};
 	}
 
 	/** Drops cached per-session ACP `allow_always`/`reject_always` decisions. */

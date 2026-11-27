@@ -2987,7 +2987,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						const suggestion =
 							totalFileLines === 0
 								? "The file is empty."
-								: `Use ${selectorBase}:1 to read from the start, or ${selectorBase}:${totalFileLines} to read the last line.`;
+								: `Use ${selectorBase}:1- to read from the start, or ${selectorBase}:${totalFileLines} to read the last line.`;
 						const boundsDetails: ReadToolDetails = {
 							resolvedPath: renderAbsolutePath,
 							suffixResolution,
@@ -3582,7 +3582,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				const suggestion =
 					allLines.length === 0
 						? "The listing is empty."
-						: `Use :1 to read from the start, or :${allLines.length} to read the last line.`;
+						: `Use :1- to read from the start, or :${allLines.length} to read the last line.`;
 				return toolResult(details)
 					.text(`Line ${start + 1} is beyond end of listing (${allLines.length} lines total). ${suggestion}`)
 					.sourcePath(tree.rootPath)

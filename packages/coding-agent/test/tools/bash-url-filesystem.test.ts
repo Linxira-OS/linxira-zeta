@@ -124,14 +124,19 @@ describe("bash internal URLs through the shell filesystem", () => {
 		expect(refused.text).toContain("read-only working directory");
 	});
 
-	it("fails the command when a URL argument names nothing the provider knows", async () => {
-		const { text, isError } = await run(`'${process.execPath}' -e "console.log('ran')" skill://nope/tool.js`);
+	it("hands a program a URL argument the provider cannot resolve as written", async () => {
+		const script = path.join(tempDir, "argv.js");
+		await fs.writeFile(script, "console.log(process.argv.slice(2).join('\\n'));\n");
+		await fs.mkdir(localRoot, { recursive: true });
+		await fs.writeFile(path.join(localRoot, "data.txt"), "payload\n");
 
-		expect(isError).toBe(true);
-		expect(text).not.toContain("ran\n");
-		// Unix maps the provider's ENOENT to the native errno (its message is the
-		// OS's); other platforms keep the provider message. Both name the URL.
-		expect(text).toContain("cannot resolve skill://nope/tool.js");
+		// An identifier or message text that only looks like a path is the program's own.
+		const { text, isError } = await run(
+			`'${process.execPath}' '${script}' skill://nope/tool.js 'artifact://12; local://data.txt is the evidence'`,
+		);
+
+		expect(isError).toBeUndefined();
+		expect(text).toContain("skill://nope/tool.js\nartifact://12; local://data.txt is the evidence\n");
 	});
 
 	it("starts an external program in the directory a URL working directory aliases", async () => {

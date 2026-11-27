@@ -90,10 +90,15 @@ export interface ExecutorBackend {
  * schemes from {@link contextLocalProtocolOptions}, resolved the way the
  * protocol handlers do, so an eval `write("local://x")` and a later
  * `read local://x` agree on the location. `local://` maps to its root, which
- * also holds the session's spills (`local://<N>.log`).
+ * also holds the session's spills (`local://<N>.log`); `artifact://` maps to
+ * the session's artifacts dir so `read("artifact://<id>")` returns its text.
  * A scheme is absent when its root does not resolve (read would fail the same way).
  */
 export function resolveEvalUrlRoots(session: ToolSession): Record<string, string> {
-	const options = LocalProtocolHandler.resolveOptions({ localProtocolOptions: contextLocalProtocolOptions(session) });
-	return options ? buildEvalUrlRoots(options) : {};
+	const protocolOptions = contextLocalProtocolOptions(session);
+	const options = LocalProtocolHandler.resolveOptions({ localProtocolOptions: protocolOptions });
+	const roots = options ? buildEvalUrlRoots(options) : {};
+	const artifactsDir = protocolOptions?.getArtifactsDir?.();
+	if (artifactsDir) roots.artifact = artifactsDir;
+	return roots;
 }

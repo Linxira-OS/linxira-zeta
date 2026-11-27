@@ -465,7 +465,7 @@ describe("session worktree helpers (ovnfs checkout)", () => {
 		await fs.chmod(command, 0o755);
 		settings = Settings.isolated({ "ovnfs.path": command });
 		savedEnv = process.env.OMP_WORKTREE_DIR;
-		process.env.OMP_WORKTREE_DIR = path.join(root, "wt");
+		setWorktreesDir(path.join(root, "wt"));
 		checkouts = new Map();
 		vi.spyOn(daemon, "startDaemon").mockResolvedValue({ socket: path.join(root, "ovnfs.sock") });
 		vi.spyOn(daemon, "runningDaemon").mockResolvedValue({ socket: path.join(root, "ovnfs.sock") });
@@ -500,6 +500,7 @@ describe("session worktree helpers (ovnfs checkout)", () => {
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
+		setWorktreesDir(undefined);
 		if (savedEnv === undefined) delete process.env.OMP_WORKTREE_DIR;
 		else process.env.OMP_WORKTREE_DIR = savedEnv;
 		await fs.rm(root, { recursive: true, force: true });
@@ -590,7 +591,7 @@ describe("session worktree helpers (ovnfs checkout)", () => {
 		const id = session.getSessionId();
 		await session.close();
 		const findSession = async () => {
-			const listing = await SessionManager.listForPicker(repo, sourceDir, undefined, "repo");
+			const listing = await SessionManager.listForPicker(repo, sourceDir, undefined, "repo", { settings });
 			return (await listing.complete).find(row => row.id === id);
 		};
 		expect((await findSession())?.cwd).toBe(wt.path);
@@ -614,6 +615,6 @@ describe("session worktree helpers (ovnfs checkout)", () => {
 		vi.spyOn(daemon, "runningDaemon").mockResolvedValue(undefined);
 		const removed = await findSession();
 		if (!removed) throw new Error("removed checkout session disappeared from its source picker");
-		expect(await SessionManager.isStrandedIn(removed, repo, sourceDir)).toBe(true);
+		expect(await SessionManager.isStrandedIn(removed, repo, sourceDir, settings)).toBe(true);
 	});
 });
