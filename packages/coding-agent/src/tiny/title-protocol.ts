@@ -31,6 +31,11 @@ export const TINY_WORKER_IDLE_MS = 15 * 60 * 1_000;
 /** Inference engine a worker runs; part of the unit key so ONNX and MLX workers for one model coexist. */
 export type TinyWorkerBackend = "onnx" | "mlx";
 
+/** Stable unit name for one local model on one inference backend. */
+export function tinyWorkerName(model: string, backend: TinyWorkerBackend): string {
+	return `tiny-${model}-${backend}`.replace(/[^A-Za-z0-9._-]/g, "-");
+}
+
 export type TinyTitleProgressStatus =
 	| "initiate"
 	| "download"
