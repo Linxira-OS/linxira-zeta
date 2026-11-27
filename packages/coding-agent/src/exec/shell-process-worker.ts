@@ -41,8 +41,18 @@ export async function runShellProcess(args: readonly string[]): Promise<never> {
 	const abort = new AbortController();
 	/** The status this process exits with once a signal ended the command. */
 	let signalStatus: number | undefined;
-	const stop = (status: number): void => {
+	const stop = (status: number, forceChildren = false): void => {
 		signalStatus ??= status;
+		if (forceChildren) {
+			// TERM/HUP end the command, not just the shell's foreground wait. The
+			// externals in this process's session would otherwise be orphaned and
+			// keep running after the worker exits.
+			for (const pid of shell.pids()) {
+				try {
+					process.kill(pid, "SIGKILL");
+				} catch {}
+			}
+		}
 		abort.abort();
 	};
 	// The terminal sends its interrupt to the whole foreground group, the externals included.
@@ -61,8 +71,8 @@ export async function runShellProcess(args: readonly string[]): Promise<never> {
 	// command's programs: one that loses leaves them running behind this process.
 	for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.removeAllListeners(signal);
 	process.on("SIGINT", () => interrupt(130));
-	process.on("SIGTERM", () => stop(143));
-	process.on("SIGHUP", () => stop(129));
+	process.on("SIGTERM", () => stop(143, true));
+	process.on("SIGHUP", () => stop(129, true));
 	if (process.platform !== "win32") process.on("SIGQUIT", () => interrupt(131));
 
 	let status: number;
