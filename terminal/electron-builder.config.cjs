@@ -13,7 +13,7 @@ const config = {
     appId: pkg.build.appId,
     productName: pkg.productName,
     executableName: pkg.productName,
-    artifactName: "${productName}-${platform}-${arch}-${version}.${ext}",
+    artifactName: "${name}-${platform}-${arch}-${version}.${ext}",
     generateUpdatesFilesForAllChannels: true,
     npmRebuild: false,
     nodeGypRebuild: false,
@@ -81,7 +81,7 @@ const config = {
         executableName: pkg.name,
         target: ["zip", "deb", "rpm", "snap", "AppImage", "pacman"],
         synopsis: pkg.description,
-        description: null,
+        description: pkg.description,
         desktop: {
             entry: {
                 Name: pkg.productName,
@@ -99,8 +99,8 @@ const config = {
         target: ["nsis", "msi", "zip"],
         signtoolOptions: windowsShouldSign && {
             signingHashAlgorithms: ["sha256"],
-            publisherName: "Command Line Inc",
-            certificateSubjectName: "Command Line Inc",
+            publisherName: "Linxira OS",
+            certificateSubjectName: "Linxira OS",
             certificateSha1: process.env.SM_CODE_SIGNING_CERT_SHA1_HASH,
         },
     },

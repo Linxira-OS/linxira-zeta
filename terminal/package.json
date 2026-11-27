@@ -1,16 +1,15 @@
 {
-    "name": "waveterm",
+    "name": "zeta-terminal",
     "author": {
-        "name": "Command Line Inc",
-        "email": "info@commandline.dev"
+        "name": "Linxira OS"
     },
-    "productName": "Wave",
-    "description": "Open-Source AI-Native Terminal Built for Seamless Workflows",
+    "productName": "Zeta Terminal",
+    "description": "Zeta Terminal \u2014 the TSP presentation surface for zetacode",
     "license": "Apache-2.0",
     "version": "0.14.5",
     "homepage": "https://waveterm.dev",
     "build": {
-        "appId": "dev.commandline.waveterm"
+        "appId": "so.linxira.ZetaTerminal"
     },
     "private": true,
     "main": "./dist/main/index.js",

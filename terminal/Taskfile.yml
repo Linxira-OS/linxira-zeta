@@ -4,7 +4,7 @@
 version: "3"
 
 vars:
-    APP_NAME: "Wave"
+    APP_NAME: "Zeta Terminal"
     BIN_DIR: "bin"
     VERSION:
         sh: node version.cjs
