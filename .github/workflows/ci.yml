@@ -1717,10 +1717,11 @@ jobs:
               gh release download zeta-repo --repo Linxira-OS/packages \
                 --pattern 'linxira-zeta-*.pkg.tar.zst' --dir temp/upgrade --clobber
               old=$(ls temp/upgrade/linxira-zeta-1.4.10-*.pkg.tar.zst)
-              # The desktop package is the only linxira-zeta-<version>-<rel>-x86_64
-              # asset; c-bin/ide sort differently and are excluded by the regex.
+              # The suite meta package is linxira-zeta-<version>-<rel>-any now that
+              # it only carries dependencies; c-bin/ide sort differently and are
+              # excluded by the name regex.
               new=$(ls temp/upgrade/linxira-zeta-*.pkg.tar.zst |
-                grep -E '/linxira-zeta-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-x86_64\.pkg\.tar\.zst$' |
+                grep -E '/linxira-zeta-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-(x86_64|any)\.pkg\.tar\.zst$' |
                 grep -v '/linxira-zeta-1\.4\.10-' | sort -V | tail -n1)
               old_ver=$(bsdtar -xOf "$old" .PKGINFO | sed -n 's/^pkgver = //p')
               new_ver=$(bsdtar -xOf "$new" .PKGINFO | sed -n 's/^pkgver = //p')
