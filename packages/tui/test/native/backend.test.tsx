@@ -91,7 +91,7 @@ describe("native handshake", () => {
 		const clock = new ManualClock();
 		const pending = TspConnection.connect(tern, { clock, ver: "9" });
 		expect(tern.sent("q")).toEqual([
-			{ q: "hello", v: [1], app: "omp", features: ["edit", "undo", "send"], ver: "9" },
+			{ q: "hello", v: [1], app: "zetacode", features: ["edit", "undo", "send"], ver: "9" },
 		]);
 		tern.pump();
 		const connection = (await pending)!;
