@@ -69,14 +69,24 @@ describe("web search directive pipeline", () => {
 		expect(result.content[0]?.text).not.toContain("Note:");
 	});
 
-	it("relaxes a constraint that matches nothing and leads the LLM text with a note", async () => {
+	it("returns an empty result, not off-site sources, when nothing matches a site: directive", async () => {
 		const context = await stubRoleProvider("brave", async () => ({ provider: "brave", sources: SOURCES }));
 
 		const result = await runSearchQuery({ query: "guide site:nowhere.example" }, context);
 
+		expect(result.details.error).toBeUndefined();
+		expect(result.details.response.sources).toEqual([]);
+		expect(result.content[0]?.text).toBe("No results from brave matched `site:nowhere.example`.");
+	});
+
+	it("relaxes a non-scope constraint that matches nothing and leads the LLM text with a note", async () => {
+		const context = await stubRoleProvider("brave", async () => ({ provider: "brave", sources: SOURCES }));
+
+		const result = await runSearchQuery({ query: "guide intitle:nowhere" }, context);
+
 		expect(result.details.response.sources).toHaveLength(SOURCES.length);
 		expect(result.content[0]?.text).toStartWith(
-			"Note: no results matched `site:nowhere.example`; the constraint was relaxed",
+			"Note: no results matched `intitle:nowhere`; the constraint was relaxed",
 		);
 	});
 

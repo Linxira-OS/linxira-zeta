@@ -79,7 +79,7 @@ describe("SearXNG web search provider", () => {
 			fetch: fetchMock,
 		});
 
-		expect(captured.q).toBe("17.1.1 release github.com/Linxira-OS/linxira-zeta releases site:github.com");
+		expect(captured.q).toBe("17.1.1 release github.com/linxira-os/linxira-zeta releases site:github.com");
 	});
 
 	it("maps lang: to the language param and re-emits remaining directives in q", async () => {

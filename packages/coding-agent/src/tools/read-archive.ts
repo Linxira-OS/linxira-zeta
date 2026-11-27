@@ -1,12 +1,14 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { TextContent } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
+import { type ImageMetadata, parseImageMetadata, TempDir } from "@linxiraos/pi-utils";
 import {
 	type ArchiveFormat,
 	type ArchiveReader,
+	archiveFormatFromPath,
 	formatArchiveEntryLines,
 	openArchive,
 	parseArchivePathCandidates,
+	sniffArchiveFormat,
 } from "@linxiraos/pi-utils/ar";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { applyListLimit } from "./list-limit";
@@ -42,6 +44,64 @@ interface ResolvedArchiveReadPath {
 	absolutePath: string;
 	archiveSubPath: string;
 	suffixResolution?: { from: string; to: string };
+	/** Container format, when the file's extension does not name it (`report.docx:word/document.xml`). */
+	format?: ArchiveFormat;
+}
+
+/** An image member, materialized for the read tool's image loader. */
+export interface ArchiveImageReadOptions {
+	readPath: string;
+	absolutePath: string;
+	mimeType: string;
+	imageMetadata: ImageMetadata;
+	fileSize: number;
+	signal?: AbortSignal;
+}
+
+/**
+ * ZIP-container documents. A bare read converts them to text; `doc.docx:word/document.xml` reads a member.
+ * The lookahead requires the `:member` part.
+ */
+const ZIP_DOCUMENT_MEMBER_RE = /\.(?:docx|docm|dotx|xlsx|xlsm|pptx|pptm|odt|ods|odp|epub)(?=:)/gi;
+
+/** Whether the file's first `length` bytes pass `sniff`; an unreadable file does not. */
+async function hasMagic(absolutePath: string, sniff: (bytes: Uint8Array) => boolean, length: number): Promise<boolean> {
+	try {
+		return sniff(await Bun.file(absolutePath).slice(0, length).bytes());
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Whether the file is the archive its extension names. `.lib` also names text (SPICE models), so an `ar`
+ * extension needs the `!<arch>` header; other extensions are trusted, and a mismatch fails when opened.
+ */
+async function claimsArchiveFormat(archivePath: string, absolutePath: string): Promise<boolean> {
+	return (
+		archiveFormatFromPath(archivePath) !== "ar" ||
+		hasMagic(absolutePath, bytes => sniffArchiveFormat(bytes) === "ar", 8)
+	);
+}
+
+/** `doc.docx:<member>` candidates: an existing ZIP file whose member part is no line selector. */
+async function resolveZipDocumentMember(
+	session: ToolSession,
+	readPath: string,
+): Promise<ResolvedArchiveReadPath | null> {
+	const normalized = readPath.replace(/\\/g, "/");
+	for (const match of normalized.matchAll(ZIP_DOCUMENT_MEMBER_RE)) {
+		const end = (match.index ?? 0) + match[0].length;
+		const subPath = normalized.slice(end + 1);
+		if (subPath.length === 0 || parseSel(subPath).kind !== "none") continue;
+		const absolutePath = resolveReadPath(readPath.slice(0, end), session.cwd);
+		const stat = await Bun.file(absolutePath)
+			.stat()
+			.catch(() => null);
+		if (!stat?.isFile() || !(await hasMagic(absolutePath, bytes => sniffArchiveFormat(bytes) === "zip", 4))) continue;
+		return { absolutePath, archiveSubPath: subPath, format: "zip" };
+	}
+	return null;
 }
 
 /**
@@ -104,14 +164,15 @@ const archiveReaderCache = new LRUCache<string, CachedArchiveReader>({
 	sizeCalculation: cached => Math.max(1, cached.entryCount),
 });
 
-async function openArchiveCached(absolutePath: string): Promise<ArchiveReader> {
+async function openArchiveCached(absolutePath: string, format?: ArchiveFormat): Promise<ArchiveReader> {
+	const source = format ? { path: absolutePath, format } : absolutePath;
 	// The clock is read before the stat, so a change landing between the two counts as recent.
 	const checkedAtMs = Date.now();
 	// A vanished or unreadable archive is reported by the opener, as it always has been.
 	const stat = await Bun.file(absolutePath)
 		.stat()
 		.catch(() => null);
-	if (!stat) return openArchive(absolutePath);
+	if (!stat) return openArchive(source);
 	const cached = archiveReaderCache.get(absolutePath);
 	if (
 		cached &&
@@ -123,7 +184,7 @@ async function openArchiveCached(absolutePath: string): Promise<ArchiveReader> {
 	) {
 		return cached.reader;
 	}
-	const reader = await openArchive(absolutePath);
+	const reader = await openArchive(source);
 	if (!CACHEABLE_ARCHIVE_FORMATS[reader.format] || checkedAtMs - stat.ctimeMs < RACY_STAMP_WINDOW_MS) {
 		archiveReaderCache.delete(absolutePath);
 		return reader;
@@ -155,6 +216,7 @@ export async function resolveArchiveReadPath(
 		try {
 			const stat = await Bun.file(absolutePath).stat();
 			if (stat.isDirectory()) continue;
+			if (!(await claimsArchiveFormat(candidate.archivePath, absolutePath))) continue;
 			return {
 				absolutePath,
 				archiveSubPath: candidate.archivePath === readPath ? "" : candidate.subPath,
@@ -169,6 +231,7 @@ export async function resolveArchiveReadPath(
 			try {
 				const retryStat = await Bun.file(suffixMatch.absolutePath).stat();
 				if (retryStat.isDirectory()) continue;
+				if (!(await claimsArchiveFormat(candidate.archivePath, suffixMatch.absolutePath))) continue;
 
 				absolutePath = suffixMatch.absolutePath;
 				suffixResolution = { from: candidate.archivePath, to: suffixMatch.displayPath };
@@ -185,7 +248,7 @@ export async function resolveArchiveReadPath(
 		}
 	}
 
-	return null;
+	return resolveZipDocumentMember(session, readPath);
 }
 async function readArchiveDirectory(
 	archive: ArchiveReader,
@@ -231,10 +294,11 @@ export async function readArchive(
 	lineSelector: string | undefined,
 	resolvedArchivePath: ResolvedArchiveReadPath,
 	readPdfPage: (options: PdfPageReadOptions) => Promise<AgentToolResult<ReadToolDetails>>,
+	readImage: (options: ArchiveImageReadOptions) => Promise<AgentToolResult<ReadToolDetails>>,
 	signal?: AbortSignal,
 ): Promise<AgentToolResult<ReadToolDetails>> {
 	throwIfAborted(signal);
-	const archive = await openArchiveCached(resolvedArchivePath.absolutePath);
+	const archive = await openArchiveCached(resolvedArchivePath.absolutePath, resolvedArchivePath.format);
 	throwIfAborted(signal);
 
 	const details: ReadToolDetails = markMarkdownContentType(
@@ -348,6 +412,26 @@ export async function readArchive(
 	if (text === null) {
 		if (jsonSelector) {
 			throw new ToolError("JSON selectors require a text archive member, not a binary entry.");
+		}
+		const imageMetadata = sel.kind === "none" ? parseImageMetadata(entry.bytes) : null;
+		if (imageMetadata?.mimeType) {
+			// The image loader reads files: the selected member gets an owned name, never its archive path.
+			await using scratch = await TempDir.create("@omp-read-archive-image-");
+			const imagePath = scratch.join("member");
+			await Bun.write(imagePath, entry.bytes);
+			const result = await readImage({
+				readPath,
+				absolutePath: imagePath,
+				mimeType: imageMetadata.mimeType,
+				imageMetadata,
+				fileSize: entry.size,
+				signal,
+			});
+			const memberPath = `${resolvedArchivePath.absolutePath}:${entry.path}`;
+			return toolResult<ReadToolDetails>({ ...result.details, ...details, resolvedPath: memberPath })
+				.content(result.content)
+				.sourcePath(memberPath)
+				.done();
 		}
 		return toolResult<ReadToolDetails>(details)
 			.text(

@@ -153,7 +153,10 @@ describe("read URL binary dispatch", () => {
 		expect(bodyReads).toEqual([]);
 		// One download even when it fails: the binary fallback reuses the conversion attempt.
 		expect(fetchBinary).toHaveBeenCalledTimes(1);
-		expect(textOutput(result).split("Binary fetch failed: offline").length - 1).toBe(1);
+		// The notice itself says why no text came out: a ranged read shows no notes.
+		expect(textOutput(result)).toContain(
+			"[Binary content: application/octet-stream, unknown size; Binary fetch failed: offline]",
+		);
 	});
 
 	it("returns a metadata notice when a hinted binary refetch fails", async () => {

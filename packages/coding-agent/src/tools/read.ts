@@ -32,7 +32,7 @@ import {
 	untilAborted,
 } from "@linxiraos/pi-utils";
 import { peekFile } from "@linxiraos/pi-utils/peek-file";
-import { cfgDisasmBackend, DISASM_BACKENDS, isExecutableFile } from "../disasm";
+import { cfgDisasmBackend, databaseOwner, isExecutableFile } from "../disasm";
 import { normalizeToLF } from "../edit/normalize";
 import { isRemoteTextWritable, writeRemoteMirror } from "../edit/remote-mirror";
 import { writeResourceBackingFile } from "../internal-urls/filesystem-resource";
@@ -2337,12 +2337,19 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					archiveSubPath.sel,
 					{ ...archivePath, archiveSubPath: archiveSubPath.path },
 					options => this.#readPdfPageScreenshot(options),
+					async options => {
+						const { content, details, sourcePath } = await this.#loadImageContent(options);
+						return toolResult(details).content(content).sourcePath(sourcePath).done();
+					},
 					signal,
 				);
 			}
 
 			const sqlitePath = await resolveSqliteReadPath(this.session, readPath, suffixCache, signal);
-			if (sqlitePath) {
+			// A disassembler database stored as SQLite (Binary Ninja `.bndb`) belongs to
+			// its backend: views take the disassembler route below and a bare read shows
+			// database metadata.
+			if (sqlitePath && !databaseOwner(sqlitePath.absolutePath)) {
 				return readSqlite(sqlitePath, signal);
 			}
 			// local:// and artifact:// locate backing files without their URL query;
@@ -2566,7 +2573,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			!isRawSelector(parsed) &&
 			parsed.kind !== "image" &&
 			lexicalAbsolutePath === undefined &&
-			(DISASM_BACKENDS.ida.isDatabasePath(absolutePath) || (await isExecutableFile(absolutePath)))
+			(databaseOwner(absolutePath) !== undefined || (await isExecutableFile(absolutePath)))
 		) {
 			const backend = cfgDisasmBackend.get(this.session.settings);
 			return readBinary(this.session, { backend, absolutePath, view: "" }, parsed, signal);
