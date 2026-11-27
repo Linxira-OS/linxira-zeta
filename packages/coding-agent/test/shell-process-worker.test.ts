@@ -4,6 +4,7 @@
  * these.
  */
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { PtySession } from "@linxiraos/pi-natives";
@@ -92,6 +93,20 @@ function onTerminal(
 	};
 }
 
+// A killed grandchild can outlive its shell as a zombie until PID 1 reaps it.
+function isGoneOrZombie(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+	} catch {
+		return true;
+	}
+	try {
+		return /^State:\s+Z/m.test(readFileSync(`/proc/${pid}/status`, "utf8"));
+	} catch {
+		return true;
+	}
+}
+
 describe("shell process on pipes", () => {
 	it("runs omp's utilities and tools ahead of PATH on its own stdin, and exits with the command's status", async () => {
 		using tempDir = TempDir.createSync("@omp-shell-process-");
@@ -146,7 +161,7 @@ describe("shell process on pipes", () => {
 			expect(exitCode).toBe(143);
 			// Nothing after the program ran, and the program is gone with its shell.
 			expect(printed).toMatch(/^\d+\n$/);
-			expect(() => process.kill(Number(printed), 0)).toThrow();
+			expect(isGoneOrZombie(Number(printed))).toBe(true);
 		},
 		60_000,
 	);
