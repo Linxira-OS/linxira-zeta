@@ -649,7 +649,10 @@ async function loadCiClippyMatcher(root: string): Promise<CiClippyTargetMatcher 
 	};
 	const steps = parsed?.jobs?.rust_validate?.steps;
 	if (!Array.isArray(steps)) {
-		return () => false;
+		// The Bazel clippy query job was retired with the 19.2 CI restructure. Without a
+		// query there is no schedule to check; `--coverage` still reports opted-in crates
+		// so a future job can be held to them.
+		return null;
 	}
 	const matchers: CiClippyTargetMatcher[] = [];
 	for (const step of steps) {
