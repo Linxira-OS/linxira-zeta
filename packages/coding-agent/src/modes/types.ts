@@ -973,7 +973,7 @@ export interface InteractiveModeContext {
 	handleShakeCommand(mode: ShakeMode): Promise<void>;
 	handleMoveCommand(targetPath?: string): Promise<void>;
 	/** Live link to an attached backend while this client is attached (`/restart backend`). */
-	backendAttach?: { restartBackend(): Promise<void> };
+	backendAttach?: import("../backend/attach-link").BackendAttachLink;
 	/** Loop snapshot mirrored from the attached backend onto the status line. */
 	setBackendLoopStatus?(
 		status: { state: "paused" | "running" | "waiting"; limit?: unknown; condition?: unknown } | undefined,

@@ -40,6 +40,8 @@ import {
 } from "./cli/args";
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
 import { processFileArguments } from "./cli/file-processor";
+import { resolveStartupTransport, type ResolvedBackendTarget } from "./backend/attach-intent";
+import { cfgBackendEnabled } from "./backend/settings";
 import { buildInitialMessage } from "./cli/initial-message";
 import { KeybindingsManager } from "./config/keybindings/keybindings";
 import { formatKeyHint } from "./ui/keys/hints";
@@ -764,11 +766,13 @@ async function runInteractiveMode(
 	startupGoal?: string,
 	startupRestore?: () => Promise<RestoreOutcome>,
 	modelFallbackMessage?: string,
+	backendTarget?: ResolvedBackendTarget,
 ): Promise<void> {
 	// Captured before setup: the setup wizard may replace the model the fallback warning describes.
 	const modelBeforeSetup = session.model;
 	const InteractiveModeConstructor = await loadInteractiveModeConstructor();
 	let mode: InteractiveMode;
+	let backendLink: import("./backend/attach-link").BackendAttachLink | undefined;
 	try {
 		// The interactive mode adopts a started frame; a frame still starting would be started twice.
 		await startupLease?.ready;
@@ -839,6 +843,22 @@ async function runInteractiveMode(
 					(startupGoal !== undefined || initialMessage !== undefined || initialMessages.length > 0),
 			}),
 		);
+
+		// Attach after the TUI exists: the replica switch needs its renderer, and a
+		// backend failure must degrade to the already-created in-process session.
+		if (backendTarget) {
+			const { BackendAttachLink } = await import("./backend/attach-link");
+			const link = new BackendAttachLink(mode, backendTarget);
+			try {
+				await link.join();
+				backendLink = link;
+			} catch (error) {
+				await link.detach().catch(() => undefined);
+				mode.showWarning(
+					`Could not attach to the backend (${error instanceof Error ? error.message : String(error)}); continuing in-process.`,
+				);
+			}
+		}
 		startDeferredStartupWork?.(mode);
 
 		if (setupWizard && playStartupSplash) {
@@ -963,7 +983,8 @@ async function runInteractiveMode(
 			// before this dispatch runs (the composer accepts input as soon as the
 			// first turn starts): the CLI message queues into that turn instead of
 			// dying with AgentBusyError.
-			await session.prompt(initialMessage, { images: initialImages, streamingBehavior: "steer" });
+			if (backendLink) backendLink.sendPrompt(initialMessage, initialImages);
+			else await session.prompt(initialMessage, { images: initialImages, streamingBehavior: "steer" });
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 			mode.showError(errorMessage);
@@ -972,7 +993,8 @@ async function runInteractiveMode(
 
 	for (const message of initialMessages) {
 		try {
-			await session.prompt(message, { streamingBehavior: "steer" });
+			if (backendLink) backendLink.sendPrompt(message);
+			else await session.prompt(message, { streamingBehavior: "steer" });
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 			mode.showError(errorMessage);
@@ -3034,6 +3056,12 @@ export async function runRootCommand(
 					}
 				}
 				const startupLease = takeStartupComposerLease();
+				const transport = await resolveStartupTransport(parsedArgs, rawArgs, {
+					interactive: true,
+					backendEnabled: cfgBackendEnabled.get(settingsInstance),
+					cwd: process.cwd(),
+				});
+				const backendTarget = transport.kind === "backend" ? transport.target : undefined;
 				try {
 					stopStartupWatchdog();
 					logger.endTiming();
@@ -3064,6 +3092,7 @@ export async function runRootCommand(
 								}
 							: undefined,
 						modelFallbackMessage,
+						backendTarget,
 					);
 				} finally {
 					startupLease?.dispose();

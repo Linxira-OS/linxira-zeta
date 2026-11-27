@@ -81,6 +81,13 @@ import { materializeImageChipLinks } from "../utils/ui-helpers";
 import { compactImageMarkers, formatVisionMarker, shiftImageMarkers } from "../view-model/prompt/composer-attachments";
 import { extractImagePastePathsFromText, extractImagePathFromText } from "../view-model/prompt/custom-editor";
 import { formatQueueShorthand, parseQueueShorthand, splitQueuedMessages } from "../view-model/prompt/queue-input";
+import {
+	backendAttachRefusalHint,
+	isBackendAttachLocalCommand,
+	isBackendAttachRefusedCommand,
+	isBackendAttachTuiOnlyBuiltin,
+} from "../../backend/attach-commands";
+import { workspaceBranch } from "../../session/workspace-branch";
 
 /** Bare words that quit (as `/<word>`) when typed alone into a session with no messages. */
 const BARE_EXIT_WORDS: Record<string, true> = { exit: true, quit: true, q: true };
@@ -856,6 +863,17 @@ export class InputController {
 			}
 			return;
 		}
+		if (this.ctx.backendAttach) {
+			// Attached Esc: the local replica is an idle mirror, so abort the
+			// backend turn/loop instead of running the native abort path.
+			if (this.ctx.backendAttach.loopState?.enabled) {
+				void this.ctx.backendAttach.pauseLoop().catch(() => undefined);
+			}
+			if (this.ctx.backendAttach.streaming || this.ctx.working === "turn") {
+				this.ctx.backendAttach.sendAbort();
+			}
+			return;
+		}
 		if (this.ctx.working === "turn" && this.ctx.cancelPendingSubmission()) {
 			this.#restoreYieldCompactionOnStop();
 			return;
@@ -1243,6 +1261,25 @@ export class InputController {
 
 			const queueBody = parseQueueShorthand(text);
 			if (queueBody !== undefined) {
+				if (this.ctx.backendAttach) {
+					const body = queueBody.trim();
+					const queueImages = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;
+					if (!body && !queueImages) {
+						this.ctx.showWarning("Usage: /queue <message> (or start a prompt with -> / =>)");
+						return;
+					}
+					const messages = body ? splitQueuedMessages(body) : [""];
+					for (const [index, message] of messages.entries()) {
+						this.ctx.backendAttach.sendPrompt(message, index === 0 ? queueImages : undefined, "followUp");
+					}
+					this.ctx.showStatus(
+						messages.length === 1
+							? "Queued message for the backend's next turn"
+							: `Queued ${messages.length} messages for the backend's next turns`,
+						{ dim: true },
+					);
+					return;
+				}
 				await this.#queueForYield(queueBody, {
 					historyText: text,
 					images: inputImages,
@@ -1270,6 +1307,502 @@ export class InputController {
 					this.ctx.showStatus(`/${hostOnly} is host-only during a collab session`);
 					restoreDetachedDraft(this.ctx.composer, text, inputImages, inputImageLinks);
 					return;
+				}
+			}
+
+			// Backend-attached session: model prompts and interactive work belong
+			// to the backend. Local display commands and the mirrored replica
+			// switches run here; backend-capable slash commands are forwarded so the
+			// backend executes them with its own session (the same path ACP uses);
+			// only commands that would swap the session or write credentials the
+			// backend already loaded are refused.
+			const backendAttach = this.ctx.backendAttach;
+			if (backendAttach) {
+				const verb = text.startsWith("/") ? text.slice(1).split(/\s+/, 1)[0] : undefined;
+				const localCommand = isBackendAttachLocalCommand(verb);
+				if (backendAttach) {
+					// Mode commands with a prompt: a local handler would enter the mode on
+					// the replica and then prompt the *local* agent. Enter the mode on the
+					// backend instead; its mode_changed event updates the client banner.
+					if (verb === "loop") {
+						// The loop repeats prompts in the backend's session; parsing and
+						// scheduling happen there so no local timer can submit into the
+						// replica. The second `/loop` disables it.
+						this.ctx.composer.clearDraft();
+						const args = text.slice("/loop".length).trim();
+						void backendAttach.toggleLoop(args).catch(error => {
+							this.ctx.showError(
+								`Could not toggle the backend loop: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						});
+						return;
+					}
+					if (verb === "plan" || verb === "plan-ultra") {
+						// Every form is a backend mode transition: a task enters plan
+						// mode with that prompt, a bare command toggles the backend's
+						// plan mode (ultra selects the ultra workflow). Running the TUI
+						// handler here would flip the replica and then prompt locally.
+						const task = text.slice(`/${verb}`.length).trim();
+						const ultra = verb === "plan-ultra";
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							if (!task) {
+								if (this.ctx.planModeEnabled && !ultra) {
+									await backendAttach.exitMode("plan");
+								} else {
+									await backendAttach.enterMode("plan", ultra ? { workflow: "ultra" } : undefined);
+								}
+								return;
+							}
+							await backendAttach.enterMode("plan", {
+								initialPrompt: task,
+								objective: task,
+								...(ultra ? { workflow: "ultra" } : {}),
+							});
+						})().catch(error =>
+							this.ctx.showError(
+								`Could not enter plan mode: ${error instanceof Error ? error.message : String(error)}`,
+							),
+						);
+						return;
+					}
+					if (verb === "plan-review") {
+						this.ctx.composer.clearDraft();
+						void backendAttach
+							.reviewPlan()
+							.catch(error =>
+								this.ctx.showError(
+									`Plan review failed: ${error instanceof Error ? error.message : String(error)}`,
+								),
+							);
+						return;
+					}
+					if (verb === "vibe") {
+						const promptText = text.slice(`/${verb}`.length).trim();
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							if (!promptText) {
+								if (this.ctx.vibeModeEnabled) await backendAttach.exitMode("vibe");
+								else await backendAttach.enterMode("vibe");
+								return;
+							}
+							await backendAttach.enterMode("vibe");
+							backendAttach.sendPrompt(promptText);
+						})().catch(error =>
+							this.ctx.showError(
+								`Could not enter vibe mode: ${error instanceof Error ? error.message : String(error)}`,
+							),
+						);
+						return;
+					}
+					if (verb === "goal") {
+						// Goal state is backend-owned. Subcommands map onto the RPC
+						// lifecycle (`get/create/resume/pause/drop/budget`) instead of
+						// the TUI handler, which would mutate only the replica.
+						const raw = text.slice(`/${verb}`.length).trim();
+						const [first = "", ...tail] = raw.split(/\s+/);
+						const sub = ["set", "show", "pause", "resume", "drop", "budget"].includes(first) ? first : undefined;
+						const rest = sub ? tail.join(" ").trim() : raw;
+						const describe = (result: {
+							goal?: { objective?: string; status?: string; tokenBudget?: number; tokensUsed?: number } | null;
+						}): string => {
+							const goal = result.goal;
+							if (!goal) return "No goal.";
+							const budget =
+								goal.tokenBudget === undefined
+									? "unbounded"
+									: `${goal.tokensUsed ?? 0}/${goal.tokenBudget} tokens`;
+							return `Goal (${goal.status ?? "unknown"}): ${goal.objective ?? ""} — ${budget}`;
+						};
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							if (!sub || (sub === "set" && rest) || (sub === "set" && !rest)) {
+								const objective = sub === "set" ? rest : rest;
+								if (sub === "set" && !objective) {
+									this.ctx.showError("Usage: /goal set <objective>");
+									return;
+								}
+								if (sub === undefined && !objective) {
+									this.ctx.showStatus(describe(await backendAttach.goal("get")));
+									return;
+								}
+								if (objective) {
+									await backendAttach.enterMode("goal", { objective });
+									return;
+								}
+								this.ctx.showStatus(describe(await backendAttach.goal("get")));
+								return;
+							}
+							if (sub === "show") {
+								this.ctx.showStatus(describe(await backendAttach.goal("get")));
+								return;
+							}
+							if (sub === "budget") {
+								const amount = rest.trim().toLowerCase();
+								if (amount === "off") {
+									this.ctx.showStatus(describe(await backendAttach.goal("budget")));
+									return;
+								}
+								const tokenBudget = Number(amount);
+								if (!Number.isInteger(tokenBudget) || tokenBudget <= 0) {
+									this.ctx.showError("Usage: /goal budget <positive integer|off>");
+									return;
+								}
+								this.ctx.showStatus(describe(await backendAttach.goal("budget", { tokenBudget })));
+								return;
+							}
+							if (sub === "pause" || sub === "resume" || sub === "drop") {
+								this.ctx.showStatus(describe(await backendAttach.goal(sub)));
+								return;
+							}
+						})().catch(error =>
+							this.ctx.showError(
+								`Goal command failed: ${error instanceof Error ? error.message : String(error)}`,
+							),
+						);
+						return;
+					}
+				}
+				// Plain prompts and shell/Python cells belong to the backend too.
+				if (verb === undefined) {
+					const plainImages = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;
+					if (text.startsWith("!")) {
+						const exclude = text.startsWith("!!");
+						const command = text.slice(exclude ? 2 : 1);
+						this.ctx.composer.clearDraft();
+						try {
+							const result = await backendAttach.runBash(command, exclude);
+							this.ctx.showStatus(result.output.trim() || `(exit ${result.exitCode ?? 0})`);
+						} catch (error) {
+							this.ctx.showError(
+								`Shell execution failed: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						}
+						return;
+					}
+					const plainPython = parsePythonCommandInput(text);
+					if (plainPython) {
+						this.ctx.composer.clearDraft();
+						try {
+							const result = await backendAttach.runPython(plainPython.code, plainPython.isExcluded);
+							this.ctx.showStatus(result.output.trim() || `(exit ${result.exitCode ?? 0})`);
+						} catch (error) {
+							this.ctx.showError(
+								`Python execution failed: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						}
+						return;
+					}
+					if (!text.trim() && !plainImages) return;
+					this.ctx.composer.clearDraft();
+					backendAttach.sendPrompt(text, plainImages);
+					return;
+				}
+				if (verb !== undefined && !localCommand) {
+					// Session swaps are the one place a refusal is wrong: create the
+					// backend session and re-attach the replica to it.
+					if (verb === "new") {
+						if (backendAttach.streaming) {
+							this.ctx.showStatus("Wait for the current turn to finish before starting a new session.");
+							this.ctx.composer.setText("");
+							return;
+						}
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							try {
+								const cwd = this.ctx.sessionManager.getCwd();
+								const id = await backendAttach.client.createSession(cwd, workspaceBranch(cwd));
+								await backendAttach.reattach(id);
+								this.ctx.showStatus(`Started backend session ${id}`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(
+									`Could not start a backend session: ${error instanceof Error ? error.message : String(error)}`,
+								);
+							}
+						})();
+						return;
+					}
+					if (verb === "resume") {
+						const target = text.slice(`/${verb}`.length).trim();
+						if (!target) {
+							this.ctx.composer.clearDraft();
+							// Upstream default: `/resume` with no target opens the
+							// three-level resume page. Do not substitute an attach-only
+							// session list here.
+							await this.ctx.showSessionSelector();
+							return;
+						}
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							try {
+								await backendAttach.reattach(target);
+								this.ctx.showStatus(`Attached to backend session ${target}`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(
+									`Could not attach to ${target}: ${error instanceof Error ? error.message : String(error)}`,
+								);
+							}
+						})();
+						return;
+					}
+					if (verb === "fork") {
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							try {
+								const id = await backendAttach.forkSession();
+								this.ctx.showStatus(`Forked into backend session ${id}`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(`Fork failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					if (verb === "branch" || verb === "tree") {
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							try {
+								const messages = await backendAttach.userMessages();
+								const picked =
+									verb === "branch" ? messages.filter(message => message.role === "user") : messages;
+								if (picked.length === 0) {
+									this.ctx.showStatus("The backend session has no messages to navigate.");
+									return;
+								}
+								const choice = await this.ctx.showHookSelector(
+									verb === "branch" ? "Rewind to which message?" : "Session tree",
+									picked.map(message => message.label),
+								);
+								const selected = picked[picked.findIndex(message => message.label === choice)];
+								if (!selected) return;
+								await backendAttach.navigateTree(selected.entryId);
+								this.ctx.showStatus(`Rewound the backend session to ${selected.entryId.slice(0, 8)}`, {
+									dim: true,
+								});
+							} catch (error) {
+								this.ctx.showError(
+									`Navigation failed: ${error instanceof Error ? error.message : String(error)}`,
+								);
+							}
+						})();
+						return;
+					}
+					if (verb === "clear") {
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							try {
+								const dropped = await backendAttach.clearContext();
+								this.ctx.showStatus(
+									`Context reset — ${dropped} message${dropped === 1 ? "" : "s"} dropped; session continues.`,
+									{ dim: true },
+								);
+							} catch (error) {
+								this.ctx.showError(`Clear failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					if (verb === "delete") {
+						const args = text.slice(`/${verb}`.length).trim();
+						if (args !== "yes") {
+							this.ctx.showError(`Usage: /delete yes — deletes this backend session and starts a new one.`);
+							this.ctx.composer.setText("");
+							return;
+						}
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							try {
+								const id = await backendAttach.deleteSession();
+								this.ctx.showStatus(`Session deleted; started backend session ${id}`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(`Delete failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					if (verb === "login") {
+						const arg = text.slice(`/${verb}`.length).trim();
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							try {
+								let providerId = arg && !arg.includes("://") ? arg : "";
+								if (!providerId) {
+									const providers = (await backendAttach.getLoginProviders()).filter(
+										provider => provider.available,
+									);
+									if (providers.length === 0) {
+										this.ctx.showStatus("No login providers are available on the backend.");
+										return;
+									}
+									const labels = providers.map(provider =>
+										provider.authenticated
+											? `${provider.name} (${provider.id}) ✓`
+											: `${provider.name} (${provider.id})`,
+									);
+									const choice = await this.ctx.showHookSelector("Sign in to which provider?", labels);
+									const index = labels.indexOf(choice ?? "");
+									if (index < 0) return;
+									providerId = providers[index].id;
+								}
+								await backendAttach.login(providerId);
+								// The credential landed in the shared store; refresh the local
+								// registry so `/model` can list the provider's models immediately.
+								await this.ctx.session.modelRegistry
+									.refreshProvider(providerId, "online")
+									.catch(() => undefined);
+								this.ctx.showStatus(`Signed in to ${providerId}.`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(`Login failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					if (verb === "logout") {
+						this.ctx.composer.clearDraft();
+						void (async () => {
+							try {
+								const providers = (await backendAttach.getLoginProviders()).filter(
+									provider => provider.authenticated,
+								);
+								if (providers.length === 0) {
+									this.ctx.showStatus("No signed-in providers on the backend.");
+									return;
+								}
+								const labels = providers.map(provider => `${provider.name} (${provider.id})`);
+								const choice = await this.ctx.showHookSelector("Sign out of which provider?", labels);
+								const index = labels.indexOf(choice ?? "");
+								if (index < 0) return;
+								const providerId = providers[index].id;
+								const accounts = await backendAttach.getLogoutAccounts(providerId);
+								if (accounts.length === 0) {
+									this.ctx.showStatus(`No stored credentials for ${providerId}.`);
+									return;
+								}
+								const accountLabels = accounts.map(account => account.label);
+								const accountChoice =
+									accounts.length === 1
+										? accountLabels[0]
+										: await this.ctx.showHookSelector("Sign out of which account?", accountLabels);
+								const accountIndex = accountLabels.indexOf(accountChoice ?? "");
+								if (accountIndex < 0) return;
+								await backendAttach.logout(providerId, accounts[accountIndex].credentialId);
+								await this.ctx.session.modelRegistry
+									.refreshProvider(providerId, "online")
+									.catch(() => undefined);
+								this.ctx.showStatus(`Signed out of ${providerId} (${accounts[accountIndex].label}).`, {
+									dim: true,
+								});
+							} catch (error) {
+								this.ctx.showError(`Logout failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					// `/restart` defaults to the backend while attached; `/restart
+					// client` re-execs this TUI (which re-attaches with its launch
+					// flags), and `/restart backend` asks the serve host to re-exec.
+					if (verb === "restart") {
+						const target = text.slice(`/${verb}`.length).trim().toLowerCase();
+						if (target === "client") {
+							this.ctx.composer.clearDraft();
+							await this.ctx.restart();
+							return;
+						}
+						if (target !== "" && target !== "backend") {
+							this.ctx.showError("Usage: /restart [client|backend]");
+							this.ctx.composer.setText("");
+							return;
+						}
+						this.ctx.composer.clearDraft();
+						void backendAttach.restartBackend().catch(error => {
+							this.ctx.showError(`Restart failed: ${error instanceof Error ? error.message : String(error)}`);
+						});
+						return;
+					}
+					if (isBackendAttachRefusedCommand(verb)) {
+						this.ctx.showStatus(`/${verb} is not available while attached: ${backendAttachRefusalHint(verb)}`);
+						this.ctx.composer.setText("");
+						return;
+					}
+					if (text.startsWith("!")) {
+						const exclude = text.startsWith("!!");
+						const command = text.slice(exclude ? 2 : 1);
+						this.ctx.composer.clearDraft();
+						try {
+							const result = await backendAttach.runBash(command, exclude);
+							this.ctx.showStatus(result.output.trim() || `(exit ${result.exitCode ?? 0})`);
+						} catch (error) {
+							this.ctx.showError(
+								`Shell execution failed: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						}
+						return;
+					}
+					const python = parsePythonCommandInput(text);
+					if (python) {
+						this.ctx.composer.clearDraft();
+						try {
+							const result = await backendAttach.runPython(python.code, python.isExcluded);
+							this.ctx.showStatus(result.output.trim() || `(exit ${result.exitCode ?? 0})`);
+						} catch (error) {
+							this.ctx.showError(
+								`Python execution failed: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						}
+						return;
+					}
+					const images = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;
+					// `/queue <message>` is the TUI shorthand for "run this after the
+					// current turn"; the backend's follow-up queue is the same slot.
+					if (verb === "queue") {
+						const body = text.slice(`/${verb}`.length).trim();
+						if (!body && !images) {
+							this.ctx.showStatus("Usage: /queue <message>");
+							this.ctx.composer.setText("");
+							return;
+						}
+						this.ctx.composer.clearDraft();
+						if (body) backendAttach.sendPrompt(body, images, "followUp");
+						return;
+					}
+					// `/guided-goal` starts an interview in the backend's session; the
+					// backend owns the goal tool and the kickoff turn.
+					if (verb === "guided-goal") {
+						const initial = text.slice(`/${verb}`.length).trim();
+						this.ctx.composer.clearDraft();
+						void backendAttach.startGuidedGoal(initial || undefined, images).catch(error => {
+							this.ctx.showError(
+								`Guided goal failed: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						});
+						return;
+					}
+					// `/btw <question>` answers in a side context; the backend owns that
+					// context, so the question goes over the control plane.
+					if (verb === "btw") {
+						const question = text.slice(`/${verb}`.length).trim();
+						if (!question) {
+							this.ctx.showStatus("Usage: /btw <question>");
+							this.ctx.composer.setText("");
+							return;
+						}
+						this.ctx.composer.clearDraft();
+						backendAttach.sendBtw(question);
+						return;
+					}
+					if (!text.trim() && !images) return;
+					this.ctx.composer.clearDraft();
+					// A builtin that exists only as a TUI handler has no backend
+					// counterpart. Run the same local handler a native session runs
+					// instead of forwarding it as backend text.
+					if (text.startsWith("/") && isBackendAttachTuiOnlyBuiltin(verb)) {
+						// fall through to the local slash dispatcher below
+					} else {
+						// Slash commands execute on the backend; plain text keeps the
+						// steer/follow-up semantics of a message.
+						if (text.startsWith("/")) backendAttach.sendCommand(text, images);
+						else backendAttach.sendPrompt(text, images);
+						return;
+					}
 				}
 			}
 

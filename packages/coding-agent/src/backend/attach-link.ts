@@ -697,7 +697,7 @@ export class BackendAttachLink {
 		// an in-process session.
 		const switched = await this.#ctx.session.switchSession(replicaPath, {
 			keepModel: true,
-			onCwdChange: async () => true,
+			onCwdChange: async newCwd => this.#ctx.applyCwdChange(newCwd),
 		});
 		if (switched === false) {
 			logger.warn("attach replica switch rejected", {
