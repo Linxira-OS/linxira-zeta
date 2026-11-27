@@ -272,7 +272,7 @@ export function encodeHelloQuery(options: TspHelloOptions = {}): string {
 	const query: TspQuery = {
 		q: "hello",
 		v: [TSP_VERSION],
-		app: options.app ?? "omp",
+		app: options.app ?? "zetacode",
 		features: options.features ?? ["edit", "undo", "send"],
 		...(options.ver === undefined ? {} : { ver: options.ver }),
 	};
