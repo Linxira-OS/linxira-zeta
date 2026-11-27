@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 const templateJs = readFileSync(new URL("../src/export/html/template.js", import.meta.url), "utf8");
 
 function extractKeydownHandlerBody(source: string): string {
-	const start = source.indexOf("document.addEventListener('keydown', (e) => {");
-	expect(start).toBeGreaterThanOrEqual(0);
+	const match = /document\.addEventListener\(["']keydown["'],\s*(?:\(e\)|e)\s*=>\s*\{/.exec(source);
+	expect(match).not.toBeNull();
+	const start = match?.index ?? -1;
 	const bodyStart = source.indexOf("{", start) + 1;
 	let depth = 1;
 	for (let i = bodyStart; i < source.length; i++) {
