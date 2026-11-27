@@ -68,7 +68,7 @@ it("starts ordinary CLI paths without loading the native computer addon", async 
 
 it("dispatches the computer worker through the CLI host selector in a child process", async () => {
 	const fixture = path.resolve(import.meta.dir, "../fixtures/computer-worker-cli-selector.ts");
-	const proc = Bun.spawn([process.execPath, "--no-addons", fixture], {
+	const proc = Bun.spawn([process.execPath, fixture], {
 		stdout: "pipe",
 		stderr: "pipe",
 	});

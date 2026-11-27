@@ -36,7 +36,6 @@ import {
 	isWorkerHostSelector,
 	SHELL_PROCESS_SELECTOR,
 } from "@linxiraos/pi-utils/worker-host";
-import { installSqliteLockShim } from "@linxiraos/pi-natives/sqlite-locks";
 import { isNativeShell, runNativeShell } from "./cli/native-shell";
 import { extractProfileFlags } from "./cli/profile-bootstrap";
 import {
@@ -607,7 +606,10 @@ export async function runCli(argv: string[]): Promise<void> {
 	// (issue #15586); OFD locks are not. Help and version open no store and load no addon.
 	// A failed install is reported once the launch has a warning sink (`main.ts`,
 	// `ensureSqliteLockShim`); this module stays free of pi-utils' env snapshot.
-	if (isProcessEntry && !helpOrVersion) installSqliteLockShim();
+	if (isProcessEntry && !helpOrVersion) {
+		const { installSqliteLockShim } = await import("@linxiraos/pi-natives/sqlite-locks");
+		installSqliteLockShim();
+	}
 	let stopStartupComposer: (() => void) | undefined;
 	if (
 		!process.env.PI_TIMING &&

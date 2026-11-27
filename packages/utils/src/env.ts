@@ -282,7 +282,13 @@ export function parseEnvFile(filePath: string): Record<string, string> {
 const homeEnv = parseEnvFile(path.join(os.homedir(), ".env"));
 const piEnv = parseEnvFile(path.join(getConfigRootDir(), ".env"));
 const agentEnv = parseEnvFile(path.join(getAgentDir(), ".env"));
-const projectEnv = parseEnvFile(path.join(getProjectDir(), ".env"));
+// Worker selectors inherit the parent's environment and must dispatch
+// before the native path helper (used by getProjectDir) is loaded.
+const workerSelector = Bun.argv[2];
+const projectEnv =
+	typeof workerSelector === "string" && workerSelector.startsWith("__zeta_worker_")
+		? {}
+		: parseEnvFile(path.join(getProjectDir(), ".env"));
 
 for (const key of Object.keys(Bun.env)) {
 	const value = Bun.env[key];
