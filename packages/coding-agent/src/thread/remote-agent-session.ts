@@ -759,8 +759,13 @@ export class RemoteAgentSession implements AgentViewSession {
 		return this.#view.studioLinkSchemes;
 	}
 
-	activateStudioLink(url: string): Promise<boolean> {
-		return this.#command("activateStudioLink", url);
+	async activateStudioLink(url: string): Promise<boolean> {
+		try {
+			return await this.#command("activateStudioLink", url);
+		} catch (error) {
+			if (error instanceof RpcClosedError) return false;
+			throw error;
+		}
 	}
 
 	retry(): Promise<boolean> {
