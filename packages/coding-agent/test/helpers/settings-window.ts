@@ -7,11 +7,22 @@ import type { TestTerminal } from "@linxiraos/pi-tui/testing/terminal";
 import { resetSettingsForTest, Settings } from "../../src/config/settings";
 import { createSettingsHost } from "../../src/config/settings-ui";
 import { createPluginSettingsHost } from "../../src/extensibility/plugins/settings-host";
-import { type SettingsCallbacks, type SettingsContext, SettingsWindow } from "../../src/ui/overlays/settings/settings";
+import {
+	type SettingsCallbacks,
+	type SettingsContext,
+	type SettingsRuntimePage,
+	SettingsWindow,
+} from "../../src/ui/overlays/settings/settings";
 import { mountOverlay } from "./overlay-terminal";
 
 function mountSettingsWindow(
-	options: { context?: Partial<SettingsContext>; callbacks?: Partial<SettingsCallbacks> } = {},
+	options: {
+		context?: Partial<SettingsContext>;
+		callbacks?: Partial<SettingsCallbacks>;
+		runtimePages?: readonly SettingsRuntimePage[];
+		initialPage?: string;
+		initialRuntimePage?: string;
+	} = {},
 	size: { columns?: number; rows?: number } = {},
 ): TestTerminal {
 	return mountOverlay(
@@ -26,6 +37,9 @@ function mountSettingsWindow(
 					...options.context,
 				},
 				callbacks: { onChange: () => {}, onCancel: () => {}, ...options.callbacks },
+				...(options.runtimePages ? { runtimePages: options.runtimePages } : {}),
+				...(options.initialPage ? { initialPage: options.initialPage } : {}),
+				...(options.initialRuntimePage ? { initialRuntimePage: options.initialRuntimePage } : {}),
 			}),
 		{ columns: size.columns ?? 120, rows: size.rows ?? 40, focusKind: "__root__" },
 	);

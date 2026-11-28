@@ -50,6 +50,9 @@ describe("backend-attach command routing", () => {
 			"plan-review",
 			"goal",
 			"vibe",
+			"2fa",
+			"channels",
+			"im",
 		]) {
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(true);
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(false);
@@ -117,9 +120,17 @@ describe("backend-attach command routing", () => {
 		// `/theme` and `/help` have no top-level builtin: forwarding them would
 		// send the literal slash text to the model, so they are refused with a
 		// pointer to `/settings` and `/hotkeys`.
-		for (const verb of ["live", "theme", "help", "channels", "2fa"]) {
+		for (const verb of ["live", "theme", "help"]) {
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(true);
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
+		}
+	});
+
+	it("keeps /2fa, /channels and /im local instead of refusing or forwarding them", () => {
+		expect(lookupBuiltinSlashCommand("im")?.name).toBe("channels");
+		for (const verb of ["2fa", "channels", "im"]) {
+			expect(isBackendAttachRefusedCommand(verb), verb).toBe(false);
+			expect(isBackendAttachLocalCommand(verb), verb).toBe(true);
 		}
 	});
 

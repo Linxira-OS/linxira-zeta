@@ -21,6 +21,7 @@ import { collectChannelStatus, setChannelEnabled } from "../channels/channel-sta
 import { restartSessionChannels } from "../channels/session-host";
 import { WebConfig } from "../config/web-config";
 import { M } from "../i18n";
+import { requestSettingsPage } from "../ui/overlays/settings/page-request";
 import { commandConsumed } from "./helpers/parse";
 import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
 
@@ -118,6 +119,7 @@ async function setInstanceEnabledById(
 
 export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 	name: "channels",
+	aliases: ["im"],
 	icon: "broadcast",
 	description: () => M.cmdChannels,
 	allowArgs: true,
@@ -126,6 +128,7 @@ export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 	handleTui: async (command: ParsedSlashCommand, runtime) => {
 		const ctx = runtime.ctx;
 		if (!command.args.trim()) {
+			requestSettingsPage("im");
 			ctx.showSettingsSelector();
 			return commandConsumed();
 		}

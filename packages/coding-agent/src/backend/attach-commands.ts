@@ -56,6 +56,12 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	sidebar: true,
 	record: true,
 	open: true,
+	// Local runtime settings pages backed by the live serve. The settings
+	// window reads and writes through `RuntimeSettingsClient`, so no model turn
+	// or backend command is needed; `/im` is the `/channels` alias.
+	"2fa": true,
+	channels: true,
+	im: true,
 	// Opens a `local://` file in the local editor: the TUI owns the editor.
 	local: true,
 	debug: true,
@@ -109,9 +115,6 @@ export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	// them with a pointer to the commands that do exist.
 	theme: true,
 	help: true,
-	// An attached session does not select the local identity or IM authority.
-	"2fa": true,
-	channels: true,
 };
 
 /**
@@ -144,7 +147,5 @@ export function isBackendAttachRefusedCommand(verb: string | undefined): boolean
 export function backendAttachRefusalHint(verb: string): string {
 	if (verb === "theme") return M.attachHintTheme;
 	if (verb === "help") return M.attachHintHelp;
-	if (verb === "2fa") return M.attachHint2fa;
-	if (verb === "channels") return M.attachHintChannels;
 	return M.attachHintGeneric;
 }

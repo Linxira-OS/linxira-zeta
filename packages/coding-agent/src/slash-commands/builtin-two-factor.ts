@@ -1,5 +1,6 @@
 import { currentLanguage, M } from "../i18n";
 import { formatTerminalTwoFactorStatus, readTerminalTwoFactorStatus } from "../server/auth/two-factor-status";
+import { requestSettingsPage } from "../ui/overlays/settings/page-request";
 import type { SlashCommandSpec } from "./types";
 
 export const BUILTIN_TWO_FACTOR_SLASH_COMMAND: SlashCommandSpec = {
@@ -15,6 +16,7 @@ export const BUILTIN_TWO_FACTOR_SLASH_COMMAND: SlashCommandSpec = {
 	],
 	handleTui: async (command, runtime) => {
 		if (command.args.trim() === "") {
+			requestSettingsPage("identity");
 			runtime.ctx.showSettingsSelector();
 			return;
 		}

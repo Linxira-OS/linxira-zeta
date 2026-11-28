@@ -46,6 +46,7 @@ import { cfgExtendedContext } from "../session/context-settings";
 import { cfgGoalEnabled } from "../goals/settings";
 import { cfgPlanEnabled } from "../plan-mode/settings";
 import { formatKeyHint } from "../ui/keys/hints";
+import { clearSettingsPageRequest } from "../ui/overlays/settings/page-request";
 
 export function refreshStatusLine(ctx: InteractiveModeContext): void {
 	ctx.statusLine.refresh();
@@ -270,6 +271,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handleTui: async (command, runtime) => {
 			const raw = command.args.trim();
 			const settings = runtime.ctx.settings;
+			if (raw === "" || raw.startsWith("reset")) clearSettingsPageRequest();
 			const resetOne = (setting: AnySetting): void => {
 				setting.unset(settings);
 				setting.clearOverride(settings);

@@ -75,7 +75,8 @@ const PREVIEWED_SETTINGS: Readonly<Record<string, true>> = {
 /** Thinking level offered before the model's own efforts. */
 const AUTO_THINKING = "auto";
 
-type PageId = SettingTab | typeof PLUGINS_PAGE;
+/** A schema tab, the plugins page, or one host-supplied runtime page id. */
+type PageId = SettingTab | typeof PLUGINS_PAGE | string;
 
 /** Runtime facts the settings need beyond the schema. */
 export interface SettingsContext {
@@ -126,15 +127,40 @@ export interface SettingsPluginsPrefs {
 	readonly editing: TspPrefsProps["editing"];
 }
 
-/** A plugins page the window shows as its last page (see `../plugins/settings`). */
-export interface SettingsPluginsPage {
+/**
+ * A host-owned page: the settings window contributes its tab, prefs rows and
+ * events, while the owner keeps every value and the navigation stack.
+ *
+ * A page that draws in place of the rows (the plugins page) supplies `view`;
+ * a page built purely from prefs rows leaves it out, so the terminal draws
+ * the same rows (and the same hits) as a Tern terminal.
+ */
+export interface SettingsHostPage {
 	/** Terminal body drawn in place of the rows. */
-	readonly view: UiNode;
+	readonly view?: UiNode;
 	/** The page as prefs rows for a Tern terminal. */
 	readonly prefs: Accessor<SettingsPluginsPrefs>;
 	key(key: KeyEvent): boolean;
 	event(event: UiEvent): void;
+	/** The latest async load/write, for a host that needs to sequence or await it. */
+	readonly settled?: Promise<void>;
 	dispose(): void;
+}
+
+/** A plugins page the window shows as its last page (see `../plugins/settings`). */
+export interface SettingsPluginsPage extends SettingsHostPage {
+	/** Terminal body drawn in place of the rows. */
+	readonly view: UiNode;
+}
+
+/** A host-supplied page the window lists beside the schema tabs. */
+export interface SettingsRuntimePage {
+	/** Page id; direct commands open it with `initialRuntimePage`. */
+	readonly id: string;
+	readonly label: string;
+	readonly icon?: string;
+	readonly group?: string;
+	create(options: { onClose(): void; initial?: string }): SettingsHostPage;
 }
 
 /** Builds the plugins page (the window passes its own close). */
@@ -230,6 +256,12 @@ export function SettingsWindow(props: {
 	context: SettingsContext;
 	callbacks: SettingsCallbacks;
 	pluginsPage?: SettingsPluginsPageFactory;
+	/** Host-owned pages listed beside the schema tabs (IM runtime, 2FA). */
+	runtimePages?: readonly SettingsRuntimePage[];
+	/** Open this page first (`/2fa`, `/channels`, `/im` route here). */
+	initialPage?: string;
+	/** The subpage a direct command opens inside the runtime page. */
+	initialRuntimePage?: string;
 }): JSXNode {
 	const { context, callbacks } = props;
 	const settings = context.settings;
@@ -271,6 +303,22 @@ export function SettingsWindow(props: {
 	/** Sample pages of the snapcompact shape preview, rendered once each for this window. */
 	const snapcompactSamples = new SnapcompactSamples();
 	const pluginsPage = signal<SettingsPluginsPage | null>(null);
+	/** The active host-supplied page, and the id it was created for. */
+	const runtimePage = signal<SettingsHostPage | null>(null);
+	const runtimePageId = signal<string | undefined>(undefined);
+	const runtimePages = props.runtimePages ?? [];
+	/** A direct `/`-command's subpage, consumed when the runtime page first opens. */
+	let initialRuntimePending = props.initialRuntimePage;
+	/** Ids the window lists as pages, in strip order. */
+	const pageIds = (): PageId[] => [...runtimePages.map(page => page.id), ...SETTING_TABS, PLUGINS_PAGE];
+	const isSettingTab = (id: string): id is SettingTab => (SETTING_TABS as readonly string[]).includes(id);
+	/** The active page that owns its own rows/keys, if any. */
+	const hostPage = (): SettingsHostPage | null => {
+		const id = tab();
+		if (id === PLUGINS_PAGE) return pluginsPage();
+		if (runtimePageId() === id) return runtimePage();
+		return null;
+	};
 	const searching = (): boolean => query().text !== "";
 	/** The page the strip highlights while searching: the selected result's, kept while nothing matches. */
 	const searchPage = signal<string | undefined>(undefined);
@@ -437,7 +485,7 @@ export function SettingsWindow(props: {
 		const text = query().text;
 		if (text !== "") return searchItems(text).items;
 		const id = tab();
-		return id === PLUGINS_PAGE ? [] : tabItems(id);
+		return isSettingTab(id) ? tabItems(id) : [];
 	});
 
 	const rows = (): Item[] => items().filter(item => !item.heading);
@@ -722,13 +770,13 @@ export function SettingsWindow(props: {
 			sectionFocus.set(false);
 			selected.set(undefined);
 			tab.set(id);
-			const page = untrack(pluginsPage);
-			if (id !== PLUGINS_PAGE && page) {
-				page.dispose();
+			const plugin = untrack(pluginsPage);
+			if (id !== PLUGINS_PAGE && plugin) {
+				plugin.dispose();
 				pluginsPage.set(null);
 			}
 			if (id === PLUGINS_PAGE && context.plugins && props.pluginsPage) {
-				page?.dispose();
+				plugin?.dispose();
 				pluginsPage.set(
 					props.pluginsPage(context.plugins, {
 						onClose: () => callbacks.onCancel(),
@@ -736,17 +784,30 @@ export function SettingsWindow(props: {
 					}),
 				);
 			}
+			const currentRuntime = untrack(runtimePage);
+			if (untrack(runtimePageId) !== id && currentRuntime) {
+				currentRuntime.dispose();
+				runtimePage.set(null);
+				runtimePageId.set(undefined);
+			}
+			const spec = runtimePages.find(page => page.id === id);
+			if (spec && untrack(runtimePageId) !== id) {
+				const initial = initialRuntimePending;
+				initialRuntimePending = undefined;
+				runtimePage.set(spec.create({ onClose: () => callbacks.onCancel(), ...(initial ? { initial } : {}) }));
+				runtimePageId.set(id);
+			}
 		});
 	};
 
 	const showPage = (id: string): void => {
 		if (searching()) endSearch(false);
-		if (id !== tab() && (id === PLUGINS_PAGE || (SETTING_TABS as readonly string[]).includes(id)))
-			showTab(id as PageId);
+		if (id !== tab() && (isSettingTab(id) || runtimePages.some(page => page.id === id) || id === PLUGINS_PAGE))
+			showTab(id);
 	};
 
 	const stepTab = (delta: -1 | 1): void => {
-		const ids: PageId[] = [...SETTING_TABS, PLUGINS_PAGE];
+		const ids = pageIds();
 		const at = ids.indexOf(tab());
 		showTab(ids[(at + delta + ids.length) % ids.length]!);
 	};
@@ -822,7 +883,7 @@ export function SettingsWindow(props: {
 			editing.set({ kind: "text", row: open.row, line: insert(open.line) });
 			return true;
 		}
-		if (open || untrack(pluginsPage) || text === "") return false;
+		if (open || untrack(hostPage) || text === "") return false;
 		setQuery(insert(query()));
 		return true;
 	};
@@ -859,7 +920,8 @@ export function SettingsWindow(props: {
 			return true;
 		}
 
-		if (tab() === PLUGINS_PAGE) {
+		const page = hostPage();
+		if (page) {
 			if (key.id === "tab") {
 				stepTab(1);
 				return true;
@@ -869,10 +931,9 @@ export function SettingsWindow(props: {
 				return true;
 			}
 			if (key.id === "left" || key.id === "right") return false;
-			const page = pluginsPage();
-			if (page) return page.key(key);
-			if (nav === "escape") callbacks.onCancel();
-			return true;
+			if (page.key(key)) return true;
+			// No editor or page-level command took it: fall through so typing
+			// still searches the schema settings from a runtime page.
 		}
 
 		if (key.id === "tab" || key.id === "shift+tab") {
@@ -904,20 +965,18 @@ export function SettingsWindow(props: {
 	// ── Events ──────────────────────────────────────────────────────────
 
 	const onEvent = (event: UiEvent): void => {
-		if (tab() === PLUGINS_PAGE && !searching()) {
-			const page = pluginsPage();
-			if (event.type === "action" && event.act === "page" && event.value === PLUGINS_PAGE) {
-				showTab(PLUGINS_PAGE);
-				return;
-			}
+		const page = searching() ? null : hostPage();
+		if (page) {
 			const window =
 				(event.type === "action" &&
 					(event.act === "page" || (event.act === "close" && event.value === undefined))) ||
 				event.key === "tabs";
-			if (page && !window) {
+			if (!window) {
 				page.event(event);
 				return;
 			}
+			// A click on the strip entry of the page already open keeps its state.
+			if (event.type === "action" && event.act === "page" && event.value === tab()) return;
 		}
 		if (event.key === "tabs") {
 			if ((event.type === "select" || event.type === "activate") && !editing()) {
@@ -1060,10 +1119,16 @@ export function SettingsWindow(props: {
 	};
 
 	const pages = computed((): TspPrefsProps["pages"] => {
-		const out: TspPrefsProps["pages"][number][] = SETTING_TABS.map(id => {
+		const out: TspPrefsProps["pages"][number][] = runtimePages.map(page => ({
+			id: page.id,
+			label: page.label,
+			icon: page.icon,
+			group: page.group,
+		}));
+		for (const id of SETTING_TABS) {
 			const changed = changedCount(id);
-			return { id, label: SETTINGS_PAGES[id].label, icon: id, changed: changed > 0 ? changed : undefined };
-		});
+			out.push({ id, label: SETTINGS_PAGES[id].label, icon: id, changed: changed > 0 ? changed : undefined });
+		}
 		out.push({ id: PLUGINS_PAGE, label: "Installed", icon: "plugins", group: "Plugins" });
 		return out;
 	});
@@ -1222,8 +1287,10 @@ export function SettingsWindow(props: {
 		return callbacks.getStatusLinePreview?.() ?? [{ s: "dim", t: "(preview not available)" }];
 	};
 
-	const plugins = (): SettingsPluginsPrefs | undefined =>
-		tab() === PLUGINS_PAGE && !searching() ? pluginsPage()?.prefs() : undefined;
+	const hostPrefs = (): SettingsPluginsPrefs | undefined => {
+		if (searching()) return undefined;
+		return hostPage()?.prefs();
+	};
 
 	const children = (): JSXNode[] => {
 		const out: JSXNode[] = [];
@@ -1264,7 +1331,7 @@ export function SettingsWindow(props: {
 		return out;
 	};
 
-	showTab("appearance");
+	showTab(props.initialPage !== undefined && pageIds().includes(props.initialPage) ? props.initialPage : "appearance");
 
 	return (
 		<prefs
@@ -1274,20 +1341,26 @@ export function SettingsWindow(props: {
 			lead={() => {
 				if (searching()) return undefined;
 				const id = tab();
-				if (id === PLUGINS_PAGE) return plugins()?.lead ?? "Loading installed plugins…";
-				return SETTINGS_PAGES[id].lead;
+				const host = hostPrefs();
+				if (host) return host.lead;
+				if (id === PLUGINS_PAGE) return "Loading installed plugins…";
+				return isSettingTab(id) ? SETTINGS_PAGES[id].lead : undefined;
 			}}
 			query={() => (searching() ? query().text : undefined)}
 			cursor={() => (searching() ? query().cursor : undefined)}
-			sections={() => plugins()?.sections ?? (tab() === PLUGINS_PAGE && !searching() ? [] : sections())}
+			sections={() => {
+				const host = hostPrefs();
+				if (host) return host.sections;
+				return tab() === PLUGINS_PAGE && !searching() ? [] : sections();
+			}}
 			focus={() => {
-				const page = plugins();
-				if (page) return page.focus;
+				const host = hostPrefs();
+				if (host) return host.focus;
 				return tab() === PLUGINS_PAGE && !searching() ? null : focus();
 			}}
 			editing={() => {
-				const page = plugins();
-				return page ? page.editing : nativeEditing();
+				const host = hostPrefs();
+				return host ? host.editing : nativeEditing();
 			}}
 			term={term}
 			onKey={onKey}
