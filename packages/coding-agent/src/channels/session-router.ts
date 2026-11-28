@@ -62,9 +62,7 @@ export interface ImSessionCandidateOptions {
 	now?: number;
 	maxAgeMs?: number;
 }
-let imSessionCandidateReader:
-	| ((options?: ImSessionCandidateOptions) => Promise<ImSessionListSnapshot>)
-	| null = null;
+let imSessionCandidateReader: ((options?: ImSessionCandidateOptions) => Promise<ImSessionListSnapshot>) | null = null;
 
 /** Register the live router's candidate reader for the Team IM page/gateway. */
 export function registerImSessionCandidateReader(

@@ -3,14 +3,7 @@ import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
 import { Terminal as VirtualTerminal } from "@linxiraos/pi-utils/vterm";
 
-type Scenario =
-	| "auto"
-	| "continue"
-	| "resume"
-	| "headless"
-	| "restorable"
-	| "override"
-	| "unrelated-error";
+type Scenario = "auto" | "continue" | "resume" | "headless" | "restorable" | "override" | "unrelated-error";
 interface Observation {
 	error?: { name: string; message: string };
 	providerRequests?: number;

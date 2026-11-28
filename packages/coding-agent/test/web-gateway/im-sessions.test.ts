@@ -13,9 +13,7 @@ describe("IM session candidates", () => {
 			return { generatedAt: 1, candidates: [], bySelector: new Map() };
 		});
 
-		const response = await handleImSessions(
-			new Request("http://127.0.0.1/api/im/sessions?includePm=true"),
-		);
+		const response = await handleImSessions(new Request("http://127.0.0.1/api/im/sessions?includePm=true"));
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ sessions: [], generatedAt: new Date(1).toISOString() });
 		expect(seen).toEqual([{ includePm: true }]);

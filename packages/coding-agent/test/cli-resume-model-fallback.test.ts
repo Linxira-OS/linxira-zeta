@@ -120,11 +120,7 @@ describe("headless startup resume", () => {
 						}
 						return text;
 					})();
-					const [exitCode, , stderr] = await Promise.all([
-						proc.exited,
-						stdout,
-						new Response(proc.stderr).text(),
-					]);
+					const [exitCode, , stderr] = await Promise.all([proc.exited, stdout, new Response(proc.stderr).text()]);
 					expect(stderr).toContain("Could not restore model local/missing-model");
 					expect([0, 1]).toContain(exitCode);
 					expect(requests.length).toBeGreaterThan(0);
