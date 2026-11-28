@@ -72,10 +72,11 @@ const TelemetryRequiredMessage = ({ className }: TelemetryRequiredMessageProps) 
                                 </div>
                                 <button
                                     onClick={handleEnableTelemetry}
-                                    disabled={isEnabling}
-                                    className="bg-accent/80 hover:bg-accent disabled:bg-accent/50 text-background px-4 py-2 rounded-lg font-medium cursor-pointer disabled:cursor-not-allowed"
+                                    disabled
+                                    title="Zeta Terminal collects no telemetry and does not enable Wave AI cloud"
+                                    className="bg-accent/50 text-background px-4 py-2 rounded-lg font-medium cursor-not-allowed"
                                 >
-                                    {isEnabling ? t("ai.enabling") : t("ai.enableTelemetry")}
+                                    {t("onboarding.disabled")}
                                 </button>
                             </div>
                         </div>

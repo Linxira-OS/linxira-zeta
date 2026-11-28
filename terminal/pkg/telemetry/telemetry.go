@@ -25,6 +25,10 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
+// Zeta Terminal disables Wave telemetry at the package boundary; the upstream
+// implementation stays in place for mergeability.
+const ZetaTelemetryDisabled = true
+
 const MaxTzNameLen = 50
 const ActivityEventName = "app:activity"
 const WshRunEventName = "wsh:run"
@@ -96,6 +100,9 @@ func (tdata *TelemetryData) Scan(val interface{}) error {
 }
 
 func IsTelemetryEnabled() bool {
+	if ZetaTelemetryDisabled {
+		return false
+	}
 	settings := wconfig.GetWatcher().GetFullConfig()
 	return settings.Settings.TelemetryEnabled
 }
@@ -271,6 +278,9 @@ func GoRecordTEventWrap(tevent *telemetrydata.TEvent) {
 }
 
 func RecordTEvent(ctx context.Context, tevent *telemetrydata.TEvent) error {
+	if ZetaTelemetryDisabled {
+		return nil
+	}
 	if tevent == nil {
 		return nil
 	}
@@ -345,6 +355,9 @@ func MarkTEventsAsUploaded(ctx context.Context, events []*telemetrydata.TEvent) 
 }
 
 func UpdateActivity(ctx context.Context, update wshrpc.ActivityUpdate) error {
+	if ZetaTelemetryDisabled {
+		return nil
+	}
 	now := time.Now()
 	dayStr := daystr.GetCurDayStr()
 	txErr := wstore.WithTx(ctx, func(tx *wstore.TxWrap) error {

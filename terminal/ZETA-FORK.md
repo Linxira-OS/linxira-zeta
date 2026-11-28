@@ -70,6 +70,8 @@ workflow packages or publishes it. See
 | 2026-11-24 | `frontend/app/view/waveconfig/{shellsettings.tsx,waveconfig-model.ts,waveconfigenv.ts,waveconfig.tsx}` | General settings gets a visual shell picker; labels/visual/raw tabs localized. |
 | 2026-11-24 | `.github/workflows/terminal-ci.yml` (root) | Migrated Terminal's active checks out of the ignored nested `.github` tree: Linux/Windows frontend typecheck/tests, Linux Go tests/build, Windows shell-package test. Upstream release workflows remain intentionally unmigrated. |
 
+| 2026-11-28 | `cmd/server/main-server.go`, `pkg/wshrpc/wshserver/wshserver.go`, `pkg/telemetry/telemetry.go`, `frontend/app/onboarding/onboarding.tsx`, `frontend/app/aipanel/telemetryrequired.tsx`, `docs/docs/telemetry.mdx` | Disabled, not deleted, the upstream telemetry paths: a package boundary constant makes `IsTelemetryEnabled()` false and `RecordTEvent`/`UpdateActivity` no-ops, loops and send RPCs guard on it, onboarding shows a disabled checkbox, and the Wave AI telemetry button is inert. |
+
 When further JavaScript, Go, build, or asset files are modified, add one row per
 material change and keep the upstream `LICENSE`/`NOTICE` intact.
 

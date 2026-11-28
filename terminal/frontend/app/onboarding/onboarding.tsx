@@ -7,7 +7,6 @@ import { FlexiModal } from "@/app/modals/modal";
 import { OnboardingGradientBg } from "@/app/onboarding/onboarding-common";
 import { OnboardingFeatures } from "@/app/onboarding/onboarding-features";
 import { ClientModel } from "@/app/store/client-model";
-import { useSettingsKeyAtom } from "@/app/store/global";
 import { disableGlobalKeybindings, enableGlobalKeybindings, globalRefocus } from "@/app/store/keymodel";
 import { modalsModel } from "@/app/store/modalmodel";
 import * as WOS from "@/app/store/wos";
@@ -32,15 +31,16 @@ const pageNameAtom: PrimitiveAtom<PageName> = atom<PageName>("init");
 
 const InitPage = ({
     isCompact,
-    telemetryUpdateFn,
+    telemetryUpdateFn: _telemetryUpdateFn,
 }: {
     isCompact: boolean;
-    telemetryUpdateFn: (value: boolean) => Promise<void>;
+    telemetryUpdateFn?: (value: boolean) => Promise<void>;
 }) => {
     const { t } = useI18n();
-    const telemetrySetting = useSettingsKeyAtom("telemetry:enabled");
     const clientData = useAtomValue(ClientModel.getInstance().clientAtom);
-    const [telemetryEnabled, setTelemetryEnabled] = useState<boolean>(!!telemetrySetting);
+    // Zeta Terminal disables Wave telemetry; keep the acknowledgment UI inert
+    // instead of deleting the upstream onboarding branch.
+    const [telemetryEnabled] = useState<boolean>(false);
     const setPageName = useSetAtom(pageNameAtom);
 
     const handleStarClick = async () => {
@@ -69,12 +69,8 @@ const InitPage = ({
         setPageName(telemetryEnabled ? "features" : "notelemetrystar");
     };
 
-    const setTelemetry = (value: boolean) => {
-        fireAndForget(() =>
-            telemetryUpdateFn(value).then(() => {
-                setTelemetryEnabled(value);
-            })
-        );
+    const setTelemetry = (_value: boolean) => {
+        // No telemetry switch exists in Zeta Terminal.
     };
 
     const label = telemetryEnabled ? t("onboarding.enabled") : t("onboarding.disabled");
@@ -169,9 +165,11 @@ const InitPage = ({
                             <label className="flex items-center gap-2 cursor-pointer text-secondary">
                                 <input
                                     type="checkbox"
-                                    checked={telemetryEnabled}
+                                    checked={false}
+                                    disabled
+                                    title="Zeta Terminal collects no telemetry"
                                     onChange={(e) => setTelemetry(e.target.checked)}
-                                    className="cursor-pointer accent-gray-500"
+                                    className="cursor-not-allowed opacity-60 accent-gray-500"
                                 />
                                 <span>{label}</span>
                             </label>

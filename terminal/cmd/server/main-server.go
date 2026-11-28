@@ -119,6 +119,9 @@ func startConfigWatcher() {
 }
 
 func telemetryLoop() {
+	if telemetry.ZetaTelemetryDisabled {
+		return
+	}
 	defer func() {
 		panichandler.PanicHandler("telemetryLoop", recover())
 	}()
@@ -134,6 +137,9 @@ func telemetryLoop() {
 }
 
 func diagnosticLoop() {
+	if telemetry.ZetaTelemetryDisabled {
+		return
+	}
 	defer func() {
 		panichandler.PanicHandler("diagnosticLoop", recover())
 	}()
@@ -155,6 +161,9 @@ func diagnosticLoop() {
 }
 
 func sendDiagnosticPing() bool {
+	if telemetry.ZetaTelemetryDisabled {
+		return false
+	}
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 
@@ -170,6 +179,9 @@ func sendDiagnosticPing() bool {
 }
 
 func setupTelemetryConfigHandler() {
+	if telemetry.ZetaTelemetryDisabled {
+		return
+	}
 	watcher := wconfig.GetWatcher()
 	if watcher == nil {
 		return
@@ -215,6 +227,9 @@ func panicTelemetryHandler(panicName string) {
 }
 
 func sendTelemetryWrapper() {
+	if telemetry.ZetaTelemetryDisabled {
+		return
+	}
 	defer func() {
 		panichandler.PanicHandler("sendTelemetryWrapper", recover())
 	}()
@@ -272,6 +287,9 @@ func updateTelemetryCounts(lastCounts telemetrydata.TEventProps) telemetrydata.T
 }
 
 func updateTelemetryCountsLoop() {
+	if telemetry.ZetaTelemetryDisabled {
+		return
+	}
 	defer func() {
 		panichandler.PanicHandler("updateTelemetryCountsLoop", recover())
 	}()

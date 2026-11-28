@@ -1272,10 +1272,16 @@ func (ws *WshServer) RecordTEventCommand(ctx context.Context, data telemetrydata
 }
 
 func (ws WshServer) SendTelemetryCommand(ctx context.Context) error {
+	if telemetry.ZetaTelemetryDisabled {
+		return nil
+	}
 	return wcloud.SendAllTelemetry(wstore.GetClientId())
 }
 
 func (ws *WshServer) WaveAIEnableTelemetryCommand(ctx context.Context) error {
+	if telemetry.ZetaTelemetryDisabled {
+		return nil
+	}
 	// Enable telemetry in config
 	meta := waveobj.MetaMapType{
 		wconfig.ConfigKey_TelemetryEnabled: true,
