@@ -236,6 +236,10 @@ export class SelectorController {
 		const handle = this.ctx.shell.overlays.show(
 			sheet ? view : () => fullscreenMenuView(kind, view(), options.onKey),
 			{
+				// Fullscreen menus (Settings, Model Hub, dashboards) own the pointer while
+				// open. Without this they inherited the composer's "off" and ANSI terminals
+				// never reported clicks, though the prefs/picker widgets already handle them.
+				mouse: "click",
 				focus: root => {
 					const screen = sheet ? root : layerContent(root);
 					menu.focus = options.onKey ? root : (options.focus?.(screen) ?? screen);
