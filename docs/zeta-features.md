@@ -224,3 +224,5 @@ read-only preview instead of the file.
 - IM channels (WeChat, Feishu, Telegram) are hosted by `zetacode serve`, not
   by the GUI: `zetacode channels` inspects, pairs and toggles them. See
   [channels.md](./channels.md).
+- Agents can publish local pages and workflow DAGs with deny-by-default
+  permissions; see [agent-pages.md](./agent-pages.md).
