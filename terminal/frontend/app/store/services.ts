@@ -46,6 +46,16 @@ export class AgentServiceType {
         return callBackendService(this?.waveEnv, "agent", "PanelConfig", Array.from(arguments))
     }
 
+    // list stored ACP sessions for the AI panel cwd
+    PanelListSessions(): Promise<ListSessionsResponse> {
+        return callBackendService(this?.waveEnv, "agent", "PanelListSessions", Array.from(arguments))
+    }
+
+    // switch the AI panel to a stored ACP session and return its replayed transcript
+    PanelLoadSession(sessionId: string): Promise<LoadSessionResult> {
+        return callBackendService(this?.waveEnv, "agent", "PanelLoadSession", Array.from(arguments))
+    }
+
     // list unanswered AI panel permission requests (for panel reloads)
     PanelPendingPermissions(): Promise<PermissionRequestData[]> {
         return callBackendService(this?.waveEnv, "agent", "PanelPendingPermissions", Array.from(arguments))
@@ -59,6 +69,11 @@ export class AgentServiceType {
     // answer an AI panel permission request with an optionId, or an empty string to deny
     PanelRespondPermission(requestId: string, optionId: string): Promise<void> {
         return callBackendService(this?.waveEnv, "agent", "PanelRespondPermission", Array.from(arguments))
+    }
+
+    // change any advertised AI panel session config option
+    PanelSetConfigOption(configId: string, value: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "PanelSetConfigOption", Array.from(arguments))
     }
 
     // change the AI panel session model (config option "model")

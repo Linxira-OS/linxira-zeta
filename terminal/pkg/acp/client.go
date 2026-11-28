@@ -277,6 +277,30 @@ func (c *Client) LoadSession(ctx context.Context, sessionId string, cwd string) 
 	return &res, nil
 }
 
+// ListSessions returns stored sessions, newest first. cwd scopes the listing;
+// an empty cwd lists across projects. cursor resumes a previous page.
+func (c *Client) ListSessions(ctx context.Context, cwd string, cursor string) (*ListSessionsResponse, error) {
+	params := map[string]any{}
+	if cwd != "" {
+		params["cwd"] = cwd
+	}
+	if cursor != "" {
+		params["cursor"] = cursor
+	}
+	raw, err := c.conn.Call(ctx, MethodListSessions, params)
+	if err != nil {
+		return nil, err
+	}
+	var res ListSessionsResponse
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil, fmt.Errorf("acp: invalid session/list response: %w", err)
+	}
+	if res.Sessions == nil {
+		res.Sessions = []SessionInfo{}
+	}
+	return &res, nil
+}
+
 // SendPrompt submits a prompt and returns immediately. Completion is reported
 // through ClientOptions.OnPromptDone.
 func (c *Client) SendPrompt(sessionId string, text string) (int64, error) {

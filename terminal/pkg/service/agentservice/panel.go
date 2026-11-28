@@ -39,12 +39,20 @@ type panelConfigState struct {
 	agentInfo     any
 }
 
+// panelReplayCollector buffers session/update payloads replayed by a
+// session/load call until the RPC returns.
+type panelReplayCollector struct {
+	SessionId string
+	Updates   []any
+}
+
 // panelSession owns the single zetacode ACP child that serves the AI panel. It
 // is process-wide: opening or closing the panel does not restart the agent,
 // and a single session is shared by every panel instance in the window.
 type panelSession struct {
 	startLock  sync.Mutex
 	statusLock sync.Mutex
+	loadLock   sync.Mutex
 	lock       sync.Mutex
 
 	client      *acp.Client
@@ -55,6 +63,8 @@ type panelSession struct {
 	generation  int64
 	version     int64
 	stopping    bool
+	loading     bool
+	replay      *panelReplayCollector
 	pendingPerm int
 	pendingTurn int
 	permissions map[string]*acp.PermissionRequestData
@@ -175,6 +185,13 @@ func (*AgentService) PanelSetModel_Meta() tsgenmeta.MethodMeta {
 	}
 }
 
+func (*AgentService) PanelSetConfigOption_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		Desc:     "change any advertised AI panel session config option",
+		ArgNames: []string{"ctx", "configId", "value"},
+	}
+}
+
 func (*AgentService) PanelStatus_Meta() tsgenmeta.MethodMeta {
 	return tsgenmeta.MethodMeta{
 		Desc:     "get the last published AI panel status",
@@ -193,6 +210,20 @@ func (*AgentService) PanelPendingPermissions_Meta() tsgenmeta.MethodMeta {
 	return tsgenmeta.MethodMeta{
 		Desc:     "list unanswered AI panel permission requests (for panel reloads)",
 		ArgNames: []string{"ctx"},
+	}
+}
+
+func (*AgentService) PanelListSessions_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		Desc:     "list stored ACP sessions for the AI panel cwd",
+		ArgNames: []string{"ctx"},
+	}
+}
+
+func (*AgentService) PanelLoadSession_Meta() tsgenmeta.MethodMeta {
+	return tsgenmeta.MethodMeta{
+		Desc:     "switch the AI panel to a stored ACP session and return its replayed transcript",
+		ArgNames: []string{"ctx", "sessionId"},
 	}
 }
 
@@ -224,6 +255,13 @@ func (*AgentService) PanelSetModel(ctx context.Context, modelId string) error {
 	return agentPanel.setModel(ctx, modelId)
 }
 
+// PanelSetConfigOption changes any config option the panel session advertises
+// (model, thinking, mode, ...). The service layer stays config-id agnostic; the
+// agent rejects unknown ids/values.
+func (*AgentService) PanelSetConfigOption(ctx context.Context, configId string, value string) error {
+	return agentPanel.setConfigOption(ctx, configId, value)
+}
+
 // PanelStatus returns the last published panel status for reconnect/render.
 func (*AgentService) PanelStatus(ctx context.Context) (*acp.StatusData, error) {
 	return agentPanel.statusSnapshot(), nil
@@ -232,6 +270,17 @@ func (*AgentService) PanelStatus(ctx context.Context) (*acp.StatusData, error) {
 // PanelConfig returns the panel session modes and config options.
 func (*AgentService) PanelConfig(ctx context.Context) (*acp.ConfigData, error) {
 	return agentPanel.currentConfig(), nil
+}
+
+// PanelListSessions lists stored sessions for the panel cwd.
+func (*AgentService) PanelListSessions(ctx context.Context) (*acp.ListSessionsResponse, error) {
+	return agentPanel.listSessions(ctx)
+}
+
+// PanelLoadSession switches the panel to a stored session and returns the
+// session/update payloads the agent replayed for it.
+func (*AgentService) PanelLoadSession(ctx context.Context, sessionId string) (*acp.LoadSessionResult, error) {
+	return agentPanel.loadSession(ctx, sessionId)
 }
 
 // PanelPendingPermissions returns permission requests that are still waiting
@@ -258,6 +307,8 @@ func (p *panelSession) start(ctx context.Context, cwd string) error {
 	p.lock.Lock()
 	p.generation = gen
 	p.stopping = false
+	p.loading = false
+	p.replay = nil
 	p.sessionId = ""
 	p.pendingPerm = 0
 	p.pendingTurn = 0
@@ -362,6 +413,10 @@ func (p *panelSession) prompt(ctx context.Context, text string) error {
 		return fmt.Errorf("panel session is not running")
 	}
 	p.lock.Lock()
+	if p.loading {
+		p.lock.Unlock()
+		return fmt.Errorf("panel session is switching")
+	}
 	if p.stopping {
 		p.lock.Unlock()
 		return fmt.Errorf("panel session is stopped")
@@ -389,16 +444,29 @@ func (p *panelSession) cancel() error {
 }
 
 func (p *panelSession) setModel(ctx context.Context, modelId string) error {
+	return p.setConfigOption(ctx, acp.ConfigIdModel, modelId)
+}
+
+func (p *panelSession) setConfigOption(ctx context.Context, configId string, value string) error {
+	if strings.TrimSpace(configId) == "" {
+		return fmt.Errorf("config id is empty")
+	}
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("config value is empty")
+	}
+	p.lock.Lock()
+	loading := p.loading
+	p.lock.Unlock()
+	if loading {
+		return fmt.Errorf("panel session is switching")
+	}
 	client, sessionId := p.getClient()
 	if client == nil || sessionId == "" {
 		return fmt.Errorf("panel session is not running")
 	}
-	if strings.TrimSpace(modelId) == "" {
-		return fmt.Errorf("model is empty")
-	}
 	dialCtx, cancel := context.WithTimeout(ctx, panelDialTimeout)
 	defer cancel()
-	options, err := client.SetConfigOption(dialCtx, sessionId, acp.ConfigIdModel, modelId)
+	options, err := client.SetConfigOption(dialCtx, sessionId, configId, value)
 	if err != nil {
 		return err
 	}
@@ -441,6 +509,11 @@ func (p *panelSession) respondPermission(requestId string, optionId string) erro
 }
 
 func (p *panelSession) applySetup(setup *acp.SessionSetup, info *acp.Implementation) {
+	p.applySetupState(setup, info)
+	p.publishConfig(p.currentConfig())
+}
+
+func (p *panelSession) applySetupState(setup *acp.SessionSetup, info *acp.Implementation) {
 	p.lock.Lock()
 	p.sessionId = setup.SessionId
 	p.config.modes = decodePanelJSON(setup.Modes)
@@ -449,19 +522,212 @@ func (p *panelSession) applySetup(setup *acp.SessionSetup, info *acp.Implementat
 		p.config.agentInfo = info
 	}
 	p.lock.Unlock()
+}
+
+func (p *panelSession) listSessions(ctx context.Context) (*acp.ListSessionsResponse, error) {
+	if !p.isRunning() {
+		p.lock.Lock()
+		cwd := p.cwd
+		p.lock.Unlock()
+		if err := p.start(ctx, cwd); err != nil {
+			return nil, err
+		}
+	}
+	client, _ := p.getClient()
+	if client == nil {
+		return nil, fmt.Errorf("panel session is not running")
+	}
+	p.lock.Lock()
+	cwd := p.cwd
+	p.lock.Unlock()
+	dialCtx, cancel := context.WithTimeout(ctx, panelHandshakeTimeout)
+	defer cancel()
+	return client.ListSessions(dialCtx, cwd, "")
+}
+
+// loadSession switches the panel to a stored ACP session. History replay is
+// captured from session/update notifications and returned with the RPC result
+// so the UI never has to race the live event stream. On failure the active
+// session, config, transcript, and status are left untouched.
+func (p *panelSession) loadSession(ctx context.Context, sessionId string) (*acp.LoadSessionResult, error) {
+	sessionId = strings.TrimSpace(sessionId)
+	if sessionId == "" {
+		return nil, fmt.Errorf("session id is empty")
+	}
+
+	p.loadLock.Lock()
+	defer p.loadLock.Unlock()
+
+	if !p.isRunning() {
+		p.lock.Lock()
+		cwd := p.cwd
+		p.lock.Unlock()
+		if err := p.start(ctx, cwd); err != nil {
+			return nil, err
+		}
+	}
+	client, _ := p.getClient()
+	if client == nil {
+		return nil, fmt.Errorf("panel session is not running")
+	}
+
+	p.lock.Lock()
+	if p.pendingTurn > 0 || p.pendingPerm > 0 {
+		p.lock.Unlock()
+		return nil, fmt.Errorf("panel session is busy; stop the current turn before switching sessions")
+	}
+	p.loading = true
+	cwd := p.cwd
+	previousModel := panelConfigOptionValue(p.config.configOptions, acp.ConfigIdModel)
+	previousThinking := panelConfigOptionValue(p.config.configOptions, acp.ConfigIdThinking)
+	p.lock.Unlock()
+	defer func() {
+		p.lock.Lock()
+		p.loading = false
+		p.lock.Unlock()
+	}()
+
+	replay := p.beginReplay(sessionId)
+	loadCtx, loadCancel := context.WithTimeout(ctx, panelSessionTimeout)
+	setup, err := client.LoadSession(loadCtx, sessionId, cwd)
+	loadCancel()
+	updates := p.endReplay(replay)
+	if err != nil {
+		return nil, err
+	}
+
+	// Keep the panel's model/effort selection across the switch when the
+	// loaded session advertises the same values.
+	p.applySetupState(setup, nil)
+	p.restoreConfigOption(ctx, client, sessionId, acp.ConfigIdModel, previousModel)
+	p.restoreConfigOption(ctx, client, sessionId, acp.ConfigIdThinking, previousThinking)
+	p.lock.Lock()
+	p.permissions = make(map[string]*acp.PermissionRequestData)
+	p.pendingPerm = 0
+	p.pendingTurn = 0
+	p.lock.Unlock()
 	p.publishConfig(p.currentConfig())
+	p.setStatus(acp.StatusIdle, "", "")
+
+	config := p.currentConfig()
+	return &acp.LoadSessionResult{
+		SessionId:     config.SessionId,
+		ConfigOptions: config.ConfigOptions,
+		Modes:         config.Modes,
+		Updates:       updates,
+	}, nil
+}
+
+func (p *panelSession) beginReplay(sessionId string) *panelReplayCollector {
+	collector := &panelReplayCollector{SessionId: sessionId}
+	p.lock.Lock()
+	p.replay = collector
+	p.lock.Unlock()
+	return collector
+}
+
+func (p *panelSession) endReplay(collector *panelReplayCollector) []any {
+	p.lock.Lock()
+	if p.replay == collector {
+		p.replay = nil
+	}
+	updates := collector.Updates
+	p.lock.Unlock()
+	if updates == nil {
+		return []any{}
+	}
+	return updates
+}
+
+type panelConfigOptionSelection struct {
+	Id           string `json:"id"`
+	CurrentValue any    `json:"currentValue"`
+	Options      []struct {
+		Value any `json:"value"`
+	} `json:"options"`
+}
+
+func panelConfigOptionSelections(options any) []panelConfigOptionSelection {
+	if options == nil {
+		return nil
+	}
+	raw, err := json.Marshal(options)
+	if err != nil {
+		return nil
+	}
+	var selections []panelConfigOptionSelection
+	if err := json.Unmarshal(raw, &selections); err != nil {
+		return nil
+	}
+	return selections
+}
+
+func panelConfigOptionValue(options any, configId string) string {
+	for _, selection := range panelConfigOptionSelections(options) {
+		if selection.Id != configId {
+			continue
+		}
+		if value, ok := selection.CurrentValue.(string); ok {
+			return value
+		}
+	}
+	return ""
+}
+
+func panelConfigOptionSupports(options any, configId string, value string) bool {
+	for _, selection := range panelConfigOptionSelections(options) {
+		if selection.Id != configId {
+			continue
+		}
+		if current, ok := selection.CurrentValue.(string); ok && current == value {
+			return true
+		}
+		for _, option := range selection.Options {
+			if candidate, ok := option.Value.(string); ok && candidate == value {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (p *panelSession) restoreConfigOption(ctx context.Context, client *acp.Client, sessionId string, configId string, value string) {
+	if value == "" || panelConfigOptionValue(p.currentConfig().ConfigOptions, configId) == value {
+		return
+	}
+	if !panelConfigOptionSupports(p.currentConfig().ConfigOptions, configId, value) {
+		return
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, panelDialTimeout)
+	defer cancel()
+	options, err := client.SetConfigOption(dialCtx, sessionId, configId, value)
+	if err != nil {
+		log.Printf("agent[panel]: preserve %s=%q across session switch: %v", configId, value, err)
+		return
+	}
+	if len(options) > 0 {
+		p.lock.Lock()
+		p.config.configOptions = decodePanelJSON(options)
+		p.lock.Unlock()
+	}
 }
 
 func (p *panelSession) onUpdate(gen int64, sessionId string, update json.RawMessage) {
 	if !p.isCurrent(gen) {
 		return
 	}
+	decoded := decodePanelJSON(update)
+	p.lock.Lock()
+	if p.replay != nil && p.replay.SessionId == sessionId {
+		p.replay.Updates = append(p.replay.Updates, decoded)
+	}
+	p.lock.Unlock()
 	wps.Broker.Publish(wps.WaveEvent{
 		Event:  wps.Event_AgentUpdate,
 		Scopes: []string{PanelEventScope},
 		Data: &acp.UpdateData{
 			SessionId: sessionId,
-			Update:    decodePanelJSON(update),
+			Update:    decoded,
 		},
 	})
 	var probe struct {

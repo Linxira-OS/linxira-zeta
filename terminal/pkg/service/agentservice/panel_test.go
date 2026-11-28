@@ -54,6 +54,34 @@ func runFakePanelAgent() {
 		write(map[string]any{"jsonrpc": "2.0", "method": method, "params": params})
 	}
 	var pendingPrompt json.RawMessage
+	fakeModel := "fake/basic"
+	fakeThinking := "off"
+	configOptions := func() []any {
+		return []any{
+			map[string]any{
+				"id":           "model",
+				"name":         "Model",
+				"category":     "model",
+				"type":         "select",
+				"currentValue": fakeModel,
+				"options": []any{
+					map[string]any{"value": "fake/basic", "name": "Fake Basic"},
+					map[string]any{"value": "fake/advanced", "name": "Fake Advanced"},
+				},
+			},
+			map[string]any{
+				"id":           "thinking",
+				"name":         "Thinking",
+				"category":     "thought_level",
+				"type":         "select",
+				"currentValue": fakeThinking,
+				"options": []any{
+					map[string]any{"value": "off", "name": "Off"},
+					map[string]any{"value": "high", "name": "High"},
+				},
+			},
+		}
+	}
 	for {
 		line, err := reader.ReadBytes('\n')
 		if len(line) > 0 {
@@ -76,43 +104,81 @@ func runFakePanelAgent() {
 						respond(msg.Id, map[string]any{})
 					case acp.MethodNewSession:
 						respond(msg.Id, map[string]any{
-							"sessionId": "panel-session",
-							"configOptions": []any{
+							"sessionId":     "panel-session",
+							"configOptions": configOptions(),
+						})
+					case acp.MethodListSessions:
+						cwd, _ := os.Getwd()
+						respond(msg.Id, map[string]any{
+							"sessions": []any{
 								map[string]any{
-									"id":           "model",
-									"name":         "Model",
-									"category":     "model",
-									"type":         "select",
-									"currentValue": "fake/basic",
-									"options": []any{
-										map[string]any{"value": "fake/basic", "name": "Fake Basic"},
-										map[string]any{"value": "fake/advanced", "name": "Fake Advanced"},
-									},
+									"sessionId": "older-session",
+									"cwd":       cwd,
+									"title":     "Older Chat",
+									"updatedAt": "2026-11-01T10:00:00Z",
+									"_meta":     map[string]any{"messageCount": 4},
+								},
+								map[string]any{
+									"sessionId": "panel-session",
+									"cwd":       cwd,
+									"title":     "Current Chat",
+									"updatedAt": "2026-11-02T10:00:00Z",
+									"_meta":     map[string]any{"messageCount": 2},
 								},
 							},
+							"nextCursor": "",
 						})
 					case acp.MethodLoadSession:
-						respond(msg.Id, map[string]any{"sessionId": "panel-session"})
+						var params struct {
+							SessionId string `json:"sessionId"`
+						}
+						_ = json.Unmarshal(msg.Params, &params)
+						if params.SessionId != "older-session" {
+							write(map[string]any{
+								"jsonrpc": "2.0",
+								"id":      msg.Id,
+								"error": map[string]any{
+									"code":    acp.RpcCodeInternalError,
+									"message": "ACP session not found: " + params.SessionId,
+								},
+							})
+							continue
+						}
+						fakeModel = "fake/basic"
+						fakeThinking = "off"
+						notify(acp.MethodSessionUpdate, map[string]any{
+							"sessionId": params.SessionId,
+							"update": map[string]any{
+								"sessionUpdate": "user_message_chunk",
+								"content":       map[string]any{"type": "text", "text": "old question"},
+								"messageId":     "replay-user",
+							},
+						})
+						notify(acp.MethodSessionUpdate, map[string]any{
+							"sessionId": params.SessionId,
+							"update": map[string]any{
+								"sessionUpdate": "agent_message_chunk",
+								"content":       map[string]any{"type": "text", "text": "old answer"},
+								"messageId":     "replay-assistant",
+							},
+						})
+						respond(msg.Id, map[string]any{
+							"configOptions": configOptions(),
+						})
 					case acp.MethodSetConfigOption:
 						var params struct {
 							ConfigId string `json:"configId"`
 							Value    string `json:"value"`
 						}
 						_ = json.Unmarshal(msg.Params, &params)
+						switch params.ConfigId {
+						case "model":
+							fakeModel = params.Value
+						case "thinking":
+							fakeThinking = params.Value
+						}
 						respond(msg.Id, map[string]any{
-							"configOptions": []any{
-								map[string]any{
-									"id":           params.ConfigId,
-									"name":         "Model",
-									"category":     "model",
-									"type":         "select",
-									"currentValue": params.Value,
-									"options": []any{
-										map[string]any{"value": "fake/basic", "name": "Fake Basic"},
-										map[string]any{"value": "fake/advanced", "name": "Fake Advanced"},
-									},
-								},
-							},
+							"configOptions": configOptions(),
 						})
 					case acp.MethodPrompt:
 						pendingPrompt = append(json.RawMessage(nil), msg.Id...)
@@ -293,6 +359,10 @@ func TestPanelSessionPromptThroughFakeACP(t *testing.T) {
 	if err != nil || len(pending) != 1 || pending[0].RequestId != "99" {
 		t.Fatalf("unexpected pending permissions: %#v err=%v", pending, err)
 	}
+	if _, err := AgentServiceInstance.PanelLoadSession(ctx, "older-session"); err == nil ||
+		!strings.Contains(err.Error(), "busy") {
+		t.Fatalf("expected busy error while a turn is awaiting approval, got %v", err)
+	}
 
 	if err := AgentServiceInstance.PanelRespondPermission(ctx, permission.RequestId, "allow_once"); err != nil {
 		t.Fatalf("PanelRespondPermission: %v", err)
@@ -327,6 +397,27 @@ func TestPanelSessionPromptThroughFakeACP(t *testing.T) {
 	if !strings.Contains(string(configJSON), `"currentValue":"fake/advanced"`) {
 		t.Fatalf("expected updated model config option, got %s", configJSON)
 	}
+
+	if err := AgentServiceInstance.PanelSetConfigOption(ctx, "thinking", "high"); err != nil {
+		t.Fatalf("PanelSetConfigOption: %v", err)
+	}
+	config = mustPanelConfig(t, ctx)
+	configJSON, _ = json.Marshal(config.ConfigOptions)
+	if !strings.Contains(string(configJSON), `"id":"thinking"`) ||
+		!strings.Contains(string(configJSON), `"currentValue":"high"`) {
+		t.Fatalf("expected updated thinking config option, got %s", configJSON)
+	}
+	waitForEvent(t, events.events, func(event wps.WaveEvent) bool {
+		if event.Event != wps.Event_AgentConfig {
+			return false
+		}
+		data, ok := event.Data.(*acp.ConfigData)
+		if !ok {
+			return false
+		}
+		raw, _ := json.Marshal(data.ConfigOptions)
+		return strings.Contains(string(raw), `"id":"thinking"`) && strings.Contains(string(raw), `"currentValue":"high"`)
+	})
 }
 
 func mustPanelConfig(t *testing.T, ctx context.Context) *acp.ConfigData {
@@ -336,6 +427,103 @@ func mustPanelConfig(t *testing.T, ctx context.Context) *acp.ConfigData {
 		t.Fatalf("PanelConfig: %v", err)
 	}
 	return config
+}
+
+func TestPanelSessionListAndLoad(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatalf("resolve test executable: %v", err)
+	}
+	t.Setenv("ZETACODE_PATH", executable)
+	t.Setenv(fakePanelAgentEnv, "1")
+
+	cwd := t.TempDir()
+	events := subscribePanelTestEvents(t)
+	previousPanel := agentPanel
+	agentPanel = &panelSession{}
+	t.Cleanup(func() {
+		agentPanel.shutdown()
+		agentPanel = previousPanel
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := AgentServiceInstance.PanelStart(ctx, cwd); err != nil {
+		t.Fatalf("PanelStart: %v", err)
+	}
+	if err := AgentServiceInstance.PanelSetModel(ctx, "fake/advanced"); err != nil {
+		t.Fatalf("PanelSetModel: %v", err)
+	}
+	if err := AgentServiceInstance.PanelSetConfigOption(ctx, "thinking", "high"); err != nil {
+		t.Fatalf("PanelSetConfigOption: %v", err)
+	}
+
+	list, err := AgentServiceInstance.PanelListSessions(ctx)
+	if err != nil {
+		t.Fatalf("PanelListSessions: %v", err)
+	}
+	if len(list.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %#v", list.Sessions)
+	}
+	var older *acp.SessionInfo
+	for idx := range list.Sessions {
+		if list.Sessions[idx].SessionId == "older-session" {
+			older = &list.Sessions[idx]
+		}
+	}
+	if older == nil || older.Title != "Older Chat" {
+		t.Fatalf("expected older session with title, got %#v", list.Sessions)
+	}
+	if count, ok := older.Meta["messageCount"].(float64); !ok || count != 4 {
+		t.Fatalf("expected replayed message count meta, got %#v", older.Meta)
+	}
+
+	loaded, err := AgentServiceInstance.PanelLoadSession(ctx, "older-session")
+	if err != nil {
+		t.Fatalf("PanelLoadSession: %v", err)
+	}
+	if loaded.SessionId != "older-session" || len(loaded.Updates) != 2 {
+		t.Fatalf("unexpected load result: %#v", loaded)
+	}
+	replayJSON, _ := json.Marshal(loaded.Updates)
+	if !strings.Contains(string(replayJSON), "old question") || !strings.Contains(string(replayJSON), "old answer") {
+		t.Fatalf("expected replayed transcript, got %s", replayJSON)
+	}
+
+	config := mustPanelConfig(t, ctx)
+	if config.SessionId != "older-session" {
+		t.Fatalf("expected switched session id, got %q", config.SessionId)
+	}
+	configJSON, _ := json.Marshal(config.ConfigOptions)
+	if !strings.Contains(string(configJSON), `"currentValue":"fake/advanced"`) ||
+		!strings.Contains(string(configJSON), `"currentValue":"high"`) {
+		t.Fatalf("expected model/effort preserved across switch, got %s", configJSON)
+	}
+	status, err := AgentServiceInstance.PanelStatus(ctx)
+	if err != nil || status.SessionId != "older-session" || status.Status != acp.StatusIdle {
+		t.Fatalf("unexpected status after switch: %#v err=%v", status, err)
+	}
+	waitForEvent(t, events.events, func(event wps.WaveEvent) bool {
+		if event.Event != wps.Event_AgentConfig {
+			return false
+		}
+		data, ok := event.Data.(*acp.ConfigData)
+		return ok && data.SessionId == "older-session"
+	})
+
+	if _, err := AgentServiceInstance.PanelLoadSession(ctx, "missing-session"); err == nil ||
+		!strings.Contains(err.Error(), "ACP session not found") {
+		t.Fatalf("expected missing session error, got %v", err)
+	}
+	config = mustPanelConfig(t, ctx)
+	if config.SessionId != "older-session" {
+		t.Fatalf("failed switch must keep the active session, got %q", config.SessionId)
+	}
+	status, err = AgentServiceInstance.PanelStatus(ctx)
+	if err != nil || status.SessionId != "older-session" || status.Status != acp.StatusIdle {
+		t.Fatalf("failed switch must keep panel state, got %#v err=%v", status, err)
+	}
 }
 
 func TestPanelSessionRejectsUnknownCommandWrapper(t *testing.T) {
@@ -368,5 +556,27 @@ func TestPanelSessionEmptyPrompt(t *testing.T) {
 	})
 	if err := AgentServiceInstance.PanelPrompt(context.Background(), "   "); err == nil {
 		t.Fatal("expected empty prompt error")
+	}
+}
+
+func TestPanelSetConfigOptionValidation(t *testing.T) {
+	previousPanel := agentPanel
+	agentPanel = &panelSession{}
+	t.Cleanup(func() {
+		agentPanel.shutdown()
+		agentPanel = previousPanel
+	})
+	ctx := context.Background()
+	if err := AgentServiceInstance.PanelSetConfigOption(ctx, "", "high"); err == nil ||
+		!strings.Contains(err.Error(), "config id is empty") {
+		t.Fatalf("expected empty config id error, got %v", err)
+	}
+	if err := AgentServiceInstance.PanelSetConfigOption(ctx, "thinking", "  "); err == nil ||
+		!strings.Contains(err.Error(), "config value is empty") {
+		t.Fatalf("expected empty config value error, got %v", err)
+	}
+	if err := AgentServiceInstance.PanelSetConfigOption(ctx, "thinking", "high"); err == nil ||
+		!strings.Contains(err.Error(), "panel session is not running") {
+		t.Fatalf("expected not-running error, got %v", err)
 	}
 }

@@ -38,6 +38,7 @@ const (
 	MethodAuthenticate      = "authenticate"
 	MethodNewSession        = "session/new"
 	MethodLoadSession       = "session/load"
+	MethodListSessions      = "session/list"
 	MethodCloseSession      = "session/close"
 	MethodPrompt            = "session/prompt"
 	MethodCancel            = "session/cancel"
@@ -104,6 +105,33 @@ type SessionSetup struct {
 	SessionId     string          `json:"sessionId,omitempty"`
 	Modes         json.RawMessage `json:"modes,omitempty"`
 	ConfigOptions json.RawMessage `json:"configOptions,omitempty"`
+}
+
+// SessionInfo is one stored session from session/list.
+type SessionInfo struct {
+	SessionId             string         `json:"sessionId"`
+	Cwd                   string         `json:"cwd"`
+	AdditionalDirectories []string       `json:"additionalDirectories,omitempty"`
+	Title                 string         `json:"title,omitempty"`
+	UpdatedAt             string         `json:"updatedAt,omitempty"`
+	Meta                  map[string]any `json:"_meta,omitempty"`
+}
+
+// ListSessionsResponse is the agent's response to session/list.
+type ListSessionsResponse struct {
+	Sessions   []SessionInfo `json:"sessions"`
+	NextCursor string        `json:"nextCursor,omitempty"`
+}
+
+// LoadSessionResult is returned by the panel session-switch RPC. Updates are
+// the session/update payloads the agent replayed while session/load ran, so
+// the panel can restore the transcript deterministically instead of racing the
+// live event stream.
+type LoadSessionResult struct {
+	SessionId     string `json:"sessionid"`
+	ConfigOptions any    `json:"configoptions,omitempty"`
+	Modes         any    `json:"modes,omitempty"`
+	Updates       []any  `json:"updates"`
 }
 
 // PromptResponse is the agent's response to session/prompt.

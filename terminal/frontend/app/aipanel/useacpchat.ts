@@ -11,9 +11,23 @@ import {
     type WaveUIMessage,
     type WaveUIMessagePart,
 } from "./aitypes";
+import {
+    ACP_CONFIG_THINKING,
+    EMPTY_ACP_PANEL_CONFIG,
+    mergeAcpPanelConfig,
+    type AcpPanelConfig,
+} from "./acp-panel-config";
+import { replayAcpSessionUpdates } from "./acp-panel-replay";
+import { parseAcpSessionList, type AcpSessionInfo } from "./acp-panel-sessions";
 
 // Keep in sync with agentservice.PanelEventScope.
 const PanelEventScope = "agent:panel";
+
+export type AcpQueuedPrompt = {
+    id: string;
+    text: string;
+    parts: WaveUIMessagePart[];
+};
 
 type AcpSessionUpdate = {
     sessionUpdate?: string;
@@ -102,12 +116,35 @@ function pickPermissionOption(options: PermissionOption[], prefix: "allow" | "re
     return prefix === "reject" ? "" : (options[0]?.optionId ?? "");
 }
 
+// Keep queue labels readable when the prompt is only attached files.
+function promptLabel(parts: WaveUIMessagePart[]): string {
+    const text = parts
+        .filter((part) => part.type === "text")
+        .map((part) => part.text ?? "")
+        .join("\n\n")
+        .trim();
+    if (text) {
+        return text;
+    }
+    return parts
+        .filter((part): part is WaveUIMessagePart & { type: "data-userfile" } => part.type === "data-userfile")
+        .map((part) => part.data?.filename ?? "file")
+        .join(", ");
+}
+
 export class AcpPanelChat {
     private static instance: AcpPanelChat | null = null;
 
     private messages: WaveUIMessage[] = [];
     private status: ChatStatus = "ready";
     private error: Error | null = null;
+    private config: AcpPanelConfig = EMPTY_ACP_PANEL_CONFIG;
+    private configReady = false;
+    private queuedPrompts: AcpQueuedPrompt[] = [];
+    private sessions: AcpSessionInfo[] = [];
+    private sessionsLoading = false;
+    private sessionError: Error | null = null;
+    private switchingSessionId: string | null = null;
     private listeners = new Set<() => void>();
     private unsubs: (() => void)[] = [];
     private subscribed = false;
@@ -142,10 +179,26 @@ export class AcpPanelChat {
 
     getError = (): Error | null => this.error;
 
+    getConfig = (): AcpPanelConfig => this.config;
+
+    getConfigReady = (): boolean => this.configReady;
+
+    getQueuedPrompts = (): AcpQueuedPrompt[] => this.queuedPrompts;
+
+    getSessions = (): AcpSessionInfo[] => this.sessions;
+
+    getSessionsLoading = (): boolean => this.sessionsLoading;
+
+    getSessionError = (): Error | null => this.sessionError;
+
+    getSwitchingSessionId = (): string | null => this.switchingSessionId;
+
     init(): Promise<void> {
         this.subscribeEvents();
         return this.ensureStarted()
-            .then(() => this.loadPendingPermissions())
+            .then(async () => {
+                await Promise.all([this.loadConfig(), this.loadPendingPermissions()]);
+            })
             .catch((err) => {
                 this.setError(toError(err));
                 throw err;
@@ -153,9 +206,6 @@ export class AcpPanelChat {
     }
 
     sendMessage = async (message?: Parameters<UseChatSendMessageType>[0]): Promise<void> => {
-        if (this.status === "streaming" || this.status === "submitted") {
-            return;
-        }
         const candidate = message as { parts?: unknown; text?: unknown } | undefined;
         const rawParts = candidate?.parts;
         const parts: WaveUIMessagePart[] = Array.isArray(rawParts)
@@ -171,6 +221,111 @@ export class AcpPanelChat {
             return;
         }
 
+        // ACP's session/prompt cancels a still-streaming turn when a second
+        // prompt arrives before the first settles. Keep the message here and
+        // dispatch it after the active turn ends instead.
+        if (
+            this.turn ||
+            this.switchingSessionId != null ||
+            this.status === "streaming" ||
+            this.status === "submitted"
+        ) {
+            this.queuedPrompts = [
+                ...this.queuedPrompts,
+                { id: crypto.randomUUID(), text: promptLabel(parts), parts },
+            ];
+            this.emit();
+            return;
+        }
+
+        await this.startPrompt(parts, prompt);
+    };
+
+    setModel = async (modelId: string): Promise<void> => {
+        try {
+            await this.ensureStarted();
+            await AgentService.PanelSetModel(modelId);
+        } catch (err) {
+            this.setError(toError(err));
+            throw err;
+        }
+    };
+
+    setThinking = async (value: string): Promise<void> => {
+        try {
+            await this.ensureStarted();
+            await AgentService.PanelSetConfigOption(ACP_CONFIG_THINKING, value);
+        } catch (err) {
+            this.setError(toError(err));
+            throw err;
+        }
+    };
+
+    removeQueuedPrompt = (id: string): void => {
+        const next = this.queuedPrompts.filter((item) => item.id !== id);
+        if (next.length === this.queuedPrompts.length) {
+            return;
+        }
+        this.queuedPrompts = next;
+        this.emit();
+    };
+
+    listSessions = async (): Promise<AcpSessionInfo[]> => {
+        this.sessionsLoading = true;
+        this.sessionError = null;
+        this.emit();
+        try {
+            this.sessions = parseAcpSessionList(await AgentService.PanelListSessions());
+            return this.sessions;
+        } catch (err) {
+            this.sessionError = toError(err);
+            throw err;
+        } finally {
+            this.sessionsLoading = false;
+            this.emit();
+        }
+    };
+
+    switchSession = async (sessionId: string): Promise<void> => {
+        const target = sessionId.trim();
+        if (!target) {
+            throw new Error("Session id is empty");
+        }
+        if (this.turn || this.queuedPrompts.length > 0) {
+            throw new Error("Stop the current response before switching sessions");
+        }
+        if (this.switchingSessionId != null) {
+            throw new Error("Panel is already switching sessions");
+        }
+
+        this.switchingSessionId = target;
+        this.sessionError = null;
+        this.emit();
+        try {
+            const result = await AgentService.PanelLoadSession(target);
+            const updates = Array.isArray(result?.updates) ? result.updates : [];
+            this.messages = replayAcpSessionUpdates(updates);
+            this.turn = null;
+            this.pendingPermissions.clear();
+            this.error = null;
+            this.config = mergeAcpPanelConfig(this.config, {
+                sessionid: typeof result?.sessionid === "string" ? result.sessionid : target,
+                configoptions: result?.configoptions,
+            });
+            this.configReady = true;
+            this.setStatus("ready");
+            this.emit();
+            this.dispatchNextQueued();
+        } catch (err) {
+            this.sessionError = toError(err);
+            throw err;
+        } finally {
+            this.switchingSessionId = null;
+            this.emit();
+        }
+    };
+
+    private async startPrompt(parts: WaveUIMessagePart[], prompt: string): Promise<void> {
         const userMessage: WaveUIMessage = {
             id: crypto.randomUUID(),
             role: "user",
@@ -207,6 +362,7 @@ export class AcpPanelChat {
             }
             this.turn = null;
             this.emit();
+            this.dispatchNextQueued();
             return;
         }
 
@@ -226,6 +382,15 @@ export class AcpPanelChat {
         this.setStatus("streaming");
     }
 
+    private dispatchNextQueued(): void {
+        if (this.turn || this.queuedPrompts.length === 0) {
+            return;
+        }
+        const [next, ...rest] = this.queuedPrompts;
+        this.queuedPrompts = rest;
+        void this.startPrompt(next.parts, this.buildPrompt(next.parts));
+    }
+
     setMessages: UseChatSetMessagesType = (messages) => {
         const next = typeof messages === "function" ? messages(this.messages) : messages;
         this.messages = Array.isArray(next) ? next : [];
@@ -236,7 +401,12 @@ export class AcpPanelChat {
     };
 
     stop = (): void => {
+        const hadQueuedPrompts = this.queuedPrompts.length > 0;
+        this.queuedPrompts = [];
         if (!this.turn) {
+            if (hadQueuedPrompts) {
+                this.emit();
+            }
             return;
         }
         this.turn = null;
@@ -303,6 +473,11 @@ export class AcpPanelChat {
                 eventType: "agent:permissiondone",
                 scope: PanelEventScope,
                 handler: (event) => this.handlePermissionDone(event.data),
+            }),
+            waveEventSubscribeSingle({
+                eventType: "agent:config",
+                scope: PanelEventScope,
+                handler: (event) => this.handleConfig(event.data),
             })
         );
     }
@@ -471,6 +646,33 @@ export class AcpPanelChat {
         }
     }
 
+    private async loadConfig(): Promise<void> {
+        if (this.configReady) {
+            // The setup event already delivered this snapshot; a later RPC
+            // response could overwrite a newer push.
+            return;
+        }
+        try {
+            this.handleConfig(await AgentService.PanelConfig());
+        } catch {
+            // The agent:config event carries the same snapshot once the session
+            // reports its setup.
+        }
+    }
+
+    private handleConfig(data?: ConfigData): void {
+        if (!data) {
+            return;
+        }
+        const next = mergeAcpPanelConfig(this.config, data);
+        if (next === this.config && this.configReady) {
+            return;
+        }
+        this.config = next;
+        this.configReady = true;
+        this.emit();
+    }
+
     private buildPrompt(parts: WaveUIMessagePart[]): string {
         const text = parts
             .filter((part) => part.type === "text")
@@ -538,6 +740,7 @@ export class AcpPanelChat {
         }
         this.setStatus("ready");
         this.emit();
+        this.dispatchNextQueued();
     }
 
     private failTurn(error: Error): void {
@@ -546,6 +749,7 @@ export class AcpPanelChat {
         this.setError(error);
         this.setStatus("error");
         this.emit();
+        this.dispatchNextQueued();
     }
 
     private setStatus(status: ChatStatus): void {
@@ -569,6 +773,11 @@ export class AcpPanelChat {
         }
         this.unsubs = [];
         this.subscribed = false;
+        this.queuedPrompts = [];
+        this.sessions = [];
+        this.sessionsLoading = false;
+        this.sessionError = null;
+        this.switchingSessionId = null;
         this.listeners.clear();
     }
 }
@@ -584,6 +793,18 @@ export interface UseAcpChatResult {
     setMessages: UseChatSetMessagesType;
     error: Error | null;
     stop: () => void;
+    config: AcpPanelConfig;
+    configReady: boolean;
+    queuedPrompts: AcpQueuedPrompt[];
+    setModel: (modelId: string) => Promise<void>;
+    setThinking: (value: string) => Promise<void>;
+    removeQueuedPrompt: (id: string) => void;
+    sessions: AcpSessionInfo[];
+    sessionsLoading: boolean;
+    sessionError: Error | null;
+    switchingSessionId: string | null;
+    listSessions: () => Promise<AcpSessionInfo[]>;
+    switchSession: (sessionId: string) => Promise<void>;
 }
 
 export function useAcpChat(options?: UseAcpChatOptions): UseAcpChatResult {
@@ -591,6 +812,17 @@ export function useAcpChat(options?: UseAcpChatOptions): UseAcpChatResult {
     const messages = useSyncExternalStore(chat.subscribe, chat.getMessages, chat.getMessages);
     const status = useSyncExternalStore(chat.subscribe, chat.getStatus, chat.getStatus);
     const error = useSyncExternalStore(chat.subscribe, chat.getError, chat.getError);
+    const config = useSyncExternalStore(chat.subscribe, chat.getConfig, chat.getConfig);
+    const configReady = useSyncExternalStore(chat.subscribe, chat.getConfigReady, chat.getConfigReady);
+    const queuedPrompts = useSyncExternalStore(chat.subscribe, chat.getQueuedPrompts, chat.getQueuedPrompts);
+    const sessions = useSyncExternalStore(chat.subscribe, chat.getSessions, chat.getSessions);
+    const sessionsLoading = useSyncExternalStore(chat.subscribe, chat.getSessionsLoading, chat.getSessionsLoading);
+    const sessionError = useSyncExternalStore(chat.subscribe, chat.getSessionError, chat.getSessionError);
+    const switchingSessionId = useSyncExternalStore(
+        chat.subscribe,
+        chat.getSwitchingSessionId,
+        chat.getSwitchingSessionId
+    );
 
     useEffect(() => {
         void chat.init().catch(() => {
@@ -612,5 +844,17 @@ export function useAcpChat(options?: UseAcpChatOptions): UseAcpChatResult {
         setMessages: chat.setMessages,
         error,
         stop: chat.stop,
+        config,
+        configReady,
+        queuedPrompts,
+        setModel: chat.setModel,
+        setThinking: chat.setThinking,
+        removeQueuedPrompt: chat.removeQueuedPrompt,
+        sessions,
+        sessionsLoading,
+        sessionError,
+        switchingSessionId,
+        listSessions: chat.listSessions,
+        switchSession: chat.switchSession,
     };
 }

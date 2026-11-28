@@ -13,7 +13,6 @@ import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { WorkspaceLayoutModel } from "@/app/workspace/workspace-layout-model";
 import { BuilderFocusManager } from "@/builder/store/builder-focusmanager";
 import { base64ToArrayBuffer } from "@/util/util";
-import { ChatStatus } from "ai";
 import * as jotai from "jotai";
 import type React from "react";
 import {
@@ -42,7 +41,6 @@ export class WaveAIModel {
     scrollToBottomCallback: (() => void) | null = null;
     useChatSendMessage: UseChatSendMessageType | null = null;
     useChatSetMessages: UseChatSetMessagesType | null = null;
-    useChatStatus: ChatStatus = "ready";
     useChatStop: (() => void) | null = null;
     orefContext: ORef;
     inBuilder: boolean = false;
@@ -251,12 +249,10 @@ export class WaveAIModel {
     registerUseChatData(
         sendMessage: UseChatSendMessageType,
         setMessages: UseChatSetMessagesType,
-        status: ChatStatus,
         stop: () => void
     ) {
         this.useChatSendMessage = sendMessage;
         this.useChatSetMessages = setMessages;
-        this.useChatStatus = status;
         this.useChatStop = stop;
     }
 
@@ -330,7 +326,6 @@ export class WaveAIModel {
 
         if (
             (!input.trim() && droppedFiles.length === 0) ||
-            (this.useChatStatus !== "ready" && this.useChatStatus !== "error") ||
             globalStore.get(this.isLoadingChatAtom)
         ) {
             return;

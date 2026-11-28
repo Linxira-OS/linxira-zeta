@@ -22,6 +22,7 @@ import { AIModeDropdown } from "./aimode";
 import { AIPanelHeader } from "./aipanelheader";
 import { AIPanelInput } from "./aipanelinput";
 import { AIPanelMessages } from "./aipanelmessages";
+import { AIQueuedPrompts } from "./aiqueuedprompts";
 import { BYOKAnnouncement } from "./byokannouncement";
 import { useAcpChat } from "./useacpchat";
 import { WaveAIModel } from "./waveai-model";
@@ -255,14 +256,14 @@ const AIPanelComponentInner = memo(({ roundTopLeft }: AIPanelComponentInnerProps
     // prerequisite for it.
     const allowAccess = true;
 
-    const { messages, sendMessage, status, setMessages, stop } = useAcpChat({
+    const { messages, sendMessage, status, setMessages, stop, queuedPrompts, removeQueuedPrompt } = useAcpChat({
         onError: (error) => {
             console.error("AI Chat error:", error);
             model.setError(error.message || t("ai.errorOccurred"));
         },
     });
 
-    model.registerUseChatData(sendMessage, setMessages, status, stop);
+    model.registerUseChatData(sendMessage, setMessages, stop);
 
     // console.log("AICHAT messages", messages);
     (window as any).aichatmessages = messages;
@@ -564,6 +565,7 @@ const AIPanelComponentInner = memo(({ roundTopLeft }: AIPanelComponentInnerProps
                         )}
                         <AIErrorMessage />
                         <AIDroppedFiles model={model} />
+                        <AIQueuedPrompts prompts={queuedPrompts} onRemove={removeQueuedPrompt} />
                         <AIPanelInput onSubmit={handleSubmit} status={status} model={model} />
                     </>
                 ) : null}

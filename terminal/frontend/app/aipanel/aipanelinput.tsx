@@ -134,6 +134,9 @@ export const AIPanelInput = memo(({ onSubmit, status, model }: AIPanelInputProps
         }
     };
 
+    const isBusy = status === "streaming" || status === "submitted";
+    const canSubmit = input.trim().length > 0;
+
     return (
         <div className={cn("border-t", isFocused ? "border-accent/50" : "border-gray-600")}>
             <input
@@ -155,7 +158,8 @@ export const AIPanelInput = memo(({ onSubmit, status, model }: AIPanelInputProps
                         onBlur={handleBlur}
                         placeholder={placeholder}
                         className={cn(
-                            "w-full  text-white px-2 py-2 pr-5 focus:outline-none resize-none overflow-auto bg-zinc-800/50"
+                            "w-full  text-white px-2 py-2 pr-5 focus:outline-none resize-none overflow-auto bg-zinc-800/50",
+                            isBusy && "pr-14"
                         )}
                         style={{ fontSize: "13px" }}
                         rows={2}
@@ -171,35 +175,34 @@ export const AIPanelInput = memo(({ onSubmit, status, model }: AIPanelInputProps
                             <i className="fa fa-paperclip text-sm"></i>
                         </button>
                     </Tooltip>
-                    {status === "streaming" ? (
-                        <Tooltip content={t("ai.stopResponse")} placement="top" divClassName="absolute bottom-1.5 right-1">
-                            <button
-                                type="button"
-                                onClick={() => model.stopResponse()}
-                                className={cn(
-                                    "w-5 h-5 transition-colors flex items-center justify-center",
-                                    "text-green-500 hover:text-green-400 cursor-pointer"
-                                )}
-                            >
-                                <i className="fa fa-square text-sm"></i>
-                            </button>
-                        </Tooltip>
-                    ) : (
-                        <Tooltip content={t("ai.sendMessage")} placement="top" divClassName="absolute bottom-1.5 right-1">
+                    <div className="absolute bottom-1.5 right-1 flex items-center gap-1">
+                        {isBusy && (
+                            <Tooltip content={t("ai.stopResponse")} placement="top">
+                                <button
+                                    type="button"
+                                    onClick={() => model.stopResponse()}
+                                    className={cn(
+                                        "w-5 h-5 transition-colors flex items-center justify-center",
+                                        "text-green-500 hover:text-green-400 cursor-pointer"
+                                    )}
+                                >
+                                    <i className="fa fa-square text-sm"></i>
+                                </button>
+                            </Tooltip>
+                        )}
+                        <Tooltip content={isBusy ? t("ai.queueMessage") : t("ai.sendMessage")} placement="top">
                             <button
                                 type="submit"
-                                disabled={status !== "ready" || !input.trim()}
+                                disabled={!canSubmit}
                                 className={cn(
                                     "w-5 h-5 transition-colors flex items-center justify-center",
-                                    status !== "ready" || !input.trim()
-                                        ? "text-gray-400"
-                                        : "text-accent/80 hover:text-accent cursor-pointer"
+                                    !canSubmit ? "text-gray-400" : "text-accent/80 hover:text-accent cursor-pointer"
                                 )}
                             >
                                 <i className="fa fa-paper-plane text-sm"></i>
                             </button>
                         </Tooltip>
-                    )}
+                    </div>
                 </div>
             </form>
         </div>
