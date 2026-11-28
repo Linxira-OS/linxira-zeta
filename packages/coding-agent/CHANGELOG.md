@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [1.5.16] - 2026-11-28
+
+## [1.5.16] - 2026-11-28
+
 ### Added
 
 - Binary file previews render a bounded read-only hex window, and local previews can open the file in `zetaide` without replacing the in-app editor.

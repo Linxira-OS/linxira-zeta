@@ -6050,7 +6050,7 @@ dependencies = [
 
 [[package]]
 name = "omp-ast"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "anyhow",
  "ast-grep-core",
@@ -6092,7 +6092,7 @@ dependencies = [
 
 [[package]]
 name = "omp-builtins"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "ansi-width",
  "anyhow",
@@ -6189,14 +6189,14 @@ dependencies = [
 
 [[package]]
 name = "omp-diff"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "xutf",
 ]
 
 [[package]]
 name = "omp-edit"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "async-trait",
  "omp-ast",
@@ -6215,7 +6215,7 @@ dependencies = [
 
 [[package]]
 name = "omp-iso"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "async-trait",
  "libc",
@@ -6228,7 +6228,7 @@ dependencies = [
 
 [[package]]
 name = "omp-natives"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "anyhow",
  "arboard",
@@ -6325,7 +6325,7 @@ dependencies = [
 
 [[package]]
 name = "omp-predict"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "anyhow",
  "candle-core",
@@ -6343,7 +6343,7 @@ dependencies = [
 
 [[package]]
 name = "omp-shell"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6383,7 +6383,7 @@ dependencies = [
 
 [[package]]
 name = "omp-vcs"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "futures",
  "gix",
@@ -6401,7 +6401,7 @@ dependencies = [
 
 [[package]]
 name = "omp-vfs"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "async-trait",
  "libc",
@@ -6414,7 +6414,7 @@ dependencies = [
 
 [[package]]
 name = "omp-voice"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "bytes",
  "flume",
@@ -6428,7 +6428,7 @@ dependencies = [
 
 [[package]]
 name = "omp-xfs"
-version = "1.5.15"
+version = "1.5.16"
 dependencies = [
  "async-trait",
  "flume",

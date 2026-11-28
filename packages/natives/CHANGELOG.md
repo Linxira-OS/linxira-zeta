@@ -1,10 +1,6 @@
 ## [Unreleased]
 
-### Changed
-
-- Version 1.5.16 lockstep release; no package-specific source change.
-
-## [1.5.15] - 2026-11-27
+## [1.5.16] - 2026-11-28
 
 ## [14.9.9] - 2026-05-12
 
@@ -586,6 +582,12 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
+
+## [1.5.16] - 2026-11-28
+
+### Changed
+
+- Version 1.5.16 lockstep release; no package-specific source change.
 
 ## [1.5.15] - 2026-11-27
 

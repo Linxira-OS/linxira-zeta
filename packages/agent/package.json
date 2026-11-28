@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/pi-agent-core",
-	"version": "1.5.15",
+	"version": "1.5.16",
 	"description": "General-purpose agent with transport abstraction, state management, and attachment support",
 	"keywords": [
 		"agent",

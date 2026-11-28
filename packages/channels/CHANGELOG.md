@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [1.5.16] - 2026-11-28
+
+## [1.5.16] - 2026-11-28
+
 ### Changed
 
 - IM runtime pages, attach routing, and PM session candidates ship in the 1.5.16 line.

@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/pi-channels",
-	"version": "1.5.15",
+	"version": "1.5.16",
 	"description": "IM channel adapters for Zeta (WeChat / Feishu / Telegram)",
 	"keywords": [
 		"channels",

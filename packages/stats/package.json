@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/pi-stats",
-	"version": "1.5.15",
+	"version": "1.5.16",
 	"description": "Local observability dashboard for omp AI usage statistics",
 	"keywords": [
 		"ai",

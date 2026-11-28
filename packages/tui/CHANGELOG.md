@@ -1,10 +1,6 @@
 ## [Unreleased]
 
-### Changed
-
-- Version 1.5.16 lockstep release; no package-specific source change.
-
-## [1.5.15] - 2026-11-27
+## [1.5.16] - 2026-11-28
 
 ## [8.4.1] - 2026-01-25
 
@@ -97,6 +93,12 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @linxiraos scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.5.16] - 2026-11-28
+
+### Changed
+
+- Version 1.5.16 lockstep release; no package-specific source change.
 
 ## [1.5.15] - 2026-11-27
 

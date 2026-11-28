@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/pi-tui",
-	"version": "1.5.15",
+	"version": "1.5.16",
 	"description": "TSP-first terminal UI: one component tree, rendered natively over the Tern Surface Protocol or as terminal rows",
 	"keywords": [
 		"cli",
