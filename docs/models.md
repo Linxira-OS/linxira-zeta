@@ -935,6 +935,43 @@ disabledProviders:
 
 String entries apply everywhere. Scoped entries apply when the current working directory is the configured path or one of its subdirectories. Use `path`, `paths`, `pathPrefix`, or `pathPrefixes`; use `models` for `enabledModels`, `providers` for either provider setting, or `values` for any of them.
 
+## Per-agent and scoped fallbacks
+
+`modelAgents` gives a named task agent or Vibe/Team target its own primary
+model, effort and fallback chain without changing `modelRoles` or the shared
+`task` selector:
+
+```yaml
+modelAgents:
+  reviewer:
+    model: openai/gpt-5.2
+    thinkingLevel: low
+    fallback: [anthropic/claude-sonnet-4-5]
+  worker: openai/gpt-5-mini
+  pm: "@default"
+```
+
+A string is shorthand for `{ model }`. Absent fields keep the legacy order
+(`task.agentModelOverrides`, the agent definition, the parent), so existing
+configs need no migration. Team targets are `worker`, `reviewer`, `secretary`
+and `pm`; an actual agent definition with the same name wins.
+
+`fallbackScopes` keeps `resume`, `retry`, `role`, `agent` and `mode` chains
+independent:
+
+```yaml
+fallbackScopes:
+  retry:
+    openai/*: [anthropic/claude-sonnet-4-5]
+  agent:
+    reviewer: [anthropic/claude-haiku-4-5]
+```
+
+Chains are normalized by canonical `provider/id` after alias and thinking-suffix
+collapse; duplicates are dropped in first-seen order. A chain configured under
+one scope is never concatenated with another scope's chain. `retry.fallbackChains`
+remains the legacy retry/role input.
+
 ## `/model` and `zetacode models`
 
 Both surfaces keep provider-prefixed concrete models visible and selectable.
