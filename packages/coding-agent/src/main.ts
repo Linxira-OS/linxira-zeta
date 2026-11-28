@@ -2575,7 +2575,7 @@ export async function runRootCommand(
 			options.onPrewalkWarning = startupWarning;
 			return options;
 		};
-		let sessionOptions = await buildStartupSessionOptions(sessionManager);
+		const sessionOptions = await buildStartupSessionOptions(sessionManager);
 		const marketplaceAutoUpdateOptions: MarketplaceAutoUpdateOptions = {
 			autoUpdate: cfgMarketplaceAutoUpdate.get(settingsInstance),
 			resolveActiveProjectRegistryPath,
