@@ -3,6 +3,7 @@
 
 import { BlockNodeModel } from "@/app/block/blocktypes";
 import { ContextMenuModel } from "@/app/store/contextmenu";
+import { createBlock } from "@/app/store/global";
 import { globalStore } from "@/app/store/jotaiStore";
 import type { TabModel } from "@/app/store/tab-model";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
@@ -21,6 +22,8 @@ import type * as MonacoTypes from "monaco-editor";
 import { createRef } from "react";
 import { PreviewView } from "./preview";
 import { makeDirectoryDefaultMenuItems } from "./preview-directory-utils";
+import { buildZetaIdeBlockDef } from "./preview-handoff";
+import { classifyPreview, isFileReadOnly, isMarkdownLike } from "./preview-type";
 import type { PreviewEnv } from "./previewenv";
 
 // TODO drive this using config
@@ -31,63 +34,6 @@ const BOOKMARKS: { label: string; path: string }[] = [
     { label: t("preview.bookmark.documents"), path: "~/Documents" },
     { label: t("preview.bookmark.root"), path: "/" },
 ];
-
-const MaxFileSize = 1024 * 1024 * 10; // 10MB
-const MaxCSVSize = 1024 * 1024 * 1; // 1MB
-
-const textApplicationMimetypes = [
-    "application/sql",
-    "application/x-php",
-    "application/x-pem-file",
-    "application/x-httpd-php",
-    "application/liquid",
-    "application/graphql",
-    "application/javascript",
-    "application/typescript",
-    "application/x-javascript",
-    "application/x-typescript",
-    "application/dart",
-    "application/vnd.dart",
-    "application/x-ruby",
-    "application/sql",
-    "application/wasm",
-    "application/x-latex",
-    "application/x-sh",
-    "application/x-python",
-    "application/x-awk",
-];
-
-function isTextFile(mimeType: string): boolean {
-    if (mimeType == null) {
-        return false;
-    }
-    return (
-        mimeType.startsWith("text/") ||
-        textApplicationMimetypes.includes(mimeType) ||
-        (mimeType.startsWith("application/") &&
-            (mimeType.includes("json") || mimeType.includes("yaml") || mimeType.includes("toml"))) ||
-        mimeType.includes("xml")
-    );
-}
-
-function isStreamingType(mimeType: string): boolean {
-    if (mimeType == null) {
-        return false;
-    }
-    return (
-        mimeType.startsWith("application/pdf") ||
-        mimeType.startsWith("video/") ||
-        mimeType.startsWith("audio/") ||
-        mimeType.startsWith("image/")
-    );
-}
-
-function isMarkdownLike(mimeType: string): boolean {
-    if (mimeType == null) {
-        return false;
-    }
-    return mimeType.startsWith("text/markdown") || mimeType.startsWith("text/mdx");
-}
 
 function iconForFile(mimeType: string): string {
     if (mimeType == null) {
@@ -503,7 +449,6 @@ export class PreviewModel implements ViewModel {
     async getSpecializedView(getFn: Getter): Promise<{ specializedView?: string; errorStr?: string }> {
         const mimeType = await getFn(this.fileMimeType);
         const fileInfo = await getFn(this.statFile);
-        const fileName = fileInfo?.name;
         const connErr = getFn(this.connectionError);
         const editMode = getFn(this.editMode);
         const genErr = getFn(this.errorMsgAtom);
@@ -514,42 +459,18 @@ export class PreviewModel implements ViewModel {
         if (connErr != "") {
             return { errorStr: t("preview.connectionError", { error: connErr }) };
         }
-        if (fileInfo?.notfound) {
+        if (fileInfo.notfound) {
             return { specializedView: "codeedit" };
         }
-        if (mimeType == null) {
-            return { errorStr: t("preview.unknownMime", { path: fileInfo.path }) };
+        const classification = classifyPreview(mimeType, fileInfo.size, editMode);
+        if (classification.kind === "view") {
+            return { specializedView: classification.view };
         }
-        if (isStreamingType(mimeType)) {
-            return { specializedView: "streaming" };
-        }
-        if (!fileInfo) {
-            const fileNameStr = fileName ? " " + JSON.stringify(fileName) : "";
-            return { errorStr: t("preview.fileNotFound", { name: fileNameStr }) };
-        }
-        if (fileInfo.size > MaxFileSize) {
+        if (classification.error === "file-too-large") {
             return { errorStr: t("preview.fileTooLarge") };
         }
-        if (mimeType == "text/csv" && fileInfo.size > MaxCSVSize) {
+        if (classification.error === "csv-too-large") {
             return { errorStr: t("preview.csvTooLarge") };
-        }
-        if (mimeType == "directory") {
-            return { specializedView: "directory" };
-        }
-        if (mimeType == "text/csv") {
-            if (editMode) {
-                return { specializedView: "codeedit" };
-            }
-            return { specializedView: "csv" };
-        }
-        if (isMarkdownLike(mimeType)) {
-            if (editMode) {
-                return { specializedView: "codeedit" };
-            }
-            return { specializedView: "markdown" };
-        }
-        if (isTextFile(mimeType) || fileInfo.size == 0) {
-            return { specializedView: "codeedit" };
         }
         return { errorStr: `Preview (${mimeType})` };
     }
@@ -647,13 +568,21 @@ export class PreviewModel implements ViewModel {
     }
 
     async handleFileSave() {
-        const filePath = await globalStore.get(this.statFilePath);
-        if (filePath == null) {
-            return;
-        }
         const newFileContent = globalStore.get(this.newFileContent);
         if (newFileContent == null) {
             console.log("not saving file, newFileContent is null");
+            return;
+        }
+        const fileInfo = await globalStore.get(this.statFile);
+        if (isFileReadOnly(fileInfo)) {
+            globalStore.set(this.errorMsgAtom, {
+                status: t("preview.readOnly"),
+                text: t("preview.readOnlyNoSave"),
+            });
+            return;
+        }
+        const filePath = fileInfo?.path;
+        if (filePath == null) {
             return;
         }
         try {
@@ -679,6 +608,22 @@ export class PreviewModel implements ViewModel {
         const fileContent = await globalStore.get(this.fileContent);
         this.monacoRef.current?.setValue(fileContent);
         globalStore.set(this.newFileContent, null);
+    }
+
+    async openInZetaIde() {
+        const fileInfo = await globalStore.get(this.statFile);
+        const blockDef = buildZetaIdeBlockDef(fileInfo);
+        if (blockDef == null) {
+            return;
+        }
+        try {
+            await createBlock(blockDef);
+        } catch (e) {
+            globalStore.set(this.errorMsgAtom, {
+                status: t("preview.openInZetaIdeFailed"),
+                text: `${e}`,
+            });
+        }
     }
 
     async handleOpenFile(filePath: string) {
@@ -738,6 +683,14 @@ export class PreviewModel implements ViewModel {
         menuItems.push({ type: "separator" });
         const finfo = jotaiLoadableValue(globalStore.get(this.loadableFileInfo), null);
         addOpenMenuItems(menuItems, globalStore.get(this.connectionImmediate), finfo);
+        if (finfo && !finfo.isdir && isBlank(globalStore.get(this.connectionImmediate))) {
+            // zetaide ships with the local Zeta install; a remote preview's
+            // connection may not have it on PATH, so the handoff is local-only.
+            menuItems.push({
+                label: t("preview.openInZetaIde"),
+                click: () => fireAndForget(this.openInZetaIde.bind(this)),
+            });
+        }
         const loadableSV = globalStore.get(this.loadableSpecializedView);
         const wordWrapAtom = getOverrideConfigAtom(this.blockId, "editor:wordwrap");
         const wordWrap = globalStore.get(wordWrapAtom) ?? false;

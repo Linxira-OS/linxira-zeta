@@ -11,11 +11,13 @@ import { useI18n } from "../../../i18n";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { memo, useEffect } from "react";
 import { CSVView } from "./csvview";
+import { BinaryPreview } from "./preview-binary";
 import { DirectoryPreview } from "./preview-directory";
 import { CodeEditPreview } from "./preview-edit";
 import { ErrorOverlay } from "./preview-error-overlay";
 import { MarkdownPreview } from "./preview-markdown";
 import type { PreviewModel } from "./preview-model";
+import { isCsvMimeType, isMarkdownLike } from "./preview-type";
 import { StreamingPreview } from "./preview-streaming";
 import type { PreviewEnv } from "./previewenv";
 
@@ -29,14 +31,12 @@ const SpecializedViewMap: { [view: string]: ({ model }: SpecializedViewProps) =>
 	markdown: MarkdownPreview,
 	codeedit: CodeEditPreview,
 	csv: CSVViewPreview,
+	binary: BinaryPreview,
 	directory: DirectoryPreview,
 };
 
 function canPreview(mimeType: string): boolean {
-	if (mimeType == null) {
-		return false;
-	}
-	return mimeType.startsWith("text/markdown") || mimeType.startsWith("text/csv");
+	return isMarkdownLike(mimeType) || isCsvMimeType(mimeType);
 }
 
 function CSVViewPreview({ model, parentRef }: SpecializedViewProps) {

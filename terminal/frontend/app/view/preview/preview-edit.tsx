@@ -11,6 +11,7 @@ import type * as MonacoTypes from "monaco-editor";
 import * as monaco from "monaco-editor";
 import { useEffect } from "react";
 import type { SpecializedViewProps } from "./preview";
+import { isFileReadOnly } from "./preview-type";
 
 export const shellFileMap: Record<string, string> = {
     ".bashrc": "shell",
@@ -101,8 +102,12 @@ function CodeEditPreview({ model }: SpecializedViewProps) {
             text={fileContent}
             fileName={fileName}
             language={language}
-            readonly={fileInfo.readonly}
-            onChange={(text) => setNewFileContent(text)}
+            readonly={isFileReadOnly(fileInfo)}
+            onChange={(text) => {
+                if (!isFileReadOnly(fileInfo)) {
+                    setNewFileContent(text);
+                }
+            }}
             onMount={onMount}
         />
     );
