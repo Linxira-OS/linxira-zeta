@@ -1862,35 +1862,58 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		};
 	}
 
-	test("rejects a headless resume instead of substituting the settings default", async () => {
-		await expect(createAgentSession(buildResumeOptions())).rejects.toThrow(
-			"Could not restore model missing-provider/missing-model",
-		);
+	test("resumes a headless session on the settings default", async () => {
+		const { session, modelFallbackMessage } = await createAgentSession(buildResumeOptions());
+		try {
+			expect(session.model?.provider).toBe("anthropic");
+			expect(session.model?.id).toBe("claude-sonnet-4-5");
+			expect(modelFallbackMessage).toContain("Could not restore model missing-provider/missing-model");
+		} finally {
+			await session.dispose();
+		}
 	});
 
-	test("rejects a headless resume instead of selecting the first available model", async () => {
-		await expect(createAgentSession({ ...buildResumeOptions(), settings: Settings.isolated() })).rejects.toThrow(
-			"Could not restore model missing-provider/missing-model",
-		);
+	test("resumes a headless session on the first available model without a default", async () => {
+		const { session, modelFallbackMessage } = await createAgentSession({
+			...buildResumeOptions(),
+			settings: Settings.isolated(),
+		});
+		try {
+			expect(session.model).toBeDefined();
+			expect(`${session.model?.provider}/${session.model?.id}`).not.toBe("missing-provider/missing-model");
+			expect(modelFallbackMessage).toContain("Could not restore model missing-provider/missing-model");
+		} finally {
+			await session.dispose();
+		}
 	});
 
-	test("rejects an interactive resume when retry model fallback is disabled", async () => {
-		await expect(
-			createAgentSession({
-				...buildResumeOptions(),
-				hasUI: true,
-				settings: Settings.isolated({
-					modelRoles: { default: "anthropic/claude-sonnet-4-5" },
-					retry: { modelFallback: false },
-				}),
+	test("resumes an interactive session even when retry model fallback is disabled", async () => {
+		const { session } = await createAgentSession({
+			...buildResumeOptions(),
+			hasUI: true,
+			settings: Settings.isolated({
+				modelRoles: { default: "anthropic/claude-sonnet-4-5" },
+				retry: { modelFallback: false },
 			}),
-		).rejects.toThrow("Could not restore model missing-provider/missing-model");
+		});
+		try {
+			expect(session.model?.id).toBe("claude-sonnet-4-5");
+		} finally {
+			await session.dispose();
+		}
 	});
 
-	test("rejects a resume when tool UI is available but startup fallback warnings are not", async () => {
-		await expect(
-			createAgentSession({ ...buildResumeOptions(), hasUI: true, allowSessionModelFallback: false }),
-		).rejects.toThrow("Could not restore model missing-provider/missing-model");
+	test("resumes when tool UI is available but the legacy fallback gate is off", async () => {
+		const { session } = await createAgentSession({
+			...buildResumeOptions(),
+			hasUI: true,
+			allowSessionModelFallback: false,
+		});
+		try {
+			expect(session.model?.id).toBe("claude-sonnet-4-5");
+		} finally {
+			await session.dispose();
+		}
 	});
 
 	test("keeps the fallback warning and settings default for interactive resume", async () => {
@@ -2045,17 +2068,14 @@ describe("createAgentSession deferred model pattern resolution", () => {
 				}),
 			},
 		],
-	] as const)("keeps a %s session when switching to one whose saved model is unavailable", async (_host, host) => {
+	] as const)("switches a %s session to the fallback when the saved model is unavailable", async (_host, host) => {
 		const { session } = await createAgentSession({ ...buildSwitchOptions(), ...host });
 		try {
-			const previousFile = session.sessionFile;
 			const target = await writeSavedModelSession("missing-provider/missing-model");
-			await expect(session.switchSession(target)).rejects.toThrow(
-				"Could not restore model missing-provider/missing-model",
-			);
-			expect(session.sessionFile).toBe(previousFile);
-			expect(session.messages).toEqual([]);
+			await expect(session.switchSession(target)).resolves.toBe(true);
+			expect(session.sessionFile).toBe(target);
 			expect(session.model?.id).toBe("claude-sonnet-4-5");
+			expect(JSON.stringify(session.messages)).toContain("ZEBRA-42");
 		} finally {
 			await session.dispose();
 		}
