@@ -12,7 +12,16 @@ import { describe, expect, test } from "vitest";
 const pagesDir = fileURLToPath(new URL("..", import.meta.url));
 const source = (file: string): string => readFileSync(`${pagesDir}${file}`, "utf8");
 
-const PAGE_FILES = ["App.tsx", "RoomsPage.tsx", "TeamPage.tsx", "TeamWorkspacePage.tsx", "TeamImChatPane.tsx"];
+const PAGE_FILES = [
+	"App.tsx",
+	"ModelsPage.tsx",
+	"RoomsPage.tsx",
+	"TeamPage.tsx",
+	"TeamWorkspacePage.tsx",
+	"TeamImChatPane.tsx",
+	"modelsControl.ts",
+	"modelsBlueprint.ts",
+];
 
 function interfaceKeys(text: string, name: string): string[] {
 	const marker = `export interface ${name} {`;

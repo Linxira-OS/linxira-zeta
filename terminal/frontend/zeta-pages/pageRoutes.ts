@@ -1,9 +1,9 @@
 /**
- * The three external page entries share one bundle, so the path selects the
+ * The external page entries share one bundle, so the path selects the
  * surface. `/zeta-pages/*` is the mounted rewrite; `/pages/*` is the ADR-0101
  * stable alias if a host mounts the same bundle there.
  */
-export type PageRoute = "team" | "rooms" | "im";
+export type PageRoute = "team" | "rooms" | "im" | "models";
 
 export function pageRouteFromPath(pathname: string): PageRoute {
 	const withoutMount =
@@ -15,6 +15,7 @@ export function pageRouteFromPath(pathname: string): PageRoute {
 	const normalized = withoutMount.replace(/\/+$/u, "") || "/";
 	if (normalized === "/rooms") return "rooms";
 	if (normalized === "/im") return "im";
+	if (normalized === "/models") return "models";
 	return "team";
 }
 
@@ -29,5 +30,6 @@ export function pagePathFor(route: PageRoute, pathname: string): string {
 	if (prefix !== "") return `${prefix}/${route}`;
 	if (route === "rooms") return "/rooms";
 	if (route === "im") return "/zeta-pages/im";
+	if (route === "models") return "/models";
 	return "/team";
 }

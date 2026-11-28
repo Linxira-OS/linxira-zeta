@@ -2,13 +2,15 @@
  * Standalone Team/Rooms/IM entry.
  *
  * Routes: `/` and `/team` open the Team workspace; `/rooms` opens local rooms;
- * `/im` opens the Team workspace's IM chat tab. The same route is recognized
- * under the `/zeta-pages` mount and the ADR-0101 `/pages` alias.
+ * `/im` opens the Team workspace's IM chat tab; `/models` opens the read-only
+ * model-control page. The same route is recognized under the `/zeta-pages`
+ * mount and the ADR-0101 `/pages` alias.
  * A `#zeta-pair=` fragment is consumed by `main.tsx` before this mounts.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { hostErrorMessage } from "./hostError";
-import { useI18n } from "./i18n";
+import { pickLocale, useI18n } from "./i18n";
+import { ModelsPage } from "./ModelsPage";
 import { pagePathFor, pageRouteFromPath, type PageRoute } from "./pageRoutes";
 import { RoomsPage } from "./RoomsPage";
 import { TeamWorkspacePage } from "./TeamWorkspacePage";
@@ -179,6 +181,7 @@ export function App({ client, pairCode }: { client: StudioWebClient; pairCode: s
 				</div>
 			);
 		}
+		if (route === "models") return <ModelsPage />;
 		if (route === "rooms") return <RoomsPage client={client} />;
 		if (route === "im") return <TeamWorkspacePage key="im" client={client} initialTab="im" />;
 		return <TeamWorkspacePage key="team" client={client} />;
@@ -212,6 +215,14 @@ export function App({ client, pairCode }: { client: StudioWebClient; pairCode: s
 						onClick={() => navigate("im")}
 					>
 						{t("teamWorkspace.im")}
+					</button>
+					<button
+						type="button"
+						className={route === "models" ? "active" : undefined}
+						aria-current={route === "models" ? "page" : undefined}
+						onClick={() => navigate("models")}
+					>
+						{pickLocale("模型", "Models")}
 					</button>
 				</nav>
 				<span className="zp-spacer" />

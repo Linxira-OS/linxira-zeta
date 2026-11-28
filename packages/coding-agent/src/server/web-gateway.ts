@@ -138,6 +138,7 @@ import {
 	handleModelsDefaultPut,
 	handleModelsImport,
 } from "./web-gateway/models";
+import { handleModelsControl, MODELS_CONTROL_PATH } from "./web-gateway/models-control";
 import {
 	handleModelsConfigCatalog,
 	handleModelsConfigDiscover,
@@ -275,6 +276,8 @@ const AUTH_2FA_DISABLE_RE = /^\/api\/auth\/2fa\/disable$/;
 const AUTH_2FA_RECOVERY_RE = /^\/api\/auth\/2fa\/recovery\/regenerate$/;
 const AUTH_2FA_POLICY_RE = /^\/api\/auth\/2fa\/policy$/;
 const MODELS_RE = /^\/api\/models$/;
+// Read-only model-control projection (`web-gateway/models-control.ts`).
+const MODELS_CONTROL_RE = new RegExp(`^${MODELS_CONTROL_PATH}$`);
 const MODELS_IMPORT_RE = /^\/api\/models\/import$/;
 const MODELS_DEFAULT_RE = /^\/api\/models\/default$/;
 const MODELS_CONFIG_RE = /^\/api\/models-config$/;
@@ -868,6 +871,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	}
 	if (AUTH_2FA_POLICY_RE.test(pathname)) {
 		if (req.method === "PUT") return handleTwoFactorPolicyPut(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (MODELS_CONTROL_RE.test(pathname)) {
+		if (req.method === "GET") return handleModelsControl(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

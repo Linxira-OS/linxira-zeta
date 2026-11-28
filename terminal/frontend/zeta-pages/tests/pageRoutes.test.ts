@@ -12,11 +12,13 @@ describe("external page routes", () => {
 		expect(pageRouteFromPath("/team/")).toBe("team");
 	});
 
-	test("rooms and IM keep their own paths", () => {
+	test("rooms, IM and models keep their own paths", () => {
 		expect(pageRouteFromPath("/rooms")).toBe("rooms");
 		expect(pageRouteFromPath("/rooms/")).toBe("rooms");
 		expect(pageRouteFromPath("/im")).toBe("im");
 		expect(pageRouteFromPath("/im/")).toBe("im");
+		expect(pageRouteFromPath("/models")).toBe("models");
+		expect(pageRouteFromPath("/models/")).toBe("models");
 	});
 
 	test("the mounted and alias prefixes resolve to the same pages", () => {
@@ -27,6 +29,8 @@ describe("external page routes", () => {
 		expect(pageRouteFromPath("/pages/team")).toBe("team");
 		expect(pageRouteFromPath("/pages/rooms")).toBe("rooms");
 		expect(pageRouteFromPath("/pages/im")).toBe("im");
+		expect(pageRouteFromPath("/pages/models")).toBe("models");
+		expect(pageRouteFromPath("/zeta-pages/models/")).toBe("models");
 	});
 
 	test("an unknown deep link falls back to Team, not a blank route", () => {
@@ -40,11 +44,14 @@ describe("page navigation paths", () => {
 		expect(pagePathFor("team", "/")).toBe("/team");
 		expect(pagePathFor("rooms", "/team")).toBe("/rooms");
 		expect(pagePathFor("im", "/team")).toBe("/zeta-pages/im");
+		expect(pagePathFor("models", "/team")).toBe("/models");
 	});
 
 	test("navigation keeps the /pages or /zeta-pages mount", () => {
 		expect(pagePathFor("team", "/pages/rooms")).toBe("/pages/team");
 		expect(pagePathFor("im", "/pages/rooms")).toBe("/pages/im");
 		expect(pagePathFor("rooms", "/zeta-pages/im")).toBe("/zeta-pages/rooms");
+		expect(pagePathFor("models", "/pages/rooms")).toBe("/pages/models");
+		expect(pagePathFor("models", "/zeta-pages/team")).toBe("/zeta-pages/models");
 	});
 });

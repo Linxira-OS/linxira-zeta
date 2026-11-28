@@ -235,21 +235,33 @@ function fileResponse(req: Request, target: string, extension: string, immutable
 }
 
 /**
- * The Team/Rooms/IM client route a request names, or `null` for another path.
+ * The Team/Rooms/IM/Models client route a request names, or `null` for another path.
  *
- * `/zeta-pages/*` is the mounted bundle path; `/team`, `/rooms` and `/im` are
- * the direct entries; `/pages/*` is the ADR-0101 stable alias. Trailing slashes
- * collapse to the same client route.
+ * `/zeta-pages/*` is the mounted bundle path; `/team`, `/rooms`, `/im` and
+ * `/models` are the direct entries; `/pages/*` is the ADR-0101 stable alias.
+ * Trailing slashes collapse to the same client route, and the bundle's
+ * `/assets/*` files are returned with the mount stripped.
  */
 export function resolvePagesSurfacePath(pathname: string): string | null {
 	const route = (suffix: string): string | null => {
 		const normalized = `/${suffix.replace(/^\/+|\/+$/g, "")}`;
-		if (normalized === "/" || normalized === "/team" || normalized === "/rooms" || normalized === "/im")
+		if (
+			normalized === "/" ||
+			normalized === "/team" ||
+			normalized === "/rooms" ||
+			normalized === "/im" ||
+			normalized === "/models"
+		)
 			return normalized === "/" ? "/team" : normalized;
 		return null;
 	};
 	const direct = pathname.replace(/\/+$/, "") || "/";
-	if (direct === "/team" || direct === "/rooms" || direct === "/im") return direct;
+	if (direct === "/team" || direct === "/rooms" || direct === "/im" || direct === "/models") return direct;
+	// The bundle's Vite base is `/zeta-pages/`, so hashed assets arrive under
+	// that prefix. Strip the mount and serve them from the pages build; without
+	// this the HTML boots but every asset URL falls through to the Studio build.
+	if (pathname.startsWith("/zeta-pages/assets/")) return pathname.slice("/zeta-pages".length);
+	if (pathname.startsWith("/pages/assets/")) return pathname.slice("/pages".length);
 	if (pathname === "/pages" || pathname.startsWith("/pages/")) return route(pathname.slice("/pages".length));
 	if (pathname === "/zeta-pages" || pathname.startsWith("/zeta-pages/"))
 		return route(pathname.slice("/zeta-pages".length));

@@ -233,18 +233,25 @@ describe("Studio renderer compression", () => {
 	});
 });
 
-describe("Team/Rooms/IM page routes", () => {
+describe("Team/Rooms/IM/Models page routes", () => {
 	it.each([
 		["/team", "/team"],
 		["/rooms/", "/rooms"],
 		["/im", "/im"],
+		["/models", "/models"],
+		["/models/", "/models"],
 		["/pages", "/team"],
 		["/pages/team/", "/team"],
 		["/pages/rooms", "/rooms"],
 		["/pages/im/", "/im"],
+		["/pages/models", "/models"],
+		["/pages/models/", "/models"],
 		["/zeta-pages", "/team"],
 		["/zeta-pages/team/", "/team"],
 		["/zeta-pages/im", "/im"],
+		["/zeta-pages/models", "/models"],
+		["/zeta-pages/assets/index-abc.js", "/assets/index-abc.js"],
+		["/pages/assets/index-abc.js", "/assets/index-abc.js"],
 	])("maps %s to its client route", (pathname, route) => {
 		expect(resolvePagesSurfacePath(pathname)).toBe(route);
 	});
