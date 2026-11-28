@@ -220,6 +220,15 @@ export default function extension(pi: ExtensionAPI): void {
 }
 ```
 
+## Ambient mode
+
+`/ambient` is an opt-in ASCII fish tank for hosts that advertise TSP. It is off
+by default and session-only; `on`, `off`, `feed <x> <y>` and `status` are the
+only forms. On a plain ANSI host, a host without `tsp`, or an ACP/text surface,
+the command reports status and never paints frames. Reduce-motion runs a slower
+ticker and a 0.25× simulation scale. The engine is pure: fixed-step state in,
+deterministic rows out, with bounded fish/food counts.
+
 ## Key implementation files
 
 - `packages/tui/src/reactive.ts`, `element.ts`, `flow.ts`, `node.ts` — signals, JSX, control flow, the node model.

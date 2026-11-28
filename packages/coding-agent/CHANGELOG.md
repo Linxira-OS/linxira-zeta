@@ -3,7 +3,12 @@
 ### Added
 
 - Binary file previews render a bounded read-only hex window, and local previews can open the file in `zetaide` without replacing the in-app editor.
-- `serve` mounts the Team/Rooms/IM pages at `/pages/{team,rooms,im}` and advertises `identity.pages`.
+- `serve` mounts the Team/Rooms/IM pages at `/pages/{team,rooms,im}`, the model control page at `/pages/models`, and advertises `identity.pages`.
+- The TUI restores Settings → Runtime → Identity & devices / IM runtime; `/2fa`, `/channels` and `/im` open them directly, including in attached sessions.
+- The model control page projects provider visibility, roles, normalized fallback chains, per-agent/Team/Vibe targets and typed model kinds from one secret-free snapshot, with a Blueprint view.
+- The ACP panel gains session list/switch, model and effort controls, and a visible prompt queue.
+- `/ambient` adds an opt-in TSP-only ASCII fish tank; it is off by default, never paints on plain ANSI hosts, and honors reduce-motion.
+- `modelAgents` and scoped `fallbackScopes` give each subagent and Vibe/Team role its own model, effort and fallback chain without migrating existing `modelRoles`.
 
 ### Changed
 

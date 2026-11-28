@@ -15,7 +15,7 @@ ZetaServer's unified reverse proxy.
 > (`--stats-port`/`NEXT_PUBLIC_STATS_URL`). The old UI port `43141` is not a
 > product surface.
 
-## Team/Rooms/IM pages (ADR-0101)
+## Scoped Team/Rooms/IM/Models pages (ADR-0101)
 
 The scoped external page bundle is served from `ZETA_PAGES_DIR` (or the packaged
 `dist/zeta-pages` build) at both the stable ADR paths and the short entries:
@@ -25,11 +25,13 @@ The scoped external page bundle is served from `ZETA_PAGES_DIR` (or the packaged
 | `/pages/team/`, `/team` | Team workspace |
 | `/pages/rooms/`, `/rooms` | Rooms |
 | `/pages/im/`, `/im` | IM runtime |
+| `/pages/models/`, `/models` | Read-only model control (providers, roles, fallbacks, typed models, Blueprint) |
 
 `/zeta-pages/*` remains the mounted alias the page bundle uses for in-app
-navigation. `GET /api/server/identity` advertises the three stable URLs as
-`pages: {team, rooms, im}`. The pages use the normal `/api/*` cookies, CSRF and
-event socket; they are not the retired Studio renderer.
+navigation. `GET /api/server/identity` advertises the three ADR-0101 URLs as
+`pages: {team, rooms, im}`; `/api/models/control` backs the model page and never
+returns credentials. The pages use the normal `/api/*` cookies, CSRF and event
+socket; they are not the retired Studio renderer.
 
 ## Studio renderer and host (same origin)
 

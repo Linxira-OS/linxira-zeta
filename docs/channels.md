@@ -382,11 +382,12 @@ discoverable in the command palette and supports mouse selection, configured
 confirm/cancel keys and a visible Back action. It uses the registered local
 `zetacode serve` of the same version and the existing `web.yml` authority.
 
-The nested pages edit bot instances, Agent Profiles and explicit bindings to
-existing native conversations. Instance login holds credentials only in the
-temporary editor; WeChat can show the instance's QR, reconnect or unbind.
-Returning discards unsaved credentials. QR/secret/recovery content never enters
-the transcript. For navigation, sharing rules and validation limits, see
+The nested page lists bot instances, Agent Profiles, explicit bindings to
+existing native conversations, and the runtime conversation registry. It can
+save existing instances, Profiles and bindings. Creating them, instance login,
+credential entry, WeChat QR/reconnect/unbind, Profile target/tool/memory editors
+and bot test messages remain in the serve gateway/API for now. Secrets never
+enter the transcript. For navigation, sharing rules and validation limits, see
 [IM runtime](./im-runtime-ui.md).
 
 Explicit administrative commands remain available:
@@ -417,8 +418,7 @@ independently of `channels.lock`.
 | `zetacode serve --channels` | Hosts the runtime in the web server process with the coordinator/workspace router.                                             |
 | `zetacode` / `zetacode -p`  | Hosts the runtime in the normal session (no workspace router; messages go to that session).                                    |
 | `zetacode channels …`       | Inspects/pairs/configures the shared `web.yml`; never hosts.                                                                   |
-| `/channels` (TUI)           | Nested runtime settings using the registered local serve: instance login, Profile configuration and explicit existing-conversation binding; no second host. |
-| GUI settings page (Work Studio) | Reads/writes the same instance/Profile/binding config and native conversation registry. See [IM runtime](./im-runtime-ui.md). |
+| `/channels` (TUI)           | Runtime overview over the registered local serve: lists instances, Profiles, bindings and conversations and saves existing items; creation/login/QR remain in serve. No second host. |
 
 The gateway routes (`/api/channels/instances`, `/api/im/*`, and the per-instance
 WeChat login controls) read the in-process serve runtime. They are one more

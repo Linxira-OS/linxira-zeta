@@ -28,10 +28,10 @@ backend.
   `bot` or `draft` belong to IM channels and the shared web chat; addressing
   one explicitly still works.
 - **Command surface.** The attached TUI runs client-side commands locally
-  (`/language`, `/settings`, `/hotkeys`, `/tool`, `/time`,
-  `/tracking`, `/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`,
-  `/agents`, `/extensions`, `/hub`, `/pause`, `/record`,
-  `/open`, `/debug`, `/quit`, `/exit`) and mirrors replica switches to the
+  (`/language`, `/settings`, `/2fa`, `/channels`, `/im`, `/ambient`,
+  `/hotkeys`, `/tool`, `/time`, `/tracking`, `/changelog`, `/stats`, `/git`,
+  `/copy`, `/export`, `/dump`, `/agents`, `/extensions`, `/hub`, `/pause`,
+  `/record`, `/open`, `/debug`, `/quit`, `/exit`) and mirrors replica switches to the
   backend (`/model`, `/modelpreset`, `/switch`, `/effort`, `/plan`,
   `/plan-ultra`, `/plan-review`, `/goal`, `/vibe`). `/fast` and `/slow` are
   forwarded to the backend's headless handlers instead of toggling the
