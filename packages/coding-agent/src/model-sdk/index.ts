@@ -20,3 +20,5 @@ export * from "./expression";
 export * from "./mapping";
 export * from "./mapped-client";
 export * from "./decision-policy";
+export * from "./adapters/registry";
+export * from "./adapters/judgment-policy";

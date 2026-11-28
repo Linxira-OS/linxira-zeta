@@ -69,6 +69,7 @@ import type { Settings } from "../config/settings";
 import type { CostGateApi } from "../session/cost-gate";
 import type { JudgmentRecord, JudgmentRecordAnswer } from "../session/session-entries";
 import { isModelUsageLedger, type ModelUsageLedger } from "../session/model-usage-journal";
+import { selectJudgeCandidates } from "../model-sdk/adapters/judgment-policy";
 import { getTinyLocalModelSpec } from "../tiny/models";
 import localPromptTemplate from "../prompts/system/judgment-local.md" with { type: "text" };
 import { tinyModelClient } from "../tiny/title-client";
@@ -121,6 +122,12 @@ export interface JudgeDeps {
 	 * with role-value syntax; a selector matching nothing is logged once and ignored.
 	 */
 	leadModel?: string;
+	/**
+	 * Opt into the model SDK's deterministic, explainable candidate policy for
+	 * the leading judge-kind run. Defaults to `ZETA_JUDGE_DECISION_POLICY=1`.
+	 * The native tail is never reordered across its kind boundary.
+	 */
+	decisionPolicy?: boolean;
 }
 
 /**
@@ -384,6 +391,31 @@ function unfitBox(box: BoxEdges, content: BoxEdges): BoxEdges {
 
 function judgeRoleChain(settings: Settings, registry: ModelRegistry): RoleChainCandidate[] {
 	return textJudgeRoleChain(resolveRoleChain("judge", settings, roleCandidatePool("judge", settings, registry)));
+}
+
+/**
+ * Reorders only the leading contiguous candidate-kind run through the SDK's
+ * deterministic decision policy. Keeping the run boundary intact preserves
+ * the native-only tail and keeps `hasNativeJudge` consistent with the actual
+ * primary candidate. A policy failure falls back to the resolved attempt order;
+ * selection is an optimization, never a prerequisite for judgment.
+ */
+export function orderJudgeRoleCandidates(candidates: RoleChainCandidate[], enabled: boolean): RoleChainCandidate[] {
+	if (!enabled || candidates.length < 2) return candidates;
+	const entries = candidates.map(candidate => ({
+		candidate,
+		explicit: candidate.explicit,
+		kind: kindOf(candidate),
+	}));
+	try {
+		const selection = selectJudgeCandidates(entries, {
+			enabled: true,
+			idOf: (entry, index) => `${index}\0${formatModelStringWithRouting(entry.candidate.model)}`,
+		});
+		return selection.candidates.map(entry => entry.candidate);
+	} catch {
+		return candidates;
+	}
 }
 
 /** The candidate's rejection while it is still in force. */
@@ -758,7 +790,13 @@ export class ChainJudge implements Judge {
 		return this.#lead;
 	}
 
+	/** Opt-in SDK policy over the leading kind run; otherwise the resolved attempt order. */
 	#resolveCandidates(request?: JudgmentRequest): RoleChainCandidate[] {
+		const enabled = this.#deps.decisionPolicy ?? process.env.ZETA_JUDGE_DECISION_POLICY === "1";
+		return orderJudgeRoleCandidates(this.#resolveCandidatesBase(request), enabled);
+	}
+
+	#resolveCandidatesBase(request?: JudgmentRequest): RoleChainCandidate[] {
 		const { sessionModel } = this.#deps;
 		const resolved = this.#roleChains();
 		const restricted = cfgNoJudge.get(this.#deps.settings) || cfgOffline.get(this.#deps.settings);
