@@ -1,7 +1,7 @@
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import type { ModelRegistry } from "../config/model-registry";
-import { cfgModelRoles } from "../config/model-settings";
+import { cfgModelRoles, cfgFallbackScopes } from "../config/model-settings";
 import { formatModelSelectorValue, parseModelString } from "../config/model-selector";
 import { formatModelString, formatModelStringWithRouting } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
@@ -13,7 +13,12 @@ import {
 	resolveRoutedModelSelector,
 	revisionSpellingKey,
 } from "../config/model-resolver";
-import { normalizeFallbackChain } from "../config/fallback-normalize";
+import {
+	type FallbackModelResolver,
+	type NormalizedFallbackChain,
+	normalizeFallbackChain,
+	normalizeScopedFallbackChains,
+} from "../config/fallback-normalize";
 import { getRoleInfo, isKindRole } from "../config/model-roles";
 
 import { cfgRetryFallbackChains, cfgRetryFallbackRevertPolicy, type RetrySettings } from "./settings";
@@ -168,14 +173,44 @@ export function isKnownProvider(
 	return modelRegistry.hasProvider(provider);
 }
 
-/** Apply the configured default chain to roles without their own chain. */
+/** Catalog hook shared by retry-scope normalization. */
+function retryFallbackResolver(modelLookup: Pick<RetryFallbackModelLookup, "find">): FallbackModelResolver {
+	return entry => {
+		if (isRetryFallbackWildcardKey(entry.modelKey)) return undefined;
+		const slash = entry.modelKey.indexOf("/");
+		if (slash <= 0) return undefined;
+		const found = modelLookup.find(entry.modelKey.slice(0, slash), entry.modelKey.slice(slash + 1));
+		return found ? { provider: found.provider, id: found.id } : undefined;
+	};
+}
+
+/**
+ * Normalize one configured chain against the live catalog. Literal
+ * normalization already merges effort abbreviations and dotted revision
+ * spellings; the lookup additionally merges catalog aliases (a short id and
+ * its full id) onto one identity.
+ */
+export function normalizeRetryFallbackChain(
+	chain: readonly string[] | undefined,
+	modelLookup: Pick<RetryFallbackModelLookup, "find">,
+): NormalizedFallbackChain {
+	return normalizeFallbackChain(chain, { resolveModel: retryFallbackResolver(modelLookup) });
+}
+
+/**
+ * Apply the configured default chain to roles without their own chain.
+ * Supplying `modelLookup` canonicalizes configured aliases as well.
+ */
 export function expandDefaultRetryFallbackChains(
 	configuredChains: RetryFallbackChains,
 	roleNames: readonly string[],
+	modelLookup?: Pick<RetryFallbackModelLookup, "find">,
 ): RetryFallbackChains {
 	const chains: RetryFallbackChains = { ...configuredChains };
 	for (const [key, chain] of Object.entries(chains)) {
-		if (Array.isArray(chain)) chains[key] = [...normalizeFallbackChain(chain).chain];
+		if (!Array.isArray(chain)) continue;
+		const normalized = modelLookup ? normalizeRetryFallbackChain(chain, modelLookup) : normalizeFallbackChain(chain);
+		chains[key] = [...normalized.chain];
 	}
 	const defaultChain = chains.default;
 	if (!Array.isArray(defaultChain)) return chains;
@@ -185,11 +220,24 @@ export function expandDefaultRetryFallbackChains(
 	return chains;
 }
 
-/** Resolves configured fallback chains, applying the default chain to named roles. */
-export function getRetryFallbackChains(settings: Settings): RetryFallbackChains {
+/**
+ * Resolves configured fallback chains, applying the default chain to named
+ * roles. `retry.fallbackChains` stays the legacy input; an explicit
+ * `fallbackScopes.retry` key overrides it without borrowing another scope.
+ */
+export function getRetryFallbackChains(
+	settings: Settings,
+	modelLookup?: Pick<RetryFallbackModelLookup, "find">,
+): RetryFallbackChains {
 	const configuredChains = cfgRetryFallbackChains.get(settings);
-	if (!configuredChains || typeof configuredChains !== "object") return {};
-	return expandDefaultRetryFallbackChains(configuredChains, Object.keys(settings.getModelRoles()));
+	const chains: RetryFallbackChains =
+		configuredChains && typeof configuredChains === "object" ? { ...configuredChains } : {};
+	const scoped = normalizeScopedFallbackChains(
+		cfgFallbackScopes.get(settings),
+		modelLookup ? { resolveModel: retryFallbackResolver(modelLookup) } : {},
+	);
+	for (const [key, chain] of Object.entries(scoped.retry)) chains[key] = [...chain.chain];
+	return expandDefaultRetryFallbackChains(chains, Object.keys(settings.getModelRoles()), modelLookup);
 }
 
 /**
@@ -209,7 +257,7 @@ export function getRetryFallbackRole(settings: Settings, role: string): RetryFal
 	const primary = settings.getModelRole(role);
 	const chain = cfgRetryFallbackChains.get(settings)[role];
 	if (!primary || !Array.isArray(chain)) return undefined;
-	return { primary, chain };
+	return { primary, chain: [...normalizeFallbackChain(chain).chain] };
 }
 
 /**
@@ -230,7 +278,7 @@ export function installRetryFallbackRole(
 	}
 	modelRoles[role] = primary;
 	cfgModelRoles.override(settings, modelRoles);
-	const fallbackChains: RetryFallbackChains = { [role]: chain };
+	const fallbackChains: RetryFallbackChains = { [role]: [...normalizeFallbackChain(chain).chain] };
 	const existingChains = cfgRetryFallbackChains.get(settings);
 	for (const key in existingChains) {
 		if (key !== role) fallbackChains[key] = existingChains[key];

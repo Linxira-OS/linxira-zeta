@@ -21,7 +21,7 @@ import { isFireworksFastModelId } from "@linxiraos/pi-catalog/fireworks-model-id
 import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { modelsAreEqual, routedModelsAreEqual } from "@linxiraos/pi-catalog/models";
-import { logger } from "@linxiraos/pi-utils";
+import { logger, isRecord } from "@linxiraos/pi-utils";
 import { classifyDifficulty } from "../auto-thinking/classifier";
 import type { ModelRegistry } from "../config/model-registry";
 import {
@@ -33,6 +33,17 @@ import {
 	resolveImplicitDefaultRole,
 	resolveModelRoleValue,
 } from "../config/model-resolver";
+import {
+	type FallbackDuplicate,
+	type FallbackModelResolver,
+	type FallbackScope,
+	findScopedFallbackChain,
+	mergeFallbackChains,
+	normalizeFallbackChain,
+	normalizeScopedFallbackChains,
+	type ScopedFallbackLookup,
+} from "../config/fallback-normalize";
+import { formatModelRoleAlias } from "../config/model-roles";
 import { buildServiceTierByFamily } from "../config/service-tier";
 import type { Settings } from "../config/settings";
 import { containsMagicKeyword } from "./magic-keywords";
@@ -43,6 +54,7 @@ import {
 	automaticThinkingLevel,
 	clampAutoThinkingEffort,
 	clampThinkingLevelToCeiling,
+	parseThinkingLevel,
 	resolveProvisionalAutoLevel,
 	resolveThinkingLevelForModel,
 	shouldDisableReasoning,
@@ -63,7 +75,14 @@ import {
 	cfgTierGoogle,
 	cfgTierOpenai,
 } from "./settings";
-import { cfgDisabledProviders, cfgEnabledModels } from "../config/model-settings";
+import { getRetryFallbackChains } from "./retry-fallback-chains";
+import {
+	cfgDisabledProviders,
+	cfgEnabledModels,
+	cfgFallbackScopes,
+	cfgModelAgents,
+	type ModelAgentIdentity,
+} from "../config/model-settings";
 
 /**
  * Whether `model` takes effort per message, so changing it mid-conversation keeps the cached prefix:
@@ -143,6 +162,214 @@ export function serviceTierForModel(
 			: undefined;
 	}
 	return resolveModelServiceTier(tiers, model);
+}
+
+/**
+ * Vibe/Team role targets share the model-control surface with named agents.
+ * The role is the zero-migration default when no `modelAgents` entry exists:
+ * `worker` runs the generic `task` selector, `reviewer` the `slow` role, and
+ * the PM the `default` role, matching the bundled agent frontmatter.
+ */
+export const TEAM_MODEL_TARGETS = {
+	worker: "task",
+	reviewer: "slow",
+	secretary: "task",
+	pm: "default",
+} as const;
+export type TeamModelTarget = keyof typeof TEAM_MODEL_TARGETS;
+export const TEAM_MODEL_TARGET_IDS: readonly TeamModelTarget[] = Object.keys(TEAM_MODEL_TARGETS) as TeamModelTarget[];
+
+export type ModelTargetKind = "agent" | "team";
+export type ModelTargetPrimarySource = "agent" | "role" | "default";
+export type ModelTargetFallbackSource = FallbackScope | "legacy-retry";
+
+export interface ModelTargetResolutionOptions {
+	/** Defaults to `team` when the target is one of {@link TEAM_MODEL_TARGETS}. */
+	kind?: ModelTargetKind;
+	/** Model role supplying the primary when the target has no `model`. */
+	role?: string;
+	/** Vibe/Team mode whose `fallbackScopes.mode` chain may apply. */
+	mode?: string;
+	/**
+	 * Which fallback scope applies. `auto` (default) walks the inheritance
+	 * order agent -> mode -> role -> retry, then the legacy retry chains.
+	 * Naming a scope reads that scope only; no chain crosses scopes.
+	 */
+	fallbackScope?: FallbackScope | "auto";
+	/** Set false to stop an agent/team target inheriting legacy `retry.fallbackChains`. */
+	inheritRetryFallback?: boolean;
+	/** Catalog hook used to collapse alias spellings while normalizing chains. */
+	resolveModel?: FallbackModelResolver;
+}
+
+/** Model identity a named agent or Vibe/Team target resolves to. */
+export interface ResolvedModelTarget {
+	readonly target: string;
+	readonly kind: ModelTargetKind;
+	/** Model role that supplied the primary when the target had no override. */
+	readonly role: string;
+	/** Selector to resolve against the catalog, or a `@role` alias. */
+	readonly selector: string;
+	readonly source: ModelTargetPrimarySource;
+	readonly thinkingLevel?: ConfiguredThinkingLevel;
+	/** Ordered fallback selectors with duplicate identities removed. */
+	readonly fallback: readonly string[];
+	/** Scope that supplied `fallback`; absent when no chain is configured. */
+	readonly fallbackSource?: ModelTargetFallbackSource;
+	readonly duplicates: readonly FallbackDuplicate[];
+}
+
+function readAgentIdentity(value: unknown): ModelAgentIdentity | undefined {
+	if (typeof value === "string") {
+		const model = value.trim();
+		return model === "" ? undefined : { model };
+	}
+	if (!isRecord(value)) return undefined;
+	const model = typeof value.model === "string" && value.model.trim() !== "" ? value.model.trim() : undefined;
+	const thinkingLevel =
+		typeof value.thinkingLevel === "string"
+			? value.thinkingLevel === AUTO_THINKING
+				? AUTO_THINKING
+				: parseThinkingLevel(value.thinkingLevel)
+			: undefined;
+	const fallback = Array.isArray(value.fallback)
+		? value.fallback
+				.filter((entry): entry is string => typeof entry === "string" && entry.trim() !== "")
+				.map(entry => entry.trim())
+		: undefined;
+	if (model === undefined && thinkingLevel === undefined && fallback === undefined) return undefined;
+	return {
+		...(model === undefined ? {} : { model }),
+		...(thinkingLevel === undefined ? {} : { thinkingLevel }),
+		...(fallback === undefined ? {} : { fallback }),
+	};
+}
+
+interface SelectedTargetFallback {
+	readonly chain?: readonly string[];
+	readonly source?: ModelTargetFallbackSource;
+}
+
+function selectTargetFallback(
+	settings: Settings,
+	target: string,
+	role: string,
+	identity: ModelAgentIdentity | undefined,
+	options: ModelTargetResolutionOptions,
+): SelectedTargetFallback {
+	const scope = options.fallbackScope ?? "auto";
+	if ((scope === "auto" || scope === "agent") && identity?.fallback !== undefined) {
+		return { chain: identity.fallback, source: "agent" };
+	}
+	const normalized = normalizeScopedFallbackChains(
+		cfgFallbackScopes.get(settings),
+		options.resolveModel ? { resolveModel: options.resolveModel } : {},
+	);
+	const lookups: ScopedFallbackLookup[] = [];
+	switch (scope) {
+		case "auto":
+			lookups.push({ scope: "agent", key: target });
+			if (options.mode !== undefined) lookups.push({ scope: "mode", key: options.mode });
+			lookups.push({ scope: "role", key: role });
+			lookups.push({ scope: "retry", key: role });
+			break;
+		case "mode":
+			lookups.push({ scope: "mode", key: options.mode ?? target });
+			break;
+		case "agent":
+			lookups.push({ scope: "agent", key: target });
+			break;
+		case "role":
+			lookups.push({ scope: "role", key: role });
+			break;
+		case "retry":
+			lookups.push({ scope: "retry", key: target }, { scope: "retry", key: role });
+			break;
+		case "resume":
+			lookups.push({ scope: "resume", key: target }, { scope: "resume", key: role });
+			break;
+	}
+	const found = findScopedFallbackChain(normalized, lookups);
+	if (found) return { chain: found.chain.chain, source: found.scope };
+	if ((scope === "auto" || scope === "retry") && options.inheritRetryFallback !== false) {
+		const legacy = getRetryFallbackChains(settings);
+		const chain = legacy[role] ?? legacy.default;
+		if (Array.isArray(chain)) return { chain, source: "legacy-retry" };
+	}
+	return {};
+}
+
+function normalizeTargetFallback(
+	selector: string,
+	chain: readonly string[] | undefined,
+	options: ModelTargetResolutionOptions,
+): { fallback: readonly string[]; duplicates: readonly FallbackDuplicate[] } {
+	const normalizeOptions = options.resolveModel ? { resolveModel: options.resolveModel } : {};
+	const normalized = normalizeFallbackChain(chain, normalizeOptions);
+	// `mergeFallbackChains` keeps the primary first, so a fallback spelling that
+	// resolves to the primary model is dropped instead of counted twice.
+	const merged = mergeFallbackChains([selector], normalized.chain, normalizeOptions);
+	return { fallback: merged.slice(1), duplicates: normalized.duplicates };
+}
+
+/**
+ * Resolve a named agent or Vibe/Team role target against the model-control
+ * configuration. A target's own `modelAgents` entry wins; a missing `model`
+ * falls back to the role's configured selector, then to the role alias.
+ */
+export function resolveModelTargetIdentity(
+	settings: Settings,
+	target: string,
+	options: ModelTargetResolutionOptions = {},
+): ResolvedModelTarget {
+	const name = target.trim();
+	const lowered = name.toLowerCase();
+	const teamRole = Object.hasOwn(TEAM_MODEL_TARGETS, lowered)
+		? TEAM_MODEL_TARGETS[lowered as TeamModelTarget]
+		: undefined;
+	const kind = options.kind ?? (teamRole === undefined ? "agent" : "team");
+	const role = options.role ?? teamRole ?? "task";
+	const agents = cfgModelAgents.get(settings);
+	const configured = Object.hasOwn(agents, name) ? agents[name] : agents[lowered];
+	const identity = readAgentIdentity(configured);
+	const roleSelector = settings.getModelRole(role)?.trim() || undefined;
+	const selector = identity?.model ?? roleSelector ?? formatModelRoleAlias(role);
+	const source = identity?.model !== undefined ? "agent" : roleSelector !== undefined ? "role" : "default";
+	const selected = selectTargetFallback(settings, name, role, identity, options);
+	const normalized = normalizeTargetFallback(selector, selected.chain, options);
+	return {
+		target: name,
+		kind,
+		role,
+		selector,
+		source,
+		...(identity?.thinkingLevel === undefined ? {} : { thinkingLevel: identity.thinkingLevel }),
+		fallback: normalized.fallback,
+		...(selected.source === undefined ? {} : { fallbackSource: selected.source }),
+		duplicates: normalized.duplicates,
+	};
+}
+
+/** Resolve a Vibe/Team target (`worker`, `reviewer`, `secretary`, `pm`). */
+export function resolveTeamModelTarget(
+	settings: Settings,
+	target: TeamModelTarget,
+	options: ModelTargetResolutionOptions = {},
+): ResolvedModelTarget {
+	return resolveModelTargetIdentity(settings, target, {
+		...options,
+		kind: "team",
+		role: options.role ?? TEAM_MODEL_TARGETS[target],
+	});
+}
+
+/** Resolve a Vibe/Team target with the `vibe` mode fallback scope applied. */
+export function resolveVibeModelTarget(
+	settings: Settings,
+	target: TeamModelTarget,
+	options: ModelTargetResolutionOptions = {},
+): ResolvedModelTarget {
+	return resolveTeamModelTarget(settings, target, { ...options, mode: options.mode ?? "vibe" });
 }
 
 /** Capabilities borrowed from the owning AgentSession. */
@@ -301,6 +528,11 @@ export class ModelControls {
 
 	resolveRoleModelWithThinking(role: string): ResolvedModelRoleValue {
 		return resolveRoleModelFull(this.#host.settings, role, this.#host.modelRegistry.getAvailable(), this.#model);
+	}
+
+	/** Resolve a named agent or Vibe/Team target's configured identity. */
+	resolveTargetIdentity(target: string, options?: ModelTargetResolutionOptions): ResolvedModelTarget {
+		return resolveModelTargetIdentity(this.#host.settings, target, options);
 	}
 
 	async setModel(

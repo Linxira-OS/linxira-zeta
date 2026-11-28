@@ -6,7 +6,11 @@ import { register, effect, operatorValue, type SettingValueOf } from "./registry
 import { type AuthAccountPolicies } from "@linxiraos/pi-ai/auth-storage";
 import { setUnpausedProviders } from "@linxiraos/pi-ai/oauth";
 import { authProviders } from "@linxiraos/pi-catalog/compat/auth";
+import { isRecord } from "@linxiraos/pi-utils";
 import { cfgDefaultThinkingLevel } from "../session/settings";
+import { AUTO_THINKING, parseThinkingLevel } from "../thinking/levels";
+import type { ConfiguredThinkingLevel } from "../utils/render-utils";
+import { EMPTY_SCOPED_FALLBACK_CHAINS, FALLBACK_SCOPES } from "./fallback-normalize";
 
 /** Display metadata for one model tag. */
 export interface ModelTagDef {
@@ -29,11 +33,30 @@ export interface ModelPreset {
 	defaultThinkingLevel?: SettingValueOf<typeof cfgDefaultThinkingLevel>;
 }
 
+/**
+ * Model identity one named agent or Vibe/Team target can carry. A string
+ * shorthand is just `{ model }`, so the simple shape stays a one-liner.
+ */
+export interface ModelAgentIdentity {
+	/** Primary selector: `provider/id[:thinking]` or a `@role` alias. */
+	model?: string;
+	/** Overrides the selector's or role's thinking level. */
+	thinkingLevel?: ConfiguredThinkingLevel;
+	/** Ordered fallback selectors, independent of every other scope's chain. */
+	fallback?: readonly string[];
+}
+
+export type ModelAgentConfig = string | ModelAgentIdentity;
+
+/** Per-agent identity overrides keyed by agent name or Vibe/Team target. */
+export type ModelAgentsSettings = Record<string, ModelAgentConfig>;
+
 const EMPTY_STRING_ARRAY: string[] = [];
 const EMPTY_STRING_RECORD: Record<string, string> = {};
 const DEFAULT_CYCLE_ORDER: string[] = ["smol", "default", "slow"];
 const EMPTY_MODEL_TAGS_RECORD: ModelTagsSettings = {};
 const EMPTY_MODEL_PRESETS_RECORD: Record<string, ModelPreset> = {};
+const EMPTY_MODEL_AGENTS_RECORD: ModelAgentsSettings = {};
 const EMPTY_AUTH_ACCOUNT_POLICIES: AuthAccountPolicies = [];
 
 // Auth broker — credentials proxied through a remote `zetacode auth-broker serve`
@@ -152,6 +175,82 @@ export const cfgModelRoleStorage = register({
 });
 
 export const cfgModelRoles = register({ id: "modelRoles", type: "record", default: EMPTY_STRING_RECORD });
+
+function isConfiguredThinkingLevel(value: unknown): value is ConfiguredThinkingLevel {
+	return typeof value === "string" && (value === AUTO_THINKING || parseThinkingLevel(value) !== undefined);
+}
+
+function validateModelAgents(raw: unknown): void {
+	if (raw === undefined || raw === null) return;
+	if (!isRecord(raw)) throw new Error("modelAgents must be a mapping of agent names to model identities");
+	for (const [agent, value] of Object.entries(raw)) {
+		if (agent.trim() === "") throw new Error("modelAgents keys must be non-empty agent names");
+		if (typeof value === "string") {
+			if (value.trim() === "") throw new Error(`modelAgents.${agent} must be a non-empty selector`);
+			continue;
+		}
+		if (!isRecord(value)) throw new Error(`modelAgents.${agent} must be a selector or an identity object`);
+		if (value.model !== undefined && (typeof value.model !== "string" || value.model.trim() === "")) {
+			throw new Error(`modelAgents.${agent}.model must be a non-empty selector`);
+		}
+		if (value.thinkingLevel !== undefined && !isConfiguredThinkingLevel(value.thinkingLevel)) {
+			throw new Error(`modelAgents.${agent}.thinkingLevel is not a thinking level`);
+		}
+		if (
+			value.fallback !== undefined &&
+			(!Array.isArray(value.fallback) ||
+				value.fallback.some(entry => typeof entry !== "string" || entry.trim() === ""))
+		) {
+			throw new Error(`modelAgents.${agent}.fallback must be an array of non-empty selectors`);
+		}
+	}
+}
+
+function validateFallbackScopes(raw: unknown): void {
+	if (raw === undefined || raw === null) return;
+	if (!isRecord(raw)) throw new Error("fallbackScopes must be a mapping of scopes to chain maps");
+	for (const [scope, chains] of Object.entries(raw)) {
+		if (!(FALLBACK_SCOPES as readonly string[]).includes(scope)) {
+			throw new Error(`fallbackScopes.${scope} is not a fallback scope (${FALLBACK_SCOPES.join(", ")})`);
+		}
+		if (!isRecord(chains)) throw new Error(`fallbackScopes.${scope} must be a mapping of keys to selector arrays`);
+		for (const [key, chain] of Object.entries(chains)) {
+			if (
+				key.trim() === "" ||
+				!Array.isArray(chain) ||
+				chain.some(entry => typeof entry !== "string" || entry.trim() === "")
+			) {
+				throw new Error(`fallbackScopes.${scope}.${key} must be an array of non-empty selector strings`);
+			}
+		}
+	}
+}
+
+/**
+ * Per-agent identity overrides. Each named agent (bundled or user) and each
+ * Vibe/Team role target (`worker`, `reviewer`, `secretary`, `pm`) can carry its
+ * own primary model, thinking level, and fallback chain instead of sharing the
+ * `task` selector. Absent fields fall back to the target's model role, so a
+ * plain `modelRoles` configuration keeps working with no migration.
+ */
+export const cfgModelAgents = register({
+	id: "modelAgents",
+	type: "record",
+	default: EMPTY_MODEL_AGENTS_RECORD,
+	validate: validateModelAgents,
+});
+
+/**
+ * Scoped fallback chains. `resume`, `retry`, `role`, `agent` and `mode` are
+ * independent; a chain configured under one scope is never reused by another.
+ * `retry.fallbackChains` remains the legacy retry/role input.
+ */
+export const cfgFallbackScopes = register({
+	id: "fallbackScopes",
+	type: "record",
+	default: EMPTY_SCOPED_FALLBACK_CHAINS,
+	validate: validateFallbackScopes,
+});
 
 /** Total provider budget for one native judge candidate, including setup and retries. */
 export const cfgJudgmentAttemptTimeoutMs = register({

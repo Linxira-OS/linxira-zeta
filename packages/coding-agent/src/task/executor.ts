@@ -129,6 +129,7 @@ import { TextTap } from "../job-widgets/text-tap";
 import { TOOLS_SOURCE_ID } from "../job-widgets/types";
 import { attributeSubagentError } from "./error-attribution";
 import { generateTaskLabel } from "./label";
+import { resolveTaskAgentIdentity } from "./agent-identity";
 import { resolveAgentPrewalkDefault } from "./prewalk";
 import { isReadOnlyAgent } from "./read-only-policy";
 import { formatTaskResultSummary } from "./result-summary";
@@ -176,7 +177,6 @@ import {
 	cfgTierGoogle,
 	cfgTierAnthropic,
 	cfgTierOpenai,
-	cfgRetryFallbackChains,
 	cfgDefaultThinkingLevel,
 	cfgPrewalkAutoTarget,
 	PREWALK_INITIAL_TARGET,
@@ -185,7 +185,11 @@ import { type AutoPrewalkDecision, classifyAutoPrewalk } from "../auto-prewalk/c
 import { type JudgmentUsage, journalJudgmentUsage, type NativeJudgmentDeps } from "../judgment";
 import { cfgDisabledProviders } from "../config/model-settings";
 import { cfgOffline } from "../config/auxiliary-model-policy";
-import { getRetryFallbackRole, installRetryFallbackRole } from "../session/retry-fallback-chains";
+import {
+	getRetryFallbackChains,
+	getRetryFallbackRole,
+	installRetryFallbackRole,
+} from "../session/retry-fallback-chains";
 import {
 	cfgCompactionModelThresholdsEnabled,
 	cfgCompactionThresholdPercent,
@@ -331,6 +335,22 @@ function resolveSubagentRetryFallbackCandidates(
 	return candidates;
 }
 
+/** Drop disabled-provider entries from a fallback chain while keeping unresolved selectors. */
+function filterSubagentFallbackChain(
+	settings: Settings,
+	modelRegistry: ModelRegistry,
+	chain: readonly string[] | undefined,
+): string[] | undefined {
+	if (!Array.isArray(chain) || !chain.every(entry => typeof entry === "string")) {
+		return undefined;
+	}
+	const disabledProviders = new Set(cfgDisabledProviders.get(settings));
+	return chain.filter(entry => {
+		const resolved = resolveModelOverride([entry], modelRegistry, settings);
+		return !resolved.model || !disabledProviders.has(resolved.model.provider);
+	});
+}
+
 /**
  * Chain a single-model subagent inherits when its own model patterns supply no
  * fallbacks of their own. The child is pinned to a `subagent:<id>` role whose
@@ -352,18 +372,12 @@ function resolveSubagentInheritedRetryFallbackChain(
 	modelRegistry: ModelRegistry,
 	role: string | undefined,
 ): string[] | undefined {
-	const configuredChains = cfgRetryFallbackChains.get(settings);
-	// An explicitly emptied role chain means "no fallbacks", not "inherit
-	// default" — mirrors expandDefaultRetryFallbackChains.
-	const fallbackChain = (role !== undefined ? configuredChains?.[role] : undefined) ?? configuredChains?.default;
-	if (!Array.isArray(fallbackChain) || !fallbackChain.every(entry => typeof entry === "string")) {
-		return undefined;
-	}
-	const disabledProviders = new Set(cfgDisabledProviders.get(settings));
-	return fallbackChain.filter(entry => {
-		const resolved = resolveModelOverride([entry], modelRegistry, settings);
-		return !resolved.model || !disabledProviders.has(resolved.model.provider);
-	});
+	// `getRetryFallbackChains` includes an explicit `fallbackScopes.retry` key
+	// over the legacy `retry.fallbackChains` input, then applies the default
+	// role chain. An explicitly emptied role chain still wins over `default`.
+	const configuredChains = getRetryFallbackChains(settings);
+	const fallbackChain = (role !== undefined ? configuredChains[role] : undefined) ?? configuredChains.default;
+	return filterSubagentFallbackChain(settings, modelRegistry, fallbackChain);
 }
 
 function installSubagentRetryFallbackChain(args: {
@@ -371,10 +385,12 @@ function installSubagentRetryFallbackChain(args: {
 	id: string;
 	candidates: SubagentRetryFallbackCandidate[];
 	inheritedFallbackChain: string[] | undefined;
+	/** Explicit per-agent chain: presence wins over candidate/inherited chains, [] disables fallbacks. */
+	configuredFallbackChain?: readonly string[];
 	model: Model<Api> | undefined;
 	authFallbackUsed: boolean;
 }): string | undefined {
-	const { settings, id, candidates, inheritedFallbackChain, model, authFallbackUsed } = args;
+	const { settings, id, candidates, inheritedFallbackChain, configuredFallbackChain, model, authFallbackUsed } = args;
 	if (!model || authFallbackUsed || candidates.length === 0) return undefined;
 
 	const selectedIndex = candidates.findIndex(
@@ -382,8 +398,10 @@ function installSubagentRetryFallbackChain(args: {
 	);
 	if (selectedIndex < 0) return undefined;
 	const fallbackSelectors = candidates.slice(selectedIndex + 1).map(candidate => candidate.selector);
-	// A single configured model may reuse its role's (or the default) configured chain, but never an implicit parent fallback.
-	const fallbackChain = fallbackSelectors.length > 0 ? fallbackSelectors : inheritedFallbackChain;
+	// An explicit per-agent chain wins over implicit multi-model candidates and
+	// role/default inheritance. Without one, keep the existing precedence.
+	const fallbackChain =
+		configuredFallbackChain ?? (fallbackSelectors.length > 0 ? fallbackSelectors : inheritedFallbackChain);
 	if (!Array.isArray(fallbackChain) || !fallbackChain.every(entry => typeof entry === "string")) {
 		return undefined;
 	}
@@ -504,6 +522,12 @@ export interface ExecutorOptions {
 	modelOverride?: string | string[];
 	/** Explicit pre-expansion model role alias selected for this run. */
 	modelRole?: string;
+	/** Explicit fallback chain from `modelAgents`/`fallbackScopes`; presence replaces inherited chains. */
+	modelFallbackChain?: readonly string[];
+	/** False for a host/per-call model or an extension replacement; `modelAgents` must not reinterpret it. */
+	applyAgentIdentity?: boolean;
+	/** Active Vibe mode used by `fallbackScopes.mode`. */
+	agentMode?: string;
 	/** Extension routing note for the chosen model; surfaced as `resolvedModelRoute`. */
 	modelRoute?: string;
 	/**
@@ -4812,6 +4836,19 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 	}
 
 	const settings = options.settings ?? Settings.isolated();
+	const identityApplies =
+		options.applyAgentIdentity !== false && options.perCallModelGrants === undefined && modelRole !== "persona";
+	const agentIdentity = resolveTaskAgentIdentity(settings, agent.name, options.agentMode);
+	const identityModelOverride = agentIdentity.model;
+	const spawnModelOverride =
+		identityApplies && identityModelOverride !== undefined ? identityModelOverride : modelOverride;
+	const spawnModelRole =
+		identityApplies && identityModelOverride !== undefined
+			? resolveExplicitModelRole(identityModelOverride, settings)
+			: modelRole;
+	const spawnThinkingLevel =
+		identityApplies && agentIdentity.thinkingLevel !== undefined ? agentIdentity.thinkingLevel : thinkingLevel;
+	const explicitFallbackChain = identityApplies ? (agentIdentity.fallback ?? options.modelFallbackChain) : undefined;
 	// Per-agent advisor: the agent definition's `advisor` frontmatter or the
 	// `task.agentAdvisor` settings override (agent name → "on"/"off"/model
 	// pattern) pairs the spawned session with an advisor. Subagents default to
@@ -4892,7 +4929,7 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 		isIrcEnabled(subagentSettings, childDepth) &&
 		(toolNames === undefined || toolNames.includes("write"));
 
-	const modelPatterns = normalizeModelPatterns(modelOverride ?? agent.model);
+	const modelPatterns = normalizeModelPatterns(spawnModelOverride ?? agent.model);
 	const sessionFile = subtaskSessionFile ?? null;
 	const spawnsEnv = atMaxDepth
 		? ""
@@ -4918,8 +4955,8 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 		parentActiveModelPattern: options.parentActiveModelPattern,
 		parentActiveProvider: options.parentActiveProvider,
 		journalTaskLabel: options.journalTaskLabel,
-		modelOverride,
-		modelRole,
+		modelOverride: spawnModelOverride,
+		modelRole: spawnModelRole,
 		modelRoute: options.modelRoute,
 		signal,
 		onProgress,
@@ -4947,8 +4984,8 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 		agent,
 		completionProbe,
 		description: options.description,
-		modelOverride,
-		modelRole,
+		modelOverride: spawnModelOverride,
+		modelRole: spawnModelRole,
 		eventBus: options.eventBus,
 		subagentEventBus: options.subagentEventBus,
 		parentToolCallId: options.parentToolCallId,
@@ -5039,13 +5076,17 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 				: undefined;
 			const configuredModelPatterns = resolveConfiguredModelPatterns(modelPatterns, settings);
 			const inheritedRetryFallbackChain =
-				configuredModelPatterns.length === 1
+				explicitFallbackChain === undefined && configuredModelPatterns.length === 1
 					? resolveSubagentInheritedRetryFallbackChain(
 							subagentSettings,
 							modelRegistry,
-							modelRole ?? resolveExplicitModelRole(modelPatterns, subagentSettings),
+							spawnModelRole ?? resolveExplicitModelRole(modelPatterns, subagentSettings),
 						)
 					: undefined;
+			const configuredFallbackChain =
+				explicitFallbackChain === undefined
+					? undefined
+					: filterSubagentFallbackChain(subagentSettings, modelRegistry, explicitFallbackChain);
 			const {
 				model,
 				thinkingLevel: resolvedThinkingLevel,
@@ -5117,6 +5158,13 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 								const candidate = resolveModelOverride([entry], modelRegistry, subagentSettings).model;
 								return candidate?.provider === allowedProvider;
 							}),
+				configuredFallbackChain:
+					allowedProvider === undefined
+						? configuredFallbackChain
+						: configuredFallbackChain?.filter(entry => {
+								const candidate = resolveModelOverride([entry], modelRegistry, subagentSettings).model;
+								return candidate?.provider === allowedProvider;
+							}),
 				model,
 				authFallbackUsed,
 			});
@@ -5162,7 +5210,7 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 			// model pattern > agent-definition default (e.g. task's `auto`) >
 			// pattern-derived level.
 			const effectiveThinkingLevel =
-				effortLevel ?? (explicitThinkingLevel ? explicitLevel : (thinkingLevel ?? resolvedThinkingLevel));
+				effortLevel ?? (explicitThinkingLevel ? explicitLevel : (spawnThinkingLevel ?? resolvedThinkingLevel));
 			resolvedAt = performance.now();
 			const effectiveCwd = worktree ?? cwd;
 			const sessionManagerPromise = sessionFile
@@ -5298,13 +5346,15 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 					oauthAccountPools: options.oauthAccountPools,
 					inheritedSessionAgents: options.inheritedSessionAgents,
 					model,
-					modelPattern: model || modelOverride === undefined ? undefined : modelPatterns,
+					modelPattern: model || spawnModelOverride === undefined ? undefined : modelPatterns,
 					modelPatternParentFallback:
-						model || modelOverride === undefined ? undefined : options.parentActiveModelPattern,
+						model || spawnModelOverride === undefined ? undefined : options.parentActiveModelPattern,
 					modelPatternFallbackRole:
-						model || modelOverride === undefined ? undefined : subagentRetryFallbackRole(id),
+						model || spawnModelOverride === undefined ? undefined : subagentRetryFallbackRole(id),
 					modelPatternDefaultFallbackChain:
-						model || modelOverride === undefined ? undefined : inheritedRetryFallbackChain,
+						model || spawnModelOverride === undefined
+							? undefined
+							: (configuredFallbackChain ?? inheritedRetryFallbackChain),
 					thinkingLevel: effectiveThinkingLevel,
 					...(perCallModelGrants || allowedProvider !== undefined
 						? {
@@ -5466,9 +5516,11 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 			// says why): name the agent and the setting to fix instead of letting the
 			// first prompt fail with the generic `/login` error.
 			if (!session.model && modelFallbackMessage) {
-				const role = modelRole ?? resolveExplicitModelRole(modelOverride ?? agent.model, subagentSettings);
+				const role =
+					spawnModelRole ?? resolveExplicitModelRole(spawnModelOverride ?? agent.model, subagentSettings);
 				const configure = [
 					...(role ? [`\`modelRoles.${role}\``] : []),
+					...(identityApplies && agentIdentity.model !== undefined ? [`\`modelAgents.${agent.name}.model\``] : []),
 					`\`task.agentModelOverrides.${agent.name}\``,
 				].join(" or ");
 				throw new Error(
@@ -5559,7 +5611,7 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 				tools: persistedSubagentTools,
 				mountedTools: session.getMountedToolCommandNames(),
 				agent: agent.name,
-				modelRole: modelRole ?? resolveExplicitModelRole(modelOverride ?? agent.model, subagentSettings),
+				modelRole: spawnModelRole ?? resolveExplicitModelRole(spawnModelOverride ?? agent.model, subagentSettings),
 				resolvedModel: progress.resolvedModel,
 				...(perCallModelGrants
 					? {
@@ -5833,8 +5885,8 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 			agent,
 			task,
 			assignment,
-			modelOverride,
-			modelRole,
+			modelOverride: spawnModelOverride,
+			modelRole: spawnModelRole,
 			structured,
 			outputSchema,
 			outputSchemaMode: options.outputSchemaMode,

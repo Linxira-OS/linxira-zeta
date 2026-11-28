@@ -568,6 +568,16 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	modelAgents: {
+		type: "record",
+		default: {} as Record<string, string | { model?: string; thinkingLevel?: string; fallback?: readonly string[] }>,
+	},
+
+	fallbackScopes: {
+		type: "record",
+		default: {} as Record<string, Record<string, string[]>>,
+	},
+
 	modelTags: { type: "record", default: EMPTY_MODEL_TAGS_RECORD },
 
 	modelProviderOrder: { type: "array", default: EMPTY_STRING_ARRAY },

@@ -45,6 +45,7 @@ import { isIrcEnabled } from "../irc/messaging";
 import { buildOutputValidator } from "../tools/output-schema-validator";
 import { trackLateCleanup } from "../utils/late-cleanup";
 import { type DiscoveryResult, discoverAgents, getAgent } from "./discovery";
+import { resolveTaskAgentIdentity, taskAgentMode, teamTargetBaseAgent } from "./agent-identity";
 import { renderStepPrompts } from "./steps";
 import { type ExecutorOptions, runSubprocess, type SubagentToolResult, usesYield } from "./executor";
 import {
@@ -216,6 +217,12 @@ export interface EffectiveSubagentPolicy {
 	modelOverride?: string[];
 	/** Explicit pre-expansion model role alias selected for this run. */
 	modelRole?: string;
+	/** Explicit fallback chain from `modelAgents`/`fallbackScopes`; presence replaces inherited chains. */
+	modelFallbackChain?: readonly string[];
+	/** Whether `modelAgents` may override the model/effort of an explicit host or per-call selector. */
+	applyAgentIdentity?: boolean;
+	/** Active Vibe mode used by `fallbackScopes.mode`. */
+	agentMode?: string;
 	/** Extension routing note explaining a `before_subagent_spawn` model replacement. */
 	modelRoute?: string;
 	/** Exact-name `task.agentServiceTierOverrides` entry for this agent, applied after model resolution. */
@@ -428,7 +435,7 @@ function preflightPerCallModel(
 	request: StructuredSubagentRequest,
 	selector: unknown,
 	agent: AgentDefinition,
-	hasModelOverride: boolean,
+	configuredModel: string | undefined,
 	userTaggedEffort: boolean,
 	parentModelPattern: string | undefined,
 ): PerCallModelGrants {
@@ -439,9 +446,9 @@ function preflightPerCallModel(
 	if (request.model !== undefined) fail("A call cannot supply both a host model and a per-call model.");
 	const disabled = perCallModelDisabledReason(settings, request.invocationKind);
 	if (disabled) fail(disabled);
-	if (hasModelOverride) {
+	if (configuredModel) {
 		fail(
-			`Per-call model conflicts with task.agentModelOverrides for agent "${agent.name}". Omit model to use the configured override.`,
+			`Per-call model conflicts with ${configuredModel} for agent "${agent.name}". Omit model to use the configured override.`,
 		);
 	}
 	if (userTaggedEffort) {
@@ -535,6 +542,10 @@ export async function resolveEffectiveSubagentPolicy(
 	});
 	const spawnPolicy = resolveSpawnPolicy(request.session.getSessionSpawns());
 	const agentName = request.agent?.trim() || spawnPolicy.defaultAgent;
+	const agentMode = taskAgentMode(request.session);
+	// An explicit host/per-call model is an operator choice; identity fields must
+	// not reinterpret it. Configured `modelAgents` still conflicts with per-call.
+	const applyAgentIdentity = request.model === undefined && request.perCallModel === undefined;
 	const planMode = request.session.getPlanModeState?.()?.enabled === true;
 	assertPlanControlsAllowed(request, planMode);
 	assertDepthAndSpawnAllowed(request, agentName);
@@ -542,7 +553,19 @@ export async function resolveEffectiveSubagentPolicy(
 	const discovery = await discoverAgentsShared(request.session.cwd, request.session.effectiveExtensionRoots?.());
 	const sessionAgents = request.session.getSessionAgents?.() ?? [];
 	const agents = [...discovery.agents, ...sessionAgents];
-	const agent = getAgent(agents, agentName);
+	let agent = getAgent(agents, agentName);
+	let resolvedFromTeamBase = false;
+	if (!agent) {
+		const baseName = teamTargetBaseAgent(agentName);
+		const base = baseName === undefined ? undefined : getAgent(agents, baseName);
+		// Vibe/Team targets are routable names: worker/pm reuse the generic task
+		// contract, reviewer/secretary their bundled contracts. A definition of
+		// the target's own name always wins.
+		if (base) {
+			agent = { ...base, name: agentName };
+			resolvedFromTeamBase = true;
+		}
+	}
 	if (!agent) {
 		const available = agents.map(candidate => candidate.name).join(", ") || "none";
 		const searched = discovery.searchedDirs?.map(dir => shortenPath(dir)).join(", ") || "none";
@@ -561,7 +584,14 @@ export async function resolveEffectiveSubagentPolicy(
 			`Agent "${agentName}" is disabled in settings. Enable it via /agents, or use a different agent type.${enabled.length > 0 ? ` Available: ${enabled.join(", ")}` : ""}`,
 		);
 	}
-	const effectiveAgent = planMode ? createPlanModeAgent(agent) : agent;
+	const agentIdentity = resolveTaskAgentIdentity(request.session.settings, agentName, agentMode, {
+		useTeamRole: resolvedFromTeamBase,
+	});
+	const plannedAgent = planMode ? createPlanModeAgent(agent) : agent;
+	const effectiveAgent =
+		applyAgentIdentity && agentIdentity.thinkingLevel !== undefined
+			? { ...plannedAgent, thinkingLevel: agentIdentity.thinkingLevel }
+			: plannedAgent;
 	// An agent declaring `structured: true` keeps its result contract when the caller opts out (`task.structured` off).
 	const structuredAllowed = request.structured !== false || effectiveAgent.structured === true;
 	const schema = resolveSchema(request, effectiveAgent, structuredAllowed);
@@ -578,6 +608,15 @@ export async function resolveEffectiveSubagentPolicy(
 		}
 	}
 	const agentModelOverrides = cfgTaskAgentModelOverrides.get(request.session.settings);
+	const legacyAgentModelOverride = Object.hasOwn(agentModelOverrides, agentName)
+		? agentModelOverrides[agentName]
+		: undefined;
+	const configuredModel =
+		agentIdentity.model !== undefined
+			? `modelAgents.${agentName}.model`
+			: legacyAgentModelOverride !== undefined
+				? `task.agentModelOverrides.${agentName}`
+				: undefined;
 	const agentServiceTierOverrides = validateAgentServiceTierOverrides(
 		cfgTaskAgentServiceTierOverrides.get(request.session.settings),
 	);
@@ -606,7 +645,7 @@ export async function resolveEffectiveSubagentPolicy(
 					request,
 					perCallSelector,
 					agent,
-					Object.hasOwn(agentModelOverrides, agentName),
+					configuredModel,
 					userTaggedEffort,
 					// A multi-upstream or otherwise richer parent route cannot grant a simpler selector.
 					parentActiveModel
@@ -616,7 +655,11 @@ export async function resolveEffectiveSubagentPolicy(
 	const parentActiveModelPattern = perCallModelGrants ? undefined : request.session.getActiveModelString?.();
 	const modelResolution = {
 		requestModel: request.model,
-		settingsOverride: agentModelOverrides[agentName],
+		settingsOverride: applyAgentIdentity
+			? (agentIdentity.model ??
+				legacyAgentModelOverride ??
+				(resolvedFromTeamBase ? agentIdentity.teamModel : undefined))
+			: legacyAgentModelOverride,
 		agentModel: effectiveAgent.model,
 		settings: request.session.settings,
 		activeModelPattern: parentActiveModelPattern,
@@ -644,6 +687,11 @@ export async function resolveEffectiveSubagentPolicy(
 		effectiveAgent,
 		modelOverride,
 		modelRole,
+		...(applyAgentIdentity && agentIdentity.fallback !== undefined
+			? { modelFallbackChain: agentIdentity.fallback }
+			: {}),
+		applyAgentIdentity,
+		agentMode,
 		serviceTierOverride,
 		compactionThresholdOverride,
 		oauthAccountPools,
@@ -700,7 +748,13 @@ async function applySpawnHook(
 	if (spawnResult?.model === undefined) return policy;
 	const replacement = resolveConfiguredModelPatterns(spawnResult.model, request.session.settings);
 	if (replacement.length === 0) return policy;
-	return { ...policy, modelOverride: replacement, modelRoute: spawnResult.note };
+	return {
+		...policy,
+		effectiveAgent: { ...policy.effectiveAgent, thinkingLevel: policy.agent.thinkingLevel },
+		modelOverride: replacement,
+		modelRoute: spawnResult.note,
+		applyAgentIdentity: false,
+	};
 }
 
 /** Reserve a session-global agent id only after preflight has succeeded. */
@@ -796,6 +850,9 @@ function buildExecutorOptions(
 		acquiredAt: request.acquiredAt,
 		modelOverride: policy.modelOverride,
 		modelRole: policy.modelRole,
+		modelFallbackChain: policy.modelFallbackChain,
+		applyAgentIdentity: policy.applyAgentIdentity,
+		agentMode: policy.agentMode,
 		modelRoute: policy.modelRoute,
 		serviceTierOverride: policy.serviceTierOverride,
 		compactionThresholdOverride: policy.compactionThresholdOverride,

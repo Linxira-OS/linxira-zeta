@@ -52,6 +52,7 @@ import type { ToolSession } from "@linxiraos/zeta/tools";
 import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { createSessionDefaults } from "../helpers/session-defaults";
+import { getRetryFallbackRole } from "@linxiraos/zeta/session/retry-fallback-chains";
 
 import { cfgRetryModelFallback } from "@linxiraos/zeta/session/settings";
 import { cfgEvalToolsEnabled } from "@linxiraos/zeta/eval/settings";
@@ -167,6 +168,195 @@ describe("structured subagent primitive", () => {
 		taggedSession.getSessionAgents = () => [{ ...AGENT, name: "m1", model: ["a/x"] }];
 		const policy = await resolveEffectiveSubagentPolicy(request({ session: taggedSession, agent: "m1" }));
 		expect(policy.modelOverride).toEqual(["b/y"]);
+	});
+
+	it("gives an agent its own model, effort and fallback instead of the shared task selector", async () => {
+		mockDiscovery({ ...AGENT, name: "reviewer", model: ["@slow"] });
+		const settings = Settings.isolated({
+			"task.isolation.enabled": false,
+			"task.maxRecursionDepth": 2,
+			modelRoles: { task: "shared/task", slow: "shared/slow" },
+			modelAgents: {
+				reviewer: {
+					model: "own/review-model",
+					thinkingLevel: "low",
+					fallback: ["own/fallback", "own/fallback"],
+				},
+			},
+		});
+
+		const policy = await resolveEffectiveSubagentPolicy(
+			request({ session: session({ settings }), agent: "reviewer" }),
+		);
+		expect(policy.agent.name).toBe("reviewer");
+		expect(policy.modelOverride).toEqual(["own/review-model"]);
+		expect(policy.modelOverride).not.toContain("shared/task");
+		expect(policy.modelRole).toBeUndefined();
+		expect(policy.effectiveAgent.thinkingLevel).toBe("low" as typeof policy.effectiveAgent.thinkingLevel);
+		expect(policy.modelFallbackChain).toEqual(["own/fallback"]);
+	});
+
+	it("keeps the legacy task role when an agent has no modelAgents identity", async () => {
+		mockDiscovery({ ...AGENT, name: "worker", model: ["@task"] });
+		const settings = Settings.isolated({
+			"task.isolation.enabled": false,
+			"task.maxRecursionDepth": 2,
+			modelRoles: { task: "shared/task" },
+			"retry.fallbackChains": { default: ["shared/fallback"] },
+		});
+
+		const policy = await resolveEffectiveSubagentPolicy(request({ session: session({ settings }), agent: "worker" }));
+		expect(policy.modelOverride).toEqual(["shared/task"]);
+		expect(policy.modelRole).toBe("task");
+		// Legacy retry inheritance stays with the executor; it is not copied into
+		// the identity field and cannot leak into another scope.
+		expect(policy.modelFallbackChain).toBeUndefined();
+	});
+
+	it("routes a Vibe/Team target name through its base agent contract", async () => {
+		mockDiscovery({ ...AGENT, name: "task" });
+		const settings = Settings.isolated({
+			"task.isolation.enabled": false,
+			"task.maxRecursionDepth": 2,
+			modelRoles: { task: "shared/task" },
+			modelAgents: { worker: { model: "own/worker-model" } },
+		});
+
+		const policy = await resolveEffectiveSubagentPolicy(request({ session: session({ settings }), agent: "worker" }));
+		expect(policy.agent.name).toBe("worker");
+		expect(policy.agent.tools).toEqual(AGENT.tools);
+		expect(policy.modelOverride).toEqual(["own/worker-model"]);
+	});
+
+	it("routes the PM target through the default role when it has no model override", async () => {
+		mockDiscovery({ ...AGENT, name: "task", model: ["@task"] });
+		const settings = Settings.isolated({
+			"task.isolation.enabled": false,
+			"task.maxRecursionDepth": 2,
+			modelRoles: { default: "shared/default", task: "shared/task" },
+		});
+
+		const policy = await resolveEffectiveSubagentPolicy(request({ session: session({ settings }), agent: "pm" }));
+		expect(policy.agent.name).toBe("pm");
+		expect(policy.modelOverride).toEqual(["shared/default"]);
+		expect(policy.modelRole).toBe("default");
+	});
+
+	it("forwards the agent identity and fallback chain to the executor", async () => {
+		mockDiscovery({ ...AGENT, name: "reviewer", model: ["@slow"] });
+		const settings = Settings.isolated({
+			"task.isolation.enabled": false,
+			"task.maxRecursionDepth": 2,
+			modelRoles: { task: "shared/task", slow: "shared/slow" },
+			modelAgents: {
+				reviewer: {
+					model: "own/review-model",
+					thinkingLevel: "low",
+					fallback: ["own/fallback"],
+				},
+			},
+		});
+		const dispatched: executorModule.ExecutorOptions[] = [];
+		vi.spyOn(executorModule, "runSubprocess").mockImplementation(async options => {
+			dispatched.push(options);
+			return result();
+		});
+
+		const settled = await runStructuredSubagent(
+			request({ session: session({ settings }), agent: "reviewer", retainArtifacts: true }),
+		);
+		try {
+			expect(dispatched[0]?.modelOverride).toEqual(["own/review-model"]);
+			expect(dispatched[0]?.modelFallbackChain).toEqual(["own/fallback"]);
+			expect(dispatched[0]?.thinkingLevel).toBe("low" as (typeof dispatched)[0]["thinkingLevel"]);
+			expect(dispatched[0]?.applyAgentIdentity).toBe(true);
+		} finally {
+			await fs.rm(settled.artifactsDir, { recursive: true, force: true });
+		}
+	});
+
+	it("installs a modelAgents fallback chain on the spawned subagent", async () => {
+		const model = buildModel({
+			id: "review-model",
+			name: "Review Model",
+			api: "openai-responses",
+			provider: "own",
+			baseUrl: "https://example.com",
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128_000,
+			maxTokens: 1024,
+		});
+		const listeners: Array<(event: AgentSessionEvent) => void> = [];
+		const child = {
+			...createSessionDefaults(),
+			state: { messages: [] },
+			agent: { state: { systemPrompt: ["test"] } },
+			model,
+			sessionManager: { appendSessionInit: () => {} },
+			getActiveToolNames: () => ["read", "yield"],
+			getEnabledToolNames: () => ["read", "yield"],
+			subscribe: (listener: (event: AgentSessionEvent) => void) => {
+				listeners.push(listener);
+				return () => {};
+			},
+			prompt: async () => {
+				for (const listener of listeners) {
+					listener({
+						type: "tool_execution_end",
+						toolCallId: "yield",
+						toolName: "yield",
+						result: { content: [], details: { status: "success", data: { ok: true } } },
+						isError: false,
+					});
+				}
+				return true;
+			},
+			getLastAssistantMessage: () => undefined,
+		} as unknown as AgentSession;
+		let capturedSettings: Settings | undefined;
+		vi.spyOn(sdkModule, "createAgentSession").mockImplementation(async options => {
+			capturedSettings = options?.settings;
+			return {
+				session: child,
+				extensionsResult: {} as unknown as LoadExtensionsResult,
+				setToolUIContext: () => {},
+				eventBus: new EventBus(),
+			};
+		});
+		const settings = Settings.isolated({
+			modelRoles: { slow: "own/review-model" },
+			modelAgents: { reviewer: { model: "own/review-model", fallback: ["own/fallback"] } },
+		});
+		const modelRegistry = {
+			authStorage: {},
+			refresh: async () => {},
+			getAvailable: () => [model],
+			getAll: () => [model],
+			find: (provider: string, id: string) => (provider === model.provider && id === model.id ? model : undefined),
+			getProviderModels: () => [model],
+			hasConfiguredAuth: () => true,
+			awaitBackgroundRefresh: async () => {},
+			isBackgroundRefreshPending: () => false,
+		} as unknown as ModelRegistry;
+
+		await executorModule.runSubprocess({
+			cwd: "/tmp",
+			agent: { ...AGENT, name: "reviewer" },
+			task: "review",
+			index: 0,
+			id: "identity-install",
+			settings,
+			modelRegistry,
+			enableLsp: false,
+		});
+
+		expect(capturedSettings).toBeDefined();
+		expect(getRetryFallbackRole(capturedSettings!, "subagent:identity-install")).toEqual({
+			primary: "own/review-model",
+			chain: ["own/fallback"],
+		});
 	});
 
 	it("rescans agents when a plugin provider is disabled while an earlier discovery is in flight", async () => {
@@ -1526,6 +1716,22 @@ describe("per-call model preflight", () => {
 				}),
 			),
 		).rejects.toThrow(error);
+	});
+
+	it("rejects a per-call model for an agent with a dedicated modelAgents model", async () => {
+		mockDiscovery();
+		await expect(
+			resolveEffectiveSubagentPolicy(
+				request({
+					session: perCallSession({
+						"task.perCallModel": "on",
+						modelRoles: { review: "mock/x" },
+						modelAgents: { worker: { model: "mock/target" } },
+					}),
+					perCallModel: "mock/target",
+				}),
+			),
+		).rejects.toThrow(/conflicts with modelAgents\.worker\.model/);
 	});
 
 	// Both defer to the executor's post-refresh check: an unloaded model while discovery runs,
