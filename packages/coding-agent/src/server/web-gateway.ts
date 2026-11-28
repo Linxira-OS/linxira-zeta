@@ -140,6 +140,14 @@ import {
 } from "./web-gateway/models";
 import { handleModelsControl, MODELS_CONTROL_PATH } from "./web-gateway/models-control";
 import {
+	AGENT_PAGE_ID_PART,
+	AGENT_PAGES_PATH,
+	handleAgentPageAssetGet,
+	handleAgentPageGet,
+	handleAgentPagesList,
+	handleAgentPageWorkflowRun,
+} from "./web-gateway/agent-pages";
+import {
 	handleModelsConfigCatalog,
 	handleModelsConfigDiscover,
 	handleModelsConfigMetadata,
@@ -278,6 +286,14 @@ const AUTH_2FA_POLICY_RE = /^\/api\/auth\/2fa\/policy$/;
 const MODELS_RE = /^\/api\/models$/;
 // Read-only model-control projection (`web-gateway/models-control.ts`).
 const MODELS_CONTROL_RE = new RegExp(`^${MODELS_CONTROL_PATH}$`);
+// Agent-authored pages: inventory, manifest, static entry/assets, workflow run.
+// The workflow and asset forms are matched before the bare manifest form.
+const AGENT_PAGES_RE = new RegExp(`^${AGENT_PAGES_PATH}$`);
+const AGENT_PAGE_WORKFLOW_RUN_RE = new RegExp(
+	`^${AGENT_PAGES_PATH}/(${AGENT_PAGE_ID_PART})/workflows/(${AGENT_PAGE_ID_PART})/run$`,
+);
+const AGENT_PAGE_ASSET_RE = new RegExp(`^${AGENT_PAGES_PATH}/(${AGENT_PAGE_ID_PART})/assets/(.+)$`);
+const AGENT_PAGE_RE = new RegExp(`^${AGENT_PAGES_PATH}/(${AGENT_PAGE_ID_PART})$`);
 const MODELS_IMPORT_RE = /^\/api\/models\/import$/;
 const MODELS_DEFAULT_RE = /^\/api\/models\/default$/;
 const MODELS_CONFIG_RE = /^\/api\/models-config$/;
@@ -871,6 +887,31 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	}
 	if (AUTH_2FA_POLICY_RE.test(pathname)) {
 		if (req.method === "PUT") return handleTwoFactorPolicyPut(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (AGENT_PAGES_RE.test(pathname)) {
+		if (req.method === "GET") return handleAgentPagesList();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const agentPageRun = capture(pathname, AGENT_PAGE_WORKFLOW_RUN_RE);
+	if (agentPageRun) {
+		if (req.method === "POST") return handleAgentPageWorkflowRun(req, agentPageRun[0], agentPageRun[1]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const agentPageAsset = capture(pathname, AGENT_PAGE_ASSET_RE);
+	if (agentPageAsset) {
+		if (req.method === "GET" || req.method === "HEAD") {
+			return handleAgentPageAssetGet(req, agentPageAsset[0], agentPageAsset[1]);
+		}
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const agentPage = capture(pathname, AGENT_PAGE_RE);
+	if (agentPage) {
+		if (req.method === "GET") return handleAgentPageGet(agentPage[0]);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
