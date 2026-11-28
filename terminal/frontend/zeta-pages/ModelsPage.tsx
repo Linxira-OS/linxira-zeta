@@ -13,12 +13,20 @@ import {
 	fetchModelsControl,
 	type ModelControlChain,
 	type ModelControlRole,
+	type ModelControlScenario,
 	type ModelControlSectionModel,
 	type ModelControlTarget,
+	type ModelDataBoundary,
 	type ModelsControlFetcher,
 	type ModelsControlSnapshot,
+	type ScenarioBoundaryOutcome,
 } from "./modelsControl";
-import { buildModelsControlView, layoutModelsBlueprint, type ModelsBlueprintLayout } from "./modelsBlueprint";
+import {
+	buildModelsControlView,
+	layoutModelsBlueprint,
+	type ModelsAnimationFrame,
+	type ModelsBlueprintLayout,
+} from "./modelsBlueprint";
 import "./models.css";
 
 const KIND_LABELS: Readonly<Record<ControlModelKind, readonly [string, string]>> = {
@@ -39,7 +47,27 @@ const SCOPE_LABELS: Readonly<Record<string, readonly [string, string]>> = {
 	role: ["角色", "Role"],
 	agent: ["子代理", "Agent"],
 	mode: ["模式", "Mode"],
+	chat: ["对话", "Chat"],
+	image: ["图像", "Image"],
+	tts: ["语音合成", "TTS"],
+	stt: ["语音转写", "STT"],
+	decision: ["决策", "Decision"],
+	embedding: ["向量", "Embedding"],
 	"legacy-retry": ["旧版重试", "Legacy retry"],
+};
+
+const BOUNDARY_LABELS: Readonly<Record<ModelDataBoundary, readonly [string, string]>> = {
+	local: ["本机", "Local"],
+	private: ["私有部署", "Private"],
+	public: ["公共", "Public"],
+};
+
+const OUTCOME_LABELS: Readonly<Record<ScenarioBoundaryOutcome, readonly [string, string]>> = {
+	allowed: ["允许", "Allowed"],
+	fallback: ["已回退", "Fell back"],
+	refused: ["拒绝", "Refused"],
+	advisory: ["越界告警", "Advisory"],
+	unresolved: ["未解析", "Unresolved"],
 };
 
 const SOURCE_LABELS: Readonly<Record<ModelControlTarget["source"], readonly [string, string]>> = {
@@ -77,6 +105,7 @@ function GroupedModels({ models }: { models: readonly ModelControlSectionModel[]
 								<span className={model.available ? "chip green xs" : "chip gray xs"}>
 									{model.available ? pickLocale("可用", "available") : pickLocale("不可用", "unavailable")}
 								</span>
+								<span className="chip outline xs">{pickLocale(...BOUNDARY_LABELS[model.boundary])}</span>
 							</li>
 						))}
 					</ul>
@@ -266,6 +295,168 @@ function TargetTable({
 	);
 }
 
+const OUTCOME_CHIPS: Readonly<Record<ScenarioBoundaryOutcome, string>> = {
+	allowed: "chip green xs",
+	fallback: "chip blue xs",
+	refused: "chip red xs",
+	advisory: "chip amber xs",
+	unresolved: "chip gray xs",
+};
+
+function ScenarioSection({ scenarios }: { scenarios: readonly ModelControlScenario[] }) {
+	return (
+		<section className="models-section card">
+			<header className="models-section-head">
+				<h2>{pickLocale("部署场景", "Deployment scenarios")}</h2>
+				<span className="chip gray xs">{scenarios.length}</span>
+			</header>
+			{scenarios.length === 0 ? (
+				<p className="models-empty">
+					{pickLocale(
+						"未配置 modelScenarios；现有模型选择保持不变。",
+						"No modelScenarios configured; model selection is unchanged.",
+					)}
+				</p>
+			) : (
+				<div className="models-scenarios">
+					{scenarios.map(scenario => (
+						<article key={scenario.name} className="models-scenario">
+							<header>
+								<h3>{scenario.name}</h3>
+								<span className="chip outline xs">{pickLocale(...BOUNDARY_LABELS[scenario.boundary])}</span>
+								<span className={scenario.failClosed ? "chip red xs" : "chip amber xs"}>
+									{scenario.failClosed
+										? pickLocale("失败关闭", "fail-closed")
+										: pickLocale("仅告警", "advisory")}
+								</span>
+								<span className="models-source">
+									{scenario.appliesToAll
+										? pickLocale("所有代理", "all agents")
+										: scenario.allowedAgents.join(", ")}
+								</span>
+							</header>
+							{scenario.targets.length === 0 ? (
+								<p className="models-empty">
+									{pickLocale(
+										"此场景约束所有代理；无逐目标决策。",
+										"This scenario constrains every agent; no per-target decision.",
+									)}
+								</p>
+							) : (
+								<div className="models-table-wrap">
+									<table className="models-table">
+										<thead>
+											<tr>
+												<th>{pickLocale("代理", "Agent")}</th>
+												<th>{pickLocale("选择器", "Selector")}</th>
+												<th>{pickLocale("决策", "Decision")}</th>
+												<th>{pickLocale("选中", "Selected")}</th>
+											</tr>
+										</thead>
+										<tbody>
+											{scenario.targets.map(target => (
+												<tr key={`${scenario.name}:${target.target}`}>
+													<td>
+														<span className="chip purple sm">{target.target}</span>
+													</td>
+													<td className="mono">{target.selector}</td>
+													<td>
+														<span className={OUTCOME_CHIPS[target.outcome]}>
+															{pickLocale(...OUTCOME_LABELS[target.outcome])}
+														</span>
+														{target.selected ? (
+															<p className="models-source mono">
+																{target.selected.provider}/{target.selected.id}
+																{target.selectedBoundary
+																	? ` · ${pickLocale(...BOUNDARY_LABELS[target.selectedBoundary])}`
+																	: ""}
+															</p>
+														) : null}
+														{target.reason ? <p className="models-warning">{target.reason}</p> : null}
+													</td>
+													<td>
+														{target.selected ? (
+															<span>
+																<span className="mono">{target.selected.name}</span>{" "}
+																<span className="chip gray xs">{kindLabel(target.selected.kind)}</span>
+															</span>
+														) : (
+															<span className="muted">{pickLocale("无", "none")}</span>
+														)}
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							)}
+						</article>
+					))}
+				</div>
+			)}
+		</section>
+	);
+}
+
+function BlueprintCanvas({
+	layout,
+	activeNodes,
+	activeEdges,
+}: {
+	layout: ModelsBlueprintLayout;
+	activeNodes?: ReadonlySet<string>;
+	activeEdges?: ReadonlySet<string>;
+}) {
+	return (
+		<div className={`models-blueprint${activeNodes === undefined ? "" : " models-blueprint-live"}`} tabIndex={0}>
+			<svg
+				role="img"
+				aria-label={pickLocale("模型控制蓝图", "Model control blueprint")}
+				width={layout.width}
+				height={layout.height}
+				viewBox={`0 0 ${layout.width} ${layout.height}`}
+			>
+				<g className="models-bp-edges">
+					{layout.edges.map(edge => (
+						<g key={edge.id} className={activeEdges?.has(edge.id) === true ? "is-active" : undefined}>
+							<path d={edge.path} />
+							<title>{edge.label ?? `${edge.from} → ${edge.to}`}</title>
+						</g>
+					))}
+				</g>
+				<g className="models-bp-nodes">
+					{layout.nodes.map(node => {
+						const label = node.label.length > 30 ? `${node.label.slice(0, 29)}…` : node.label;
+						const detail =
+							node.detail !== undefined && node.detail.length > 30
+								? `${node.detail.slice(0, 29)}…`
+								: node.detail;
+						const active = activeNodes?.has(node.id) === true;
+						return (
+							<g key={node.id} className={`models-bp-node models-bp-${node.kind}${active ? " is-active" : ""}`}>
+								<title>
+									{node.kind}: {node.label}
+									{node.detail ? ` — ${node.detail}` : ""}
+									{node.state ? ` (${node.state})` : ""}
+								</title>
+								<rect x={node.x} y={node.y} width={node.width} height={node.height} rx={9} />
+								<text x={node.x + 10} y={node.y + 18} className="models-bp-label">
+									{label}
+								</text>
+								{detail ? (
+									<text x={node.x + 10} y={node.y + 34} className="models-bp-detail">
+										{detail}
+									</text>
+								) : null}
+							</g>
+						);
+					})}
+				</g>
+			</svg>
+		</div>
+	);
+}
+
 function Blueprint({ layout, snapshot }: { layout: ModelsBlueprintLayout; snapshot: ModelsControlSnapshot }) {
 	return (
 		<section className="models-section card models-blueprint-section">
@@ -285,51 +476,57 @@ function Blueprint({ layout, snapshot }: { layout: ModelsBlueprintLayout; snapsh
 			{layout.nodes.length === 0 ? (
 				<p className="models-empty">{pickLocale("没有可投影的节点", "No nodes to project")}</p>
 			) : (
-				<div className="models-blueprint" tabIndex={0}>
-					<svg
-						role="img"
-						aria-label={pickLocale("模型控制蓝图", "Model control blueprint")}
-						width={layout.width}
-						height={layout.height}
-						viewBox={`0 0 ${layout.width} ${layout.height}`}
-					>
-						<g className="models-bp-edges">
-							{layout.edges.map(edge => (
-								<g key={edge.id}>
-									<path d={edge.path} />
-									<title>{edge.label ?? `${edge.from} → ${edge.to}`}</title>
-								</g>
-							))}
-						</g>
-						<g className="models-bp-nodes">
-							{layout.nodes.map(node => {
-								const label = node.label.length > 30 ? `${node.label.slice(0, 29)}…` : node.label;
-								const detail =
-									node.detail !== undefined && node.detail.length > 30
-										? `${node.detail.slice(0, 29)}…`
-										: node.detail;
-								return (
-									<g key={node.id} className={`models-bp-node models-bp-${node.kind}`}>
-										<title>
-											{node.kind}: {node.label}
-											{node.detail ? ` — ${node.detail}` : ""}
-											{node.state ? ` (${node.state})` : ""}
-										</title>
-										<rect x={node.x} y={node.y} width={node.width} height={node.height} rx={9} />
-										<text x={node.x + 10} y={node.y + 18} className="models-bp-label">
-											{label}
-										</text>
-										{detail ? (
-											<text x={node.x + 10} y={node.y + 34} className="models-bp-detail">
-												{detail}
-											</text>
-										) : null}
-									</g>
-								);
-							})}
-						</g>
-					</svg>
-				</div>
+				<BlueprintCanvas layout={layout} />
+			)}
+		</section>
+	);
+}
+
+/**
+ * Purely presentational: it walks frames derived from the same Blueprint the
+ * page already renders and highlights existing nodes/edges. It never fetches,
+ * edits, or stores model configuration.
+ */
+function AnimationPreview({
+	layout,
+	frames,
+}: {
+	layout: ModelsBlueprintLayout;
+	frames: readonly ModelsAnimationFrame[];
+}) {
+	const [frameIndex, setFrameIndex] = useState(0);
+	useEffect(() => {
+		if (frames.length < 2) return;
+		const timer = setInterval(() => setFrameIndex(index => (index + 1) % frames.length), 1800);
+		return () => clearInterval(timer);
+	}, [frames.length]);
+	const frame = frames.length === 0 ? undefined : frames[frameIndex % frames.length];
+	const activeNodes = new Set(frame?.nodeIds ?? []);
+	const activeEdges = new Set(frame?.edgeIds ?? []);
+	return (
+		<section className="models-section card models-animation-section">
+			<header className="models-section-head">
+				<h2>{pickLocale("动画预览", "Animation preview")}</h2>
+				<span className="models-blueprint-meta">
+					{frames.length} {pickLocale("帧", "frames")}
+				</span>
+			</header>
+			<p className="models-readonly">
+				{pickLocale(
+					"纯展示：高亮同一快照投影中的节点与边，不持有另一份模型状态。",
+					"Presentation only: highlights nodes and edges from this same snapshot projection; no second model state.",
+				)}
+			</p>
+			{frame === undefined || layout.nodes.length === 0 ? (
+				<p className="models-empty">{pickLocale("没有可播放的投影", "No projection to animate")}</p>
+			) : (
+				<>
+					<p className="models-animation-caption">
+						<strong>{frame.label}</strong>
+						{frame.detail ? <span className="chip outline xs mono">{frame.detail}</span> : null}
+					</p>
+					<BlueprintCanvas layout={layout} activeNodes={activeNodes} activeEdges={activeEdges} />
+				</>
 			)}
 		</section>
 	);
@@ -358,10 +555,8 @@ export function ModelsPage({ fetcher }: { fetcher?: ModelsControlFetcher }) {
 	}, [load]);
 
 	const view = useMemo(() => (snapshot === null ? null : buildModelsControlView(snapshot)), [snapshot]);
-	const layout = useMemo(
-		() => (mode === "blueprint" && view !== null ? layoutModelsBlueprint(view.blueprint) : null),
-		[mode, view],
-	);
+	// One layout feeds both the static Blueprint and the animation preview.
+	const layout = useMemo(() => (view === null ? null : layoutModelsBlueprint(view.blueprint)), [view]);
 
 	if (loading && snapshot === null) {
 		return <div className="zp-center muted">{pickLocale("正在加载模型控制…", "Loading model control…")}</div>;
@@ -381,7 +576,7 @@ export function ModelsPage({ fetcher }: { fetcher?: ModelsControlFetcher }) {
 			</div>
 		);
 	}
-	if (view === null) return null;
+	if (view === null || layout === null) return null;
 
 	const { snapshot: state, blueprint } = view;
 	return (
@@ -391,8 +586,8 @@ export function ModelsPage({ fetcher }: { fetcher?: ModelsControlFetcher }) {
 					<h1>{pickLocale("模型控制", "Model control")}</h1>
 					<p className="models-subtitle">
 						{pickLocale(
-							"只读快照：供应商可见性、角色、回退链、代理与类型化模型。",
-							"Read-only snapshot: providers, roles, fallback chains, agents and typed models.",
+							"只读快照：供应商可见性、场景边界、角色、回退链、代理与类型化模型。",
+							"Read-only snapshot: providers, scenario boundaries, roles, fallback chains, agents and typed models.",
 						)}
 					</p>
 				</div>
@@ -439,6 +634,7 @@ export function ModelsPage({ fetcher }: { fetcher?: ModelsControlFetcher }) {
 						[pickLocale("子代理", "agents"), state.totals.agents],
 						[pickLocale("目标", "targets"), state.totals.targets],
 						[pickLocale("回退链", "fallback chains"), state.totals.fallbackChains],
+						[pickLocale("场景", "scenarios"), state.totals.scenarios],
 					] as const),
 				].map(([label, value]) => (
 					<div key={label} className="models-total card">
@@ -452,6 +648,8 @@ export function ModelsPage({ fetcher }: { fetcher?: ModelsControlFetcher }) {
 				<Blueprint layout={layout} snapshot={state} />
 			) : (
 				<>
+					<AnimationPreview layout={layout} frames={view.animation} />
+
 					<section className="models-section card">
 						<header className="models-section-head">
 							<h2>{pickLocale("供应商", "Providers")}</h2>
@@ -526,6 +724,8 @@ export function ModelsPage({ fetcher }: { fetcher?: ModelsControlFetcher }) {
 						<RoleTable roles={state.roles} />
 					</section>
 
+					<ScenarioSection scenarios={state.scenarios} />
+
 					<section className="models-section card">
 						<header className="models-section-head">
 							<h2>{pickLocale("回退链", "Fallback chains")}</h2>
@@ -582,6 +782,10 @@ export function ModelsPage({ fetcher }: { fetcher?: ModelsControlFetcher }) {
 											)}
 										</header>
 										<GroupedModels models={section.models} />
+										<div className="models-kind-fallback">
+											<h4>{pickLocale("本类回退链", "Fallback chains for this kind")}</h4>
+											<FallbackChainList chains={section.fallback} />
+										</div>
 									</article>
 								))}
 							</div>
