@@ -341,6 +341,14 @@
 			"types": "./src/judgment/index.ts",
 			"import": "./src/judgment/index.ts"
 		},
+		"./model-sdk": {
+			"types": "./src/model-sdk/index.ts",
+			"import": "./src/model-sdk/index.ts"
+		},
+		"./model-sdk/*": {
+			"types": "./src/model-sdk/*.ts",
+			"import": "./src/model-sdk/*.ts"
+		},
 		"./markit": {
 			"types": "./src/markit/index.ts",
 			"import": "./src/markit/index.ts"
