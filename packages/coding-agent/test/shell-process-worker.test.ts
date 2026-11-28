@@ -43,6 +43,10 @@ async function terminate(command: string, signal: NodeJS.Signals): Promise<{ exi
 		printed += decoder.decode(value, { stream: true });
 	}
 
+	// Let the shell reach `exec` before signalling; a signal in the echo->exec
+	// window kills the shell but lets the queued `after` run, which is not what
+	// this test is about.
+	await Bun.sleep(100);
 	child.kill(signal);
 	const exitCode = await child.exited;
 	for (let read = await reader.read(); !read.done; read = await reader.read()) {
