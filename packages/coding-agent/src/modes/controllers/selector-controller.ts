@@ -138,6 +138,12 @@ import { ThinkingSelector } from "../../ui/overlays/pickers/thinking-selector";
 import { TreeSelector } from "../../ui/overlays/pickers/tree-selector";
 import { PluginSelector } from "../../ui/overlays/plugins/selector";
 import { createPluginSettingsPage } from "../../ui/overlays/plugins/settings";
+import {
+	clearSettingsPageRequest,
+	RUNTIME_SETTINGS_PAGE_ID,
+	takeSettingsPageRequest,
+} from "../../ui/overlays/settings/page-request";
+import { createRuntimeSettingsPages } from "../../ui/overlays/settings/runtime-pages";
 import { SettingsWindow, type StatusLinePreview } from "../../ui/overlays/settings/settings";
 import type { OverlayHandle, OverlayOptions } from "../../ui/shell/overlays";
 import { StatusBarPreview } from "../../ui/status/composer-facts";
@@ -329,7 +335,12 @@ export class SelectorController {
 	}
 
 	showSettingsSelector(): void {
-		if (this.#focusOpenMenu("settings")) return;
+		if (this.#focusOpenMenu("settings")) {
+			clearSettingsPageRequest();
+			return;
+		}
+		const requestedPage = takeSettingsPageRequest();
+		const initialRuntimePage = requestedPage === "identity" || requestedPage === "im" ? requestedPage : undefined;
 		const menu = this.#claimMenu("settings");
 		// Startup-deferred extensions bind first, so the todo backend row lists their backends.
 		const themes = this.ctx.session.hasPendingDeferredExtensions
@@ -362,6 +373,9 @@ export class SelectorController {
 								graphics: this.ctx.shell.host?.driver.capabilities.images != null,
 							},
 							pluginsPage: createPluginSettingsPage,
+							runtimePages: createRuntimeSettingsPages(),
+							...(requestedPage === undefined ? {} : { initialPage: RUNTIME_SETTINGS_PAGE_ID }),
+							...(initialRuntimePage === undefined ? {} : { initialRuntimePage }),
 							callbacks: {
 								onChange: (id, value) => {
 									this.handleSettingChange(id, value);

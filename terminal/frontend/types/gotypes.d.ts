@@ -1096,6 +1096,20 @@ declare global {
         blockid: string;
     };
 
+    // acp.ListSessionsResponse
+    type ListSessionsResponse = {
+        sessions: SessionInfo[];
+        nextCursor?: string;
+    };
+
+    // acp.LoadSessionResult
+    type LoadSessionResult = {
+        sessionid: string;
+        configoptions?: any;
+        modes?: any;
+        updates: any[];
+    };
+
     // waveobj.MetaTSType
     type MetaType = {
         view?: string;
@@ -1408,6 +1422,16 @@ declare global {
     type SecretMeta = {
         desc: string;
         optional: boolean;
+    };
+
+    // acp.SessionInfo
+    type SessionInfo = {
+        sessionId: string;
+        cwd: string;
+        additionalDirectories?: string[];
+        title?: string;
+        updatedAt?: string;
+        _meta?: {[key: string]: any};
     };
 
     // wconfig.SettingsType
