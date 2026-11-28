@@ -57,16 +57,27 @@ import { postForwardedIm, type TeamRoomName, type TeamRoomPostResult } from "../
 import { buildImSessionList, createImSessionSelectorState, type ImSessionListSnapshot } from "./im-session-selector";
 import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
 
-let imSessionCandidateReader: (() => Promise<ImSessionListSnapshot>) | null = null;
+export interface ImSessionCandidateOptions {
+	includePm?: boolean;
+	now?: number;
+	maxAgeMs?: number;
+}
+let imSessionCandidateReader:
+	| ((options?: ImSessionCandidateOptions) => Promise<ImSessionListSnapshot>)
+	| null = null;
 
 /** Register the live router's candidate reader for the Team IM page/gateway. */
-export function registerImSessionCandidateReader(reader: (() => Promise<ImSessionListSnapshot>) | null): void {
+export function registerImSessionCandidateReader(
+	reader: ((options?: ImSessionCandidateOptions) => Promise<ImSessionListSnapshot>) | null,
+): void {
 	imSessionCandidateReader = reader;
 }
 
 /** The same typed candidates `!session list` uses; null before a router starts. */
-export async function readImSessionCandidates(): Promise<ImSessionListSnapshot | null> {
-	return imSessionCandidateReader ? await imSessionCandidateReader() : null;
+export async function readImSessionCandidates(
+	options?: ImSessionCandidateOptions,
+): Promise<ImSessionListSnapshot | null> {
+	return imSessionCandidateReader ? await imSessionCandidateReader(options) : null;
 }
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */

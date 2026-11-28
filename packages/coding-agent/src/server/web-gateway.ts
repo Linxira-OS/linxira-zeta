@@ -1255,7 +1255,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (IM_SESSIONS_RE.test(pathname)) {
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
-		return handleImSessions();
+		return handleImSessions(req);
 	}
 
 	if (IM_SWITCH_RE.test(pathname)) {

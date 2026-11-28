@@ -629,8 +629,9 @@ export async function handleImConversationsAttach(req: Request): Promise<Respons
 }
 
 /** The same typed candidates `!session list` uses (selector/canonicalSessionId/label/taskSummary). */
-export async function handleImSessions(): Promise<Response> {
-	const snapshot = await readImSessionCandidates();
+export async function handleImSessions(req?: Request): Promise<Response> {
+	const includePm = req ? new URL(req.url).searchParams.get("includePm") === "true" : false;
+	const snapshot = await readImSessionCandidates({ includePm });
 	if (!snapshot) return json({ sessions: [], generatedAt: null });
 	return json({ sessions: snapshot.candidates, generatedAt: new Date(snapshot.generatedAt).toISOString() });
 }

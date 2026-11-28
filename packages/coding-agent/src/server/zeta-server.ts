@@ -862,7 +862,7 @@ export class ZetaServer {
 				return session.getSession();
 			},
 		});
-		registerImSessionCandidateReader(() => this.#router!.listSessionCandidates());
+		registerImSessionCandidateReader(options => this.#router!.listSessionCandidates(options));
 		registerImSwitchGateway({
 			status: (instanceId, chatId, context) =>
 				this.#router!.workspaceSwitchStatus(instanceId as never, chatId, context),
