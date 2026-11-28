@@ -83,6 +83,11 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.channelsHelp,
 	},
 	{
+		name: "pages",
+		load: () => import("./commands/pages").then(m => m.default),
+		help: commandHelp.pagesHelp,
+	},
+	{
 		name: "cleanse",
 		load: () => import("./commands/cleanse").then(m => m.default),
 		help: commandHelp.cleanseHelp,

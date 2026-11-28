@@ -46,6 +46,10 @@ export const channelsHelp = {
 	description: "Inspect, pair, and toggle IM channels (WeChat/Feishu/Telegram/Discord/QQ) without a browser",
 } satisfies CommandMetadata;
 
+export const pagesHelp = {
+	description: "Open the scoped Team, Rooms, IM or model-control page hosted by a local zetacode serve",
+} satisfies CommandMetadata;
+
 export const cleanseHelp = {
 	description: "Detect and fix project diagnostics with weighted parallel subagents",
 } satisfies CommandMetadata;
