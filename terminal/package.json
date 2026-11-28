@@ -4,9 +4,9 @@
         "name": "Linxira OS"
     },
     "productName": "Zeta Terminal",
-    "description": "Zeta Terminal \u2014 the TSP presentation surface for zetacode",
+    "description": "Zeta Terminal — the TSP presentation surface for zetacode",
     "license": "Apache-2.0",
-    "version": "0.14.5",
+    "version": "1.5.16",
     "homepage": "https://waveterm.dev",
     "build": {
         "appId": "so.linxira.ZetaTerminal"

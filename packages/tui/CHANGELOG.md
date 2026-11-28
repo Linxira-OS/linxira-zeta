@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Changed
+
+- Version 1.5.16 lockstep release; no package-specific source change.
+
 ## [1.5.15] - 2026-11-27
 
 ## [8.4.1] - 2026-01-25
