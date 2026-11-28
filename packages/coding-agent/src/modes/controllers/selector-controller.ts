@@ -237,9 +237,10 @@ export class SelectorController {
 			sheet ? view : () => fullscreenMenuView(kind, view(), options.onKey),
 			{
 				// Fullscreen menus (Settings, Model Hub, dashboards) own the pointer while
-				// open. Without this they inherited the composer's "off" and ANSI terminals
-				// never reported clicks, though the prefs/picker widgets already handle them.
-				mouse: "click",
+				// open, as the pre-pi-tui TUI did (1000+1003+1006: click, hover and wheel).
+				// Without this they inherited the composer's "off" and ANSI terminals never
+				// reported pointer input, though the prefs/picker widgets already handle it.
+				mouse: "any",
 				focus: root => {
 					const screen = sheet ? root : layerContent(root);
 					menu.focus = options.onKey ? root : (options.focus?.(screen) ?? screen);
