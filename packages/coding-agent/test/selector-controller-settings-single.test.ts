@@ -88,12 +88,14 @@ describe("single-instance menus", () => {
 			session: { getAvailableThinkingLevels: () => [], getAvailableModels: () => [] },
 		});
 		const controller = new SelectorController(ctx);
+		const show = spyOn(overlays, "show");
 
 		controller.showSettingsSelector();
 		controller.showSettingsSelector();
 		// The controller's continuation was queued first, so the menu is mounted.
 		await themes;
 		expect(windows).toHaveBeenCalledTimes(1);
+		expect(show).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mouse: "any" }));
 		const menu = overlays.top();
 		expect(menu?.node.kind).toBe("overlay");
 		expect(menu?.node.props()).toMatchObject({ size: "full" });
