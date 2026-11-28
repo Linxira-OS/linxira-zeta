@@ -18,7 +18,7 @@ classify("normal", "read", "changelog tools context dirs team hotkeys extensions
 classify(
 	"normal",
 	"session",
-	"plan plan-ultra plan-review vibe lead goal guided-goal queue model switch fast slow effort computer ratchet prewalk advisor fresh compact shake handoff retry rename new resume branch fork btw teamworker",
+	"ambient plan plan-ultra plan-review vibe lead goal guided-goal queue model switch fast slow effort computer ratchet prewalk advisor fresh compact shake handoff retry rename new resume branch fork btw teamworker",
 );
 classify("normal", "workspace", "add-dir remove-dir git local tracking commit");
 classify("normal", "process", "language record pause quit exit restart");

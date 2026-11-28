@@ -15,7 +15,20 @@
  * `retry.fallbackChains` default.
  */
 
-import { AUTO_THINKING, parseThinkingLevel } from "../thinking/levels";
+/**
+ * Thinking selectors this native-free module must canonicalize. Keep the
+ * strings in step with `thinking/levels.ts`; importing that module pulls the
+ * agent package (and its native addon) into config-only tests.
+ */
+const AUTO_THINKING = "auto" as const;
+const THINKING_SELECTORS = ["inherit", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+function parseThinkingSelector(value: string): string | undefined {
+	if ((THINKING_SELECTORS as readonly string[]).includes(value)) return value;
+	if (value.length < 2) return undefined;
+	const matches = THINKING_SELECTORS.filter(selector => selector.startsWith(value));
+	return matches.length === 1 ? matches[0] : undefined;
+}
 
 /** Runtime fallback surfaces. */
 export const TARGET_FALLBACK_SCOPES = ["resume", "retry", "role", "agent", "mode"] as const;
@@ -186,7 +199,7 @@ export function parseFallbackEntry(raw: string): FallbackEntryParts | undefined 
 			modelKey = trimmed.slice(0, colon);
 			thinkingLevel = AUTO_THINKING;
 		} else {
-			const level = parseThinkingLevel(suffix);
+			const level = parseThinkingSelector(suffix);
 			// `inherit` is the same semantic as writing no suffix at all.
 			if (level !== undefined && level !== "inherit") {
 				modelKey = trimmed.slice(0, colon);

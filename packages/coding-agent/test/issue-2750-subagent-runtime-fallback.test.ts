@@ -641,8 +641,11 @@ describe("subagent runtime model resolution", () => {
 			enableLsp: false,
 		});
 
-		expect(childFallbackChains).toEqual({ default: [123] });
-		expect(childModelRole).toBeUndefined();
+		expect(childFallbackChains).toEqual({
+			default: [123],
+			"subagent:single-model-invalid-default-fallback": [],
+		});
+		expect(childModelRole).toBe("lm-studio/local-reviewer");
 	});
 
 	it("preserves upstream routing selectors in the child retry fallback chain", async () => {

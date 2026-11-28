@@ -101,7 +101,7 @@ describe("InteractiveMode.handleResumeSession outer preflight flush", () => {
 });
 
 describe("/resume <id> switch failures", () => {
-	it("reports a session whose saved model cannot be restored and keeps the current one", async () => {
+	it("resumes a session with an unavailable saved model on the fallback", async () => {
 		const { mode, session, cleanup } = await createMode();
 		try {
 			const previousFile = session.sessionFile;
@@ -134,8 +134,9 @@ describe("/resume <id> switch failures", () => {
 
 			expect(await executeBuiltinSlashCommand("/resume unrestorable", { ctx: mode })).toBe(true);
 
-			expect(showErrorSpy).toHaveBeenCalledWith("Could not restore model missing-provider/missing-model");
-			expect(session.sessionFile).toBe(previousFile);
+			expect(showErrorSpy).not.toHaveBeenCalled();
+			expect(session.sessionFile).not.toBe(previousFile);
+			expect(session.sessionFile).toEndWith("unrestorable.jsonl");
 		} finally {
 			await cleanup();
 		}
