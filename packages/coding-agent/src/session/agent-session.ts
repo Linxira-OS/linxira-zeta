@@ -215,6 +215,7 @@ import {
 	formatModelString,
 	formatModelStringWithRouting,
 	getModelMatchPreferences,
+	pickDefaultAvailableModel,
 	type ResolvedModelRoleValue,
 	resolveCliModel,
 	resolveSessionModelSelector,
@@ -718,7 +719,6 @@ import {
 	cfgProvidersCacheWarming,
 	cfgProvidersCacheRetention,
 	cfgProvidersAntigravityEndpoint,
-	cfgRetryModelFallback,
 	cfgRetryUsageAwareFallback,
 	cfgSampling,
 	cfgSkillful,
@@ -1731,8 +1731,6 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#modelRegistry: ModelRegistry;
 	/** Main thread only: spots streaming spawning tool calls so a subagent worker boots ahead of dispatch. */
 	readonly #spawnSignal = isMainThread() ? new SubagentSpawnSignal() : undefined;
-	/** Creation-time permission for switchSession to keep the current model when a target's saved model is unrestorable. */
-	readonly #allowSessionModelFallback: boolean;
 	readonly #disableModelFallback: boolean;
 	/** Creation-time: false when the extension UI context cannot reach a human (ACP without form elicitation). */
 	readonly #interactivePrompts: boolean;
@@ -3436,7 +3434,6 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.restrictToolNames = config.restrictToolNames === true;
 		this.memoryEnabled = config.memoryEnabled ?? true;
 		this.#modelRegistry = config.modelRegistry;
-		this.#allowSessionModelFallback = config.allowSessionModelFallback === true;
 		this.#disableModelFallback = config.disableModelFallback === true;
 		this.#interactivePrompts = config.interactivePrompts !== false;
 		this.#extensionRoots =
@@ -17125,12 +17122,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * Listeners are preserved and will continue receiving events.
 	 *
 	 * When none of the target session's saved models can be restored, the switch
-	 * throws `Could not restore model <provider/id>` and the current session stays
-	 * active; as with a rejected cwd change, `session_before_switch` has already
-	 * run and any in-flight turn has already been aborted (the target's models are
-	 * only known once its file is loaded). A session created with `allowSessionModelFallback` (and
-	 * `retry.modelFallback` on) instead keeps its current model and reports a
-	 * warning. Reloading the current session keeps the current model.
+	 * keeps the current model, or the first credentialed catalog model, records
+	 * that choice on the target session, and reports a warning. Resuming never
+	 * stops merely because a saved selector disappeared. Reloading the current
+	 * session keeps the current model.
 	 *
 	 * A target whose recorded directory is missing or cannot be entered resumes in the
 	 * current cwd (the session manager keeps it there, runtime-only until relocated);
@@ -17337,18 +17332,22 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			);
 			let targetModel = explicitModel;
 			let modelFallbackWarning: string | undefined;
+			let usedFallbackModel = false;
 			if (!targetModel && !options?.keepModel && targetModelStrings.length > 0) {
 				targetModel = await this.#resolveSessionModel(targetModelStrings);
 				if (!targetModel && switchingToDifferentSession) {
-					// Like startup resume: never hand the transcript to a model the
-					// session did not choose unless a UI can say so.
-					if (!this.#allowSessionModelFallback || !cfgRetryModelFallback.get(this.settings)) {
-						throw new Error(`Could not restore model ${targetModelStrings[0]}`);
-					}
-					const currentModel = this.model;
-					modelFallbackWarning = currentModel
-						? `Could not restore model ${targetModelStrings[0]}. Using ${currentModel.provider}/${currentModel.id}`
-						: `Could not restore model ${targetModelStrings[0]}`;
+					// Resume must not stop on a selector this installation no longer has.
+					// Keep the active model, else the first credentialed catalog model, and
+					// record the substitution below so the next resume starts from it.
+					targetModel =
+						this.model ??
+						pickDefaultAvailableModel(this.#modelRegistry.getAvailable(), provider =>
+							this.#modelRegistry.hasConcreteAuth(provider),
+						);
+					usedFallbackModel = targetModel !== undefined;
+					modelFallbackWarning = targetModel
+						? `Could not restore model ${targetModelStrings[0]}. Using ${targetModel.provider}/${targetModel.id}`
+						: `Could not restore model ${targetModelStrings[0]}. No replacement model is available`;
 				}
 			}
 			// The first build was read by the departing model; rebuild it for the
@@ -17411,6 +17410,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 						? resolveSessionModelSelector(this.#modelRegistry, targetModelStrings[0])?.model
 						: undefined;
 				if (explicitModel && !routedModelsAreEqual(savedModel, targetModel)) {
+					this.sessionManager.appendModelChange(formatModelStringWithRouting(targetModel));
+				} else if (usedFallbackModel) {
 					this.sessionManager.appendModelChange(formatModelStringWithRouting(targetModel));
 				}
 			}

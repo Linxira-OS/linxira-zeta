@@ -10,13 +10,12 @@ type Scenario =
 	| "headless"
 	| "restorable"
 	| "override"
-	| "unrelated-error"
-	| "expired-deadline";
+	| "unrelated-error";
 interface Observation {
 	error?: { name: string; message: string };
 	providerRequests?: number;
 	agentError?: unknown;
-	session?: { id: string; model?: string; messages: unknown[]; cacheKey?: string };
+	session?: { id: string; model?: string; messages: unknown[]; cacheKey?: string; modelChanges?: string[] };
 }
 
 /** Run real CLI/SDK startup in a process whose config, leases and registries cannot escape the fixture. */
@@ -39,7 +38,7 @@ async function runScenario(scenario: Scenario): Promise<Observation> {
 		const scenario = ${JSON.stringify(scenario)};
 		import { parseArgs } from ${JSON.stringify(path.join(sourceDir, "cli/args.ts"))};
 		import { runRootCommand } from ${JSON.stringify(path.join(sourceDir, "main.ts"))};
-		import { createAgentSession, SessionModelRestoreError } from ${JSON.stringify(path.join(sourceDir, "sdk.ts"))};
+		import { createAgentSession } from ${JSON.stringify(path.join(sourceDir, "sdk.ts"))};
 		import { Settings } from ${JSON.stringify(path.join(sourceDir, "config/settings.ts"))};
 		import { AuthStorage } from ${JSON.stringify(path.join(sourceDir, "session/auth-storage.ts"))};
 		import { SessionManager } from ${JSON.stringify(path.join(sourceDir, "session/session-manager.ts"))};
@@ -85,7 +84,6 @@ async function runScenario(scenario: Scenario): Promise<Observation> {
 		if (scenario === "resume") args.push("--resume", file);
 		if (scenario === "headless") args.push("-p", "Continue.");
 		if (scenario === "override") args.push("--model", "resume-fixture/fresh");
-		if (scenario === "expired-deadline") args.push("--max-time", "30");
 		Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
 		const settings = Settings.isolated({
 			autoResume: true, modelRoles: { default: "resume-fixture/fresh" },
@@ -102,28 +100,18 @@ async function runScenario(scenario: Scenario): Promise<Observation> {
 				createAgentSession: async options => {
 					manager = options.sessionManager;
 					if (scenario === "unrelated-error") throw new Error("UNRELATED_STARTUP_FAILURE");
-					let result;
-					try {
-						result = await createAgentSession(options);
-					} catch (error) {
-						if (scenario === "expired-deadline" && error instanceof SessionModelRestoreError) {
-							if (options.deadline === undefined) throw new Error("Fixture did not receive a startup deadline");
-							// Make the launch budget expire during the failed restore, without sleeping.
-							Date.now = () => options.deadline + 1;
-						}
-						throw error;
-					}
+					const result = await createAgentSession(options);
 					const session = result.session;
 					try {
-						if (scenario === "expired-deadline") {
-							await session.agent.prompt("DEADLINE_PROBE");
-							observation.agentError = session.agent.state.error ?? null;
-						}
 						observation.session = {
 							id: session.sessionManager.getSessionId(),
 							model: session.model && session.model.provider + "/" + session.model.id,
 							messages: structuredClone(session.agent.state.messages),
-							cacheKey: session.sessionManager.getHeader()?.providerPromptCacheKey
+							cacheKey: session.sessionManager.getHeader()?.providerPromptCacheKey,
+							modelChanges: session.sessionManager
+								.getBranch()
+								.filter(entry => entry.type === "model_change")
+								.map(entry => entry.model)
 						};
 					} finally {
 						Date.now = readClock;
@@ -181,22 +169,24 @@ async function runScenario(scenario: Scenario): Promise<Observation> {
 }
 
 describe("implicit auto-resume model restoration", () => {
-	test("starts clean on the preloaded extension default without inheriting history or cache identity", async () => {
+	test("auto-resumes the saved transcript on the replacement model and records it", async () => {
 		const result = await runScenario("auto");
 		expect(result.error).toBeUndefined();
 		expect(result.session?.model).toBe("resume-fixture/fresh");
-		expect(result.session?.id).not.toBe("saved-session");
-		expect(JSON.stringify(result.session?.messages)).not.toContain("OLD_PRIVATE_HISTORY");
-		expect(JSON.stringify(result.session?.messages)).not.toContain("OLD_PRIVATE_REPLY");
-		expect(result.session?.cacheKey).not.toBe("OLD_CACHE_KEY");
+		expect(result.session?.id).toBe("saved-session");
+		expect(JSON.stringify(result.session?.messages)).toContain("OLD_PRIVATE_HISTORY");
+		expect(result.session?.modelChanges).toContain("resume-fixture/fresh");
 	}, 30_000);
 
 	test.each(["continue", "resume", "headless"] as const)(
-		"keeps %s restoration fail-closed",
+		"restores %s on the replacement model and records it",
 		async scenario => {
 			const result = await runScenario(scenario);
-			expect(result.error?.name).toBe("SessionModelRestoreError");
-			expect(result.session).toBeUndefined();
+			expect(result.error).toBeUndefined();
+			expect(result.session?.id).toBe("saved-session");
+			expect(result.session?.model).toBe("resume-fixture/fresh");
+			expect(JSON.stringify(result.session?.messages)).toContain("OLD_PRIVATE_HISTORY");
+			expect(result.session?.modelChanges).toContain("resume-fixture/fresh");
 		},
 		30_000,
 	);
@@ -212,14 +202,6 @@ describe("implicit auto-resume model restoration", () => {
 		},
 		30_000,
 	);
-
-	test("does not dispatch a model request after the original launch deadline expired during restore", async () => {
-		const result = await runScenario("expired-deadline");
-		expect(result.error).toBeUndefined();
-		expect(result.agentError).toBeNull();
-		expect(JSON.stringify(result.session?.messages)).toContain("DEADLINE_PROBE");
-		expect(result.providerRequests).toBe(0);
-	}, 30_000);
 
 	test("does not treat unrelated startup errors as permission to start fresh", async () => {
 		const result = await runScenario("unrelated-error");
@@ -325,7 +307,7 @@ describe("implicit auto-resume model restoration", () => {
 						const visible = Array.from({ length: buffer.length }, (_, row) =>
 							buffer.getLine(row)?.translateToString(true).trim(),
 						).join(" ");
-						if (visible.includes("Started a new session without the saved history.")) {
+						if (visible.includes("Could not restore model lost/visible-")) {
 							warningScreen = visible;
 							warningSeen.resolve();
 						}
@@ -367,7 +349,6 @@ describe("implicit auto-resume model restoration", () => {
 				expect(output).not.toContain("\x9b");
 				expect(output).not.toContain("UNTRUSTED_MODEL_TAIL");
 				expect(warningScreen).toContain("Could not restore model lost/visible-");
-				expect(warningScreen).not.toContain("OLD_WARNING_HISTORY");
 			} finally {
 				if (proc.exitCode === null) proc.kill();
 				await proc.exited;

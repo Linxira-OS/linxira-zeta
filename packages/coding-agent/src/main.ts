@@ -2799,8 +2799,6 @@ export async function runRootCommand(
 			const showsStartupChangelog =
 				isInteractive && !(parsedArgs.continue || parsedArgs.resume || isForeignSessionImport(parsedArgs));
 
-			const preloadProviderRegistrations =
-				isInteractive && autoResumed ? extensionsResult.runtime.pendingProviderRegistrations.slice() : [];
 			const startupContext = {
 				eventBus,
 				subagentEventBus,
@@ -2809,28 +2807,10 @@ export async function runRootCommand(
 				// Validation waits for background refresh and the first interactive frame.
 				deferRetryFallbackValidation: true,
 			};
-			let createdSession: CreateAgentSessionResult;
-			try {
-				createdSession = await createSession({ ...sessionOptions, ...startupContext });
-			} catch (error) {
-				if (!isInteractive || !autoResumed || !sessionManager || !(error instanceof sdk.SessionModelRestoreError)) {
-					throw error;
-				}
-				await sessionManager.close();
-				sessionManager = undefined;
-				parsedArgs.continue = false;
-				// The failed SDK attempt consumed this queue; the fresh attempt clears
-				// source registrations again before applying it.
-				extensionsResult.runtime.pendingProviderRegistrations.unshift(...preloadProviderRegistrations);
-				const startupDeadline = sessionOptions.deadline;
-				sessionOptions = await buildStartupSessionOptions(undefined);
-				sessionOptions.deadline = startupDeadline;
-				createdSession = await createSession({ ...sessionOptions, ...startupContext });
-				notifs.push({
-					kind: "warn",
-					message: `Auto resume skipped: ${sanitizeDisplayWarnings([error.message])[0]}. Started a new session without the saved history.`,
-				});
-			}
+			const createdSession: CreateAgentSessionResult = await createSession({
+				...sessionOptions,
+				...startupContext,
+			});
 			const {
 				session,
 				setToolUIContext,

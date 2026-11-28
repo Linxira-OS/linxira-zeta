@@ -326,14 +326,6 @@ export interface AgentSessionConfig {
 	/** Model registry for API key resolution and model discovery. */
 	modelRegistry: ModelRegistry;
 	/**
-	 * Whether `switchSession` may open a session whose saved models cannot be
-	 * restored, keeping the current model and warning, instead of throwing
-	 * `Could not restore model <provider/id>`. `retry.modelFallback: false`
-	 * still forbids it. `createAgentSession` sets this from `hasUI` and its
-	 * `allowSessionModelFallback` option. Default: false.
-	 */
-	allowSessionModelFallback?: boolean;
-	/**
 	 * `false` when the extension UI context cannot reach a human: ACP installs one
 	 * for every client, but without form elicitation its prompts resolve empty.
 	 * Saved-reset consent then takes its no-prompt-UI path. `createAgentSession`

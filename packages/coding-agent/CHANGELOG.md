@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Changed
+
+- Resuming a session whose saved model disappeared now keeps the current or first credentialed model, records it on the session, and warns instead of refusing to resume.
+
 ## [1.5.15] - 2026-11-27
 
 ### Fixed

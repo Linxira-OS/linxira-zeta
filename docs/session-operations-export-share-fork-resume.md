@@ -513,7 +513,7 @@ Normal resume switching opens an existing transcript. Because it delegates to
 `setSessionFile()`, a missing/empty explicit target can instead materialize a
 new session at that path; malformed non-empty headers are rejected.
 
-Model restoration fails closed, like startup resume: a switch never silently moves a transcript to a model it did not record. Only a session created with `hasUI` and `allowSessionModelFallback` (the TUI), with `retry.modelFallback` on, keeps its current model instead, and warns `Could not restore model <provider/id>. Using <provider/id>`. An explicit `model` option (RPC `open_session`/`switch_session` with `provider`/`modelId`) replaces the recorded model, and a same-file reload keeps the current one.
+Model restoration never blocks a resume. When no recorded model resolves, the switch keeps the current model, or the first credentialed catalog model, records that model on the target, and warns `Could not restore model <provider/id>. Using <provider/id>`. An explicit `model` option (RPC `open_session`/`switch_session` with `provider`/`modelId`) replaces the recorded model, and a same-file reload keeps the current one.
 
 ## Event emissions and cancellation points
 

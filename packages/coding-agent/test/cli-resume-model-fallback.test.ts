@@ -6,7 +6,7 @@ const cliEntry = path.resolve(import.meta.dir, "../src/cli.ts");
 
 describe("headless startup resume", () => {
 	test.each(["print", "json", "rpc", "rpc-ui"])(
-		"does not send a saved transcript to the settings default in %s mode",
+		"resumes on the settings default and records it in %s mode",
 		async mode => {
 			using tempDir = TempDir.createSync("@omp-resume-model-");
 			const requests: string[] = [];
@@ -120,15 +120,22 @@ describe("headless startup resume", () => {
 						}
 						return text;
 					})();
-					const [exitCode, out, stderr] = await Promise.all([
+					const [exitCode, , stderr] = await Promise.all([
 						proc.exited,
 						stdout,
 						new Response(proc.stderr).text(),
 					]);
 					expect(stderr).toContain("Could not restore model local/missing-model");
-					expect(exitCode).toBe(1);
-					expect(requests).toEqual([]);
-					expect(out).toBe("");
+					expect([0, 1]).toContain(exitCode);
+					expect(requests.length).toBeGreaterThan(0);
+					expect(requests.join("\n")).toContain("ZEBRA-42");
+					const entries = (await Bun.file(sessionFile).text())
+						.trim()
+						.split("\n")
+						.map(line => JSON.parse(line) as { type?: string; model?: string });
+					expect(
+						entries.some(entry => entry.type === "model_change" && entry.model === "other/default-model"),
+					).toBeTrue();
 				} finally {
 					proc.kill();
 					await proc.exited;
@@ -300,29 +307,39 @@ describe("headless runtime session switch", () => {
 		}
 	}
 
-	test("fails open_session and switch_session on an unrestorable saved model and keeps serving", async () => {
+	test("opens and switches a session whose saved model is gone on the fallback model", async () => {
 		await withRpcHost(async ({ requests, writeThread, request }) => {
 			const renamed = await writeThread("renamed", "local/local-model");
 			const current = await writeThread("current", "local/renamed-model");
-			const before = await request({ id: "state-before", type: "get_state" });
 
 			const opened = await request({ id: "open", type: "open_session", sessionDir: renamed.dir });
-			expect(opened).toMatchObject({ success: false, error: "Could not restore model local/local-model" });
-			const switched = await request({ id: "switch", type: "switch_session", sessionPath: renamed.file });
-			expect(switched).toMatchObject({ success: false, error: "Could not restore model local/local-model" });
-			const after = await request({ id: "state-after", type: "get_state" });
-			expect(after.data).toMatchObject({
-				sessionFile: before.data?.sessionFile,
-				sessionId: before.data?.sessionId,
-				messageCount: 0,
+			expect(opened).toMatchObject({ success: true, data: { resumed: true, sessionFile: renamed.file } });
+			const openedState = await request({ id: "state-open", type: "get_state" });
+			expect(openedState.data).toMatchObject({
+				sessionFile: renamed.file,
+				messageCount: 2,
 				model: { provider: "other", id: "default-model" },
 			});
 
 			// A thread whose saved model still exists opens as before.
-			const reopened = await request({ id: "open-current", type: "open_session", sessionDir: current.dir });
-			expect(reopened).toMatchObject({ success: true, data: { resumed: true, sessionFile: current.file } });
-			const state = await request({ id: "state-current", type: "get_state" });
-			expect(state.data).toMatchObject({ messageCount: 2, model: { provider: "local", id: "renamed-model" } });
+			const switched = await request({ id: "switch-current", type: "switch_session", sessionPath: current.file });
+			expect(switched).toMatchObject({ success: true });
+			const currentState = await request({ id: "state-current", type: "get_state" });
+			expect(currentState.data).toMatchObject({
+				messageCount: 2,
+				model: { provider: "local", id: "renamed-model" },
+			});
+
+			// Switching back records the fallback on the target once.
+			const fallback = await request({ id: "switch-fallback", type: "switch_session", sessionPath: renamed.file });
+			expect(fallback).toMatchObject({ success: true });
+			const entries = (await Bun.file(renamed.file).text())
+				.trim()
+				.split("\n")
+				.map(line => JSON.parse(line) as { type?: string; model?: string });
+			expect(
+				entries.filter(entry => entry.type === "model_change" && entry.model === "other/default-model"),
+			).toHaveLength(1);
 			expect(requests).toEqual([]);
 		});
 	}, 30_000);

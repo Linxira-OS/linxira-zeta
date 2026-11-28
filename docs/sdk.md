@@ -182,7 +182,7 @@ When no explicit `model`/`modelPattern` is provided:
 2. settings default model role (`default`)
 3. an authenticated provider-default model in availability order (falling back to the first authenticated available model when no provider default is present)
 
-If restore fails, `modelFallbackMessage` explains fallback.
+If restore fails, `modelFallbackMessage` explains the fallback, and the replacement model is recorded on the resumed session so the next resume starts from it.
 
 ### Auth priority
 

@@ -1048,14 +1048,9 @@ export interface CreateAgentSessionOptions {
 	/** Whether UI is available (enables interactive tools like ask). Default: false */
 	hasUI?: boolean;
 	/**
-	 * When a resumed session's saved models cannot be restored even after
-	 * discovery, allow continuing with a warning on another model: the settings
-	 * default at startup (`modelFallbackMessage`), or the current model when
-	 * `switchSession` later opens another session. Applies only when `hasUI` is
-	 * true and `retry.modelFallback` is on; otherwise `createAgentSession` and
-	 * `switchSession` throw `Could not restore model <provider/id>`. Hosts whose
-	 * `hasUI` only enables tool dialogs and cannot show the warning (rpc-ui) set
-	 * this to false. Default: true.
+	 * Deprecated and ignored: a resumed session whose saved models cannot be
+	 * restored now always keeps the current or first credentialed model and
+	 * records it, rather than refusing to resume.
 	 */
 	allowSessionModelFallback?: boolean;
 	/**
@@ -1125,14 +1120,6 @@ export interface CreateAgentSessionOptions {
 
 	/** Whether to auto-approve all tool calls (--auto-approve CLI flag). Default: false */
 	autoApprove?: boolean;
-}
-
-/** Saved models were exhausted without permission to substitute another model. */
-export class SessionModelRestoreError extends Error {
-	constructor(modelSelector: string) {
-		super(`Could not restore model ${modelSelector}`);
-		this.name = "SessionModelRestoreError";
-	}
 }
 
 /** Result from createAgentSession */
@@ -3428,15 +3415,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				}
 			}
 		}
-		// Exhaust persisted candidates (including configured and extension discovery)
-		// before permitting a settings-default or first-available substitution.
-		if (
-			sessionModelStrings.length > 0 &&
-			restoredSessionModelIndex < 0 &&
-			(!options.hasUI || options.allowSessionModelFallback === false || !cfgRetryModelFallback.get(settings))
-		) {
-			throw new SessionModelRestoreError(sessionModelStrings[0]);
-		}
+		// Persisted candidates were exhausted (including configured and extension
+		// discovery). Keep going with the settings default or first available model
+		// instead of refusing to resume; the fallback is recorded on the session
+		// below so the next resume no longer repeats the missing selector.
 		// Resolve deferred --model/subagent patterns now that extension models are
 		// registered. Use the same CLI resolver as the immediate path so bare role
 		// names, exact model names, and provider selectors keep one precedence rule.
@@ -5392,8 +5374,13 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 						);
 			agent.replaceMessages(restored.messages);
 			// Only an explicit role alias re-owns a resumed branch; any other explicit model
-			// (subagent revival, SDK callers) keeps the role its history recorded.
+			// (subagent revival, SDK callers) keeps the role its history recorded. A fallback
+			// chosen because the saved model disappeared is recorded so the next resume starts
+			// from a model this installation still has.
 			if (model && options.modelRole) recordInitialModelChange(formatModelStringWithRouting(model));
+			else if (model && !hasExplicitModel && sessionModelStrings.length > 0 && restoredSessionModelIndex < 0) {
+				recordInitialModelChange(formatModelStringWithRouting(model));
+			}
 			if (persistInitialServiceTier) {
 				sessionManager.appendServiceTierChange(
 					Object.keys(initialServiceTierByFamily).length > 0 ? initialServiceTierByFamily : null,
@@ -5637,7 +5624,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			skillsReloadable: options.skills === undefined,
 			skillsSettings: cfgSkills.get(settings),
 			modelRegistry,
-			allowSessionModelFallback: options.hasUI === true && options.allowSessionModelFallback !== false,
 			interactivePrompts: options.interactivePrompts,
 			rebindModelAfterDiscovery: options.model === undefined || options.rebindModelAfterDiscovery === true,
 			toolRegistry,

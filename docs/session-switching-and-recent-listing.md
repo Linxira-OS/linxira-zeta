@@ -242,7 +242,7 @@ Lifecycle/state transition:
 
 Failures after the snapshot restore the previous manager and runtime state, reconnect/reconcile it, and mark the bash transition failed. Cwd-policy rejection returns `false`; other failures rethrow. Mode-reconciliation and base-prompt-refresh failures on the success path are logged without rolling back the switch.
 
-The recorded model resolves as in startup resume: the first role/default candidate that is registered, enabled, and has credentials configured, retried once after a provider-scoped discovery refresh. When none resolves for a different session, the switch throws `Could not restore model <provider/id>` before `session_switch` and rolls back. A session created with `hasUI` and `allowSessionModelFallback` (the TUI) instead keeps its current model when `retry.modelFallback` is on, and reports `Could not restore model <provider/id>. Using <provider/id>` through `onModelFallback` or a `notice` event. A same-file reload keeps the current model. Callers that choose the model pass `model` (RPC `open_session`/`switch_session` with `provider`/`modelId`).
+The recorded model resolves as in startup resume: the first role/default candidate that is registered, enabled, and has credentials configured, retried once after a provider-scoped discovery refresh. When none resolves for a different session, the switch keeps the current model or the first credentialed catalog model, records it on the target, and reports `Could not restore model <provider/id>. Using <provider/id>` through `onModelFallback` or a `notice` event. A same-file reload keeps the current model. Callers that choose the model pass `model` (RPC `open_session`/`switch_session` with `provider`/`modelId`).
 
 ## UI state rebuild after interactive switch
 
@@ -284,7 +284,7 @@ So visible conversation/todo state is rebuilt from the new session file.
 - CLI picker cancel -> returns `null`, caller prints `No session selected`, process exits.
 - Interactive picker cancel -> closes the overlay with no session change.
 - Core hook or cwd-policy cancellation -> `switchSession()` returns `false`; the interactive selector stops before its UI refresh/status path, preserving the old session and UI. Callback-free cross-project switches are rejected rather than silently adopting the target cwd.
-- Unrestorable saved model without fallback permission -> `switchSession()` throws `Could not restore model <provider/id>`; the picker and `/resume <id>` show the error and keep the old session.
+- Unrestorable saved model -> `switchSession()` resumes on the current or first credentialed model and records it; the picker and `/resume <id>` show the fallback warning instead of closing.
 
 ### Empty list paths
 
