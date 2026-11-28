@@ -2014,7 +2014,7 @@ export class Composer {
 								const state = item.state ? plainLine(item.state) : "";
 								return (
 									<item
-										key={item.value}
+										key={item.value.trimEnd()}
 										icon={item.iconName || undefined}
 										label={spans}
 										term={term}

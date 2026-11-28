@@ -26,6 +26,16 @@ function offers(node: UiNode, value: string): boolean {
 	return node.kind === "item" ? node.key() === value : node.children().some(child => offers(child, value));
 }
 
+/** The first item key in the popup, for wire-id shape assertions. */
+function firstItemKey(node: UiNode): string | undefined {
+	if (node.kind === "item") return node.key();
+	for (const child of node.children()) {
+		const found = firstItemKey(child);
+		if (found !== undefined) return found;
+	}
+	return undefined;
+}
+
 /** Wait for reactive publication, not a fixed delay for the filesystem or a number of render turns. */
 function offered(composer: Composer, value: string): Promise<void> {
 	const ready = Promise.withResolvers<void>();
@@ -155,12 +165,15 @@ describe("composer completion sources", () => {
 		composer.setAutocomplete(provider);
 		expect(offers(composer.node, "switch")).toBe(true);
 		type(composer, "itch ");
-		await offered(composer, "list ");
+		await offered(composer, "list");
+		// Argument items are applied with a trailing space, but their TSP wire id
+		// must not be; a space is not escaped by the native reconciler.
+		expect(firstItemKey(composer.node)).toBe("list");
 		type(composer, "lx");
 		await settle();
 		expect(composer.completing()).toBe(false);
 		type(composer, "\x7f");
-		await offered(composer, "list ");
+		await offered(composer, "list");
 		composer.setText("review this\n");
 		type(composer, "/sec");
 		await offered(composer, "skill:security-review");
