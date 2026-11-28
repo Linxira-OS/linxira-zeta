@@ -770,6 +770,11 @@ async function runInteractiveMode(
 ): Promise<void> {
 	// Captured before setup: the setup wizard may replace the model the fallback warning describes.
 	const modelBeforeSetup = session.model;
+	// Saved selectors are untrusted file content: strip control bytes before this
+	// warning can reach the terminal, and use the same string for setup comparison.
+	const safeModelFallbackMessage = modelFallbackMessage
+		? sanitizeDisplayWarnings([modelFallbackMessage])[0]
+		: undefined;
 	const InteractiveModeConstructor = await loadInteractiveModeConstructor();
 	let mode: InteractiveMode;
 	let backendLink: import("./backend/attach-link").BackendAttachLink | undefined;
@@ -905,9 +910,9 @@ async function runInteractiveMode(
 			if (!notify) {
 				continue;
 			}
-			if (notify.message === modelFallbackMessage) {
+			if (notify.message === safeModelFallbackMessage) {
 				// Setup may have replaced the model this fallback warning describes.
-				const postSetupFallback = postSetupModelFallback(modelFallbackMessage, modelBeforeSetup, session.model);
+				const postSetupFallback = postSetupModelFallback(safeModelFallbackMessage, modelBeforeSetup, session.model);
 				if (!postSetupFallback) {
 					continue;
 				}
@@ -2926,13 +2931,16 @@ export async function runRootCommand(
 			});
 			watchScopedModelSettings(session, parsedArgs, modelRegistry, settingsInstance);
 
-			if (modelFallbackMessage) {
-				notifs.push({ kind: "warn", message: modelFallbackMessage });
+			const safeModelFallbackMessage = modelFallbackMessage
+				? sanitizeDisplayWarnings([modelFallbackMessage])[0]
+				: undefined;
+			if (safeModelFallbackMessage) {
+				notifs.push({ kind: "warn", message: safeModelFallbackMessage });
 				// Non-interactive runs have no notification surface: a model that still
 				// started in place of the requested one is reported on stderr, keeping
 				// structured stdout clean. A run with no model reports it below.
 				if (!isInteractive && session.model) {
-					process.stderr.write(`${chalk.yellow(`Warning: ${modelFallbackMessage}`)}\n`);
+					process.stderr.write(`${chalk.yellow(`Warning: ${safeModelFallbackMessage}`)}\n`);
 				}
 			}
 

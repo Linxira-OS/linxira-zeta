@@ -62,7 +62,7 @@ const REGISTER_COMMAND = "registerCommand(";
  *
  * Quote- and bracket-aware rather than a lookahead window: the earlier
  * `window.slice(index, index + 600)` heuristic reported
- * `src/autoresearch/index.ts:133` — where the literal belongs to a nested
+ * `src/autoresearch/index.ts:134` — where the literal belongs to a nested
  * argument-completion item, not to the command — and a guard that cries wolf
  * gets disabled instead of fixed.
  */
@@ -278,6 +278,6 @@ describe("command descriptions go through the catalogue", () => {
 				sites.push(`${relativeTo(SOURCE_ROOT, file)}:${hint.line}`);
 			}
 		}
-		expect(sites).toEqual(["autoresearch/index.ts:133", "autoresearch/index.ts:137"]);
+		expect(sites).toEqual(["autoresearch/index.ts:134", "autoresearch/index.ts:138"]);
 	});
 });
