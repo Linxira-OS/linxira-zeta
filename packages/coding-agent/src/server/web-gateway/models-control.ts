@@ -23,19 +23,31 @@ import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import { type ModelKind, modelKind } from "@linxiraos/pi-catalog/types";
 import {
 	type FallbackModelResolver,
-	type FallbackScope,
 	FALLBACK_SCOPES,
+	type FallbackScope,
+	type KindFallbackScope,
+	isKindFallbackScope,
 	type NormalizedFallbackChain,
 	normalizeFallbackChain,
 	normalizeScopedFallbackChains,
 } from "../../config/fallback-normalize";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../../config/model-resolver";
-import { cfgDisabledProviders, cfgFallbackScopes, cfgModelAgents } from "../../config/model-settings";
+import {
+	cfgDisabledProviders,
+	cfgFallbackScopes,
+	cfgModelAgents,
+	cfgModelScenarios,
+	type ModelDataBoundary,
+} from "../../config/model-settings";
 import { isPausedCapability, isProductCapability } from "../../config/provider-capabilities";
 import { Settings } from "../../config/settings";
 import { cfgRetryFallbackChains } from "../../session/settings";
 import {
+	enforceScenarioBoundary,
+	type ModelScenarioMatch,
+	modelDataBoundary,
 	type ResolvedModelTarget,
+	type ScenarioBoundaryOutcome,
 	resolveModelTargetIdentity,
 	resolveTeamModelTarget,
 	resolveVibeModelTarget,
@@ -120,6 +132,8 @@ export interface ModelControlModelRef {
 export interface ModelControlSectionModel extends ModelControlModelRef {
 	/** Provider is enabled and has a concrete credential source. */
 	readonly available: boolean;
+	/** Egress boundary implied by the provider endpoint (`local`, `private`, `public`). */
+	readonly boundary: ModelDataBoundary;
 }
 
 export interface ModelControlKindSection {
@@ -127,6 +141,8 @@ export interface ModelControlKindSection {
 	/** True for tts/stt/video: reported, not advertised as available. */
 	readonly paused: boolean;
 	readonly models: readonly ModelControlSectionModel[];
+	/** This kind's own chain map (`fallbackScopes.<kind>`); never borrowed from retry/default. */
+	readonly fallback: readonly ModelControlChain[];
 }
 
 export interface ModelControlDuplicate {
@@ -176,6 +192,36 @@ export interface ModelControlTarget {
 	readonly duplicates: readonly ModelControlDuplicate[];
 }
 
+export interface ModelControlScenarioSkipped {
+	readonly selector: string;
+	readonly boundary?: ModelDataBoundary;
+	readonly reason: "boundary" | "unresolved";
+}
+
+export interface ModelControlScenarioTarget {
+	readonly target: string;
+	readonly selector: string;
+	readonly fallback: readonly string[];
+	readonly fallbackSource?: string;
+	/** Boundary decision for the ordered primary + fallback candidates. */
+	readonly outcome: ScenarioBoundaryOutcome;
+	readonly selected?: ModelControlModelRef;
+	readonly selectedBoundary?: ModelDataBoundary;
+	readonly skipped: readonly ModelControlScenarioSkipped[];
+	readonly reason?: string;
+}
+
+export interface ModelControlScenario {
+	readonly name: string;
+	readonly boundary: ModelDataBoundary;
+	/** Defaults to true when the scenario does not set it. */
+	readonly failClosed: boolean;
+	readonly allowedAgents: readonly string[];
+	/** An empty allowlist constrains every agent; `targets` stays empty. */
+	readonly appliesToAll: boolean;
+	readonly targets: readonly ModelControlScenarioTarget[];
+}
+
 export interface ModelsControlSnapshot {
 	readonly schema: "models-control/1";
 	/** This API is a projection only; no settings/write endpoint is exposed here. */
@@ -189,6 +235,8 @@ export interface ModelsControlSnapshot {
 	readonly teamTargets: readonly ModelControlTarget[];
 	readonly vibeTargets: readonly ModelControlTarget[];
 	readonly kinds: readonly ModelControlKindSection[];
+	/** Deployment scenarios with their per-agent boundary decisions. */
+	readonly scenarios: readonly ModelControlScenario[];
 	/** Every catalog kind seen, including kinds folded into a control section (`tiny`). */
 	readonly catalogKinds: readonly ModelKind[];
 	readonly modelError?: string;
@@ -199,6 +247,7 @@ export interface ModelsControlSnapshot {
 		readonly agents: number;
 		readonly targets: number;
 		readonly fallbackChains: number;
+		readonly scenarios: number;
 	};
 }
 
@@ -272,6 +321,41 @@ function resolveSelector(
 		...(resolved.model === undefined ? {} : { resolved: modelRef(resolved.model) }),
 		...(resolved.thinkingLevel === undefined ? {} : { thinkingLevel: resolved.thinkingLevel }),
 		...(resolved.warning === undefined ? {} : { warning: resolved.warning }),
+	};
+}
+
+function modelForSelector(selector: string, settings: Settings, catalog: Model[]): Model | undefined {
+	if (selector.trim() === "") return undefined;
+	return resolveModelRoleValue(selector, catalog, {
+		settings,
+		matchPreferences: getModelMatchPreferences(settings),
+	}).model;
+}
+
+function scenarioTargetDto(
+	scenario: ModelScenarioMatch,
+	target: string,
+	settings: Settings,
+	catalog: Model[],
+	resolveModel: FallbackModelResolver,
+): ModelControlScenarioTarget {
+	const identity = resolveModelTargetIdentity(settings, target, { resolveModel });
+	const selectors = [identity.selector, ...identity.fallback];
+	const decision = enforceScenarioBoundary(
+		scenario,
+		selectors.map(selector => ({ selector, model: modelForSelector(selector, settings, catalog) })),
+	);
+	const selected = decision.chosen?.model;
+	return {
+		target,
+		selector: identity.selector,
+		fallback: [...identity.fallback],
+		...(identity.fallbackSource === undefined ? {} : { fallbackSource: identity.fallbackSource }),
+		outcome: decision.outcome,
+		...(selected === undefined ? {} : { selected: modelRef(selected) }),
+		...(decision.modelBoundary === undefined ? {} : { selectedBoundary: decision.modelBoundary }),
+		skipped: decision.skipped.map(entry => ({ ...entry })),
+		...(decision.reason === undefined ? {} : { reason: decision.reason }),
 	};
 }
 
@@ -415,14 +499,41 @@ export function buildModelsControlSnapshot({
 		targetDto(resolveVibeModelTarget(settings, target, { resolveModel }), settings, catalog),
 	);
 
-	const kinds: ModelControlKindSection[] = CONTROL_MODEL_KINDS.map(kind => ({
-		kind,
-		paused: isPausedCapability(kind),
-		models: (modelsByKind.get(kind) ?? []).map(model => ({
-			...modelRef(model),
-			available: !disabled.has(model.provider) && configuredProviders.get(model.provider) === true,
-		})),
-	})).filter(section => section.models.length > 0);
+	const scenarios: ModelControlScenario[] = Object.entries(cfgModelScenarios.get(settings)).map(
+		([name, configured]) => {
+			const allowedAgents = (configured.allowedAgents ?? [])
+				.map(agent => agent.trim())
+				.filter(agent => agent !== "");
+			const match: ModelScenarioMatch = {
+				name,
+				boundary: configured.boundary,
+				failClosed: configured.failClosed !== false,
+				allowedAgents,
+			};
+			return {
+				name,
+				boundary: match.boundary,
+				failClosed: match.failClosed,
+				allowedAgents,
+				appliesToAll: allowedAgents.length === 0,
+				targets: allowedAgents.map(target => scenarioTargetDto(match, target, settings, catalog, resolveModel)),
+			};
+		},
+	);
+
+	const kinds: ModelControlKindSection[] = CONTROL_MODEL_KINDS.map(kind => {
+		const fallbackScope: KindFallbackScope | undefined = isKindFallbackScope(kind) ? kind : undefined;
+		return {
+			kind,
+			paused: isPausedCapability(kind),
+			models: (modelsByKind.get(kind) ?? []).map(model => ({
+				...modelRef(model),
+				available: !disabled.has(model.provider) && configuredProviders.get(model.provider) === true,
+				boundary: modelDataBoundary(model),
+			})),
+			fallback: fallbackScope === undefined ? [] : chainList(scoped[fallbackScope]),
+		};
+	}).filter(section => section.models.length > 0);
 
 	const modelError = registry.getError()?.message;
 	const fallbackChainCount =
@@ -438,6 +549,7 @@ export function buildModelsControlSnapshot({
 		teamTargets,
 		vibeTargets,
 		kinds,
+		scenarios,
 		catalogKinds: [...catalogKinds].sort(),
 		...(modelError === undefined ? {} : { modelError }),
 		totals: {
@@ -447,6 +559,7 @@ export function buildModelsControlSnapshot({
 			agents: agents.length,
 			targets: teamTargets.length + vibeTargets.length,
 			fallbackChains: fallbackChainCount,
+			scenarios: scenarios.length,
 		},
 	};
 }

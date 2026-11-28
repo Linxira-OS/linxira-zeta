@@ -8,15 +8,48 @@
  * caller that owns a catalog can pass `resolveModel` so aliases (a dotted
  * revision spelling, a provider alias) collapse onto the catalog identity.
  *
- * Chains are scoped: `resume`, `retry`, `role`, `agent` and `mode` are separate
- * maps. A chain configured for one scope is never copied into another.
+ * Chains are scoped: the runtime surfaces (`resume`, `retry`, `role`, `agent`,
+ * `mode`) and the model kinds (`chat`, `image`, `tts`, `stt`, `decision`,
+ * `embedding`) are separate maps. A chain configured for one scope is never
+ * copied into another, so a kind chain never borrows `retry` or the legacy
+ * `retry.fallbackChains` default.
  */
 
 import { AUTO_THINKING, parseThinkingLevel } from "../thinking/levels";
 
-/** Independent configuration surfaces for fallback chains (ADR-0102). */
-export const FALLBACK_SCOPES = ["resume", "retry", "role", "agent", "mode"] as const;
+/** Runtime fallback surfaces. */
+export const TARGET_FALLBACK_SCOPES = ["resume", "retry", "role", "agent", "mode"] as const;
+export type TargetFallbackScope = (typeof TARGET_FALLBACK_SCOPES)[number];
+
+/** Model-kind fallback surfaces. Keys are model selectors, roles, or providers. */
+export const KIND_FALLBACK_SCOPES = ["chat", "image", "tts", "stt", "decision", "embedding"] as const;
+export type KindFallbackScope = (typeof KIND_FALLBACK_SCOPES)[number];
+
+/** Every scope accepted by `fallbackScopes` (ADR-0102). */
+export const FALLBACK_SCOPES = [
+	"resume",
+	"retry",
+	"role",
+	"agent",
+	"mode",
+	"chat",
+	"image",
+	"tts",
+	"stt",
+	"decision",
+	"embedding",
+] as const;
 export type FallbackScope = (typeof FALLBACK_SCOPES)[number];
+
+/** Whether a configured scope name is a model-kind surface. */
+export function isKindFallbackScope(value: string): value is KindFallbackScope {
+	return (KIND_FALLBACK_SCOPES as readonly string[]).includes(value);
+}
+
+/** Whether a configured scope name is a runtime target surface. */
+export function isTargetFallbackScope(value: string): value is TargetFallbackScope {
+	return (TARGET_FALLBACK_SCOPES as readonly string[]).includes(value);
+}
 
 export type FallbackChainMap = Readonly<Record<string, readonly string[]>>;
 
@@ -32,6 +65,12 @@ export interface ScopedFallbackChainsInput {
 	readonly role?: FallbackChainMap;
 	readonly agent?: FallbackChainMap;
 	readonly mode?: FallbackChainMap;
+	readonly chat?: FallbackChainMap;
+	readonly image?: FallbackChainMap;
+	readonly tts?: FallbackChainMap;
+	readonly stt?: FallbackChainMap;
+	readonly decision?: FallbackChainMap;
+	readonly embedding?: FallbackChainMap;
 }
 
 /** The default value for `fallbackScopes`: one empty map per scope. */
@@ -41,6 +80,12 @@ export const EMPTY_SCOPED_FALLBACK_CHAINS: ScopedFallbackChainsInput = {
 	role: {},
 	agent: {},
 	mode: {},
+	chat: {},
+	image: {},
+	tts: {},
+	stt: {},
+	decision: {},
+	embedding: {},
 };
 
 export interface FallbackEntryParts {
@@ -203,8 +248,8 @@ export function normalizeFallbackChain(
  * Normalize every chain in a role/model-keyed map, preserving key order.
  *
  * This is one scope's map. Call {@link normalizeScopedFallbackChains} for the
- * `resume`/`retry`/`role`/`agent`/`mode` surfaces so one scope can never be
- * flattened over another.
+ * runtime and model-kind surfaces so one scope can never be flattened over
+ * another.
  */
 export function normalizeFallbackChains(
 	chains: Readonly<Record<string, readonly string[]>>,
@@ -264,6 +309,27 @@ export function findScopedFallbackChain(
 		if (chain !== undefined) return { ...lookup, chain };
 	}
 	return undefined;
+}
+
+export interface FoundKindFallbackChain extends Omit<FoundScopedFallbackChain, "scope"> {
+	readonly scope: KindFallbackScope;
+}
+
+/**
+ * Pick the first configured chain for a model kind, in key order. Only the
+ * kind's own scope is consulted: a missing kind chain resolves to `undefined`,
+ * never to `retry`, `role`, or the legacy retry default.
+ */
+export function findKindFallbackChain(
+	normalized: NormalizedScopedFallbackChains,
+	kind: KindFallbackScope,
+	keys: readonly string[],
+): FoundKindFallbackChain | undefined {
+	const found = findScopedFallbackChain(
+		normalized,
+		keys.map(key => ({ scope: kind, key })),
+	);
+	return found === undefined ? undefined : { ...found, scope: kind };
 }
 
 /** Pick the first unique entry from two ordered chains, primary first. */

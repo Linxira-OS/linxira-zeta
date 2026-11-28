@@ -96,6 +96,13 @@ import { type CostCapRefusal, CostCapError, type CostGateApi } from "../session/
 import { INTERRUPTED_TURN_ERROR } from "../session/exit-diagnostics";
 import { SKILL_PROMPT_MESSAGE_TYPE, usageContextTokens } from "../session/messages";
 import type { CompletionJournal } from "../session/model-usage-journal";
+import {
+	boundaryAllows,
+	modelDataBoundary,
+	resolveScenarioModel,
+	type ScenarioBoundaryCandidate,
+	type ScenarioModelResolution,
+} from "../session/model-controls";
 import { hasConversationalHistory, SessionManager } from "../session/session-manager";
 import { truncateTail } from "../tools/streaming-output";
 import {
@@ -129,7 +136,7 @@ import { TextTap } from "../job-widgets/text-tap";
 import { TOOLS_SOURCE_ID } from "../job-widgets/types";
 import { attributeSubagentError } from "./error-attribution";
 import { generateTaskLabel } from "./label";
-import { resolveTaskAgentIdentity } from "./agent-identity";
+import { resolveTaskAgentIdentity, TaskScenarioBoundaryError } from "./agent-identity";
 import { resolveAgentPrewalkDefault } from "./prewalk";
 import { isReadOnlyAgent } from "./read-only-policy";
 import { formatTaskResultSummary } from "./result-summary";
@@ -380,6 +387,42 @@ function resolveSubagentInheritedRetryFallbackChain(
 	return filterSubagentFallbackChain(settings, modelRegistry, fallbackChain);
 }
 
+interface SubagentFallbackPlan {
+	readonly primary: string;
+	readonly chain: string[];
+}
+
+/**
+ * The retry-fallback pin a subagent would install: its primary selector plus
+ * the chain that would follow it. Returning `undefined` leaves the existing
+ * session behavior alone. `primarySelector` lets a scenario-selected fallback
+ * model become the pin's primary even when it came from a configured chain.
+ */
+function planSubagentFallbackChain(args: {
+	candidates: SubagentRetryFallbackCandidate[];
+	inheritedFallbackChain: string[] | undefined;
+	/** Explicit per-agent chain: presence wins over candidate/inherited chains, [] disables fallbacks. */
+	configuredFallbackChain?: readonly string[];
+	model: Model<Api> | undefined;
+	authFallbackUsed: boolean;
+	primarySelector?: string;
+}): SubagentFallbackPlan | undefined {
+	const { candidates, inheritedFallbackChain, configuredFallbackChain, model, authFallbackUsed } = args;
+	if (!model || authFallbackUsed) return undefined;
+	const selectedIndex = candidates.findIndex(
+		candidate => candidate.model.provider === model.provider && candidate.model.id === model.id,
+	);
+	const primary = args.primarySelector ?? (selectedIndex >= 0 ? candidates[selectedIndex]!.selector : undefined);
+	if (primary === undefined) return undefined;
+	const fallbackSelectors =
+		selectedIndex < 0 ? [] : candidates.slice(selectedIndex + 1).map(candidate => candidate.selector);
+	// An explicit per-agent chain wins over implicit multi-model candidates and
+	// role/default inheritance. Without one, keep the existing precedence.
+	const chain = configuredFallbackChain ?? (fallbackSelectors.length > 0 ? fallbackSelectors : inheritedFallbackChain);
+	if (!Array.isArray(chain) || !chain.every(entry => typeof entry === "string")) return undefined;
+	return { primary, chain: [...chain] };
+}
+
 function installSubagentRetryFallbackChain(args: {
 	settings: Settings;
 	id: string;
@@ -389,26 +432,58 @@ function installSubagentRetryFallbackChain(args: {
 	configuredFallbackChain?: readonly string[];
 	model: Model<Api> | undefined;
 	authFallbackUsed: boolean;
+	/** Scenario-selected primary; defaults to the candidate matching `model`. */
+	primarySelector?: string;
 }): string | undefined {
-	const { settings, id, candidates, inheritedFallbackChain, configuredFallbackChain, model, authFallbackUsed } = args;
-	if (!model || authFallbackUsed || candidates.length === 0) return undefined;
-
-	const selectedIndex = candidates.findIndex(
-		candidate => candidate.model.provider === model.provider && candidate.model.id === model.id,
-	);
-	if (selectedIndex < 0) return undefined;
-	const fallbackSelectors = candidates.slice(selectedIndex + 1).map(candidate => candidate.selector);
-	// An explicit per-agent chain wins over implicit multi-model candidates and
-	// role/default inheritance. Without one, keep the existing precedence.
-	const fallbackChain =
-		configuredFallbackChain ?? (fallbackSelectors.length > 0 ? fallbackSelectors : inheritedFallbackChain);
-	if (!Array.isArray(fallbackChain) || !fallbackChain.every(entry => typeof entry === "string")) {
-		return undefined;
-	}
-
-	const role = subagentRetryFallbackRole(id);
-	installRetryFallbackRole(settings, role, { primary: candidates[selectedIndex].selector, chain: fallbackChain });
+	const plan = planSubagentFallbackChain(args);
+	if (plan === undefined) return undefined;
+	const role = subagentRetryFallbackRole(args.id);
+	installRetryFallbackRole(args.settings, role, plan);
 	return role;
+}
+
+/** Ordered primary + fallback candidates handed to the deployment-scenario resolver. */
+function buildScenarioCandidates(
+	primary: Model<Api> | undefined,
+	fallbackSelectors: readonly string[],
+	modelRegistry: ModelRegistry,
+	settings: Settings,
+): ScenarioBoundaryCandidate<Model<Api>>[] {
+	const candidates: ScenarioBoundaryCandidate<Model<Api>>[] = [];
+	const seenSelectors = new Set<string>();
+	if (primary !== undefined) {
+		const selector = formatModelStringWithRouting(primary);
+		candidates.push({ selector, model: primary });
+		seenSelectors.add(selector);
+	}
+	for (const selector of fallbackSelectors) {
+		if (seenSelectors.has(selector)) continue;
+		seenSelectors.add(selector);
+		const resolved = resolveModelOverride([selector], modelRegistry, settings).model;
+		candidates.push(resolved === undefined ? { selector } : { selector, model: resolved });
+	}
+	return candidates;
+}
+
+/**
+ * Fallbacks after the scenario-selected candidate. A known out-of-boundary
+ * model is dropped. An unresolved selector is dropped only under fail-closed,
+ * where its eventual boundary cannot be proven.
+ */
+function filterScenarioFallbackSelectors(
+	decision: ScenarioModelResolution<Model<Api>>,
+	candidates: readonly ScenarioBoundaryCandidate<Model<Api>>[],
+): string[] | undefined {
+	if (decision.chosen === undefined) return undefined;
+	const chosenIndex = candidates.indexOf(decision.chosen);
+	if (chosenIndex < 0) return undefined;
+	return candidates
+		.slice(chosenIndex + 1)
+		.filter(candidate => {
+			if (candidate.model === undefined) return decision.failClosed !== true;
+			return boundaryAllows(decision.boundary, modelDataBoundary(candidate.model));
+		})
+		.map(candidate => candidate.selector);
 }
 
 export interface IrcPeerRosterRow {
@@ -5087,13 +5162,26 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 				explicitFallbackChain === undefined
 					? undefined
 					: filterSubagentFallbackChain(subagentSettings, modelRegistry, explicitFallbackChain);
-			const {
-				model,
-				thinkingLevel: resolvedThinkingLevel,
-				explicitThinkingLevel,
-				authFallbackUsed,
-				warning: modelResolutionWarning,
-			} = await awaitAbortable(
+			const retryFallbackCandidates = resolveSubagentRetryFallbackCandidates(
+				modelPatterns,
+				modelRegistry,
+				subagentSettings,
+			).filter(candidate => allowedProvider === undefined || candidate.model.provider === allowedProvider);
+			const allowedInheritedFallbackChain =
+				allowedProvider === undefined
+					? inheritedRetryFallbackChain
+					: inheritedRetryFallbackChain?.filter(entry => {
+							const candidate = resolveModelOverride([entry], modelRegistry, subagentSettings).model;
+							return candidate?.provider === allowedProvider;
+						});
+			const allowedConfiguredFallbackChain =
+				allowedProvider === undefined
+					? configuredFallbackChain
+					: configuredFallbackChain?.filter(entry => {
+							const candidate = resolveModelOverride([entry], modelRegistry, subagentSettings).model;
+							return candidate?.provider === allowedProvider;
+						});
+			const modelResolution = await awaitAbortable(
 				resolveModelOverrideWithAuthFallback(
 					modelPatterns,
 					options.parentActiveModelPattern,
@@ -5103,6 +5191,8 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 					{ exactOnly: !!options.perCallModelGrants, allowedProvider },
 				),
 			);
+			const { authFallbackUsed, warning: modelResolutionWarning } = modelResolution;
+			let { model, thinkingLevel: resolvedThinkingLevel, explicitThinkingLevel } = modelResolution;
 			if (cfgOffline.get(settings) && !model) {
 				throw new Error("Offline mode: no subagent model is available on the active parent provider.");
 			}
@@ -5124,6 +5214,66 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 					resolvedProvider: model.provider,
 					resolvedModel: model.id,
 				});
+			}
+			// Deployment scenario boundary. The primary and the fallback chain that
+			// would be installed are checked together, before the child session
+			// exists. A fail-closed scenario with no in-boundary candidate fails the
+			// spawn instead of starting on a model that violates the boundary.
+			let scenarioFallbackChain: string[] | undefined;
+			const scenarioFallbackPlan =
+				options.perCallModelGrants === undefined
+					? planSubagentFallbackChain({
+							candidates: retryFallbackCandidates,
+							inheritedFallbackChain: allowedInheritedFallbackChain,
+							configuredFallbackChain: allowedConfiguredFallbackChain,
+							model,
+							authFallbackUsed,
+						})
+					: undefined;
+			const scenarioCandidates = buildScenarioCandidates(
+				model,
+				scenarioFallbackPlan?.chain ?? [],
+				modelRegistry,
+				subagentSettings,
+			);
+			const scenarioDecision = resolveScenarioModel(settings, agent.name, scenarioCandidates);
+			if (scenarioDecision !== undefined) {
+				if (scenarioDecision.outcome === "refused") {
+					throw new TaskScenarioBoundaryError(agent.name, scenarioDecision);
+				}
+				if (scenarioDecision.outcome === "fallback") {
+					logger.warn("Subagent scenario selected an in-boundary fallback", {
+						agent: agent.name,
+						scenario: scenarioDecision.scenario,
+						boundary: scenarioDecision.boundary,
+						selector: scenarioDecision.chosen?.selector,
+						reason: scenarioDecision.reason,
+					});
+				}
+				if (scenarioDecision.outcome === "advisory") {
+					logger.warn("Subagent scenario boundary is advisory; out-of-boundary model allowed", {
+						agent: agent.name,
+						scenario: scenarioDecision.scenario,
+						boundary: scenarioDecision.boundary,
+						reason: scenarioDecision.reason,
+					});
+				}
+				const chosen = scenarioDecision.chosen;
+				if (chosen?.model !== undefined) {
+					const chosenModel = chosen.model;
+					if (model === undefined || chosenModel.provider !== model.provider || chosenModel.id !== model.id) {
+						const resolved = resolveModelOverride([chosen.selector], modelRegistry, subagentSettings);
+						model = resolved.model ?? chosenModel;
+						if (resolved.explicitThinkingLevel) {
+							resolvedThinkingLevel = resolved.thinkingLevel;
+							explicitThinkingLevel = true;
+						} else if (explicitThinkingLevel) {
+							resolvedThinkingLevel = undefined;
+							explicitThinkingLevel = false;
+						}
+					}
+					scenarioFallbackChain = filterScenarioFallbackSelectors(scenarioDecision, scenarioCandidates) ?? [];
+				}
 			}
 			// Preflight skips these checks while the registry is cold, so hold the model
 			// a per-call child actually starts on to them before its session exists.
@@ -5148,25 +5298,14 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 			const retryFallbackRole = installSubagentRetryFallbackChain({
 				settings: subagentSettings,
 				id,
-				candidates: resolveSubagentRetryFallbackCandidates(modelPatterns, modelRegistry, subagentSettings).filter(
-					candidate => allowedProvider === undefined || candidate.model.provider === allowedProvider,
-				),
-				inheritedFallbackChain:
-					allowedProvider === undefined
-						? inheritedRetryFallbackChain
-						: inheritedRetryFallbackChain?.filter(entry => {
-								const candidate = resolveModelOverride([entry], modelRegistry, subagentSettings).model;
-								return candidate?.provider === allowedProvider;
-							}),
-				configuredFallbackChain:
-					allowedProvider === undefined
-						? configuredFallbackChain
-						: configuredFallbackChain?.filter(entry => {
-								const candidate = resolveModelOverride([entry], modelRegistry, subagentSettings).model;
-								return candidate?.provider === allowedProvider;
-							}),
+				candidates: retryFallbackCandidates,
+				inheritedFallbackChain: allowedInheritedFallbackChain,
+				configuredFallbackChain: scenarioFallbackChain ?? allowedConfiguredFallbackChain,
 				model,
 				authFallbackUsed,
+				...(scenarioFallbackChain === undefined || model === undefined
+					? {}
+					: { primarySelector: formatModelStringWithRouting(model) }),
 			});
 			if (retryFallbackRole) {
 				logger.debug("Configured subagent runtime model fallback chain", {
@@ -5714,7 +5853,12 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 		} catch (err) {
 			exitCode = 1;
 			if (!abortSignal.aborted) {
-				error = err instanceof Error ? err.stack || err.message : String(err);
+				error =
+					err instanceof TaskScenarioBoundaryError
+						? err.message
+						: err instanceof Error
+							? err.stack || err.message
+							: String(err);
 			}
 		} finally {
 			const cleanupDeadlineAt = Date.now() + cleanupGraceMs;

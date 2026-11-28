@@ -285,8 +285,7 @@
 	border: 1px solid var(--border);
 	border-radius: var(--r-6);
 	background:
-		linear-gradient(var(--border) 1px, transparent 1px),
-		linear-gradient(90deg, var(--border) 1px, transparent 1px);
+		linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
 	background-size: 24px 24px;
 	background-color: var(--bg-inset);
 }
@@ -345,6 +344,69 @@
 	fill: var(--text-3);
 	font-family: var(--font-mono);
 	font-size: 10px;
+}
+
+/* Animation preview: highlights existing Blueprint nodes/edges only. */
+.models-animation-caption {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-8);
+	margin: 0;
+	color: var(--text-2);
+	font-size: var(--fs-12);
+}
+
+.models-blueprint-live .models-bp-edges g.is-active path {
+	stroke: var(--accent);
+	stroke-width: 2.4;
+}
+
+.models-blueprint-live .models-bp-node.is-active rect {
+	fill: var(--surface-hover);
+	stroke: var(--accent);
+	stroke-width: 2;
+}
+
+.models-scenarios {
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-10);
+}
+
+.models-scenario {
+	border: 1px solid var(--border);
+	border-radius: var(--r-6);
+	padding: var(--sp-10);
+	background: var(--surface-2);
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-8);
+}
+
+.models-scenario > header {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-6);
+	flex-wrap: wrap;
+}
+
+.models-scenario h3 {
+	margin: 0;
+	color: var(--text);
+	font-size: var(--fs-12);
+	font-weight: var(--fw-semibold);
+}
+
+.models-kind-fallback {
+	border-top: 1px solid var(--border);
+	padding-top: var(--sp-8);
+}
+
+.models-kind-fallback h4 {
+	margin: 0 0 var(--sp-6);
+	color: var(--text-3);
+	font-size: var(--fs-11);
+	font-weight: var(--fw-medium);
 }
 
 @media (max-width: 720px) {

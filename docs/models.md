@@ -8,7 +8,7 @@ Primary implementation files:
 
 - `packages/coding-agent/src/config/model-registry.ts` — loads built-in + custom models, provider overrides, runtime discovery, auth integration
 - `packages/coding-agent/src/config/model-resolver.ts` — parses model patterns and selects initial/smol/slow models
-- `packages/coding-agent/src/config/model-settings.ts` — model selection settings (`modelRoles`, `enabledModels`, `enabledProviders`/`disabledProviders`, `modelProviderOrder`, `cycleOrder`)
+- `packages/coding-agent/src/config/model-settings.ts` — model selection settings (`modelRoles`, `modelAgents`, `fallbackScopes`, `modelScenarios`, `enabledModels`, `enabledProviders`/`disabledProviders`, `modelProviderOrder`, `cycleOrder`)
 - `packages/coding-agent/src/session/settings.ts` — provider transport preferences (`providers.*`)
 - `packages/coding-agent/src/config/models-config.ts` and `models-config-schema-bundle.ts` — custom provider/model validation
 - `packages/coding-agent/src/session/auth-storage.ts` — re-exports `AuthStorage` from `@linxiraos/pi-ai`; credential precedence is implemented in `packages/ai/src/auth/cascade.ts`
@@ -943,12 +943,12 @@ model, effort and fallback chain without changing `modelRoles` or the shared
 
 ```yaml
 modelAgents:
-  reviewer:
-    model: openai/gpt-5.2
-    thinkingLevel: low
-    fallback: [anthropic/claude-sonnet-4-5]
-  worker: openai/gpt-5-mini
-  pm: "@default"
+   reviewer:
+      model: openai/gpt-5.2
+      thinkingLevel: low
+      fallback: [anthropic/claude-sonnet-4-5]
+   worker: openai/gpt-5-mini
+   pm: "@default"
 ```
 
 A string is shorthand for `{ model }`. Absent fields keep the legacy order
@@ -957,20 +957,67 @@ configs need no migration. Team targets are `worker`, `reviewer`, `secretary`
 and `pm`; an actual agent definition with the same name wins.
 
 `fallbackScopes` keeps `resume`, `retry`, `role`, `agent` and `mode` chains
-independent:
+independent, and gives the model kinds their own scopes too:
 
 ```yaml
 fallbackScopes:
-  retry:
-    openai/*: [anthropic/claude-sonnet-4-5]
-  agent:
-    reviewer: [anthropic/claude-haiku-4-5]
+   retry:
+      openai/*: [anthropic/claude-sonnet-4-5]
+   agent:
+      reviewer: [anthropic/claude-haiku-4-5]
+   chat:
+      default: [anthropic/claude-haiku-4-5]
+   image:
+      default: [openai/gpt-image-2]
 ```
 
 Chains are normalized by canonical `provider/id` after alias and thinking-suffix
 collapse; duplicates are dropped in first-seen order. A chain configured under
-one scope is never concatenated with another scope's chain. `retry.fallbackChains`
-remains the legacy retry/role input.
+one scope is never concatenated with another scope's chain. The model-kind
+scopes (`chat`, `image`, `tts`, `stt`, `decision`, `embedding`) never borrow
+`retry`, `role`, or the legacy `retry.fallbackChains` default.
+`retry.fallbackChains` remains the legacy retry/role input.
+
+### Deployment scenarios (`modelScenarios`)
+
+`modelScenarios` constrains which task agents may run a workload and how far
+their selected model may send data:
+
+```yaml
+modelScenarios:
+   private-review:
+      allowedAgents: [reviewer]
+      boundary: private # local | private | public
+      failClosed: true # default
+```
+
+A model's boundary comes from its endpoint: loopback endpoints and built-in
+local provider ids are `local`, RFC1918 / `.local` / private-network hosts are
+`private`, and everything else is `public`. A scenario accepts its own boundary
+and every stricter one, so `private` accepts local and private models but not a
+public vendor API.
+
+At a task/subagent spawn the primary model and the fallback chain that would be
+installed are resolved together. A known out-of-boundary candidate is skipped;
+an allowed fallback may replace an out-of-boundary primary. With `failClosed`
+(the default) and no in-boundary candidate, the task fails with a
+`scenario_boundary:` error before a child session is created or a request is
+sent. With `failClosed: false`, the out-of-boundary primary still runs, logs an
+advisory, and known out-of-boundary fallbacks are removed.
+
+`allowedAgents` is optional; absent or empty applies the scenario to every
+agent. An agent may appear in only one scenario, and an all-agent scenario
+cannot be combined with another. Existing configurations need no migration:
+`modelScenarios` defaults to empty, and an agent no scenario names keeps its
+previous resolution and fallback behavior.
+
+Scenario enforcement covers the initial task/subagent spawn. Resume and
+cold-revival restore the captured spawn spec, and explicit in-session model
+switches (including prewalk and context promotion) use their own selection
+paths; those do not re-check the scenario. The spawn-time model was checked,
+but a scenario added after the spawn does not retroactively constrain a resumed
+session. The spawned child's configured retry-fallback chain is filtered to the
+scenario boundary when it is installed.
 
 ## `/model` and `zetacode models`
 

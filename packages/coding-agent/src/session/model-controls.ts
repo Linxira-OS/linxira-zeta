@@ -36,12 +36,15 @@ import {
 import {
 	type FallbackDuplicate,
 	type FallbackModelResolver,
-	type FallbackScope,
+	findKindFallbackChain,
 	findScopedFallbackChain,
+	isTargetFallbackScope,
+	type KindFallbackScope,
 	mergeFallbackChains,
 	normalizeFallbackChain,
 	normalizeScopedFallbackChains,
 	type ScopedFallbackLookup,
+	type TargetFallbackScope,
 } from "../config/fallback-normalize";
 import { formatModelRoleAlias } from "../config/model-roles";
 import { buildServiceTierByFamily } from "../config/service-tier";
@@ -81,7 +84,9 @@ import {
 	cfgEnabledModels,
 	cfgFallbackScopes,
 	cfgModelAgents,
+	cfgModelScenarios,
 	type ModelAgentIdentity,
+	type ModelDataBoundary,
 } from "../config/model-settings";
 
 /**
@@ -181,7 +186,7 @@ export const TEAM_MODEL_TARGET_IDS: readonly TeamModelTarget[] = Object.keys(TEA
 
 export type ModelTargetKind = "agent" | "team";
 export type ModelTargetPrimarySource = "agent" | "role" | "default";
-export type ModelTargetFallbackSource = FallbackScope | "legacy-retry";
+export type ModelTargetFallbackSource = TargetFallbackScope | "legacy-retry";
 
 export interface ModelTargetResolutionOptions {
 	/** Defaults to `team` when the target is one of {@link TEAM_MODEL_TARGETS}. */
@@ -195,7 +200,7 @@ export interface ModelTargetResolutionOptions {
 	 * order agent -> mode -> role -> retry, then the legacy retry chains.
 	 * Naming a scope reads that scope only; no chain crosses scopes.
 	 */
-	fallbackScope?: FallbackScope | "auto";
+	fallbackScope?: TargetFallbackScope | "auto";
 	/** Set false to stop an agent/team target inheriting legacy `retry.fallbackChains`. */
 	inheritRetryFallback?: boolean;
 	/** Catalog hook used to collapse alias spellings while normalizing chains. */
@@ -290,7 +295,12 @@ function selectTargetFallback(
 			break;
 	}
 	const found = findScopedFallbackChain(normalized, lookups);
-	if (found) return { chain: found.chain.chain, source: found.scope };
+	if (found) {
+		return {
+			chain: found.chain.chain,
+			...(isTargetFallbackScope(found.scope) ? { source: found.scope } : {}),
+		};
+	}
 	if ((scope === "auto" || scope === "retry") && options.inheritRetryFallback !== false) {
 		const legacy = getRetryFallbackChains(settings);
 		const chain = legacy[role] ?? legacy.default;
@@ -370,6 +380,256 @@ export function resolveVibeModelTarget(
 	options: ModelTargetResolutionOptions = {},
 ): ResolvedModelTarget {
 	return resolveTeamModelTarget(settings, target, { ...options, mode: options.mode ?? "vibe" });
+}
+
+/** One model kind's own fallback chain, with no cross-scope inheritance. */
+export interface KindFallbackResolution {
+	readonly kind: KindFallbackScope;
+	readonly chain: readonly string[];
+	readonly duplicates: readonly FallbackDuplicate[];
+	/** Set only when this kind's scope has a configured key (an empty chain still counts). */
+	readonly source?: { readonly scope: KindFallbackScope; readonly key: string };
+}
+
+/**
+ * Resolve the fallback chain for a model kind. Only `fallbackScopes.<kind>` is
+ * read; a missing chain stays empty and never borrows `retry`, `role`, or the
+ * legacy `retry.fallbackChains` default. Keys are tried in caller order.
+ */
+export function resolveKindFallback(
+	settings: Settings,
+	kind: KindFallbackScope,
+	keys: readonly string[],
+	options: { resolveModel?: FallbackModelResolver } = {},
+): KindFallbackResolution {
+	const normalized = normalizeScopedFallbackChains(
+		cfgFallbackScopes.get(settings),
+		options.resolveModel === undefined ? {} : { resolveModel: options.resolveModel },
+	);
+	const found = findKindFallbackChain(normalized, kind, keys);
+	return {
+		kind,
+		chain: [...(found?.chain.chain ?? [])],
+		duplicates: (found?.chain.duplicates ?? []).map(duplicate => ({ ...duplicate })),
+		...(found === undefined ? {} : { source: { scope: found.scope, key: found.key } }),
+	};
+}
+
+/**
+ * Ordered egress boundaries. A scenario allows its own boundary and every
+ * more restrictive one (a `private` scenario may use local or private models,
+ * but never a public vendor API).
+ */
+const BOUNDARY_RANK: Readonly<Record<ModelDataBoundary, number>> = { local: 0, private: 1, public: 2 };
+
+/** Providers whose models stay on this machine when no endpoint is recorded. */
+const LOCAL_PROVIDER_IDS: Readonly<Record<string, true>> = {
+	local: true,
+	ollama: true,
+	"llama.cpp": true,
+	"lm-studio": true,
+	vllm: true,
+	"apple-foundation-models": true,
+};
+
+function isLoopbackHostname(hostname: string): boolean {
+	return (
+		hostname === "localhost" ||
+		hostname === "0.0.0.0" ||
+		hostname === "::1" ||
+		hostname === "[::1]" ||
+		hostname.startsWith("127.")
+	);
+}
+
+function isPrivateHostname(hostname: string): boolean {
+	if (hostname.startsWith("10.")) return true;
+	if (hostname.startsWith("192.168.")) return true;
+	if (/^172\.(?:1[6-9]|2\d|3[01])\./u.test(hostname)) return true;
+	if (hostname.startsWith("169.254.")) return true;
+	if (/\.(?:local|internal|lan|corp|home|private)$/u.test(hostname)) return true;
+	const bare = hostname.replace(/^\[|\]$/gu, "");
+	return /^(?:fc|fd|fe8|fe9|fea|feb)/u.test(bare);
+}
+
+/** Data boundary a model's provider endpoint implies. */
+export function modelDataBoundary(model: { readonly provider: string; readonly baseUrl?: string }): ModelDataBoundary {
+	const baseUrl = model.baseUrl?.trim() ?? "";
+	if (baseUrl !== "") {
+		if (baseUrl.startsWith("local://")) return "local";
+		try {
+			const url = new URL(baseUrl);
+			if (url.protocol === "local:" || url.protocol === "file:") return "local";
+			const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
+			if (isLoopbackHostname(hostname)) return "local";
+			if (isPrivateHostname(hostname)) return "private";
+			// An unparseable or non-loopback endpoint is treated as public: the
+			// safe default when a private scenario cannot prove locality.
+			return "public";
+		} catch {
+			return "public";
+		}
+	}
+	return LOCAL_PROVIDER_IDS[model.provider.trim().toLowerCase()] === true ? "local" : "public";
+}
+
+/** Whether a model at `actual` fits a scenario limited to `limit`. */
+export function boundaryAllows(limit: ModelDataBoundary, actual: ModelDataBoundary): boolean {
+	return BOUNDARY_RANK[actual] <= BOUNDARY_RANK[limit];
+}
+
+/** Scenario constraint that applies to an agent, with its defaults resolved. */
+export interface ModelScenarioMatch {
+	readonly name: string;
+	readonly boundary: ModelDataBoundary;
+	readonly failClosed: boolean;
+	/** Empty means the scenario applies to every agent. */
+	readonly allowedAgents: readonly string[];
+}
+
+/** First scenario whose allowlist contains `agent`; empty allowlists apply to all. */
+export function modelScenarioForAgent(settings: Settings, agent: string): ModelScenarioMatch | undefined {
+	const wanted = agent.trim();
+	for (const [name, scenario] of Object.entries(cfgModelScenarios.get(settings))) {
+		const allowedAgents = (scenario.allowedAgents ?? []).map(entry => entry.trim()).filter(entry => entry !== "");
+		if (
+			allowedAgents.length > 0 &&
+			!allowedAgents.some(entry => entry === wanted || entry.toLowerCase() === wanted.toLowerCase())
+		) {
+			continue;
+		}
+		return {
+			name,
+			boundary: scenario.boundary,
+			failClosed: scenario.failClosed !== false,
+			allowedAgents,
+		};
+	}
+	return undefined;
+}
+
+/** Minimal model shape the scenario boundary resolver needs. */
+export interface ScenarioBoundaryModel {
+	readonly provider: string;
+	readonly baseUrl?: string;
+}
+
+/** One ordered model candidate (the primary first, then its fallbacks). */
+export interface ScenarioBoundaryCandidate<M extends ScenarioBoundaryModel = ScenarioBoundaryModel> {
+	readonly selector: string;
+	readonly model?: M;
+}
+
+export interface ScenarioSkippedCandidate {
+	readonly selector: string;
+	readonly boundary?: ModelDataBoundary;
+	readonly reason: "boundary" | "unresolved";
+}
+
+export type ScenarioBoundaryOutcome = "allowed" | "fallback" | "refused" | "advisory" | "unresolved";
+
+export interface ScenarioModelResolution<M extends ScenarioBoundaryModel = ScenarioBoundaryModel> {
+	readonly scenario: string;
+	readonly boundary: ModelDataBoundary;
+	readonly failClosed: boolean;
+	readonly outcome: ScenarioBoundaryOutcome;
+	/** The candidate the caller may use; absent when the resolver refused. */
+	readonly chosen?: ScenarioBoundaryCandidate<M>;
+	readonly modelBoundary?: ModelDataBoundary;
+	readonly skipped: readonly ScenarioSkippedCandidate[];
+	readonly reason?: string;
+}
+
+function scenarioRefusalReason(scenario: ModelScenarioMatch, skipped: readonly ScenarioSkippedCandidate[]): string {
+	const violations = skipped
+		.filter(entry => entry.reason === "boundary")
+		.map(entry => `${entry.selector} (${entry.boundary ?? "unknown"})`);
+	const unresolved = skipped.filter(entry => entry.reason === "unresolved").map(entry => entry.selector);
+	const parts = [
+		...(violations.length === 0 ? [] : [`outside ${scenario.boundary}: ${violations.join(", ")}`]),
+		...(unresolved.length === 0 ? [] : [`unresolved: ${unresolved.join(", ")}`]),
+	];
+	return parts.length === 0 ? "no candidate model fits the scenario boundary" : parts.join("; ");
+}
+
+/**
+ * Enforce a scenario's boundary over ordered candidates. A candidate outside
+ * the boundary is skipped, never silently used; a permitted fallback may be
+ * chosen. With `failClosed` (the default) and no permitted candidate the
+ * resolver refuses (`chosen` absent) instead of using the primary anyway.
+ */
+export function enforceScenarioBoundary<M extends ScenarioBoundaryModel>(
+	scenario: ModelScenarioMatch,
+	candidates: readonly ScenarioBoundaryCandidate<M>[],
+): ScenarioModelResolution<M> {
+	const skipped: ScenarioSkippedCandidate[] = [];
+	for (const [index, candidate] of candidates.entries()) {
+		if (candidate.model === undefined) {
+			skipped.push({ selector: candidate.selector, reason: "unresolved" });
+			continue;
+		}
+		const modelBoundary = modelDataBoundary(candidate.model);
+		if (!boundaryAllows(scenario.boundary, modelBoundary)) {
+			skipped.push({ selector: candidate.selector, boundary: modelBoundary, reason: "boundary" });
+			continue;
+		}
+		return {
+			scenario: scenario.name,
+			boundary: scenario.boundary,
+			failClosed: scenario.failClosed,
+			outcome: index === 0 ? "allowed" : "fallback",
+			chosen: candidate,
+			modelBoundary,
+			skipped,
+			...(index === 0 ? {} : { reason: scenarioRefusalReason(scenario, skipped) }),
+		};
+	}
+	const reason = scenarioRefusalReason(scenario, skipped);
+	if (scenario.failClosed) {
+		return {
+			scenario: scenario.name,
+			boundary: scenario.boundary,
+			failClosed: true,
+			outcome: "refused",
+			skipped,
+			reason,
+		};
+	}
+	const primary = candidates[0];
+	if (primary?.model === undefined) {
+		return {
+			scenario: scenario.name,
+			boundary: scenario.boundary,
+			failClosed: false,
+			outcome: "unresolved",
+			skipped,
+			...(reason === "" ? {} : { reason }),
+		};
+	}
+	return {
+		scenario: scenario.name,
+		boundary: scenario.boundary,
+		failClosed: false,
+		outcome: "advisory",
+		chosen: primary,
+		modelBoundary: modelDataBoundary(primary.model),
+		skipped,
+		reason,
+	};
+}
+
+/**
+ * Resolve the scenario that applies to `agent` and enforce its boundary over
+ * the ordered candidates. Returns undefined when no scenario constrains the
+ * agent, so an existing configuration behaves exactly as before.
+ */
+export function resolveScenarioModel<M extends ScenarioBoundaryModel>(
+	settings: Settings,
+	agent: string,
+	candidates: readonly ScenarioBoundaryCandidate<M>[],
+): ScenarioModelResolution<M> | undefined {
+	const scenario = modelScenarioForAgent(settings, agent);
+	return scenario === undefined ? undefined : enforceScenarioBoundary(scenario, candidates);
 }
 
 /** Capabilities borrowed from the owning AgentSession. */
@@ -533,6 +793,18 @@ export class ModelControls {
 	/** Resolve a named agent or Vibe/Team target's configured identity. */
 	resolveTargetIdentity(target: string, options?: ModelTargetResolutionOptions): ResolvedModelTarget {
 		return resolveModelTargetIdentity(this.#host.settings, target, options);
+	}
+
+	/**
+	 * Enforce the deployment scenario that applies to `target` over ordered
+	 * candidates (primary first, fallbacks after). Undefined when no scenario
+	 * constrains the target, so legacy configurations keep their behavior.
+	 */
+	resolveScenarioTarget<M extends ScenarioBoundaryModel>(
+		target: string,
+		candidates: readonly ScenarioBoundaryCandidate<M>[],
+	): ScenarioModelResolution<M> | undefined {
+		return resolveScenarioModel(this.#host.settings, target, candidates);
 	}
 
 	async setModel(

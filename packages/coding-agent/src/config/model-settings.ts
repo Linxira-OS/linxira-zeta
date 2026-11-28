@@ -51,12 +51,39 @@ export type ModelAgentConfig = string | ModelAgentIdentity;
 /** Per-agent identity overrides keyed by agent name or Vibe/Team target. */
 export type ModelAgentsSettings = Record<string, ModelAgentConfig>;
 
+/**
+ * Egress boundary a scenario tolerates. Ordered from most restrictive to
+ * least: `local` stays on this machine, `private` may reach a private network
+ * deployment, `public` may reach a vendor API.
+ */
+export const MODEL_DATA_BOUNDARIES = ["local", "private", "public"] as const;
+export type ModelDataBoundary = (typeof MODEL_DATA_BOUNDARIES)[number];
+
+/**
+ * One named scenario (`modelScenarios.<name>`). A scenario constrains which
+ * agents may run it and how far their selected model may send data.
+ *
+ * `allowedAgents` is an allowlist; absent or empty means every agent. An agent
+ * may appear in at most one scenario, so two constraints never overlap.
+ * `failClosed` defaults to `true`: when no candidate fits the boundary the
+ * resolver refuses instead of using an out-of-boundary model.
+ */
+export interface ModelScenario {
+	allowedAgents?: readonly string[];
+	boundary: ModelDataBoundary;
+	failClosed?: boolean;
+}
+
+/** Named deployment scenarios (`modelScenarios`). */
+export type ModelScenariosSettings = Record<string, ModelScenario>;
+
 const EMPTY_STRING_ARRAY: string[] = [];
 const EMPTY_STRING_RECORD: Record<string, string> = {};
 const DEFAULT_CYCLE_ORDER: string[] = ["smol", "default", "slow"];
 const EMPTY_MODEL_TAGS_RECORD: ModelTagsSettings = {};
 const EMPTY_MODEL_PRESETS_RECORD: Record<string, ModelPreset> = {};
 const EMPTY_MODEL_AGENTS_RECORD: ModelAgentsSettings = {};
+const EMPTY_MODEL_SCENARIOS_RECORD: ModelScenariosSettings = {};
 const EMPTY_AUTH_ACCOUNT_POLICIES: AuthAccountPolicies = [];
 
 // Auth broker — credentials proxied through a remote `zetacode auth-broker serve`
@@ -226,6 +253,47 @@ function validateFallbackScopes(raw: unknown): void {
 	}
 }
 
+function validateModelScenarios(raw: unknown): void {
+	if (raw === undefined || raw === null) return;
+	if (!isRecord(raw)) throw new Error("modelScenarios must be a mapping of scenario names to constraints");
+	const entries = Object.entries(raw);
+	const assigned = new Map<string, string>();
+	const ambient = entries.filter(([, value]) => {
+		if (!isRecord(value)) return false;
+		const agents = value.allowedAgents;
+		return agents === undefined || (Array.isArray(agents) && agents.length === 0);
+	});
+	if (ambient.length > 1 || (ambient.length === 1 && entries.length > 1)) {
+		throw new Error(
+			`modelScenarios.${ambient[0]?.[0] ?? "?"} applies to every agent and cannot be combined with another scenario`,
+		);
+	}
+	for (const [name, value] of entries) {
+		if (name.trim() === "") throw new Error("modelScenarios keys must be non-empty scenario names");
+		if (!isRecord(value)) throw new Error(`modelScenarios.${name} must be an object`);
+		if (!(MODEL_DATA_BOUNDARIES as readonly string[]).includes(String(value.boundary))) {
+			throw new Error(`modelScenarios.${name}.boundary must be one of ${MODEL_DATA_BOUNDARIES.join(", ")}`);
+		}
+		if (value.failClosed !== undefined && typeof value.failClosed !== "boolean") {
+			throw new Error(`modelScenarios.${name}.failClosed must be a boolean`);
+		}
+		const agents = value.allowedAgents;
+		if (agents === undefined) continue;
+		if (!Array.isArray(agents)) throw new Error(`modelScenarios.${name}.allowedAgents must be an array`);
+		for (const agent of agents) {
+			if (typeof agent !== "string" || agent.trim() === "") {
+				throw new Error(`modelScenarios.${name}.allowedAgents entries must be non-empty agent names`);
+			}
+			const key = agent.trim().toLowerCase();
+			const owner = assigned.get(key);
+			if (owner !== undefined && owner !== name) {
+				throw new Error(`modelScenarios.${name}.allowedAgents lists ${agent}, already constrained by ${owner}`);
+			}
+			assigned.set(key, name);
+		}
+	}
+}
+
 /**
  * Per-agent identity overrides. Each named agent (bundled or user) and each
  * Vibe/Team role target (`worker`, `reviewer`, `secretary`, `pm`) can carry its
@@ -242,14 +310,28 @@ export const cfgModelAgents = register({
 
 /**
  * Scoped fallback chains. `resume`, `retry`, `role`, `agent` and `mode` are
- * independent; a chain configured under one scope is never reused by another.
- * `retry.fallbackChains` remains the legacy retry/role input.
+ * independent, and so are the model-kind scopes `chat`, `image`, `tts`, `stt`,
+ * `decision` and `embedding`; a chain configured under one scope is never
+ * reused by another. A kind chain in particular never borrows `retry` or the
+ * legacy `retry.fallbackChains` default.
  */
 export const cfgFallbackScopes = register({
 	id: "fallbackScopes",
 	type: "record",
 	default: EMPTY_SCOPED_FALLBACK_CHAINS,
 	validate: validateFallbackScopes,
+});
+
+/**
+ * Deployment scenarios. Each names the agents allowed to run it and the data
+ * boundary their model may send to. Absent scenarios leave every existing
+ * configuration untouched (zero migration).
+ */
+export const cfgModelScenarios = register({
+	id: "modelScenarios",
+	type: "record",
+	default: EMPTY_MODEL_SCENARIOS_RECORD,
+	validate: validateModelScenarios,
 });
 
 /** Total provider budget for one native judge candidate, including setup and retries. */

@@ -30,10 +30,20 @@ export interface ModelsBlueprint {
 	readonly edges: readonly BlueprintEdge[];
 }
 
-/** One state object plus its projection; the page never renders a second copy. */
+/** One presentational animation step projected from the same Blueprint. */
+export interface ModelsAnimationFrame {
+	readonly id: string;
+	readonly label: string;
+	readonly detail?: string;
+	readonly nodeIds: readonly string[];
+	readonly edgeIds: readonly string[];
+}
+
+/** One state object plus its projections; the page never renders a second copy. */
 export interface ModelsControlView {
 	readonly snapshot: ModelsControlSnapshot;
 	readonly blueprint: ModelsBlueprint;
+	readonly animation: readonly ModelsAnimationFrame[];
 }
 
 const THINKING_SUFFIXES: Readonly<Record<string, true>> = {
@@ -172,6 +182,38 @@ export function projectModelsBlueprint(snapshot: ModelsControlSnapshot): ModelsB
 	return { nodes: [...nodes.values()], edges: [...edges.values()] };
 }
 
+/** Bound the preview so a large catalog cannot page through hundreds of steps. */
+const MAX_ANIMATION_FRAMES = 24;
+
+/**
+ * Presentational animation frames for the same Blueprint. Every frame points
+ * at nodes/edges that already exist there, so the preview holds no model state:
+ * a new snapshot produces new frames, and nothing here is editable.
+ */
+export function projectModelsAnimation(blueprint: ModelsBlueprint): readonly ModelsAnimationFrame[] {
+	const nodes = new Map(blueprint.nodes.map(node => [node.id, node]));
+	const candidates = [
+		...blueprint.edges.filter(edge => edge.label?.startsWith("fallback") === true),
+		...blueprint.edges.filter(edge => edge.label === "selects"),
+		...blueprint.edges.filter(edge => edge.label === "supports" || edge.label === "paused"),
+	];
+	const edges =
+		candidates.length === 0
+			? blueprint.edges.slice(0, MAX_ANIMATION_FRAMES)
+			: candidates.slice(0, MAX_ANIMATION_FRAMES);
+	return edges.map(edge => {
+		const from = nodes.get(edge.from);
+		const to = nodes.get(edge.to);
+		return {
+			id: edge.id,
+			label: `${from?.label ?? edge.from} → ${to?.label ?? edge.to}`,
+			...(edge.label === undefined ? {} : { detail: edge.label }),
+			nodeIds: [edge.from, edge.to],
+			edgeIds: [edge.id],
+		};
+	});
+}
+
 export interface BlueprintLayoutNode extends BlueprintNode {
 	readonly x: number;
 	readonly y: number;
@@ -249,7 +291,8 @@ export function layoutModelsBlueprint(blueprint: ModelsBlueprint): ModelsBluepri
 	};
 }
 
-/** The page's one derived view: the original state plus its Blueprint. */
+/** The page's one derived view: the original state plus its projections. */
 export function buildModelsControlView(snapshot: ModelsControlSnapshot): ModelsControlView {
-	return { snapshot, blueprint: projectModelsBlueprint(snapshot) };
+	const blueprint = projectModelsBlueprint(snapshot);
+	return { snapshot, blueprint, animation: projectModelsAnimation(blueprint) };
 }

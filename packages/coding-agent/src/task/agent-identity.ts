@@ -14,6 +14,25 @@ import { resolveModelTargetIdentity } from "../session/model-controls";
 import type { ToolSession } from "../tools";
 import type { ConfiguredThinkingLevel } from "../utils/render-utils";
 
+/** Machine-readable task refusal raised when a deployment scenario cannot be satisfied. */
+export const SCENARIO_BOUNDARY_ERROR = "scenario_boundary";
+
+/** A scenario boundary refusal with the details a task result should surface. */
+export class TaskScenarioBoundaryError extends Error {
+	readonly code = SCENARIO_BOUNDARY_ERROR;
+
+	constructor(
+		agentName: string,
+		refusal: { readonly scenario: string; readonly boundary: string; readonly reason?: string },
+	) {
+		const reason = refusal.reason ?? "no candidate model fits the boundary";
+		super(
+			`${SCENARIO_BOUNDARY_ERROR}: agent "${agentName}" has no model within the "${refusal.boundary}" data boundary required by scenario "${refusal.scenario}" (${reason}). Configure an in-boundary model, remove the agent from modelScenarios.${refusal.scenario}.allowedAgents, or set failClosed: false.`,
+		);
+		this.name = "TaskScenarioBoundaryError";
+	}
+}
+
 export interface TaskAgentIdentity {
 	/** Explicit `modelAgents` model; absent keeps the legacy source. */
 	readonly model?: string;

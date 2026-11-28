@@ -17,11 +17,16 @@ import type {
 import {
 	buildModelsControlView,
 	layoutModelsBlueprint,
+	projectModelsAnimation,
 	projectModelsBlueprint,
 	selectorIdentity,
 } from "../modelsBlueprint";
 
-function kindSection(kind: ControlModelKind, count = 1): ModelControlKindSection {
+function kindSection(
+	kind: ControlModelKind,
+	count = 1,
+	fallback: ModelsControlSnapshot["kinds"][number]["fallback"] = [],
+): ModelControlKindSection {
 	return {
 		kind,
 		paused: kind === "tts" || kind === "stt" || kind === "video",
@@ -32,7 +37,9 @@ function kindSection(kind: ControlModelKind, count = 1): ModelControlKindSection
 			kind,
 			catalogKind: kind === "decision" ? "judge" : kind,
 			available: true,
+			boundary: "public" as const,
 		})),
+		fallback,
 	};
 }
 
@@ -96,8 +103,9 @@ const SIMPLE: ModelsControlSnapshot = {
 	teamTargets: [],
 	vibeTargets: [],
 	kinds: [kindSection("chat")],
+	scenarios: [],
 	catalogKinds: ["chat"],
-	totals: { providers: 1, models: 1, roles: 1, agents: 0, targets: 0, fallbackChains: 0 },
+	totals: { providers: 1, models: 1, roles: 1, agents: 0, targets: 0, fallbackChains: 0, scenarios: 0 },
 };
 
 const COMPLEX: ModelsControlSnapshot = {
@@ -142,6 +150,17 @@ const COMPLEX: ModelsControlSnapshot = {
 				},
 			],
 		},
+		{
+			scope: "chat",
+			chains: [
+				{
+					key: "default",
+					chain: ["openai/gpt-mini"],
+					duplicates: [],
+					sameModelDifferentEffort: [],
+				},
+			],
+		},
 	],
 	legacyRetry: [
 		{
@@ -154,9 +173,39 @@ const COMPLEX: ModelsControlSnapshot = {
 	agents: [{ ...target("reviewer", "openai/gpt-5", ["acme/chat"]), kind: "agent" }],
 	teamTargets: [target("worker", "acme/chat")],
 	vibeTargets: [target("worker", "acme/chat", ["openai/gpt-mini"])],
-	kinds: [kindSection("chat", 2), kindSection("decision"), kindSection("tts")],
+	kinds: [
+		kindSection("chat", 2, [
+			{
+				key: "default",
+				chain: ["openai/gpt-mini"],
+				duplicates: [],
+				sameModelDifferentEffort: [],
+			},
+		]),
+		kindSection("decision"),
+		kindSection("tts"),
+	],
+	scenarios: [
+		{
+			name: "local-review",
+			boundary: "local",
+			failClosed: true,
+			allowedAgents: ["reviewer"],
+			appliesToAll: false,
+			targets: [
+				{
+					target: "reviewer",
+					selector: "openai/gpt-5",
+					fallback: ["acme/chat"],
+					outcome: "refused",
+					skipped: [{ selector: "openai/gpt-5", boundary: "public", reason: "boundary" }],
+					reason: "outside local: openai/gpt-5 (public)",
+				},
+			],
+		},
+	],
 	catalogKinds: ["chat", "image", "judge", "tts"],
-	totals: { providers: 2, models: 4, roles: 2, agents: 1, targets: 2, fallbackChains: 3 },
+	totals: { providers: 2, models: 4, roles: 2, agents: 1, targets: 2, fallbackChains: 3, scenarios: 1 },
 };
 
 describe("selector identity", () => {
@@ -217,11 +266,53 @@ describe("models Blueprint projection", () => {
 		const view = buildModelsControlView(COMPLEX);
 		expect(view.snapshot).toBe(COMPLEX);
 		expect(view.blueprint).toEqual(projectModelsBlueprint(COMPLEX));
+		expect(view.animation).toEqual(projectModelsAnimation(view.blueprint));
 
 		const next = { ...COMPLEX, roles: [...COMPLEX.roles, role("commit", "acme/chat")] };
 		const nextView = buildModelsControlView(next);
 		expect(nextView.snapshot).toBe(next);
 		expect(nextView.blueprint.nodes.some(node => node.id === "role:commit")).toBe(true);
 		expect(projectModelsBlueprint(COMPLEX).nodes.some(node => node.id === "role:commit")).toBe(false);
+	});
+
+	test("projects typed kind chains and scenario decisions from the same state", () => {
+		const chat = COMPLEX.kinds.find(section => section.kind === "chat");
+		expect(chat?.fallback[0]).toMatchObject({ key: "default", chain: ["openai/gpt-mini"] });
+		expect(COMPLEX.kinds.find(section => section.kind === "tts")?.fallback).toEqual([]);
+		expect(COMPLEX.scenarios[0]).toMatchObject({
+			name: "local-review",
+			boundary: "local",
+			failClosed: true,
+		});
+		expect(COMPLEX.scenarios[0]?.targets[0]).toMatchObject({
+			target: "reviewer",
+			outcome: "refused",
+			skipped: [expect.objectContaining({ boundary: "public" })],
+		});
+	});
+
+	test("animation frames highlight existing Blueprint nodes/edges only", () => {
+		const blueprint = projectModelsBlueprint(COMPLEX);
+		const frames = projectModelsAnimation(blueprint);
+		expect(frames.length).toBeGreaterThan(0);
+		const nodeIds = new Set(blueprint.nodes.map(node => node.id));
+		const edgeIds = new Set(blueprint.edges.map(edge => edge.id));
+		for (const frame of frames) {
+			expect(frame.nodeIds.every(id => nodeIds.has(id))).toBe(true);
+			expect(frame.edgeIds.every(id => edgeIds.has(id))).toBe(true);
+			expect(frame.nodeIds.length).toBeGreaterThan(0);
+		}
+		expect(frames.map(frame => frame.id)).toEqual([...new Set(frames.map(frame => frame.id))]);
+		expect(frames.some(frame => frame.detail === "fallback:chat")).toBe(true);
+	});
+
+	test("a new snapshot derives new animation frames without a second state", () => {
+		const view = buildModelsControlView(COMPLEX);
+		const next = { ...COMPLEX, roles: [...COMPLEX.roles, role("commit", "acme/chat")] };
+		const nextView = buildModelsControlView(next);
+		expect(view.snapshot).toBe(COMPLEX);
+		expect(nextView.snapshot).toBe(next);
+		expect(nextView.animation).not.toBe(view.animation);
+		expect(nextView.animation.some(frame => frame.id === view.animation[0]?.id)).toBe(true);
 	});
 });

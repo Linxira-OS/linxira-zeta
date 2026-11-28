@@ -57,11 +57,21 @@ function makeSettings(): Settings {
 				model: "openai/gpt-chat",
 				fallback: ["openai/gpt-chat", "openai/gpt-mini", "openai/gpt-mini"],
 			},
+			offline: { model: "local/embed", fallback: ["openai/gpt-chat"] },
 		},
 		fallbackScopes: {
 			retry: { default: ["openai/gpt-chat", "openai/gpt-chat"] },
 			role: { slow: ["openai/gpt-mini", "openai/gpt-mini"] },
 			mode: { vibe: ["local/embed"] },
+			chat: { default: ["openai/gpt-mini"] },
+			image: { default: ["openai/gpt-image"] },
+		},
+		modelScenarios: {
+			"local-review": {
+				allowedAgents: ["reviewer", "offline"],
+				boundary: "local",
+				failClosed: true,
+			},
 		},
 		"retry.fallbackChains": { default: ["openai/gpt-mini", "openai/gpt-mini"] },
 	});
@@ -173,6 +183,53 @@ describe("model-control snapshot", () => {
 		expect(snapshot.kinds.find(section => section.kind === "chat")?.models).toContainEqual(
 			expect.objectContaining({ provider: "local", id: "tiny-embed", catalogKind: "tiny" }),
 		);
+	});
+
+	it("exposes each kind's own fallback chain without borrowing retry/default", () => {
+		const chat = snapshot.kinds.find(section => section.kind === "chat");
+		const image = snapshot.kinds.find(section => section.kind === "image");
+		expect(chat?.fallback[0]).toMatchObject({ key: "default", chain: ["openai/gpt-mini"] });
+		expect(image?.fallback[0]).toMatchObject({ key: "default", chain: ["openai/gpt-image"] });
+		// No tts chain exists, so the tts section stays empty even though retry
+		// and role chains are configured.
+		expect(snapshot.kinds.find(section => section.kind === "tts")?.fallback).toEqual([]);
+		expect(snapshot.fallbackScopes.find(scope => scope.scope === "chat")?.chains).toHaveLength(1);
+		expect(snapshot.fallbackScopes.find(scope => scope.scope === "tts")?.chains).toEqual([]);
+		// Typed rows carry the boundary implied by their provider/endpoint.
+		expect(chat?.models).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ provider: "openai", id: "gpt-chat", boundary: "public" }),
+				expect.objectContaining({ provider: "local", id: "tiny-embed", boundary: "local" }),
+			]),
+		);
+		expect(image?.models).toContainEqual(expect.objectContaining({ id: "gpt-image", boundary: "public" }));
+	});
+
+	it("projects scenario boundary decisions and refusals", () => {
+		expect(snapshot.totals.scenarios).toBe(1);
+		const scenario = snapshot.scenarios[0];
+		expect(scenario).toMatchObject({
+			name: "local-review",
+			boundary: "local",
+			failClosed: true,
+			appliesToAll: false,
+		});
+		expect(scenario?.allowedAgents).toEqual(["reviewer", "offline"]);
+		const reviewer = scenario?.targets.find(target => target.target === "reviewer");
+		// Public primary and public fallbacks: refused rather than silently used.
+		expect(reviewer).toMatchObject({ outcome: "refused" });
+		expect(reviewer?.selected).toBeUndefined();
+		expect(reviewer?.skipped).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ selector: "openai/gpt-chat", boundary: "public", reason: "boundary" }),
+			]),
+		);
+		const offline = scenario?.targets.find(target => target.target === "offline");
+		expect(offline).toMatchObject({
+			outcome: "allowed",
+			selected: { provider: "local", id: "embed" },
+			selectedBoundary: "local",
+		});
 	});
 
 	it("never contains credential values or auth material", () => {

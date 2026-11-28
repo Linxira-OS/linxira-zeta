@@ -58,6 +58,7 @@ import {
 	SEARCH_PROVIDER_CHOICES,
 } from "../web/search/types";
 import { EDIT_MODES } from "../edit/settings";
+import type { ModelScenario } from "./model-settings";
 import {
 	SERVICE_TIER_ANTHROPIC_OPTIONS,
 	SERVICE_TIER_ANTHROPIC_VALUES,
@@ -576,6 +577,11 @@ export const SETTINGS_SCHEMA = {
 	fallbackScopes: {
 		type: "record",
 		default: {} as Record<string, Record<string, string[]>>,
+	},
+
+	modelScenarios: {
+		type: "record",
+		default: {} as Record<string, ModelScenario>,
 	},
 
 	modelTags: { type: "record", default: EMPTY_MODEL_TAGS_RECORD },

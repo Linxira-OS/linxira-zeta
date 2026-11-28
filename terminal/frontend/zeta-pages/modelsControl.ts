@@ -20,6 +20,23 @@ export type ControlModelKind =
 	| "rerank"
 	| "video";
 
+/** Egress boundary a model endpoint implies. */
+export type ModelDataBoundary = "local" | "private" | "public";
+
+/** Fallback scopes reported by the gateway (runtime + model kinds). */
+export type ModelControlFallbackScope =
+	| "resume"
+	| "retry"
+	| "role"
+	| "agent"
+	| "mode"
+	| "chat"
+	| "image"
+	| "tts"
+	| "stt"
+	| "decision"
+	| "embedding";
+
 export type CatalogModelKind =
 	| "chat"
 	| "tiny"
@@ -53,12 +70,15 @@ export interface ModelControlModelRef {
 
 export interface ModelControlSectionModel extends ModelControlModelRef {
 	readonly available: boolean;
+	readonly boundary: ModelDataBoundary;
 }
 
 export interface ModelControlKindSection {
 	readonly kind: ControlModelKind;
 	readonly paused: boolean;
 	readonly models: readonly ModelControlSectionModel[];
+	/** This kind's own fallback chains; never borrowed from retry/default. */
+	readonly fallback: readonly ModelControlChain[];
 }
 
 export interface ModelControlDuplicate {
@@ -77,7 +97,7 @@ export interface ModelControlChain {
 }
 
 export interface ModelControlScopeChains {
-	readonly scope: "resume" | "retry" | "role" | "agent" | "mode";
+	readonly scope: ModelControlFallbackScope;
 	readonly chains: readonly ModelControlChain[];
 }
 
@@ -107,6 +127,35 @@ export interface ModelControlTarget {
 	readonly duplicates: readonly ModelControlDuplicate[];
 }
 
+export type ScenarioBoundaryOutcome = "allowed" | "fallback" | "refused" | "advisory" | "unresolved";
+
+export interface ModelControlScenarioSkipped {
+	readonly selector: string;
+	readonly boundary?: ModelDataBoundary;
+	readonly reason: "boundary" | "unresolved";
+}
+
+export interface ModelControlScenarioTarget {
+	readonly target: string;
+	readonly selector: string;
+	readonly fallback: readonly string[];
+	readonly fallbackSource?: string;
+	readonly outcome: ScenarioBoundaryOutcome;
+	readonly selected?: ModelControlModelRef;
+	readonly selectedBoundary?: ModelDataBoundary;
+	readonly skipped: readonly ModelControlScenarioSkipped[];
+	readonly reason?: string;
+}
+
+export interface ModelControlScenario {
+	readonly name: string;
+	readonly boundary: ModelDataBoundary;
+	readonly failClosed: boolean;
+	readonly allowedAgents: readonly string[];
+	readonly appliesToAll: boolean;
+	readonly targets: readonly ModelControlScenarioTarget[];
+}
+
 export interface ModelsControlSnapshot {
 	readonly schema: "models-control/1";
 	readonly readOnly: true;
@@ -118,6 +167,7 @@ export interface ModelsControlSnapshot {
 	readonly teamTargets: readonly ModelControlTarget[];
 	readonly vibeTargets: readonly ModelControlTarget[];
 	readonly kinds: readonly ModelControlKindSection[];
+	readonly scenarios: readonly ModelControlScenario[];
 	readonly catalogKinds: readonly CatalogModelKind[];
 	readonly modelError?: string;
 	readonly totals: {
@@ -127,6 +177,7 @@ export interface ModelsControlSnapshot {
 		readonly agents: number;
 		readonly targets: number;
 		readonly fallbackChains: number;
+		readonly scenarios: number;
 	};
 }
 
@@ -150,9 +201,17 @@ export function parseModelsControlSnapshot(value: unknown): ModelsControlSnapsho
 		!Array.isArray(value.teamTargets) ||
 		!Array.isArray(value.vibeTargets) ||
 		!Array.isArray(value.kinds) ||
+		!Array.isArray(value.scenarios) ||
 		!isRecord(value.totals)
 	) {
 		throw new Error("models control: malformed snapshot");
+	}
+	if (
+		!value.kinds.every(
+			section => isRecord(section) && Array.isArray(section.models) && Array.isArray(section.fallback),
+		)
+	) {
+		throw new Error("models control: kind sections must carry their models and fallback chains");
 	}
 	return value as unknown as ModelsControlSnapshot;
 }

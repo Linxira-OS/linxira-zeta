@@ -1,13 +1,20 @@
 import { describe, expect, it } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import {
+	modelDataBoundary,
+	resolveKindFallback,
 	resolveModelTargetIdentity,
+	resolveScenarioModel,
 	resolveTeamModelTarget,
 	resolveVibeModelTarget,
 	TEAM_MODEL_TARGET_IDS,
 } from "@linxiraos/zeta/session/model-controls";
 import { getRetryFallbackChains, normalizeRetryFallbackChain } from "@linxiraos/zeta/session/retry-fallback-chains";
 import type { Model } from "@linxiraos/pi-catalog/types";
+
+function boundaryModel(provider: string, id: string, baseUrl: string): Model {
+	return { provider, id, baseUrl } as unknown as Model;
+}
 
 describe("model target identity", () => {
 	it("lets an agent carry its own model, effort and fallback", () => {
@@ -156,8 +163,137 @@ describe("model target identity", () => {
 		expect(() => Settings.isolated({ fallbackScopes: { retry: { default: "not-an-array" } } })).toThrow(
 			/fallbackScopes\.retry\.default/,
 		);
+		expect(() => Settings.isolated({ fallbackScopes: { chat: { default: "not-an-array" } } })).toThrow(
+			/fallbackScopes\.chat\.default/,
+		);
 		expect(() => Settings.isolated({ modelAgents: { reviewer: { thinkingLevel: "turbo" } } })).toThrow(
 			/modelAgents\.reviewer\.thinkingLevel/,
 		);
+	});
+});
+
+describe("model-kind fallback scopes", () => {
+	it("keeps every kind chain isolated from retry and from other kinds", () => {
+		const settings = Settings.isolated({
+			fallbackScopes: {
+				chat: { default: ["acme/chat-fallback"] },
+				image: { default: ["acme/image-fallback"] },
+				embedding: { default: [] },
+			},
+			"retry.fallbackChains": { default: ["legacy/retry-fallback"] },
+		});
+
+		expect(resolveKindFallback(settings, "chat", ["default"])).toMatchObject({
+			kind: "chat",
+			chain: ["acme/chat-fallback"],
+			source: { scope: "chat", key: "default" },
+		});
+		expect(resolveKindFallback(settings, "image", ["default"]).chain).toEqual(["acme/image-fallback"]);
+		// An unconfigured kind never borrows the retry scope or the legacy default.
+		expect(resolveKindFallback(settings, "tts", ["default"])).toEqual({
+			kind: "tts",
+			chain: [],
+			duplicates: [],
+		});
+		// An explicit empty chain is a configured "no fallbacks" answer.
+		expect(resolveKindFallback(settings, "embedding", ["default"])).toMatchObject({
+			chain: [],
+			source: { scope: "embedding", key: "default" },
+		});
+	});
+});
+
+describe("model scenarios", () => {
+	const publicModel = boundaryModel("openai", "gpt-5", "https://api.openai.com/v1");
+	const privateModel = boundaryModel("vllm", "qwen", "http://10.4.0.9:8000/v1");
+	const localModel = boundaryModel("ollama", "llama", "http://127.0.0.1:11434/v1");
+
+	it("classifies endpoint boundaries local < private < public", () => {
+		expect(modelDataBoundary(localModel)).toBe("local");
+		expect(modelDataBoundary(privateModel)).toBe("private");
+		expect(modelDataBoundary(publicModel)).toBe("public");
+		expect(modelDataBoundary({ provider: "ollama" })).toBe("local");
+		expect(modelDataBoundary({ provider: "acme" })).toBe("public");
+	});
+
+	it("uses an allowed fallback instead of a public primary in a private scenario", () => {
+		const settings = Settings.isolated({
+			modelScenarios: {
+				"private-review": { allowedAgents: ["reviewer"], boundary: "private" },
+			},
+		});
+		const resolution = resolveScenarioModel(settings, "reviewer", [
+			{ selector: "openai/gpt-5", model: publicModel },
+			{ selector: "vllm/qwen", model: privateModel },
+		]);
+		expect(resolution).toMatchObject({
+			scenario: "private-review",
+			outcome: "fallback",
+			chosen: { selector: "vllm/qwen" },
+			modelBoundary: "private",
+		});
+		expect(resolution?.skipped).toEqual([{ selector: "openai/gpt-5", boundary: "public", reason: "boundary" }]);
+	});
+
+	it("refuses an out-of-boundary primary when fail-closed finds no allowed candidate", () => {
+		const settings = Settings.isolated({
+			modelScenarios: {
+				"private-review": { allowedAgents: ["reviewer"], boundary: "private" },
+			},
+		});
+		const resolution = resolveScenarioModel(settings, "reviewer", [
+			{ selector: "openai/gpt-5", model: publicModel },
+			{ selector: "openai/gpt-5-mini", model: publicModel },
+		]);
+		expect(resolution).toMatchObject({ outcome: "refused", failClosed: true });
+		expect(resolution?.chosen).toBeUndefined();
+		expect(resolution?.reason).toContain("outside private");
+	});
+
+	it("reports the boundary violation when failClosed is false", () => {
+		const settings = Settings.isolated({
+			modelScenarios: {
+				"private-review": { allowedAgents: ["reviewer"], boundary: "local", failClosed: false },
+			},
+		});
+		const resolution = resolveScenarioModel(settings, "reviewer", [{ selector: "vllm/qwen", model: privateModel }]);
+		expect(resolution).toMatchObject({
+			outcome: "advisory",
+			chosen: { selector: "vllm/qwen" },
+			modelBoundary: "private",
+		});
+		expect(resolution?.reason).toContain("outside local");
+	});
+
+	it("leaves an agent without a scenario unconstrained", () => {
+		const settings = Settings.isolated({ modelRoles: { default: "openai/gpt-5" } });
+		expect(
+			resolveScenarioModel(settings, "reviewer", [{ selector: "openai/gpt-5", model: publicModel }]),
+		).toBeUndefined();
+	});
+
+	it("rejects malformed scenario constraints", () => {
+		expect(() => Settings.isolated({ modelScenarios: { review: { boundary: "orbital" } } })).toThrow(
+			/modelScenarios\.review\.boundary/,
+		);
+		expect(() => Settings.isolated({ modelScenarios: { review: { boundary: "local", failClosed: "yes" } } })).toThrow(
+			/modelScenarios\.review\.failClosed/,
+		);
+		expect(() =>
+			Settings.isolated({
+				modelScenarios: {
+					first: { allowedAgents: ["reviewer"], boundary: "local" },
+					second: { allowedAgents: ["Reviewer"], boundary: "public" },
+				},
+			}),
+		).toThrow(/already constrained by first/);
+		expect(() =>
+			Settings.isolated({
+				modelScenarios: {
+					ambient: { boundary: "local" },
+					review: { allowedAgents: ["reviewer"], boundary: "public" },
+				},
+			}),
+		).toThrow(/applies to every agent/);
 	});
 });
