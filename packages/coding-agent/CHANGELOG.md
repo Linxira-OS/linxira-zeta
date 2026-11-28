@@ -1,8 +1,18 @@
 ## [Unreleased]
 
+### Added
+
+- Binary file previews render a bounded read-only hex window, and local previews can open the file in `zetaide` without replacing the in-app editor.
+- `serve` mounts the Team/Rooms/IM pages at `/pages/{team,rooms,im}` and advertises `identity.pages`.
+
 ### Changed
 
 - Resuming a session whose saved model disappeared now keeps the current or first credentialed model, records it on the session, and warns instead of refusing to resume.
+
+### Fixed
+
+- Fullscreen TUI menus (settings, model hub, dashboards) restore the pre-pi-tui mouse tracking level, so click, hover and wheel work in plain terminals again.
+- Team/Rooms/IM pages recover room membership, IM state and auth-loss cases instead of showing another room/chat's stale data.
 
 ## [1.5.15] - 2026-11-27
 
