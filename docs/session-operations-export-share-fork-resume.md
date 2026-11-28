@@ -471,7 +471,7 @@ its own for the current session.
 
 For compatibility, `--continue <full-UUID>` is normalized to `--resume <UUID>` when the UUID is the sole positional message. The `autoResume` setting invokes the same `continueRecent` behavior when no explicit session flag/session directory is supplied, and restores session model/thinking state when a prior transcript was found.
 
-If implicit interactive auto-resume exhausts the saved models and model-fallback policy forbids substitution, startup closes the skipped session, warns, and starts a new session without its history or provider cache identity. It does not retry older transcripts or weaken restoration policy. When `--max-time` is set, the new session keeps the launch's original absolute deadline; time spent on the failed restore is not added back to the budget. Explicit `--continue`/`--resume`, runtime `/resume`, and headless/SDK hosts still fail closed under the same policy; an explicit model override remains an intentional way to restore the transcript with another model.
+If implicit interactive auto-resume exhausts the saved models, startup resumes the transcript on the current or first credentialed model and records that choice on the session, with the same warning as an explicit resume. When `--max-time` is set, the session keeps the launch's original absolute deadline; time spent on model discovery is not added back to the budget. An explicit model override still replaces the saved model before restoration.
 
 This is startup-only behavior; there is no interactive `/continue` slash command.
 
@@ -497,7 +497,7 @@ falls back to spawning the replacement with inherited terminal streams.
 2. Disconnect the agent event subscription, abort in-flight work, and run the optional pre-switch reconciler.
 3. Flush pending bash/session writes and capture rollback state: session manager state; agent messages and all queues; model/thinking/service tiers; tools and prompts; provider/cache ids; memory promotion; and checkpoint rewind state.
 4. Clear agent and next-turn queues. For a different file, drain/detach advisor recorders.
-5. `sessionManager.setSessionFile(sessionPath)`, update provider-cache/session ids and memory keys, build the display context, resolve the recorded model, and rehydrate checkpoint state. When no recorded model can be restored for a different file, the switch fails here with `Could not restore model <provider/id>` (see below).
+5. `sessionManager.setSessionFile(sessionPath)`, update provider-cache/session ids and memory keys, build the display context, resolve the recorded model, and rehydrate checkpoint state. When no recorded model can be restored for a different file, the switch keeps the current or first credentialed model, records it, and warns (see below).
 6. Emit `session_switch` with `reason: "resume"`.
 7. Replace agent messages, reset advisor state, and synchronize todos. Close cached provider sessions for a different file, or for a same-file reload whose replay messages changed.
 8. Apply the resolved (or explicitly requested) model. If the loaded branch ended with an interrupted turn, append its synthetic abort message and rebuild context.

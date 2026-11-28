@@ -2565,7 +2565,6 @@ export async function runRootCommand(
 			options.authStorage = authStorage;
 			options.modelRegistry = modelRegistry;
 			options.hasUI = isInteractive || mode === "rpc-ui";
-			options.allowSessionModelFallback = isInteractive;
 			options.settingsApproval = isInteractive;
 			options.tuiTranscript = isInteractive;
 			options.autoTitle = isInteractive;

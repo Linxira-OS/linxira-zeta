@@ -830,7 +830,8 @@ export class RpcClient {
 	 * Continue the newest session in `sessionDir`, or start a fresh one there.
 	 * Lets a pre-spawned process bind to a host-keyed conversation. With `model`,
 	 * the session uses it instead of its saved model; otherwise a saved model that
-	 * cannot be restored rejects with `Could not restore model <provider/id>`.
+	 * cannot be restored falls back to the current or first credentialed model and
+	 * records it.
 	 */
 	async openSession(sessionDir: string, model?: { provider: string; modelId: string }): Promise<RpcOpenSessionResult> {
 		const response = await this.#send({ type: "open_session", sessionDir, ...model });
