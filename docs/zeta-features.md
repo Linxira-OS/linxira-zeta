@@ -104,6 +104,11 @@ high-interaction and accessibility fallback; it is not Work Studio and does not
 bring back the full browser workbench. See [`terminal/README.md`](../terminal/README.md) and
 [`document/adr/0100-terminal-product-line-work-studio-retirement.md`](../document/adr/0100-terminal-product-line-work-studio-retirement.md).
 
+Zeta Terminal inherits Wave's code but not its telemetry: diagnostic pings,
+telemetry uploads, local telemetry writes and the Wave AI telemetry opt-in are
+disabled at the package boundary. The setting and upstream code stay for merge
+compatibility but never send or record usage.
+
 ## Ultra plan mode## Ultra plan mode
 
 Plan mode has three workflows: `/plan` (parallel, the default), `/plan-ultra`
