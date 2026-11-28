@@ -164,15 +164,20 @@ function eventMatchesScope(scope: SubscriptionScope, event: ClientEvent): boolea
 }
 
 export class StudioWebClient implements StudioClient {
-	readonly #transport: BrowserWebClientTransport;
+	#transport: BrowserWebClientTransport;
+	readonly #options: StudioWebClientOptions;
 	readonly #commands = new Map<string, CommandState>();
 	readonly #listeners = new Set<{ readonly scope: SubscriptionScope; readonly listener: (event: ClientEvent) => void }>();
+	readonly #authLostListeners = new Set<() => void>();
 	#transportUnsubscribe: Unsubscribe | undefined;
 	#bootstrapPromise: Promise<ClientBootstrap> | undefined;
 	#bootstrapped = false;
+	#authLostNotified = false;
+	#transportEpoch = 0;
 	#closed = false;
 
 	constructor(options: StudioWebClientOptions) {
+		this.#options = options;
 		this.#transport = new BrowserWebClientTransport(options);
 	}
 
@@ -180,18 +185,66 @@ export class StudioWebClient implements StudioClient {
 		return this.#transport;
 	}
 
-	/** Exchange a one-time `#zeta-pair` code for the device cookie and CSRF. */
+	/**
+	 * Exchange a one-time `#zeta-pair` code for the device cookie and CSRF.
+	 * Pairing while already bootstrapped changes the device identity: drop the
+	 * old cookie-bound event socket first so its events cannot shadow the new
+	 * session.
+	 */
 	async pair(code: string): Promise<void> {
+		if (this.#bootstrapped) await this.reset();
 		await this.#transport.pair(code);
+	}
+
+	/**
+	 * The paired session was revoked or expired (a 401 from query/command).
+	 * The page must pair again; the caller replaces the transport so a new
+	 * device cookie is not shadowed by the old event socket.
+	 */
+	onAuthLost(listener: () => void): Unsubscribe {
+		this.#authLostListeners.add(listener);
+		return () => this.#authLostListeners.delete(listener);
+	}
+
+	/** Drop the current session's transport; the next pair/bootstrap starts clean. */
+	async reset(): Promise<void> {
+		this.#transportEpoch += 1;
+		this.#bootstrapped = false;
+		this.#bootstrapPromise = undefined;
+		this.#authLostNotified = false;
+		this.#commands.clear();
+		this.#transportUnsubscribe?.();
+		this.#transportUnsubscribe = undefined;
+		const previous = this.#transport;
+		this.#transport = new BrowserWebClientTransport(this.#options);
+		await previous.close().catch(() => {});
+	}
+
+	#reportAuthLost(error: unknown): void {
+		if (!(error instanceof StudioHttpError) || error.status !== 401 || this.#authLostNotified) return;
+		this.#authLostNotified = true;
+		for (const listener of this.#authLostListeners) {
+			try {
+				listener();
+			} catch {
+				// One page handler failing must not leave the others unnotified.
+			}
+		}
 	}
 
 	async bootstrap(): Promise<ClientBootstrap> {
 		if (this.#closed) throw { code: "TRANSPORT_ERROR", message: "client_closed" } satisfies ClientError;
 		if (this.#bootstrapPromise !== undefined) return this.#bootstrapPromise;
 		this.#ensureSubscribed();
+		const epoch = this.#transportEpoch;
 		const pending = this.#transport.bootstrap().then(bootstrap => {
+			if (epoch !== this.#transportEpoch) throw { code: "TRANSPORT_ERROR", message: "transport_reset" } satisfies ClientError;
 			this.#bootstrapped = true;
+			this.#authLostNotified = false;
 			return bootstrap;
+		}).catch(error => {
+			this.#reportAuthLost(error);
+			throw error;
 		});
 		this.#bootstrapPromise = pending;
 		try {
@@ -207,6 +260,7 @@ export class StudioWebClient implements StudioClient {
 		try {
 			response = await this.#transport.query({ queryName: name, input } as ClientQueryRequest<TName>);
 		} catch (error) {
+			this.#reportAuthLost(error);
 			throw asClientError(error);
 		}
 		if (!response.ok) throw response.error;
@@ -235,6 +289,7 @@ export class StudioWebClient implements StudioClient {
 		try {
 			accepted = await this.#transport.command(request);
 		} catch (error) {
+			this.#reportAuthLost(error);
 			const clientError = asClientError(error);
 			this.#commands.set(requestId, {
 				requestId: request.requestId,

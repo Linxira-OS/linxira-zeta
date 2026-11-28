@@ -16,7 +16,7 @@
  * handshake and `POST /api/im/switch/{confirm,cancel}` applies/discards it.
  * This pane keeps no pending state of its own and never switches optimistically.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { hostErrorMessage } from "./hostError";
 import { useI18n } from "./i18n";
 import {
@@ -122,100 +122,164 @@ export function TeamImChatPane({
   const [bindings, setBindings] = useState<ImChatBindingRef[] | undefined>();
   const [switchState, setSwitchState] = useState<ImChatSwitchState | undefined>();
   const [switchLoading, setSwitchLoading] = useState(false);
+  const [bindingsError, setBindingsError] = useState("");
   const [controlError, setControlError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [controlBusy, setControlBusy] = useState(false);
+  const controlBusyRef = useRef(false);
+  controlBusyRef.current = controlBusy;
 
   const selected = rows.find(row => row.canonicalSessionId === selectedSessionId) ?? rows[0];
+  useEffect(() => {
+    if (selectedSessionId === undefined || rows.some(row => row.canonicalSessionId === selectedSessionId)) return;
+    // The selected chat left the 3-day selector: fall back instead of keeping
+    // an identity that can never be fetched again.
+    setSelectedSessionId(rows[0]?.canonicalSessionId);
+  }, [rows, selectedSessionId]);
   const selectedBindingId = selected?.bindingId;
   const selectedBinding = useMemo(
     () => (selectedBindingId ? bindings?.find(binding => binding.id === selectedBindingId) : undefined),
     [selectedBindingId, bindings],
   );
+  const pending = switchState?.pending;
+  /**
+   * The router scopes a pending switch to this exact chat identity. Polling
+   * bindings must not re-run the switch read for an unchanged identity.
+   */
+  const bindingKey =
+    selectedBinding === undefined
+      ? undefined
+      : [
+          selectedBinding.id,
+          selectedBinding.instanceId,
+          selectedBinding.chatId,
+          selectedBinding.threadId ?? "",
+          selectedBinding.userId ?? "",
+        ].join("\u0000");
 
   useEffect(() => {
     let active = true;
-    void loadImChatBindings(fetcher)
-      .then(rows => {
-        if (active) setBindings(rows);
-      })
-      .catch(cause => {
-        if (active) setControlError(hostErrorMessage(cause, t("teamWorkspace.im.bindingsError")));
-      });
+    const load = async () => {
+      try {
+        const next = await loadImChatBindings(fetcher);
+        if (!active) return;
+        setBindings(next);
+        setBindingsError("");
+      } catch (cause) {
+        // A binding removed or added in IM settings shows up on the next poll.
+        if (active) setBindingsError(hostErrorMessage(cause, t("teamWorkspace.im.bindingsError")));
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 10_000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
   }, [fetcher, t]);
 
+  // The registry key is not a transcript id: a bot/relay entry may be keyed
+  // by `relay` or `im-<binding>` while the header carries a real session id.
+  // Reading by the registry key would ask for a nonexistent transcript and
+  // show its 404 as if the chat were missing.
+  const transcriptSessionId = selected?.transcriptSessionId;
+  const selectedSessionKey = selected?.canonicalSessionId;
+  const loadedTranscriptKey = useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    if (!selected) {
+    if (selectedSessionKey === undefined) {
+      loadedTranscriptKey.current = undefined;
       setTranscript(undefined);
+      setChatLoading(false);
+      setTranscriptError("");
       return;
     }
-    let active = true;
-    setTranscript(undefined);
-    setTranscriptError("");
-    // The registry key is not a transcript id: a bot/relay entry may be keyed
-    // by `relay` or `im-<binding>` while the header carries a real session id.
-    // Reading by the registry key would ask for a nonexistent transcript and
-    // show its 404 as if the chat were missing.
-    const transcriptSessionId = selected.transcriptSessionId;
+    // Clear only when the selected transcript changes; a periodic refresh
+    // keeps the current bubbles visible while the next read is in flight.
+    if (loadedTranscriptKey.current !== selectedSessionKey) {
+      loadedTranscriptKey.current = selectedSessionKey;
+      setTranscript(undefined);
+      setTranscriptError("");
+    }
     if (transcriptSessionId === undefined) {
       setChatLoading(false);
       setTranscriptError(t("teamWorkspace.im.transcriptMissing"));
-      return () => {
-        active = false;
-      };
+      return;
     }
-    setChatLoading(true);
-    void (async () => {
+    let active = true;
+    const load = async (initial: boolean) => {
+      if (initial) setChatLoading(true);
       try {
         const result = await loadImChatTranscript(transcriptSessionId, fetcher);
         if (!active) return;
         setTranscript(result);
+        setTranscriptError("");
       } catch (cause) {
-        if (active) {
-          setTranscriptError(hostErrorMessage(cause, t("teamWorkspace.im.transcriptError")));
-        }
+        if (active) setTranscriptError(hostErrorMessage(cause, t("teamWorkspace.im.transcriptError")));
       } finally {
-        if (active) setChatLoading(false);
+        if (active && initial) setChatLoading(false);
       }
-    })();
+    };
+    void load(true);
+    const timer = setInterval(() => void load(false), 3000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
-  }, [selected, t, fetcher]);
+  }, [transcriptSessionId, selectedSessionKey, fetcher, t]);
 
   useEffect(() => {
-    if (!selectedBinding) {
+    setConfirming(false);
+    if (selectedBinding === undefined) {
       setSwitchState(undefined);
       setSwitchLoading(false);
+      setControlError("");
       return;
     }
     let active = true;
+    setSwitchState(undefined);
     setSwitchLoading(true);
     setControlError("");
-    void loadImChatSwitch(selectedBinding, fetcher)
-      .then(state => {
-        if (active) setSwitchState(state);
-      })
-      .catch(cause => {
-        if (active) {
-          setControlError(hostErrorMessage(cause, t("teamWorkspace.im.switchStateError")));
-        }
-      })
-      .finally(() => {
-        if (active) setSwitchLoading(false);
-      });
+    const load = async (initial: boolean) => {
+      try {
+        const state = await loadImChatSwitch(selectedBinding, fetcher);
+        if (!active) return;
+        setSwitchState(state);
+        setControlError("");
+      } catch (cause) {
+        if (!active) return;
+        // A failed read is "unknown", never the previous chat's pending state.
+        setSwitchState(undefined);
+        setControlError(hostErrorMessage(cause, t("teamWorkspace.im.switchStateError")));
+      } finally {
+        if (active && initial) setSwitchLoading(false);
+      }
+    };
+    void load(true);
+    const timer = setInterval(() => {
+      if (!controlBusyRef.current) void load(false);
+    }, 5000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
-  }, [selectedBinding, fetcher, t]);
+  }, [bindingKey, fetcher, t]);
 
-  const refreshSwitch = async () => {
+  // A second confirmation belongs to one pending request; switching chats or
+  // receiving a different request must not inherit an armed first click.
+  useEffect(() => {
+    setConfirming(false);
+  }, [pending?.requestId]);
+
+  const refreshSwitch = async (): Promise<void> => {
     if (!selectedBinding) return;
-    const state = await loadImChatSwitch(selectedBinding, fetcher);
-    setSwitchState(state);
+    try {
+      const state = await loadImChatSwitch(selectedBinding, fetcher);
+      setSwitchState(state);
+    } catch (cause) {
+      setSwitchState(undefined);
+      setControlError(hostErrorMessage(cause, t("teamWorkspace.im.switchStateError")));
+    }
   };
 
   const confirm = async () => {
@@ -228,9 +292,12 @@ export function TeamImChatPane({
     setControlError("");
     try {
       await confirmImChatSwitch(selectedBinding, switchState.pending.requestId, fetcher);
-      await refreshSwitch();
       setConfirming(false);
+      // The router applied the switch; never keep its now-stale pending view.
+      setSwitchState(undefined);
+      await refreshSwitch();
     } catch (cause) {
+      setConfirming(false);
       setControlError(hostErrorMessage(cause, t("teamWorkspace.im.confirmError")));
     } finally {
       setControlBusy(false);
@@ -243,9 +310,11 @@ export function TeamImChatPane({
     setControlError("");
     try {
       await cancelImChatSwitch(selectedBinding, switchState.pending.requestId, fetcher);
-      await refreshSwitch();
       setConfirming(false);
+      setSwitchState(undefined);
+      await refreshSwitch();
     } catch (cause) {
+      setConfirming(false);
       setControlError(hostErrorMessage(cause, t("teamWorkspace.im.cancelError")));
     } finally {
       setControlBusy(false);
@@ -258,7 +327,6 @@ export function TeamImChatPane({
     return "";
   };
 
-  const pending = switchState?.pending;
   const currentTarget = targetLabel(switchState?.current);
   const currentFallback = selected?.workspaceAlias ?? (selected?.bindingId ? selected.bindingId : undefined);
   const pendingFrom = targetLabel(pending?.from) ?? (selected?.workspaceAlias ?? t("teamWorkspace.im.unknown"));
@@ -305,6 +373,7 @@ export function TeamImChatPane({
       </section>
 
       <section className="tic-chat">
+        {bindingsError ? <div className="tic-error">{bindingsError}</div> : null}
         {selected ? (
           <>
             <header className="tic-chat-head">

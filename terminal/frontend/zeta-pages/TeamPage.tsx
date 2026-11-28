@@ -1,4 +1,9 @@
-/** Active Team topology, projected by the Host from source-scoped rooms and Vibe workers. */
+/**
+ * Active Team topology, projected by the Host from source-scoped rooms and Vibe workers.
+ *
+ * The graph cluster id is derived from the live source scope, not from the
+ * Team DB slug, so the page deliberately takes no Team id filter.
+ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   StudioClient,
@@ -142,7 +147,7 @@ function NodeCard({
   );
 }
 
-export function TeamPage({ client, teamId }: { client: StudioClient; teamId?: string }) {
+export function TeamPage({ client }: { client: StudioClient }) {
   const { t, resolvedLanguage } = useI18n();
   const [phase, setPhase] = useState<Phase>("loading");
   const [graph, setGraph] = useState<TeamGraphReadModel | undefined>(undefined);
@@ -160,7 +165,6 @@ export function TeamPage({ client, teamId }: { client: StudioClient; teamId?: st
     void (async () => {
       try {
         const result = await client.query("team.graph.get", {
-          ...(teamId === undefined ? {} : { clusterId: `team:${teamId}` }),
           ...(project === "all" ? {} : { workspaceId: project as WorkspaceId }),
           ...(lifetime === "all" ? {} : { lifetime }),
         });
@@ -176,7 +180,7 @@ export function TeamPage({ client, teamId }: { client: StudioClient; teamId?: st
     return () => {
       active = false;
     };
-  }, [client, project, lifetime, nonce, t, teamId]);
+  }, [client, project, lifetime, nonce, t]);
 
   const filterOptions = useMemo(
     () => (graph ? teamFilterOptions(graph) : { pms: [], rooms: [], repos: [] }),

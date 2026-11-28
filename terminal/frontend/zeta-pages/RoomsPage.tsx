@@ -6,7 +6,7 @@
  * family. Unsupported capabilities stay invisible because the host manifest
  * only advertises registered handlers.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CommandInput,
   CommandName,
@@ -61,6 +61,10 @@ export function RoomsPage({ client }: { client: StudioClient }) {
   const [contacts, setContacts] = useState<
     ReadonlyArray<LocalRoomMemberReadModel>
   >([]);
+  const [loadingSelected, setLoadingSelected] = useState(false);
+  /** Latest room load wins; a slow earlier read must not replace it. */
+  const loadToken = useRef(0);
+  const roomsToken = useRef(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -82,14 +86,21 @@ export function RoomsPage({ client }: { client: StudioClient }) {
   );
 
   const loadRooms = useCallback(async () => {
+    const token = ++roomsToken.current;
     setPhase("loading");
     setError("");
     try {
       const result = await client.query("rooms.list", {});
+      if (token !== roomsToken.current) return;
       setRooms(result.rooms);
-      setSelected((current) => current ?? result.rooms[0]?.room.roomId);
+      setSelected(current =>
+        current !== undefined && result.rooms.some(room => room.room.roomId === current)
+          ? current
+          : result.rooms[0]?.room.roomId,
+      );
       setPhase("ready");
     } catch (cause) {
+      if (token !== roomsToken.current) return;
       setError(hostErrorMessage(cause, t("rooms.error")));
       setPhase("error");
     }
@@ -97,23 +108,37 @@ export function RoomsPage({ client }: { client: StudioClient }) {
 
   const loadSelected = useCallback(
     async (roomId: string) => {
+      const token = ++loadToken.current;
+      setLoadingSelected(true);
+      setError("");
       try {
         const [next, contactList] = await Promise.all([
           client.query("room.get", { roomId }),
           client.query("room.contacts.list", { roomId }),
         ]);
+        if (token !== loadToken.current) return;
         setSnapshot(next);
         setContacts(contactList.contacts);
         if (next.lastSeq > 0) {
-          const handle = await client.command("room.markRead", {
-            roomId,
-            memberId: "user",
-            seq: next.lastSeq,
-          });
-          await waitReceipt(client, handle.requestId);
+          try {
+            const handle = await client.command("room.markRead", {
+              roomId,
+              memberId: "user",
+              seq: next.lastSeq,
+            });
+            await waitReceipt(client, handle.requestId);
+          } catch (cause) {
+            // The read already succeeded; a cursor write must not erase it.
+            if (token === loadToken.current) setError(hostErrorMessage(cause, t("rooms.error")));
+          }
         }
       } catch (cause) {
+        if (token !== loadToken.current) return;
+        setSnapshot(undefined);
+        setContacts([]);
         setError(hostErrorMessage(cause, t("rooms.error")));
+      } finally {
+        if (token === loadToken.current) setLoadingSelected(false);
       }
     },
     [client, t],
@@ -124,17 +149,29 @@ export function RoomsPage({ client }: { client: StudioClient }) {
   }, [loadRooms]);
 
   useEffect(() => {
+    // A reply target is a sequence in one room; it cannot cross rooms.
+    setReplyTo(undefined);
+  }, [selected]);
+
+  useEffect(() => {
     if (selected === undefined) {
       setSnapshot(undefined);
       setContacts([]);
+      setLoadingSelected(false);
       return;
     }
+    // Clear the previous room before its read lands so a slow response never
+    // renders one room's header over another room's members and events.
+    setSnapshot(undefined);
+    setContacts([]);
+    setError("");
     void loadSelected(selected);
   }, [selected, loadSelected]);
 
   const run = useCallback(
     async (work: () => Promise<void>, okText: string) => {
       setBusy(true);
+      setError("");
       setNotice("");
       try {
         await work();
@@ -365,7 +402,7 @@ export function RoomsPage({ client }: { client: StudioClient }) {
       </aside>
 
       <section className="room-chat">
-        {selectedRoom && snapshot ? (
+        {selectedRoom && snapshot && snapshot.room.roomId === selected ? (
           <>
             <header className="room-chat-head">
               <div>
@@ -572,6 +609,8 @@ export function RoomsPage({ client }: { client: StudioClient }) {
               </div>
             </footer>
           </>
+        ) : loadingSelected ? (
+          <div className="room-empty">{t("rooms.loading")}</div>
         ) : (
           <div className="room-empty">
             <Icon name="message" />

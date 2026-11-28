@@ -9,7 +9,7 @@ export interface WebSocketLike { send(data: string): void; close(): void; onopen
  */
 export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-export interface BrowserWebClientOptions { baseUrl: string; contextId?: string; supportsContexts?: boolean; fetcher?: FetchLike; webSocketFactory?: (url: string) => WebSocketLike; }
+export interface BrowserWebClientOptions { baseUrl: string; contextId?: string; supportsContexts?: boolean; fetcher?: FetchLike; webSocketFactory?: (url: string) => WebSocketLike; /** Reconnect base delay; a test seam, production omits it (500 ms). */ reconnectBaseMs?: number; }
 
 /**
  * A non-2xx answer from the Studio host.
@@ -100,26 +100,55 @@ export class BrowserWebClientTransport implements ClientTransport {
     if(!this.#wsFactory) throw new Error('websocket_unavailable');
     let active = true;
     let socket: WebSocketLike | undefined;
-    let cancelOpening: (() => void) | undefined;
-    const open = () => {
-      if (!active || this.#closed) return;
+    let retry: number | undefined;
+    let attempts = 0;
+    let opened = false;
+
+    /**
+     * The host closes an event socket on device revoke, session expiry or a
+     * transient restart. Reopen it with bounded backoff so later command
+     * receipts can still arrive; an in-flight receipt lost in the gap cannot
+     * be replayed and still settles through `waitReceipt`'s timeout.
+     */
+    const scheduleRetry = () => {
+      if (!active || this.#closed || retry !== undefined) return;
+      const base = this.#options.reconnectBaseMs ?? 500;
+      const delay = Math.min(15_000, base * 2 ** Math.min(attempts, 5));
+      attempts += 1;
+      retry = setTimeout(() => {
+        retry = undefined;
+        if (active && !this.#closed) void connect(false).catch(() => {});
+      }, delay) as unknown as number;
+    };
+
+    const connect = (trackOpening: boolean): Promise<void> => {
+      if (!active || this.#closed) return Promise.resolve();
       const ws = this.#wsFactory!(this.#base.replace(/^http/,'ws')+'/api/v1/events'+(this.#options.contextId ? '?contextId='+encodeURIComponent(this.#options.contextId) : ''));
       socket = ws;
       this.#sockets.add(ws);
-      const opening = new Promise<void>((resolve, reject) => {
-        cancelOpening = resolve;
-        ws.onopen=()=>{ ws.send(JSON.stringify({scope})); resolve(); };
-        ws.onmessage=(e)=>{ try { listener(JSON.parse(e.data)); } catch {} };
-        ws.onclose=()=>{ this.#sockets.delete(ws); reject(new Error('websocket_closed')); };
-      });
-      this.#openingSubscriptions.add(opening);
-      void opening.then(() => this.#openingSubscriptions.delete(opening), () => this.#openingSubscriptions.delete(opening));
+      const { promise: opening, resolve, reject } = Promise.withResolvers<void>();
+      let settled = false;
+      ws.onopen=()=>{ attempts = 0; opened = true; ws.send(JSON.stringify({scope})); if (!settled) { settled = true; resolve(); } };
+      ws.onmessage=(e)=>{ try { listener(JSON.parse(e.data)); } catch {} };
+      ws.onclose=()=>{
+        this.#sockets.delete(ws);
+        if (!settled) { settled = true; reject(new Error('websocket_closed')); }
+        if (!active || this.#closed) return;
+        // The first open is awaited by bootstrap; a failed one is reported
+        // there instead of spinning. Any later drop keeps retrying.
+        if (opened || this.#bootstrapped) { opened = false; scheduleRetry(); }
+      };
+      if (trackOpening) {
+        this.#openingSubscriptions.add(opening);
+        void opening.then(() => this.#openingSubscriptions.delete(opening), () => this.#openingSubscriptions.delete(opening));
+      }
       return opening;
     };
+    const open = () => connect(true);
     if (this.#bootstrapped) void open()?.catch(() => {}); else this.#pendingSubscriptions.add(open);
     return ()=>{
       active = false;
-      cancelOpening?.();
+      if (retry !== undefined) { clearTimeout(retry); retry = undefined; }
       this.#pendingSubscriptions.delete(open);
       if (socket) { this.#sockets.delete(socket); socket.close(); }
     };

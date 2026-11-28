@@ -1,12 +1,15 @@
 /**
- * Standalone Team/Rooms entry.
+ * Standalone Team/Rooms/IM entry.
  *
- * Routes: `/` and `/team` open the Team workspace; `/rooms` opens local rooms.
+ * Routes: `/` and `/team` open the Team workspace; `/rooms` opens local rooms;
+ * `/im` opens the Team workspace's IM chat tab. The same route is recognized
+ * under the `/zeta-pages` mount and the ADR-0101 `/pages` alias.
  * A `#zeta-pair=` fragment is consumed by `main.tsx` before this mounts.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { hostErrorMessage } from "./hostError";
 import { useI18n } from "./i18n";
+import { pagePathFor, pageRouteFromPath, type PageRoute } from "./pageRoutes";
 import { RoomsPage } from "./RoomsPage";
 import { TeamWorkspacePage } from "./TeamWorkspacePage";
 import { installStepUpPrompt, StudioHttpError, type StudioWebClient } from "./client";
@@ -17,7 +20,6 @@ import "./styles/pages.css";
 import "./app.css";
 
 type Phase = "connecting" | "ready" | "pair" | "error";
-type Route = "team" | "rooms";
 
 interface StepUpRequest {
 	readonly resolve: (code: string | null) => void;
@@ -27,19 +29,14 @@ export function App({ client, pairCode }: { client: StudioWebClient; pairCode: s
 	const { t, locale, setLocale } = useI18n();
 	const [phase, setPhase] = useState<Phase>("connecting");
 	const [error, setError] = useState("");
-	const [route, setRoute] = useState<Route>(() =>
-		window.location.pathname === "/rooms" || window.location.pathname.startsWith("/rooms/") ? "rooms" : "team",
-	);
+	const [route, setRoute] = useState<PageRoute>(() => pageRouteFromPath(window.location.pathname));
 	const [pairDraft, setPairDraft] = useState("");
 	const [pairBusy, setPairBusy] = useState(false);
 	const [stepUp, setStepUp] = useState<StepUpRequest | null>(null);
 	const [stepUpDraft, setStepUpDraft] = useState("");
 
 	useEffect(() => {
-		const onPopState = () =>
-			setRoute(
-				window.location.pathname === "/rooms" || window.location.pathname.startsWith("/rooms/") ? "rooms" : "team",
-			);
+		const onPopState = () => setRoute(pageRouteFromPath(window.location.pathname));
 		window.addEventListener("popstate", onPopState);
 		return () => window.removeEventListener("popstate", onPopState);
 	}, []);
@@ -52,6 +49,25 @@ export function App({ client, pairCode }: { client: StudioWebClient; pairCode: s
 			return promise;
 		});
 	}, []);
+
+	useEffect(() => {
+		return client.onAuthLost(() => {
+			// Revoked device or expired session: drop the old cookie-bound
+			// transport before showing pairing, so a new code cannot reuse an
+			// event socket attached to the previous identity.
+			void client.reset();
+			setPhase("pair");
+			setError("");
+		});
+	}, [client]);
+
+	useEffect(() => {
+		if (phase !== "ready") return;
+		// Rooms and IM can sit without a Studio query; a low-frequency bootstrap
+		// notices a device revoke even when the user is only reading a transcript.
+		const timer = setInterval(() => void client.bootstrap().catch(() => {}), 15_000);
+		return () => clearInterval(timer);
+	}, [client, phase]);
 
 	const boot = useCallback(
 		async (code?: string) => {
@@ -87,8 +103,8 @@ export function App({ client, pairCode }: { client: StudioWebClient; pairCode: s
 		void boot(pairCode ?? undefined);
 	}, [boot, pairCode]);
 
-	const navigate = (next: Route) => {
-		const path = next === "rooms" ? "/rooms" : "/";
+	const navigate = (next: PageRoute) => {
+		const path = pagePathFor(next, window.location.pathname);
 		if (window.location.pathname !== path) {
 			window.history.pushState(null, "", path);
 		}
@@ -163,7 +179,9 @@ export function App({ client, pairCode }: { client: StudioWebClient; pairCode: s
 				</div>
 			);
 		}
-		return route === "rooms" ? <RoomsPage client={client} /> : <TeamWorkspacePage client={client} />;
+		if (route === "rooms") return <RoomsPage client={client} />;
+		if (route === "im") return <TeamWorkspacePage key="im" client={client} initialTab="im" />;
+		return <TeamWorkspacePage key="team" client={client} />;
 	}, [client, error, pairBusy, pairDraft, phase, route, t]);
 
 	return (
@@ -186,6 +204,14 @@ export function App({ client, pairCode }: { client: StudioWebClient; pairCode: s
 						onClick={() => navigate("rooms")}
 					>
 						{t("teamPages.nav.rooms")}
+					</button>
+					<button
+						type="button"
+						className={route === "im" ? "active" : undefined}
+						aria-current={route === "im" ? "page" : undefined}
+						onClick={() => navigate("im")}
+					>
+						{t("teamWorkspace.im")}
 					</button>
 				</nav>
 				<span className="zp-spacer" />

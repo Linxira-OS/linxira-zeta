@@ -222,12 +222,15 @@ function Select({
 export function TeamWorkspacePage({
   client,
   initialTeamId,
+  initialTab,
   imChat,
   imCandidates,
 }: {
   client: StudioClient;
   /** Existing Team selected by the host route; omit to use the first registered Team. */
   initialTeamId?: string;
+  /** Route entry: `/im` opens the IM chat tab instead of the overview. */
+  initialTab?: Tab;
   /**
    * Optional IM Chat subpage override. The default pane reads the IM selector
    * candidates and the canonical gateway transcript; it never copies a
@@ -245,7 +248,7 @@ export function TeamWorkspacePage({
   const [teamId, setTeamId] = useState(initialTeamId ?? "");
   const [workspace, setWorkspace] = useState<TeamWorkspaceReadModel | undefined>();
   const [doctor, setDoctor] = useState<TeamDoctorSummary | undefined>();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -265,7 +268,9 @@ export function TeamWorkspacePage({
         if (!active) return;
         setTeams([...result.teams]);
         setTeamId(current => current || initialTeamId || result.teams[0]?.id || "");
-        if (result.teams.length === 0) setTab("onboarding");
+        // IM chat is a gateway surface, not a Team DB row: a direct /im link
+        // must stay on IM even when no Team is registered yet.
+        if (result.teams.length === 0 && initialTab !== "im") setTab("onboarding");
         setError("");
       } catch (cause) {
         if (active) setError(hostErrorMessage(cause, copy.error));
@@ -276,7 +281,7 @@ export function TeamWorkspacePage({
     return () => {
       active = false;
     };
-  }, [client, initialTeamId, nonce, copy.error]);
+  }, [client, initialTeamId, initialTab, nonce, copy.error]);
 
   useEffect(() => {
     if (!teamId) {
@@ -315,20 +320,24 @@ export function TeamWorkspacePage({
     let active = true;
     setImLoading(true);
     setImError("");
-    void loadImChatCandidates()
-      .then(rows => {
-        if (active) setFetchedCandidates(rows);
-      })
-      .catch(cause => {
+    const load = async () => {
+      try {
+        const rows = await loadImChatCandidates();
         if (!active) return;
-        setFetchedCandidates(undefined);
-        setImError(hostErrorMessage(cause, copy.error));
-      })
-      .finally(() => {
+        setFetchedCandidates(rows);
+        setImError("");
+      } catch (cause) {
+        // Keep the last honest list visible; the error names the read failure.
+        if (active) setImError(hostErrorMessage(cause, copy.error));
+      } finally {
         if (active) setImLoading(false);
-      });
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 5000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
   }, [tab, imChat, imCandidates, nonce, copy.error]);
 
@@ -467,12 +476,12 @@ export function TeamWorkspacePage({
 
       {tab === "graph" ? (
         workspace ? (
-          <TeamPage client={client} teamId={workspace.team.id} />
+          <TeamPage client={client} />
         ) : (
           <div className="tw-empty">{error || copy.loading}</div>
         )
       ) : tab === "im" ? (
-        <div className="tw-body">
+        <div className="tw-body" key={workspace?.team.id ?? "im"}>
           <p className="tw-hint">{copy.imBoundary}</p>
           {imError ? <div className="tw-banner error">{imError}</div> : null}
 					{imChat ?? <TeamImChatPane candidates={imCandidates ?? fetchedCandidates} loading={imLoading} />}
@@ -505,7 +514,7 @@ export function TeamWorkspacePage({
           <div className="tw-empty">{copy.loading}</div>
         )
       ) : (
-        <div className="tw-body">
+        <div className="tw-body" key={workspace.team.id}>
           {tab === "overview" ? (
             <OverviewTab
               client={client}
@@ -548,6 +557,7 @@ export function TeamWorkspacePage({
               perform={perform}
               labelFor={labelFor}
               locale={resolvedLanguage}
+              refreshKey={nonce}
             />
           ) : null}
 					{tab === "board" ? <BoardTab client={client} teamId={workspace.team.id} copy={copy} /> : null}
@@ -1768,6 +1778,7 @@ function RoomsTab({
   perform,
   labelFor,
   locale,
+  refreshKey,
 }: {
   client: StudioClient;
   copy: Copy;
@@ -1776,6 +1787,8 @@ function RoomsTab({
   perform: (action: () => Promise<unknown>, ok: string) => Promise<void>;
   labelFor: (id: string | null) => string;
   locale: string;
+  /** Parent reload counter; a membership write re-reads the open room immediately. */
+  refreshKey: number;
 }) {
   const [roomName, setRoomName] = useState(workspace.rooms[0]?.name ?? "");
   const [roomView, setRoomView] = useState<TeamRoomView | undefined>();
@@ -1796,6 +1809,19 @@ function RoomsTab({
   const reloadRef = useRef<() => void>(() => {});
 
   const memberChoices = memberOptions(workspace.pms, workspace.engineers);
+  /** A just-created room is absent from the parent snapshot until its reload lands. */
+  const pendingRoomRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    const pending = pendingRoomRef.current;
+    if (pending !== undefined) {
+      if (workspace.rooms.some(room => room.name === pending)) pendingRoomRef.current = undefined;
+      else return;
+    }
+    if (roomName !== "" && workspace.rooms.some(room => room.name === roomName)) return;
+    const first = workspace.rooms[0]?.name ?? "";
+    if (roomName !== first) setRoomName(first);
+  }, [roomName, workspace.rooms]);
 
   const openDirectMessage = () => {
     const roomName = `dm-${dmTarget.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
@@ -1811,6 +1837,7 @@ function RoomsTab({
         members: [dmTarget],
       });
       await waitReceipt(client, handle.requestId);
+      pendingRoomRef.current = roomName;
       setRoomName(roomName);
     }, "Direct message opened");
   };
@@ -1854,7 +1881,7 @@ function RoomsTab({
       reloadRef.current = () => {};
       clearInterval(timer);
     };
-  }, [client, roomName, viewer, workspace.team.id]);
+  }, [client, roomName, viewer, workspace.team.id, refreshKey]);
 
   const selectedRoom = workspace.rooms.find(room => room.name === roomName);
   const subscription = roomView?.subscription;
@@ -1923,6 +1950,7 @@ function RoomsTab({
                 ...(newMembers.length > 0 ? { members: newMembers } : {}),
               });
               await waitReceipt(client, handle.requestId);
+              pendingRoomRef.current = newRoom.trim();
               setRoomName(newRoom.trim());
               setNewRoom("");
             }, "Room created")
