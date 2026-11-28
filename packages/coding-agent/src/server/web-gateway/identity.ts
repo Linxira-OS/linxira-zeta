@@ -38,6 +38,8 @@ export interface ServeIdentity {
 	webUrl?: string;
 	statsUrl?: string;
 	gatewayUrl?: string | null;
+	/** ADR-0101 external page entries on this server. */
+	pages?: { team: string; rooms: string; im: string };
 }
 
 let instanceUrls: ServeInstanceUrls | null = null;
@@ -57,6 +59,7 @@ export function serveIdentity(): ServeIdentity {
 	// Before any registration (dev, tests) fall back to this process's real
 	// start time rather than "now", so a probe never reads a fresh boot.
 	const startedAt = registeredStartedAt ?? new Date(Date.now() - process.uptime() * 1000).toISOString();
+	const pageBase = instanceUrls ? instanceUrls.webUrl.replace(/\/+$/, "") : undefined;
 	return {
 		app: SERVE_IDENTITY_APP,
 		version: VERSION,
@@ -64,6 +67,15 @@ export function serveIdentity(): ServeIdentity {
 		startedAt,
 		...(instanceUrls
 			? { webUrl: instanceUrls.webUrl, statsUrl: instanceUrls.statsUrl, gatewayUrl: instanceUrls.gatewayUrl }
+			: {}),
+		...(pageBase
+			? {
+					pages: {
+						team: `${pageBase}/pages/team/`,
+						rooms: `${pageBase}/pages/rooms/`,
+						im: `${pageBase}/pages/im/`,
+					},
+				}
 			: {}),
 	};
 }

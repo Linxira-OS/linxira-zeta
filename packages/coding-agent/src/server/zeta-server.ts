@@ -73,7 +73,12 @@ import {
 	type TerminalWsData,
 } from "./web-gateway/terminal";
 import { registerServeInstanceUrls } from "./web-gateway/identity";
-import { resolveStudioPagesDir, resolveStudioWebAppDir, serveStudioWebApp } from "./studio-web-app";
+import {
+	resolvePagesSurfacePath,
+	resolveStudioPagesDir,
+	resolveStudioWebAppDir,
+	serveStudioWebApp,
+} from "./studio-web-app";
 import { isStudioRequest, isStudioWsUpgradeRequest, studioHost } from "./studio-host";
 import { shutdownStudioEvaluations } from "./studio-host/services/evaluation-runtime";
 import { shutdownComputerPrivateResources } from "./studio-host/services/computer-runtime";
@@ -1534,15 +1539,10 @@ export class ZetaServer {
 						return studioHost().handle(req, remoteAddr);
 					case "webapp": {
 						const pathname = new URL(req.url).pathname;
-						if (
-							pagesDir &&
-							(pathname === "/team" || pathname === "/rooms" || pathname.startsWith("/zeta-pages/"))
-						) {
-							const rewritten =
-								pathname === "/team" || pathname === "/rooms" ? new URL(req.url) : new URL(req.url);
-							rewritten.pathname = pathname.startsWith("/zeta-pages/")
-								? pathname.slice("/zeta-pages".length)
-								: pathname;
+						const pagePath = pagesDir ? resolvePagesSurfacePath(pathname) : null;
+						if (pagesDir && pagePath) {
+							const rewritten = new URL(req.url);
+							rewritten.pathname = pagePath;
 							return serveStudioWebApp(
 								new Request(rewritten.toString(), { method: req.method, headers: req.headers }),
 								pagesDir,

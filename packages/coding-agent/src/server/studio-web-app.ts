@@ -235,6 +235,28 @@ function fileResponse(req: Request, target: string, extension: string, immutable
 }
 
 /**
+ * The Team/Rooms/IM client route a request names, or `null` for another path.
+ *
+ * `/zeta-pages/*` is the mounted bundle path; `/team`, `/rooms` and `/im` are
+ * the direct entries; `/pages/*` is the ADR-0101 stable alias. Trailing slashes
+ * collapse to the same client route.
+ */
+export function resolvePagesSurfacePath(pathname: string): string | null {
+	const route = (suffix: string): string | null => {
+		const normalized = `/${suffix.replace(/^\/+|\/+$/g, "")}`;
+		if (normalized === "/" || normalized === "/team" || normalized === "/rooms" || normalized === "/im")
+			return normalized === "/" ? "/team" : normalized;
+		return null;
+	};
+	const direct = pathname.replace(/\/+$/, "") || "/";
+	if (direct === "/team" || direct === "/rooms" || direct === "/im") return direct;
+	if (pathname === "/pages" || pathname.startsWith("/pages/")) return route(pathname.slice("/pages".length));
+	if (pathname === "/zeta-pages" || pathname.startsWith("/zeta-pages/"))
+		return route(pathname.slice("/zeta-pages".length));
+	return null;
+}
+
+/**
  * Answer one renderer request from `dir`.
  *
  * Only `GET`/`HEAD` are served. A path that resolves to a real file is served

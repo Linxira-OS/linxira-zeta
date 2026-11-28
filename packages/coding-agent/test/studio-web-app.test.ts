@@ -9,7 +9,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import { brotliCompressSync, brotliDecompressSync, gzipSync, gunzipSync } from "node:zlib";
-import { STUDIO_RENDERER_CSP, resolveStudioWebAppDirFrom, serveStudioWebApp } from "../src/server/studio-web-app";
+import {
+	STUDIO_RENDERER_CSP,
+	resolvePagesSurfacePath,
+	resolveStudioWebAppDirFrom,
+	serveStudioWebApp,
+} from "../src/server/studio-web-app";
 
 const roots: string[] = [];
 
@@ -226,4 +231,26 @@ describe("Studio renderer compression", () => {
 		const sidecar = await fs.stat(path.join(dir, assetDir, `${assetName}.br`));
 		expect(response.headers.get("content-length")).toBe(String(sidecar.size));
 	});
+});
+
+describe("Team/Rooms/IM page routes", () => {
+	it.each([
+		["/team", "/team"],
+		["/rooms/", "/rooms"],
+		["/im", "/im"],
+		["/pages", "/team"],
+		["/pages/team/", "/team"],
+		["/pages/rooms", "/rooms"],
+		["/pages/im/", "/im"],
+		["/zeta-pages", "/team"],
+		["/zeta-pages/team/", "/team"],
+		["/zeta-pages/im", "/im"],
+	])("maps %s to its client route", (pathname, route) => {
+		expect(resolvePagesSurfacePath(pathname)).toBe(route);
+	});
+
+	it.each(["/", "/settings", "/pages/unknown", "/zeta-pages/unknown", "/api/status"])(
+		"leaves %s outside the page surface",
+		pathname => expect(resolvePagesSurfacePath(pathname)).toBeNull(),
+	);
 });

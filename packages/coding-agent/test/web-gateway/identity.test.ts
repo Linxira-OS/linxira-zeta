@@ -60,6 +60,11 @@ describe("serve identity payload", () => {
 		expect(identity.startedAt).toBe("2026-10-13T00:00:00.000Z");
 		expect(identity.webUrl).toBe("http://127.0.0.1:30141");
 		expect(identity.gatewayUrl).toBe("http://127.0.0.1:30142");
+		expect(identity.pages).toEqual({
+			team: "http://127.0.0.1:30141/pages/team/",
+			rooms: "http://127.0.0.1:30141/pages/rooms/",
+			im: "http://127.0.0.1:30141/pages/im/",
+		});
 	});
 
 	test("drops the URLs once withdrawn and still reports this process's age", () => {
