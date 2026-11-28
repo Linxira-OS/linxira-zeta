@@ -1822,8 +1822,6 @@ export const en = {
 	attachHintTheme: "there is no `/theme` command; change themes in `/settings`",
 	attachHintHelp:
 		"open the shortcut sheet with `/hotkeys` (the plain `zetacode attach` client answers `/help` itself)",
-	attachHint2fa: "run `/2fa` in the terminal that owns the local Serve runtime",
-	attachHintChannels: "run `/channels` in the terminal that hosts the channel runtime, or use `zetacode channels …`",
 	attachHintGeneric: "run it from the terminal that owns the backend session",
 	attachClientSideCommandFmt: "/%s is a client-side command; run it in the full TUI (zetacode --attach)",
 	attachFullTuiFmt: "/%s needs the full TUI: zetacode --attach",
@@ -1869,6 +1867,11 @@ export const en = {
 	cmdChannelsInstances: "instances / targets / bindings",
 	cmdChannelsEnableInstance: "enable-instance <instance-id>",
 	cmdChannelsDisableInstance: "disable-instance <instance-id>",
+	cmdAmbient: "Optional ASCII fish tank for TSP terminals",
+	cmdAmbientOn: "Start the tank (TSP terminals only)",
+	cmdAmbientOff: "Stop the tank",
+	cmdAmbientFeed: "Drop food at a cell",
+	cmdAmbientStatus: "Show tank state",
 	settingsResetConfirmHint:
 		"This will reset %s configured setting(s) to defaults. Run /settings reset confirm to proceed.",
 	settingsResetDoneFmt: "Reset %s setting(s) to defaults.",

@@ -3,6 +3,7 @@ import { M, type Messages } from "../i18n";
 import { en } from "../i18n/en";
 import type { AutocompleteItem } from "../autocomplete/autocomplete";
 import { BUILTIN_CHANNELS_SLASH_COMMAND } from "./builtin-channels";
+import { BUILTIN_AMBIENT_SLASH_COMMAND } from "./builtin-ambient";
 import { BUILTIN_COMMIT_SLASH_COMMANDS } from "./builtin-commit";
 import {
 	buildArgumentCompletions,
@@ -80,6 +81,7 @@ const RAW_BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_SKILLS_SLASH_COMMANDS,
 	...BUILTIN_CONTROL_SLASH_COMMANDS,
 	BUILTIN_CHANNELS_SLASH_COMMAND,
+	BUILTIN_AMBIENT_SLASH_COMMAND,
 	...BUILTIN_EDITS_SLASH_COMMANDS,
 	BUILTIN_TWO_FACTOR_SLASH_COMMAND,
 	...BUILTIN_ZETA_SLASH_COMMANDS,

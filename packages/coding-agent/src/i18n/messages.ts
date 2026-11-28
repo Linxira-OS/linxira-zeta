@@ -1841,8 +1841,6 @@ export interface Messages {
 	attachUnavailableFmt: string;
 	attachHintTheme: string;
 	attachHintHelp: string;
-	attachHint2fa: string;
-	attachHintChannels: string;
 	attachHintGeneric: string;
 	attachClientSideCommandFmt: string;
 	attachFullTuiFmt: string;
@@ -1887,6 +1885,11 @@ export interface Messages {
 	cmdChannelsInstances: string;
 	cmdChannelsEnableInstance: string;
 	cmdChannelsDisableInstance: string;
+	cmdAmbient: string;
+	cmdAmbientOn: string;
+	cmdAmbientOff: string;
+	cmdAmbientFeed: string;
+	cmdAmbientStatus: string;
 	cmdSettingsReset: string;
 	settingsResetConfirmHint: string;
 	settingsResetDoneFmt: string;
